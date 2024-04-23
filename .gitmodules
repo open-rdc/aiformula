@@ -1,0 +1,3 @@
+[submodule "EC7D_AIformula_Control"]
+	path = EC7D_AIformula_Control
+	url = https://github.com/masakifujiwara1/EC7D_AIformula_Control.git
