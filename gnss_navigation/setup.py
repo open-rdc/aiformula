@@ -23,7 +23,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'hoge = gnss_navigation.hoge:main'
+            'gnss_path_publisher = gnss_navigation.gnss_path_publisher:main'
         ],
     },
 )
