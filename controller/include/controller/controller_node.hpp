@@ -40,35 +40,36 @@ private:
     bool is_autonomous = false;
     bool is_emergency = false;
 
-    utils::UpEdge upedge_home;
-    utils::UpEdge upedge_capture;
-    utils::UpEdge upedge_plus;
-    utils::UpEdge upedge_a;
-    utils::UpEdge upedge_b;
+    utils::UpEdge upedge_ps;
+    utils::UpEdge upedge_share;
+    utils::UpEdge upedge_options;
+    utils::UpEdge upedge_circle;
+    utils::UpEdge upedge_cross;
 
     enum class Axes{
         L_x,
         L_y,
+        L2,
         R_x,
         R_y,
+        R2,
         left_and_right,
         up_and_down
     };
     enum class Buttons{
-        B,
-        A,
-        Y,
-        X,
-        L,
-        R,
-        ZL,
-        ZR,
-        Minus,
-        Plus,
-        Lstick,
-        Rstick,
-        Home,
-        Capture
+        Cross,
+        Circle,
+        Triangle,
+        Rectangles,
+        L1,
+        R1,
+        L2,
+        R2,
+        Share,
+        Options,
+        PS,
+        L3,
+        R3
     };
 
 };
