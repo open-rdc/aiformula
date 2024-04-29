@@ -32,8 +32,8 @@ public:
                 tokens.push_back(cell);
             }
 
-            double lat = std::stod(tokens[0]);
-            double lon = std::stod(tokens[1]);
+            double lon = std::stod(tokens[0]);
+            double lat = std::stod(tokens[1]);
 
             // GPS座標をUTM座標に変換
             auto [x, y] = convertGPStoUTM(lat, lon);
@@ -71,7 +71,7 @@ private:
     }
     PJ *P = proj_create_crs_to_crs(PJ_DEFAULT_CTX, "EPSG:4326", "EPSG:32654", nullptr);
     if (!P) {
-        std::cerr << "Projection creation failed: " << proj_errno_string(proj_errno(nullptr)) << std::endl;
+        std::cerr << "Projection creation failed: " << proj_errno_string(proj_errno(PJ_DEFAULT_CTX)) << std::endl;
         return {std::numeric_limits<double>::infinity(), std::numeric_limits<double>::infinity()};
     }
 
