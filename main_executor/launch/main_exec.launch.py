@@ -35,8 +35,8 @@ def generate_launch_description():
 
     # 操縦機ノードの作成
     joy_node = Node(
-        package = 'joy_linux',
-        executable = 'joy_linux_node',
+        package = 'joy',
+        executable = 'joy_node',
         output='screen'
     )
 
