@@ -28,11 +28,22 @@ include_directories(
   ${PROJ_INCLUDE_DIR}
 )
 
-# Declare a C++ executable
+# Declare a C++ executable for gnss_path_publisher
 add_executable(gnss_path_publisher gnss_navigation/gnss_path_publisher.cpp)
+
+# Declare a C++ executable for gnss_path_follower
+add_executable(gnss_path_follower gnss_navigation/gnss_path_follower.cpp)
 
 # Specify libraries to link a library or executable target against
 target_link_libraries(gnss_path_publisher
+  ${rclcpp_LIBRARIES}
+  ${nav_msgs_LIBRARIES}
+  ${geometry_msgs_LIBRARIES}
+  ${EIGEN3_LIBRARIES}
+  ${PROJ_LIBRARY}
+)
+
+target_link_libraries(gnss_path_follower
   ${rclcpp_LIBRARIES}
   ${nav_msgs_LIBRARIES}
   ${geometry_msgs_LIBRARIES}
@@ -48,9 +59,17 @@ ament_target_dependencies(gnss_path_publisher
   Eigen3
 )
 
+ament_target_dependencies(gnss_path_follower
+  rclcpp
+  nav_msgs
+  geometry_msgs
+  Eigen3
+)
+
 # Install targets
 install(TARGETS
   gnss_path_publisher
+  gnss_path_follower
   DESTINATION lib/${PROJECT_NAME}
 )
 
