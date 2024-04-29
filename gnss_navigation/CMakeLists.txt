@@ -16,6 +16,8 @@ find_package(rclcpp REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(Eigen3 REQUIRED)
+find_package(tf2 REQUIRED)  # Added tf2 package
+find_package(tf2_ros REQUIRED)  # Added tf2_ros package
 
 # Include directories for PROJ
 find_path(PROJ_INCLUDE_DIR NAMES proj.h PATHS /usr/include)
@@ -26,6 +28,8 @@ include_directories(
   include
   ${EIGEN3_INCLUDE_DIR}
   ${PROJ_INCLUDE_DIR}
+  ${tf2_INCLUDE_DIRS}  # Include directory for tf2
+  ${tf2_ros_INCLUDE_DIRS}  # Include directory for tf2_ros
 )
 
 # Declare a C++ executable for gnss_path_publisher
@@ -41,6 +45,8 @@ target_link_libraries(gnss_path_publisher
   ${geometry_msgs_LIBRARIES}
   ${EIGEN3_LIBRARIES}
   ${PROJ_LIBRARY}
+  ${tf2_LIBRARIES}  # Link tf2 libraries
+  ${tf2_ros_LIBRARIES}  # Link tf2_ros libraries
 )
 
 target_link_libraries(gnss_path_follower
@@ -49,6 +55,8 @@ target_link_libraries(gnss_path_follower
   ${geometry_msgs_LIBRARIES}
   ${EIGEN3_LIBRARIES}
   ${PROJ_LIBRARY}
+  ${tf2_LIBRARIES}  # Link tf2 libraries
+  ${tf2_ros_LIBRARIES}  # Link tf2_ros libraries
 )
 
 # Additional target dependencies
@@ -57,6 +65,8 @@ ament_target_dependencies(gnss_path_publisher
   nav_msgs
   geometry_msgs
   Eigen3
+  tf2  # Add tf2 to dependencies
+  tf2_ros  # Add tf2_ros to dependencies
 )
 
 ament_target_dependencies(gnss_path_follower
@@ -64,6 +74,8 @@ ament_target_dependencies(gnss_path_follower
   nav_msgs
   geometry_msgs
   Eigen3
+  tf2  # Add tf2 to dependencies
+  tf2_ros  # Add tf2_ros to dependencies
 )
 
 # Install targets

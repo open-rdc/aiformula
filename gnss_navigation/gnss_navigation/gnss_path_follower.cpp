@@ -2,6 +2,7 @@
 #include "nav_msgs/msg/odometry.hpp"
 #include "nav_msgs/msg/path.hpp"
 #include "geometry_msgs/msg/twist.hpp"
+#include <cmath>
 
 class PathFollowerNode : public rclcpp::Node {
 public:
@@ -17,12 +18,14 @@ private:
     void odomCallback(const nav_msgs::msg::Odometry::SharedPtr msg) {
         current_position_x_ = msg->pose.pose.position.x;
         current_position_y_ = msg->pose.pose.position.y;
+        current_velocity_x_ = msg->twist.twist.linear.x;
+        current_velocity_y_ = msg->twist.twist.linear.y;
         followPath();
     }
 
     void pathCallback(const nav_msgs::msg::Path::SharedPtr msg) {
         path_ = msg->poses;
-        current_goal_index_ = 0;  // パスが更新されたときに目標インデックスをリセット
+        current_goal_index_ = 0;
     }
 
     void followPath() {
@@ -31,23 +34,32 @@ private:
         auto& goal_pose = path_[current_goal_index_].pose.position;
         double dx = goal_pose.x - current_position_x_;
         double dy = goal_pose.y - current_position_y_;
-        double distance = std::sqrt(dx * dx + dy * dy);
+        double target_angle = std::atan2(dy, dx);
 
-        RCLCPP_INFO(this->get_logger(), "Current distance to goal: %f meters", distance);
+        // 現在の速度ベクトルの角度を計算
+        double velocity_angle = std::atan2(current_velocity_y_, current_velocity_x_);
 
+        // 目標への角度と現在の進行角度の差
+        double angle_difference = target_angle - velocity_angle;
+        angle_difference = std::atan2(std::sin(angle_difference), std::cos(angle_difference));
 
         geometry_msgs::msg::Twist cmd_vel;
-        if (distance > 3.0) {  // 目標に十分近づくまで移動
-            cmd_vel.linear.x = std::min(20.0, 10.0 * distance);   // 簡単なプロポーショナル制御
-            cmd_vel.angular.z = std::atan2(dy, dx);  // 方向を目標に合わせる
+        double distance = std::sqrt(dx * dx + dy * dy);
+
+        if(distance > 1.0){
+        	cmd_vel.linear.x = std::min(20.0, (0.5 * distance) + 10);
+        	cmd_vel.angular.z = 8.0 * angle_difference;
         } else {
-            current_goal_index_++;  // 次の目標に移動
+        	current_goal_index_++;  // 次の目標に移動
         }
+
         cmd_pub_->publish(cmd_vel);
     }
 
     double current_position_x_ = 0.0;
     double current_position_y_ = 0.0;
+    double current_velocity_x_ = 0.0;
+    double current_velocity_y_ = 0.0;
     std::vector<geometry_msgs::msg::PoseStamped> path_;
     size_t current_goal_index_;
 
@@ -61,6 +73,4 @@ int main(int argc, char **argv) {
     auto node = std::make_shared<PathFollowerNode>();
     rclcpp::spin(node);
     rclcpp::shutdown();
-    return 0;
 }
-
