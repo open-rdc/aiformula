@@ -47,8 +47,8 @@ private:
         double distance = std::sqrt(dx * dx + dy * dy);
 
         if(distance > 1.0){
-        	cmd_vel.linear.x = std::min(20.0, (0.5 * distance) + 10);
-        	cmd_vel.angular.z = 8.0 * angle_difference;
+                cmd_vel.angular.z = 8.0 * angle_difference;
+        	cmd_vel.linear.x = std::min(20.0,((0.5 * distance) + 10) - cmd_vel.angular.z);
         } else {
         	current_goal_index_++;  // 次の目標に移動
         }
