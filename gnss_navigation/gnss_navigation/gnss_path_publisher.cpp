@@ -18,8 +18,6 @@ public:
         std::string line;
         std::vector<Eigen::Vector2d> coordinates;
         
-        // ヘッダー行をスキップする場合は次の行を追加
-        // std::getline(file, line);
         int cnt=0;
         double base_x;
         double base_y;
@@ -30,7 +28,6 @@ public:
             while (std::getline(ss, cell, ',')) {
                 tokens.push_back(cell);
             }
-            // printf("lat: %f, lon: %f\n", std::stod(tokens[0]), std::stod(tokens[1]));
             double lat = std::stod(tokens[0]);
             double lon = std::stod(tokens[1]);
             // GPS座標をUTM座標に変換
@@ -38,16 +35,11 @@ public:
             if (cnt == 0){
                 base_x = x;
                 base_y = y;
-                // printf("%f\n", base_x);
             }
-            //     coordinates.emplace_back(x, y);
-            // } else {
-            //     coordinates.emplace_back(x - base_x, y - base_y);
-            // }
+
             coordinates.emplace_back(x - base_x, y - base_y);
             cnt++;
-            // printf("%d\n", cnt);
-            // std::cout << "Converted UTM coordinates: X=" << x - base_x << ", Y=" << y - base_y << std::endl;
+   
         }
         // Pathメッセージの初期化
         
@@ -57,7 +49,6 @@ public:
             geometry_msgs::msg::PoseStamped pose;
             pose.header.stamp = this->now();
             pose.header.frame_id = "map";
-            // printf("pose.x: %f, pose.y: %f\n", coord.x(), coord.y());
             pose.pose.position.x = coord.x();
             pose.pose.position.y = coord.y();
             path_msg.poses.push_back(pose);
@@ -67,7 +58,6 @@ public:
             std::chrono::seconds(1),
             [this] { _publisher_callback(); }
         );
-        // publisher_->publish(path_msg);
     }
     void _publisher_callback() {
             publisher_->publish(path_msg);
@@ -76,25 +66,14 @@ private:
     rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr publisher_;
     rclcpp::TimerBase::SharedPtr _pub_timer;
     nav_msgs::msg::Path path_msg;
-    // void _publisher_callback();
     std::pair<double, double> convertGPStoUTM(double lat, double lon) {
         if (!(-90 <= lat) || !(lat <= 90) || !(-180 <= lon) || !(lon <= 180)) {
         std::cerr << "Error: Latitude or longitude values are out of valid range." << std::endl;
         return {std::numeric_limits<double>::infinity(), std::numeric_limits<double>::infinity()};
     }
     PJ *P = proj_create_crs_to_crs(PJ_DEFAULT_CTX, "EPSG:4326", "EPSG:32654", nullptr);
-    // if (!P) {
-    //     // std::cerr << "Projection creation failed: " << proj_errno_string(proj_errno(nullptr)) << std::endl;
-    //     return {std::numeric_limits<double>::infinity(), std::numeric_limits<double>::infinity()};
-    // }
     PJ_COORD p = proj_coord(lat, lon, 0, 0);
     p = proj_trans(P, PJ_FWD, p);
-    // if (p.xy.x == HUGE_VAL || p.xy.y == HUGE_VAL) {
-    //     // std::cerr << "Invalid conversion for lat=" << lat << ", lon=" << lon
-    //     //           << ", error: " << proj_errno_string(proj_errno(P)) << std::endl;
-    //     proj_destroy(P);
-    //     return {std::numeric_limits<double>::infinity(), std::numeric_limits<double>::infinity()};
-    // }
     proj_destroy(P);
     return {p.xy.x, p.xy.y};
     }
