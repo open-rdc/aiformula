@@ -1,9 +1,6 @@
 #include "controller/controller_node.hpp"
 #include "utilities/data_utils.hpp"
 
-#define LFLAGS 0
-#define PIN_EMERGENCY 24
-
 using namespace std;
 using namespace utils;
 
