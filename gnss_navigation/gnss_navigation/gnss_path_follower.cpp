@@ -11,7 +11,9 @@ public:
     PathFollowerNode()
     : Node("path_follower"),
       k_p_linear_(1.0), // 線形速度の比例定数
-      k_p_angular_(2.0), // 角速度の比例定数
+      k_p_angular_(0.3), // 角速度の比例定数
+      k_d_angular_(0.1), // 角速度の微分定数
+      last_angle_difference_(0.0),
       current_goal_index_(0),
       max_linear_velocity_(3.0),
       max_angular_velocity_(2.0),
@@ -47,10 +49,15 @@ private:
         double angle_difference = target_angle - current_yaw_;
         angle_difference = std::atan2(std::sin(angle_difference), std::cos(angle_difference));
 
-        RCLCPP_INFO(this->get_logger(), "Current distance to target: %f meters, Current angle to target: %f radians", distance, target_angle);
+        // Calculate the rate of change of the angle difference
+        double angle_difference_rate = angle_difference - last_angle_difference_;
+        last_angle_difference_ = angle_difference; // Update last angle difference
 
         double controlled_linear_speed = std::min(max_linear_velocity_, k_p_linear_ * distance);
-        double controlled_angular_speed = std::min(max_angular_velocity_, k_p_angular_ * std::abs(angle_difference)) * std::copysign(1.0, angle_difference);
+        double controlled_angular_speed = std::min(max_angular_velocity_, 
+            (k_p_angular_ * angle_difference + k_d_angular_ * angle_difference_rate)); // PD control
+
+        controlled_angular_speed = std::copysign(std::min(std::abs(controlled_angular_speed), max_angular_velocity_), controlled_angular_speed);
 
         geometry_msgs::msg::Twist cmd_vel;
         cmd_vel.linear.x = controlled_linear_speed;
@@ -74,9 +81,11 @@ private:
 
     double current_position_x_ = 0.0;
     double current_position_y_ = 0.0;
-    double current_yaw_ = 0.0;  // Added missing semicolon here
+    double current_yaw_ = 0.0;
     double k_p_linear_;
     double k_p_angular_;
+    double k_d_angular_;
+    double last_angle_difference_; // For D-control
     double max_linear_velocity_;
     double max_angular_velocity_;
     double goal_tolerance_;
