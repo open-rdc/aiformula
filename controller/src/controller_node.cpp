@@ -33,7 +33,7 @@ is_autonomous(get_parameter("autonomous_flag").as_bool())
 void Controller::_subscriber_callback_joy(const sensor_msgs::msg::Joy::SharedPtr msg){
 
     // 緊急停止(未実装だが今後のため)
-    if(upedge_home(msg->buttons[static_cast<int>(Buttons::Home)])){
+    if(upedge_ps(msg->buttons[static_cast<int>(Buttons::PS)])){
         publisher_stop->publish(*std::make_shared<std_msgs::msg::Empty>());
 
         auto msg_emergency = std::make_shared<std_msgs::msg::Bool>();
@@ -41,13 +41,13 @@ void Controller::_subscriber_callback_joy(const sensor_msgs::msg::Joy::SharedPtr
         publisher_emergency->publish(*msg_emergency);
     }
     // 自律か手動か
-    if(upedge_capture(msg->buttons[static_cast<int>(Buttons::Capture)])){
+    if(upedge_share(msg->buttons[static_cast<int>(Buttons::Share)])){
         auto msg_autonomous = std::make_shared<std_msgs::msg::Bool>();
         msg_autonomous->data = is_autonomous = !is_autonomous;
         publisher_autonomous->publish(*msg_autonomous);
     }
     // リスタート
-    if(upedge_plus(msg->buttons[static_cast<int>(Buttons::Plus)])){
+    if(upedge_options(msg->buttons[static_cast<int>(Buttons::Options)])){
         publisher_restart->publish(*std::make_shared<std_msgs::msg::Empty>());
     }
     // 手動の場合、速度指令値を送る

@@ -1,7 +1,7 @@
 launch: #起動パラメータ
   ros__parameters:
-    can: false
-    joy: false
+    can: true
+    joy: true
 
 /**:  #ワイルドカード(ここのパラメータは全ノードから読める: <名前に注意>)
   ros__parameters:
