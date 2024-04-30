@@ -11,10 +11,10 @@ public:
     PathFollowerNode()
     : Node("path_follower"),
       k_p_linear_(1.0), // 線形速度の比例定数
-      k_p_angular_(0.3), // 角速度の比例定数
-      k_d_angular_(0.1), // 角速度の微分定数
+      k_p_angular_(1.0), // 角速度の比例定数
+      k_d_angular_(0), // 角速度の微分定数
       last_angle_difference_(0.0),
-      current_goal_index_(0),
+      current_goal_index_(20),
       max_linear_velocity_(3.0),
       max_angular_velocity_(2.0),
       goal_tolerance_(0.5) {
@@ -35,7 +35,7 @@ private:
 
     void pathCallback(const nav_msgs::msg::Path::SharedPtr msg) {
         path_ = msg->poses;
-        current_goal_index_ = 0;
+        current_goal_index_ = 20;
     }
 
     void followPath() {
@@ -48,6 +48,9 @@ private:
         double target_angle = std::atan2(dy, dx);
         double angle_difference = target_angle - current_yaw_;
         angle_difference = std::atan2(std::sin(angle_difference), std::cos(angle_difference));
+
+        RCLCPP_INFO(this->get_logger(), "Current distance to target: %f meters, Current angle to target: %f radians", distance, angle_difference);
+
 
         // Calculate the rate of change of the angle difference
         double angle_difference_rate = angle_difference - last_angle_difference_;
