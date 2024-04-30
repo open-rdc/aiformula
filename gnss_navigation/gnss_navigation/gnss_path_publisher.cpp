@@ -36,7 +36,7 @@ public:
             double lat = std::stod(tokens[1]);
 
             // GPS座標をUTM座標に変換
-            auto [x, y] = convertGPStoUTM(lat, lon);
+            auto [x, y] = convertGPStoUTM(lon, lat);
             coordinates.emplace_back(x, y);
 
             std::cout << "Converted UTM coordinates: X=" << x << ", Y=" << y << std::endl;
