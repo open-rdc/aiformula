@@ -3,10 +3,19 @@
 #include "nav_msgs/msg/path.hpp"
 #include "geometry_msgs/msg/twist.hpp"
 #include <cmath>
+#include <tf2/LinearMath/Quaternion.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.h>  // tf2 geometry_msgs extensions
 
 class PathFollowerNode : public rclcpp::Node {
 public:
-    PathFollowerNode() : Node("path_follower"), current_goal_index_(0) {
+    PathFollowerNode()
+    : Node("path_follower"),
+      k_p_linear_(1.0), // 線形速度の比例定数
+      k_p_angular_(2.0), // 角速度の比例定数
+      current_goal_index_(0),
+      max_linear_velocity_(3.0),
+      max_angular_velocity_(2.0),
+      goal_tolerance_(0.5) {
         odom_subscriber_ = this->create_subscription<nav_msgs::msg::Odometry>(
             "/odom", 10, std::bind(&PathFollowerNode::odomCallback, this, std::placeholders::_1));
         path_subscriber_ = this->create_subscription<nav_msgs::msg::Path>(
@@ -18,8 +27,7 @@ private:
     void odomCallback(const nav_msgs::msg::Odometry::SharedPtr msg) {
         current_position_x_ = msg->pose.pose.position.x;
         current_position_y_ = msg->pose.pose.position.y;
-        current_velocity_x_ = msg->twist.twist.linear.x;
-        current_velocity_y_ = msg->twist.twist.linear.y;
+        current_yaw_ = calculateYawFromQuaternion(msg->pose.pose.orientation);
         followPath();
     }
 
@@ -34,34 +42,46 @@ private:
         auto& goal_pose = path_[current_goal_index_].pose.position;
         double dx = goal_pose.x - current_position_x_;
         double dy = goal_pose.y - current_position_y_;
+        double distance = std::sqrt(dx * dx + dy * dy);
         double target_angle = std::atan2(dy, dx);
-
-        // 現在の速度ベクトルの角度を計算
-        double velocity_angle = std::atan2(current_velocity_y_, current_velocity_x_);
-
-        // 目標への角度と現在の進行角度の差
-        double angle_difference = target_angle - velocity_angle;
+        double angle_difference = target_angle - current_yaw_;
         angle_difference = std::atan2(std::sin(angle_difference), std::cos(angle_difference));
 
-        geometry_msgs::msg::Twist cmd_vel;
-        double distance = std::sqrt(dx * dx + dy * dy);
+        RCLCPP_INFO(this->get_logger(), "Current distance to target: %f meters, Current angle to target: %f radians", distance, target_angle);
 
-        if(distance > 1.0){
-                cmd_vel.angular.z = 8.0 * angle_difference;
-        	cmd_vel.linear.x = std::min(20.0,((0.5 * distance) + 10) - cmd_vel.angular.z);
-        } else {
-        	current_goal_index_++;  // 次の目標に移動
-        }
+        double controlled_linear_speed = std::min(max_linear_velocity_, k_p_linear_ * distance);
+        double controlled_angular_speed = std::min(max_angular_velocity_, k_p_angular_ * std::abs(angle_difference)) * std::copysign(1.0, angle_difference);
+
+        geometry_msgs::msg::Twist cmd_vel;
+        cmd_vel.linear.x = controlled_linear_speed;
+        cmd_vel.angular.z = controlled_angular_speed;
 
         cmd_pub_->publish(cmd_vel);
+
+        if (distance < goal_tolerance_) {
+            RCLCPP_INFO(this->get_logger(), "Goal reached, moving to next goal");
+            current_goal_index_++;
+        }
+    }
+
+    double calculateYawFromQuaternion(const geometry_msgs::msg::Quaternion& quat) {
+        tf2::Quaternion q(quat.x, quat.y, quat.z, quat.w);
+        tf2::Matrix3x3 m(q);
+        double roll, pitch, yaw;
+        m.getRPY(roll, pitch, yaw);
+        return yaw;
     }
 
     double current_position_x_ = 0.0;
     double current_position_y_ = 0.0;
-    double current_velocity_x_ = 0.0;
-    double current_velocity_y_ = 0.0;
-    std::vector<geometry_msgs::msg::PoseStamped> path_;
+    double current_yaw_ = 0.0;  // Added missing semicolon here
+    double k_p_linear_;
+    double k_p_angular_;
+    double max_linear_velocity_;
+    double max_angular_velocity_;
+    double goal_tolerance_;
     size_t current_goal_index_;
+    std::vector<geometry_msgs::msg::PoseStamped> path_;
 
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_subscriber_;
     rclcpp::Subscription<nav_msgs::msg::Path>::SharedPtr path_subscriber_;
@@ -73,4 +93,6 @@ int main(int argc, char **argv) {
     auto node = std::make_shared<PathFollowerNode>();
     rclcpp::spin(node);
     rclcpp::shutdown();
+    return 0;
 }
+
