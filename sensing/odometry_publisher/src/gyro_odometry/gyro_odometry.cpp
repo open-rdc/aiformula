@@ -22,7 +22,7 @@ void GyroOdometry::initValues() {
     const int buffer_size = 10;
     imu_sub_ = this->create_subscription<sensor_msgs::msg::Imu>(
         "sub_imu_topic_name", buffer_size, std::bind(&GyroOdometry::imuCallback, this, std::placeholders::_1));
-    can_frame_sub_ = this->create_subscription<can_msgs::msg::Frame>(
+    can_frame_sub_ = this->create_subscription<socketcan_interface_msg::msg::SocketcanIF>(
         "sub_can_frame_topic_name", buffer_size,
         std::bind(&GyroOdometry::canFrameCallback, this, std::placeholders::_1));
     odometry_pub_ = this->create_publisher<nav_msgs::msg::Odometry>("pub_odometry_topic_name", buffer_size);
@@ -51,11 +51,11 @@ void GyroOdometry::imuCallback(const sensor_msgs::msg::Imu::SharedPtr msg) {
     angular_velocity_z_ = msg->angular_velocity.z;
 }
 
-void GyroOdometry::canFrameCallback(const can_msgs::msg::Frame::SharedPtr msg) {
+void GyroOdometry::canFrameCallback(const socketcan_interface_msg::msg::SocketcanIF::SharedPtr msg) {
     RCLCPP_INFO_ONCE(this->get_logger(), "Subscribe Can Frame !");
-    if (msg->id != aiformula::odometry_publisher::RPM_ID) return;
+    if (msg->canid != aiformula::odometry_publisher::RPM_ID) return;
 
-    const aiformula::odometry_publisher::Wheel<unsigned int> rpm(msg->data[4], msg->data[0]);
+    const aiformula::odometry_publisher::Wheel<unsigned int> rpm(msg->candata[4], msg->candata[0]);
     const aiformula::odometry_publisher::Wheel<double> vel =
         rpm * odometry_publisher::MINUTE_TO_SECOND * tire_diameter_ * M_PI;
     const double vel_ave = (vel.left + vel.right) * 0.5;

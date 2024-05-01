@@ -17,6 +17,8 @@
 #include "to_geometry_msgs.hpp"   // common_cpp librtary
 #include "util.hpp"               // common_cpp librtary
 
+#include "socketcan_interface_msg/msg/socketcan_if.hpp"
+
 namespace aiformula {
 
 class GyroOdometry : public rclcpp::Node {
@@ -29,7 +31,7 @@ private:
     void initValues();
     void printParam() const;
     void imuCallback(const sensor_msgs::msg::Imu::SharedPtr msg);
-    void canFrameCallback(const can_msgs::msg::Frame::SharedPtr msg);
+    void canFrameCallback(const socketcan_interface_msg::msg::SocketcanIF::SharedPtr msg);
 
     std::string odom_frame_id_;
     std::string robot_frame_id_;
@@ -37,7 +39,7 @@ private:
     double tire_tread_;
 
     rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr imu_sub_;
-    rclcpp::Subscription<can_msgs::msg::Frame>::SharedPtr can_frame_sub_;
+    rclcpp::Subscription<socketcan_interface_msg::msg::SocketcanIF>::SharedPtr can_frame_sub_;
     rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr odometry_pub_;
     std::unique_ptr<tf2_ros::TransformBroadcaster> odometry_br_;
 
