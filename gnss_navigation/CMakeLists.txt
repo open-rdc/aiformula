@@ -18,7 +18,8 @@ find_package(geometry_msgs REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(tf2 REQUIRED)  # Added tf2 package
 find_package(tf2_ros REQUIRED)  # Added tf2_ros package
-
+find_package(launch REQUIRED)
+find_package(launch_ros REQUIRED)
 # Include directories for PROJ
 find_path(PROJ_INCLUDE_DIR NAMES proj.h PATHS /usr/include)
 find_library(PROJ_LIBRARY NAMES proj PATHS /usr/lib/x86_64-linux-gnu)
@@ -67,6 +68,8 @@ ament_target_dependencies(gnss_path_publisher
   Eigen3
   tf2  # Add tf2 to dependencies
   tf2_ros  # Add tf2_ros to dependencies
+  launch
+  launch_ros
 )
 
 ament_target_dependencies(gnss_path_follower
@@ -76,6 +79,8 @@ ament_target_dependencies(gnss_path_follower
   Eigen3
   tf2  # Add tf2 to dependencies
   tf2_ros  # Add tf2_ros to dependencies
+  launch
+  launch_ros
 )
 
 # Install targets
