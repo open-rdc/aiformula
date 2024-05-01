@@ -27,6 +27,20 @@ ament_target_dependencies(roboteq_driver_node
   utilities
 )
 
+# 実行可能ノード
+add_executable(debug_printer
+  src/debug_printer
+)
+target_include_directories(debug_printer PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
+)
+ament_target_dependencies(debug_printer
+  rclcpp
+  socketcan_interface_msg
+  utilities
+)
+
 # Causes the visibility macros to use dllexport rather than dllimport,
 # which is appropriate when building the dll but not consuming it.
 target_compile_definitions(roboteq_driver_node PRIVATE "ROBOTEQ_DRIVER_BUILDING_LIBRARY")
@@ -41,6 +55,10 @@ install(
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin
+)
+install(
+  TARGETS debug_printer
+  DESTINATION lib/${PROJECT_NAME}
 )
 
 if(BUILD_TESTING)
