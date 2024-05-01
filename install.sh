@@ -1,6 +1,11 @@
  #!/bin/sh
 sudo apt update
 
+distro=$ROS_DISTRO
+echo =================================================
+echo ROSバージョンは $distro としてインストールされます
+echo =================================================
+
 # joy
-apt install ros-humble-joy-linux
-apt install ros-humble-joy-linux-dbgsym
+# sudo apt install ros-$distro-joy-linux
+# sudo apt install ros-$distro-joy-linux-dbgsym
