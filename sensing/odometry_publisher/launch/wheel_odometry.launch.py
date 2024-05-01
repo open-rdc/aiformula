@@ -48,7 +48,7 @@ def generate_launch_description():
         ),
         DeclareLaunchArgument(
             "pub_odometry_topic_name",
-            default_value="/odom",
+            default_value="/aiformula_sensing/wheel_odometry/odom",
             description="Odometry topic name.",
         ),
         DeclareLaunchArgument(

@@ -51,7 +51,7 @@ def generate_launch_description():
         ),
         DeclareLaunchArgument(
             "sub_can_frame_topic_name",
-            default_value="/from_can_bus",
+            default_value="/can_rx_711",
             # default_value="/aiformula_sensing/can/frame",
             description="Can topic name",
         ),
