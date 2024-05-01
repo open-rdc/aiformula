@@ -2,6 +2,9 @@
 
 AIフォーミュラ開発用の非公開レポジトリです．
 
+## AIフォーミュラ レギュレーション
+[ドキュメント](https://docs.google.com/document/d/1zpkdSSmTXvSceWBSTFhSfCOwxoopz341nZz9u-Y_qr0/edit?usp=sharing)
+
 ## コマンドまとめ
 ### モータ起動
 1. CANの設定コマンド
