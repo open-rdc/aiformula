@@ -29,7 +29,7 @@ def generate_launch_description():
         Node(
             package='tf2_ros',
             executable='static_transform_publisher',
-            name='static_tf_pub_odom_to_base_link',
+            name='static_tf_map_to_odom',
             arguments=['0', '0', '0', '0', '0', '0', 'map', 'odom'],
             condition=IfCondition(LaunchConfiguration('publish_transform'))
         )
