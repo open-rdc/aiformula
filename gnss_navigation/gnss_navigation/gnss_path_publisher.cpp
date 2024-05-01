@@ -7,6 +7,8 @@
 #include <string>
 #include <vector>
 #include <proj.h>
+#include <unsupported/Eigen/Splines> 
+
 class GNSSPathPublisher : public rclcpp::Node {
 public:
     GNSSPathPublisher() : Node("gnss_path_publisher") {
@@ -17,6 +19,8 @@ public:
         std::ifstream file(file_path);
         std::string line;
         std::vector<Eigen::Vector2d> coordinates;
+        std::vector<double> xs;
+        std::vector<double> ys;
         
         int cnt=0;
         double base_x;
@@ -38,14 +42,20 @@ public:
             }
 
             coordinates.emplace_back(x - base_x, y - base_y);
+            xs.push_back(x - base_x);
+            ys.push_back(y - base_y);
             cnt++;
    
         }
+        
+
+        std::vector<Eigen::Vector2d> spline_points = interpolateSpline(xs, ys, 100);  // 100は補間点の数
+
         // Pathメッセージの初期化
         
         path_msg.header.stamp = this->now();
         path_msg.header.frame_id = "map";
-        for (const auto& coord : coordinates) {
+        for (const auto& coord : spline_points) {
             geometry_msgs::msg::PoseStamped pose;
             pose.header.stamp = this->now();
             pose.header.frame_id = "map";
@@ -77,6 +87,26 @@ private:
     proj_destroy(P);
     return {p.xy.x, p.xy.y};
     }
+
+    std::vector<Eigen::Vector2d> interpolateSpline(const std::vector<double>& xs, const std::vector<double>& ys, int num_points) {
+    Eigen::Matrix<double, Eigen::Dynamic, 2> points(xs.size(), 2);
+    for (size_t i = 0; i < xs.size(); ++i) {
+        points(i, 0) = xs[i];
+        points(i, 1) = ys[i];
+    }
+
+    auto spline = Eigen::SplineFitting<Eigen::Spline<double, 2>>::Interpolate(points.transpose(), 2); // 2次のキュービックスプライン
+
+    std::vector<Eigen::Vector2d> result;
+    double step = 1.0 / (num_points - 1);
+    for (int i = 0; i < num_points; ++i) {
+        double u = i * step;
+        Eigen::Vector2d pt = spline(u);
+        result.push_back(pt);
+    }
+    return result;
+    }
+
 };
 int main(int argc, char **argv) {
     rclcpp::init(argc, argv);
