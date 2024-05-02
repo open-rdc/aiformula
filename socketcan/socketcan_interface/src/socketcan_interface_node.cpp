@@ -8,16 +8,18 @@
 #include <fcntl.h>
 #include <cstdio>
 #include <boost/format.hpp>
+#include <fstream>
 
+#include <ament_index_cpp/get_package_share_directory.hpp>
 #include "socketcan_interface/socketcan_interface_node.hpp"
-// #include "socketcan_interface_msg/msg/socketcan_if.hpp"
 
 namespace socketcan_interface {
 
 SocketcanInterface::SocketcanInterface(const rclcpp::NodeOptions &options) : SocketcanInterface("", options) {}
 
 SocketcanInterface::SocketcanInterface(const std::string &name_space, const rclcpp::NodeOptions &options)
-: rclcpp::Node("socket_can_node", name_space, options)
+: rclcpp::Node("socketcan_interface_node", name_space, options),
+ignoreid_file_path(ament_index_cpp::get_package_share_directory("socketcan_interface")+"/config/"+"ignoreid.cfg")
 {
     using namespace std::chrono_literals;
 
@@ -47,6 +49,18 @@ SocketcanInterface::SocketcanInterface(const std::string &name_space, const rclc
     }
     RCLCPP_INFO_STREAM(this->get_logger(),"init socket can interface node");
 
+    // 無視するIDをベクターに入れる
+    RCLCPP_INFO_STREAM(this->get_logger(),"以下のCAN IDを無視し、トピックには流しません。");
+    ignoreid.reserve(20);
+    using namespace std;
+    ifstream ifs(ignoreid_file_path);
+    string str;
+    while(getline(ifs, str)){
+        const int id = stoi(str, nullptr, 16);
+        RCLCPP_INFO(this->get_logger(), "CAN ID:0x%03X", id);
+
+        ignoreid.push_back(id);
+    }
 
     _pub_timer = this->create_wall_timer(
         std::chrono::milliseconds(interval_ms),
@@ -77,7 +91,11 @@ void SocketcanInterface::_publisher_callback() {
             }
             break;
         }
-        // RCLCPP_INFO(this->get_logger(), "Published ID:0x%03X [%d] ", frame.can_id, frame.can_dlc);
+        // 無視するIDであれば戻らせる
+        for (const auto& id : ignoreid) {
+            if(frame.can_id == id) continue;
+        }
+
         msg->header.stamp = this->now();
         msg->canid = frame.can_id;
         msg->candlc = frame.can_dlc;

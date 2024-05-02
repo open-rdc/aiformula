@@ -23,15 +23,19 @@ public:
 private:
     rclcpp::Subscription<socketcan_interface_msg::msg::SocketcanIF>::SharedPtr _subscription;
     rclcpp::TimerBase::SharedPtr _pub_timer;
-
     std::map<uint16_t, rclcpp::Publisher<socketcan_interface_msg::msg::SocketcanIF>::SharedPtr> known_id_rx_publisher;
-    struct sockaddr_can addr{};
-    struct ifreq ifr{};
-    int s;
-
-    rclcpp::QoS _qos = rclcpp::QoS(40);
 
     void _publisher_callback();
     void _subscriber_callback(const socketcan_interface_msg::msg::SocketcanIF::SharedPtr msg);
+
+    rclcpp::QoS _qos = rclcpp::QoS(40);
+
+    // CAN
+    struct sockaddr_can addr{};
+    struct ifreq ifr{};
+    int s;
+    const std::string ignoreid_file_path;   //無視するCAN IDリストのファイルパス
+    std::vector<int> ignoreid;
+
 };
 }
