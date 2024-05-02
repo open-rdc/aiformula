@@ -13,7 +13,8 @@ def generate_launch_description():
     gnss_nav_dir = get_package_share_directory("gnss_navigation")
     config_dir = os.path.join(gnss_nav_dir, 'config')
     course_dir = os.path.join(config_dir, "course_data")
-    course_data = os.path.join(course_dir, "gazebo_shihou_course.csv")
+    # course_data = os.path.join(course_dir, "0425_test_curve.csv")
+    course_data = os.path.join(course_dir, "0425_test_straight.csv")
 
     print("use course_data: " + course_data + "\n")
 
