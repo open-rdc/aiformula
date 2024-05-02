@@ -7,6 +7,7 @@ endif()
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
+find_package(ament_index_cpp REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(socketcan_interface_msg REQUIRED)
 
@@ -22,6 +23,7 @@ target_compile_definitions(socketcan_interface_node
 target_compile_options(socketcan_interface_node PUBLIC -Wall)
 
 ament_target_dependencies(socketcan_interface_node
+        ament_index_cpp
         rclcpp
         socketcan_interface_msg
         )
@@ -40,6 +42,7 @@ endif()
 
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_dependencies(
+        ament_index_cpp
         rclcpp
         socketcan_interface_msg
 )

@@ -92,9 +92,14 @@ void SocketcanInterface::_publisher_callback() {
             break;
         }
         // 無視するIDであれば戻らせる
+        bool is_ignoreid = false;
         for (const auto& id : ignoreid) {
-            if(frame.can_id == id) continue;
+            if(frame.can_id == id){
+                is_ignoreid = true;
+                break;
+            }
         }
+        if(is_ignoreid)continue;
 
         msg->header.stamp = this->now();
         msg->canid = frame.can_id;
