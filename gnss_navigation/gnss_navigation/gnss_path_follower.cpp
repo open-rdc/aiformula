@@ -46,8 +46,8 @@ private:
     void followPath() {
         if (path_.empty() || !autonomous_flag_) {
             geometry_msgs::msg::Vector3 cmd_vel;
-            cmd_vel.linear.x = 0;
-            cmd_vel.angular.z = 0;
+            cmd_vel.x = 0;
+            cmd_vel.z = 0;
             cmd_pub_->publish(cmd_vel);
             RCLCPP_INFO(this->get_logger(), "Autonomous mode is off or path is empty. Stopping the robot.");
             return;
@@ -96,8 +96,8 @@ private:
             double controlled_linear_speed = std::min(max_linear_velocity_, k_p_linear_ * distance_to_lookahead);
             double controlled_angular_speed = std::copysign(std::min(std::abs(angle_difference), max_angular_velocity_), angle_difference);
 
-            cmd_vel.linear.x = controlled_linear_speed;
-            cmd_vel.angular.z = controlled_angular_speed;
+            cmd_vel.x = controlled_linear_speed;
+            cmd_vel.z = controlled_angular_speed;
 
         if(autonomous_flag_ == true)
         cmd_pub_->publish(cmd_vel);
