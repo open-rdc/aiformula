@@ -1,0 +1,8 @@
+# default launch argument
+launch:
+  ros__parameters:
+    use_sim_time: true
+    use_rviz: true
+    use_rosbag: true
+    use_publish_tf: true
+    
