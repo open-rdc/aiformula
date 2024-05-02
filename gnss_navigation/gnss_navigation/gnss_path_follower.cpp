@@ -91,7 +91,7 @@ private:
 
         RCLCPP_INFO(this->get_logger(), "Current distance to target: %f meters, Current angle to target: %f radians", distance_to_lookahead, angle_difference);
 
-        geometry_msgs::msg::Twist cmd_vel;
+        geometry_msgs::msg::Vector3 cmd_vel;
             RCLCPP_INFO(this->get_logger(), "Autonomous mode is off. Stopping the robot.");
             double controlled_linear_speed = std::min(max_linear_velocity_, k_p_linear_ * distance_to_lookahead);
             double controlled_angular_speed = std::copysign(std::min(std::abs(angle_difference), max_angular_velocity_), angle_difference);
