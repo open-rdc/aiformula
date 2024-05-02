@@ -12,13 +12,12 @@ public:
     PathFollowerNode()
     : Node("path_follower"),
       autonomous_flag_(false), // Autonomous flag 初期値は false
-      k_p_linear_(1.0),  // 線形速度の比例定数
-      lookahead_distance_(3.0),  // 先読み距離
-      max_linear_velocity_(3.0),
-      max_angular_velocity_(2.0),
+      lookahead_distance_(1.5),  // 先読み距離
+      max_linear_velocity_(1.0),
+      max_angular_velocity_(0.7),
       goal_tolerance_(0.5) {
         odom_subscriber_ = this->create_subscription<nav_msgs::msg::Odometry>(
-            "/odom", 10, std::bind(&PathFollowerNode::odomCallback, this, std::placeholders::_1));
+            "/aiformula_sensing/gyro_odometry", 10, std::bind(&PathFollowerNode::odomCallback, this, std::placeholders::_1));
         path_subscriber_ = this->create_subscription<nav_msgs::msg::Path>(
             "/gnss_path", 10, std::bind(&PathFollowerNode::pathCallback, this, std::placeholders::_1));
         cmd_pub_ = this->create_publisher<geometry_msgs::msg::Vector3>("/cmd_vel", 10);
@@ -84,24 +83,25 @@ private:
         double dx = lookahead_pose.x - current_position_x_;
         double dy = lookahead_pose.y - current_position_y_;
         double distance_to_lookahead = std::sqrt(dx * dx + dy * dy);
-
         double target_angle = std::atan2(dy, dx);
         double angle_difference = target_angle - current_yaw_;
         angle_difference = std::atan2(std::sin(angle_difference), std::cos(angle_difference));
 
-        RCLCPP_INFO(this->get_logger(), "Current distance to target: %f meters, Current angle to target: %f radians", distance_to_lookahead, angle_difference);
+        //曲率の計算
+        double curvature = 2 * dy / (distance_to_lookahead * distance_to_lookahead);
+
+        RCLCPP_INFO(this->get_logger(), "Current distance to target: %f meters, Current angle to target: %f radians", distance_to_lookahead, curvature);
 
         geometry_msgs::msg::Vector3 cmd_vel;
-            RCLCPP_INFO(this->get_logger(), "Autonomous mode is off. Stopping the robot.");
-            double controlled_linear_speed = std::min(max_linear_velocity_, k_p_linear_ * distance_to_lookahead);
-            double controlled_angular_speed = std::copysign(std::min(std::abs(angle_difference), max_angular_velocity_), angle_difference);
+        double controlled_linear_speed = std::min(max_linear_velocity_, curvature * distance_to_lookahead);
+        double controlled_angular_speed = std::copysign(std::min(std::abs(angle_difference), max_angular_velocity_), angle_difference);
 
-            cmd_vel.x = controlled_linear_speed;
-            cmd_vel.z = controlled_angular_speed;
+        cmd_vel.x = controlled_linear_speed;
+        cmd_vel.z = controlled_angular_speed;
 
         if(autonomous_flag_ == true)
         cmd_pub_->publish(cmd_vel);
-    }
+     }
 
     double calculateYawFromQuaternion(const geometry_msgs::msg::Quaternion& quat) {
         tf2::Quaternion q(quat.x, quat.y, quat.z, quat.w);
