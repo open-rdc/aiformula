@@ -39,16 +39,19 @@ void Controller::_subscriber_callback_joy(const sensor_msgs::msg::Joy::SharedPtr
         auto msg_emergency = std::make_shared<std_msgs::msg::Bool>();
         msg_emergency->data = is_emergency = !is_emergency;
         publisher_emergency->publish(*msg_emergency);
+        RCLCPP_INFO(this->get_logger(), "緊急停止フラグ : %d", msg_emergency->data);
     }
     // 自律か手動か
     if(upedge_share(msg->buttons[static_cast<int>(Buttons::Share)])){
         auto msg_autonomous = std::make_shared<std_msgs::msg::Bool>();
         msg_autonomous->data = is_autonomous = !is_autonomous;
         publisher_autonomous->publish(*msg_autonomous);
+        RCLCPP_INFO(this->get_logger(), "自動フラグ : %d", msg_autonomous->data);
     }
     // リスタート
     if(upedge_options(msg->buttons[static_cast<int>(Buttons::Options)])){
         publisher_restart->publish(*std::make_shared<std_msgs::msg::Empty>());
+        RCLCPP_INFO(this->get_logger(), "再稼働");
     }
     // 手動の場合、速度指令値を送る
     if(!is_autonomous){
