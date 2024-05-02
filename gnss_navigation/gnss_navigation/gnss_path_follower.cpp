@@ -2,6 +2,7 @@
 #include "nav_msgs/msg/odometry.hpp"
 #include "nav_msgs/msg/path.hpp"
 #include "geometry_msgs/msg/twist.hpp"
+#include "geometry_msgs/msg/vector3.hpp"
 #include <cmath>
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>  // tf2 geometry_msgs extensions
@@ -11,15 +12,15 @@ public:
     PathFollowerNode()
     : Node("path_follower"),
       k_p_linear_(1.0),  // 線形速度の比例定数
-      lookahead_distance_(3.0),  // 先読み距離
-      max_linear_velocity_(3.0),
-      max_angular_velocity_(2.0),
+      lookahead_distance_(1.5),  // 先読み距離
+      max_linear_velocity_(1.0),
+      max_angular_velocity_(0.7),
       goal_tolerance_(0.5) {
         odom_subscriber_ = this->create_subscription<nav_msgs::msg::Odometry>(
             "/odom", 10, std::bind(&PathFollowerNode::odomCallback, this, std::placeholders::_1));
         path_subscriber_ = this->create_subscription<nav_msgs::msg::Path>(
             "/gnss_path", 10, std::bind(&PathFollowerNode::pathCallback, this, std::placeholders::_1));
-        cmd_pub_ = this->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel", 10);
+        cmd_pub_ = this->create_publisher<geometry_msgs::msg::Vector3>("/cmd_vel", 10);
     }
 
 private:
@@ -78,9 +79,9 @@ private:
         double controlled_linear_speed = std::min(max_linear_velocity_, k_p_linear_ * distance_to_lookahead);
         double controlled_angular_speed = std::copysign(std::min(std::abs(angle_difference), max_angular_velocity_), angle_difference);
 
-        geometry_msgs::msg::Twist cmd_vel;
-        cmd_vel.linear.x = controlled_linear_speed;
-        cmd_vel.angular.z = controlled_angular_speed;
+        geometry_msgs::msg::Vector3 cmd_vel;
+        cmd_vel.x = controlled_linear_speed;
+        cmd_vel.z = controlled_angular_speed;
 
         cmd_pub_->publish(cmd_vel);
     }
@@ -105,7 +106,7 @@ private:
 
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_subscriber_;
     rclcpp::Subscription<nav_msgs::msg::Path>::SharedPtr path_subscriber_;
-    rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmd_pub_;
+    rclcpp::Publisher<geometry_msgs::msg::Vector3>::SharedPtr cmd_pub_;
 };
 
 int main(int argc, char **argv) {
