@@ -17,7 +17,7 @@ public:
       max_angular_velocity_(0.7),
       goal_tolerance_(0.5) {
         odom_subscriber_ = this->create_subscription<nav_msgs::msg::Odometry>(
-            "/odom", 10, std::bind(&PathFollowerNode::odomCallback, this, std::placeholders::_1));
+            "/aiformula_sensing/gyro_odometry/odom", 10, std::bind(&PathFollowerNode::odomCallback, this, std::placeholders::_1));
         path_subscriber_ = this->create_subscription<nav_msgs::msg::Path>(
             "/gnss_path", 10, std::bind(&PathFollowerNode::pathCallback, this, std::placeholders::_1));
         cmd_pub_ = this->create_publisher<geometry_msgs::msg::Vector3>("/cmd_vel", 10);
