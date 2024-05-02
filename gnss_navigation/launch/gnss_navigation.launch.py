@@ -1,11 +1,22 @@
 # import statements
+import os
+
 from launch import LaunchDescription
 from launch_ros.actions import Node
 from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration
 from launch.conditions import IfCondition
+from ament_index_python.packages import get_package_share_directory
 
 def generate_launch_description():
+
+    gnss_nav_dir = get_package_share_directory("gnss_navigation")
+    config_dir = os.path.join(gnss_nav_dir, 'config')
+    course_dir = os.path.join(config_dir, "course_data")
+    course_data = os.path.join(course_dir, "gazebo_shihou_course.csv")
+
+    print("use course_data: " + course_data + "\n")
+
     return LaunchDescription([
         DeclareLaunchArgument(
           'publish_transform',
@@ -17,7 +28,7 @@ def generate_launch_description():
             executable='gnss_path_publisher',
             name='gnss_path_publisher',
             parameters=[
-                {'file_path': '/home/formula_ws/src/gnss_navigation/config/course_data/gazebo_shihou_course.csv'}
+                {'file_path': course_data}
             ]
         ),
         Node(
