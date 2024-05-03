@@ -39,15 +39,17 @@ is_reverse_right(get_parameter("reverse_right_flag").as_bool())
         _qos,
         std::bind(&RoboteqDriver::_subscriber_callback_rpm, this, std::placeholders::_1)
     );
+    _subscription_emergency = this->create_subscription<socketcan_interface_msg::msg::SocketcanIF>(
+        "can_rx_712",
+        _qos,
+        std::bind(&RoboteqDriver::_subscriber_callback_emergency, this, std::placeholders::_1)
+    );
     publisher_can = this->create_publisher<socketcan_interface_msg::msg::SocketcanIF>("can_tx", _qos);
 
     _pub_timer = this->create_wall_timer(
         std::chrono::milliseconds(interval_ms),
         [this] { _publisher_callback(); }
     );
-}
-
-void RoboteqDriver::_subscriber_callback_rpm(const socketcan_interface_msg::msg::SocketcanIF::SharedPtr msg){
 }
 
 void RoboteqDriver::_subscriber_callback_vel(const geometry_msgs::msg::Vector3::SharedPtr msg){
@@ -73,6 +75,18 @@ void RoboteqDriver::_subscriber_callback_stop(const std_msgs::msg::Empty::Shared
 void RoboteqDriver::_subscriber_callback_restart(const std_msgs::msg::Empty::SharedPtr msg){
     mode = Mode::stay;
     RCLCPP_INFO(this->get_logger(), "再稼働");
+}
+
+void RoboteqDriver::_subscriber_callback_rpm(const socketcan_interface_msg::msg::SocketcanIF::SharedPtr msg){
+}
+void RoboteqDriver::_subscriber_callback_emergency(const socketcan_interface_msg::msg::SocketcanIF::SharedPtr msg){
+    uint8_t _candata[8];
+    for(int i=0; i<msg->candlc; i++) _candata[i] = msg->candata[i];
+
+    if(_candata[6] and mode!=Mode::stop){
+        mode = Mode::stop;
+        RCLCPP_INFO(this->get_logger(), "緊急停止!");
+    }
 }
 
 void RoboteqDriver::send_rpm(const double linear_vel, const double angular_vel){

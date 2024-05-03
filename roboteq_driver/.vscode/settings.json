@@ -1,0 +1,9 @@
+{
+    "ros.distro": "humble",
+    "python.autoComplete.extraPaths": [
+        "/home/kazuma/formula_ws/install/socketcan_interface_msg/lib/python3.7/site-packages",
+        "/home/kazuma/project_ws/install/realsense2_camera_msgs/local/lib/python3.10/dist-packages",
+        "/opt/ros/humble/lib/python3.10/site-packages",
+        "/opt/ros/humble/local/lib/python3.10/dist-packages"
+    ]
+}
