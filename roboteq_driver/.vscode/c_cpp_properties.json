@@ -1,0 +1,28 @@
+{
+  "configurations": [
+    {
+      "browse": {
+        "databaseFilename": "${default}",
+        "limitSymbolsToIncludedHeaders": false
+      },
+      "includePath": [
+        "/home/kazuma/formula_ws/install/roboteq_driver/include/**",
+        "/home/kazuma/formula_ws/install/controller/include/**",
+        "/home/kazuma/formula_ws/install/utilities/include/**",
+        "/home/kazuma/formula_ws/install/socketcan_interface/include/**",
+        "/home/kazuma/formula_ws/install/socketcan_interface_msg/include/**",
+        "/home/kazuma/project_ws/install/realsense2_camera/include/**",
+        "/home/kazuma/project_ws/install/realsense2_camera_msgs/include/**",
+        "/opt/ros/humble/include/**",
+        "/home/kazuma/formula_ws/src/roboteq_driver/include/**",
+        "/usr/include/**"
+      ],
+      "name": "ROS",
+      "intelliSenseMode": "gcc-x64",
+      "compilerPath": "/usr/bin/gcc",
+      "cStandard": "gnu11",
+      "cppStandard": "c++14"
+    }
+  ],
+  "version": 4
+}
