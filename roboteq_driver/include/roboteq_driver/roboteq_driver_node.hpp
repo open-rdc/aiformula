@@ -22,12 +22,14 @@ private:
     rclcpp::Subscription<std_msgs::msg::Empty>::SharedPtr _subscription_stop;
     rclcpp::Subscription<std_msgs::msg::Empty>::SharedPtr _subscription_restart;
     rclcpp::Subscription<socketcan_interface_msg::msg::SocketcanIF>::SharedPtr _subscription_rpm;
+    rclcpp::Subscription<socketcan_interface_msg::msg::SocketcanIF>::SharedPtr _subscription_emergency;
     rclcpp::TimerBase::SharedPtr _pub_timer;
 
     void _subscriber_callback_vel(const geometry_msgs::msg::Vector3::SharedPtr msg);
     void _subscriber_callback_stop(const std_msgs::msg::Empty::SharedPtr msg);
     void _subscriber_callback_restart(const std_msgs::msg::Empty::SharedPtr msg);
     void _subscriber_callback_rpm(const socketcan_interface_msg::msg::SocketcanIF::SharedPtr msg);
+    void _subscriber_callback_emergency(const socketcan_interface_msg::msg::SocketcanIF::SharedPtr msg);
     void _publisher_callback();
     void send_rpm(const double linear_vel, const double angular_vel);
 
