@@ -6,6 +6,7 @@ find_package(rclcpp REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(sensor_msgs REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(socketcan_interface_msg REQUIRED)
 
@@ -25,6 +26,7 @@ ament_target_dependencies(wheel_odometry
     tf2
     tf2_ros
     nav_msgs
+    tf2_geometry_msgs
     socketcan_interface_msg
 )
 install(TARGETS wheel_odometry
@@ -44,6 +46,7 @@ ament_target_dependencies(gyro_odometry
     rclcpp
     tf2_ros
     sensor_msgs
+    tf2_geometry_msgs
     nav_msgs
     socketcan_interface_msg
 )

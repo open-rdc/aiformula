@@ -12,6 +12,7 @@
 #include <geometry_msgs/msg/quaternion.hpp>
 #include <geometry_msgs/msg/vector3.hpp>
 #include <geometry_msgs/msg/quaternion.hpp>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include <std_msgs/msg/header.hpp>
 
 namespace aiformula {
@@ -107,7 +108,7 @@ inline std::vector<std::string> getParameterAsType<std::vector<std::string>>(rcl
 template <typename T>
 T getRosParameter(rclcpp::Node* node_ptr, const std::string& param_name) {
     if (!node_ptr->has_parameter(param_name)) {
-        node_ptr->declare_parameter(param_name);
+        node_ptr->declare_parameter(param_name, "");
     }
     try {
         return getParameterAsType<T>(node_ptr, param_name);
