@@ -1,15 +1,50 @@
-#ifndef GET_ROS_PARAMETER_HPP
-#define GET_ROS_PARAMETER_HPP
+#ifndef COMMON_HPP
+#define COMMON_HPP
 
 // ROS
+#include <tf2_ros/transform_broadcaster.h>
+#include <tf2/impl/utils.h>
 #include <rclcpp/rclcpp.hpp>
 
-namespace aiformula {
+// ROS msg
+#include <nav_msgs/msg/odometry.hpp>
+#include <geometry_msgs/msg/point.hpp>
+#include <geometry_msgs/msg/quaternion.hpp>
+#include <geometry_msgs/msg/vector3.hpp>
+#include <geometry_msgs/msg/quaternion.hpp>
+#include <std_msgs/msg/header.hpp>
 
-/*
-Since `as_xxx()` changes depending on the type of template arguments,
-each implementation must be defined separately.
-*/
+namespace aiformula {
+namespace odometry_publisher {
+
+template <typename T>
+struct Wheel {
+    Wheel(const T& left, const T& right) : left(left), right(right) {}
+    Wheel<double> operator*(const double& rhs) const { return {left * rhs, right * rhs}; }
+    T left, right;
+};
+const double MINUTE_TO_SECOND = 0.016667;  // = 1/60
+const double DEGREE_TO_RADIAN = M_PI / 180.0;
+const double RADIAN_TO_DEGREE = 180.0 / M_PI;
+
+const int RPM_ID = 1809;
+
+void broadcastTf(std::unique_ptr<tf2_ros::TransformBroadcaster>& odometry_br, const nav_msgs::msg::Odometry& odom);
+
+}  // namespace odometry_publisher
+
+geometry_msgs::msg::Point toPointMsg(const double& x, const double& y, const double& z);
+geometry_msgs::msg::Quaternion toQuaternionMsg(const double& roll, const double& pitch, const double& yaw);
+geometry_msgs::msg::Vector3 toVector3Msg(const double& x, const double& y, const double& z);
+geometry_msgs::msg::Vector3 toVector3Msg(const geometry_msgs::msg::Point& point);
+
+inline double toTimeStampDouble(const std_msgs::msg::Header& header) {
+    return header.stamp.sec + static_cast<double>(header.stamp.nanosec) / 1e9;
+}
+
+inline double getYaw(const geometry_msgs::msg::Quaternion& quat_msg) {
+    return tf2::impl::getYaw(tf2::impl::toQuaternion(quat_msg));
+}
 
 // Declaration ==========================================================================================
 template <typename T>
@@ -89,4 +124,4 @@ T getRosParameter(rclcpp::Node* node_ptr, const std::string& param_name) {
 
 }  // namespace aiformula
 
-#endif  // GET_ROS_PARAMETER_HPP
+#endif  // COMMON_HPP

@@ -16,8 +16,9 @@ find_package(rclcpp REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(Eigen3 REQUIRED)
-find_package(tf2 REQUIRED)  # Added tf2 package
-find_package(tf2_ros REQUIRED)  # Added tf2_ros package
+find_package(tf2 REQUIRED)  
+find_package(tf2_ros REQUIRED)  
+find_package(tf2_geometry_msgs REQUIRED)
 # Include directories for PROJ
 find_path(PROJ_INCLUDE_DIR NAMES proj.h PATHS /usr/include)
 find_library(PROJ_LIBRARY NAMES proj PATHS /usr/lib/x86_64-linux-gnu)
@@ -26,9 +27,10 @@ find_library(PROJ_LIBRARY NAMES proj PATHS /usr/lib/x86_64-linux-gnu)
 include_directories(
   include
   ${EIGEN3_INCLUDE_DIR}
+  ${rclcpp_INCLUDE_DIRS}
   ${PROJ_INCLUDE_DIR}
-  ${tf2_INCLUDE_DIRS}  # Include directory for tf2
-  ${tf2_ros_INCLUDE_DIRS}  # Include directory for tf2_ros
+  ${tf2_INCLUDE_DIRS} 
+  ${tf2_ros_INCLUDE_DIRS}  
 )
 
 # Declare a C++ executable for gnss_path_publisher
@@ -44,8 +46,8 @@ target_link_libraries(gnss_path_publisher
   ${geometry_msgs_LIBRARIES}
   ${EIGEN3_LIBRARIES}
   ${PROJ_LIBRARY}
-  ${tf2_LIBRARIES}  # Link tf2 libraries
-  ${tf2_ros_LIBRARIES}  # Link tf2_ros libraries
+  ${tf2_LIBRARIES} 
+  ${tf2_ros_LIBRARIES} 
 )
 
 target_link_libraries(gnss_path_follower
@@ -54,8 +56,8 @@ target_link_libraries(gnss_path_follower
   ${geometry_msgs_LIBRARIES}
   ${EIGEN3_LIBRARIES}
   ${PROJ_LIBRARY}
-  ${tf2_LIBRARIES}  # Link tf2 libraries
-  ${tf2_ros_LIBRARIES}  # Link tf2_ros libraries
+  ${tf2_LIBRARIES}  
+  ${tf2_ros_LIBRARIES}  
 )
 
 # Additional target dependencies
@@ -64,8 +66,9 @@ ament_target_dependencies(gnss_path_publisher
   nav_msgs
   geometry_msgs
   Eigen3
-  tf2  # Add tf2 to dependencies
-  tf2_ros  # Add tf2_ros to dependencies
+  tf2  
+  tf2_ros 
+  tf2_geometry_msgs
 )
 
 ament_target_dependencies(gnss_path_follower
@@ -73,8 +76,9 @@ ament_target_dependencies(gnss_path_follower
   nav_msgs
   geometry_msgs
   Eigen3
-  tf2  # Add tf2 to dependencies
-  tf2_ros  # Add tf2_ros to dependencies
+  tf2 
+  tf2_ros
+  tf2_geometry_msgs  
 )
 
 # Install targets
@@ -84,11 +88,8 @@ install(TARGETS
   DESTINATION lib/${PROJECT_NAME}
 )
 
-install(
-    DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/launch
-    DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/config
-    DESTINATION share/${PROJECT_NAME}
-)
+install(DIRECTORY launch config
+ DESTINATION share/${PROJECT_NAME})
 
 # Export dependencies
 ament_package()
