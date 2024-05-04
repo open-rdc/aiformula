@@ -39,13 +39,15 @@ private:
         {
             vectornav_base_x = msg->pose.pose.position.x;
             vectornav_base_y = msg->pose.pose.position.y;
+            vectornav_base_yaw = calculateYawFromQuaternion(msg->pose.pose.orientation);
             vectornav_init_flag_ = false;
         }
 
         current_position_x_ = msg->pose.pose.position.x - vectornav_base_x;
         current_position_y_ = msg->pose.pose.position.y - vectornav_base_y;
-        current_yaw_ = calculateYawFromQuaternion(msg->pose.pose.orientation);
-        RCLCPP_INFO(this->get_logger(), "pose_x:%f, pose_y:%f", current_position_x_, current_position_y_);
+        current_yaw_diff = calculateYawFromQuaternion(msg->pose.pose.orientation) - vectornav_base_yaw;
+        current_yaw_ = std::atan2(std::sin(current_yaw_diff), std::cos(current_yaw_diff));
+        //RCLCPP_INFO(this->get_logger(), "pose_x:%f, pose_y:%f", current_position_x_, current_position_y_);
         followPath();
     }
 
@@ -138,6 +140,8 @@ private:
     bool vectornav_init_flag_;
     double current_position_x_ = 0.0;
     double current_position_y_ = 0.0;
+    double current_yaw_ = 0.0;
+    double current_yaw_diff = 0.0;
     double vectornav_base_x = 0.0;
     double vectornav_base_y = 0.0;
     double vectornav_base_yaw = 0.0;
