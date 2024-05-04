@@ -33,7 +33,7 @@ public:
     }
 
 private:
-    void odomCallback(const nav_msgs::msg::Odometry::SharedPtr msg) {
+    void odomCallback(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg) {
         
         if (vectornav_init_flag_)
         {
