@@ -20,7 +20,7 @@ public:
       max_angular_velocity_(0.5),
       goal_tolerance_(0.5) {
         odom_subscriber_ = this->create_subscription<nav_msgs::msg::Odometry>(
-            "/odom", 10, std::bind(&PathFollowerNode::odomCallback, this, std::placeholders::_1));
+            "/aiformula_sensing/gyro_odometry/odom", 10, std::bind(&PathFollowerNode::odomCallback, this, std::placeholders::_1));
         auto callback = [this](const std_msgs::msg::Empty::SharedPtr msg) { this->nav_start_Callback(msg); };
         nav_start_subscriber_ = this->create_subscription<std_msgs::msg::Empty>("/nav_start", 10, callback);
         path_subscriber_ = this->create_subscription<nav_msgs::msg::Path>(
@@ -112,6 +112,7 @@ private:
         if ((distance_to_lookahead < 0.1) && (lookahead_index >= path_.size() - 10)){
             cmd_vel.x = 0.0;
             cmd_vel.z = 0.0;
+            RCLCPP_INFO(this->get_logger(), "Reached goal");
         }
         cmd_pub_->publish(cmd_vel);
     }
