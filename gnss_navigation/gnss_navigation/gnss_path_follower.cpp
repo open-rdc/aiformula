@@ -3,6 +3,7 @@
 #include "nav_msgs/msg/path.hpp"
 #include "geometry_msgs/msg/twist.hpp"
 #include "geometry_msgs/msg/vector3.hpp"
+#include "geometry_msgs/msg/pose_stamped.hpp"
 #include <std_msgs/msg/empty.hpp>
 #include <std_msgs/msg/bool.hpp>
 #include <cmath>
@@ -15,12 +16,13 @@ public:
     : Node("path_follower"),
       autonomous_flag_(false),
       nav_start_flag_(false),
+      vectornav_init_flag_(true),
       lookahead_distance_(1.5),  // 先読み距離
       max_linear_velocity_(1.0),
       max_angular_velocity_(0.5),
       goal_tolerance_(0.5) {
-        odom_subscriber_ = this->create_subscription<nav_msgs::msg::Odometry>(
-            "/aiformula_sensing/gyro_odometry/odom", 10, std::bind(&PathFollowerNode::odomCallback, this, std::placeholders::_1));
+        odom_subscriber_ = this->create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>(
+            "/vectornav/pose", 10, std::bind(&PathFollowerNode::odomCallback, this, std::placeholders::_1));
         auto callback = [this](const std_msgs::msg::Empty::SharedPtr msg) { this->nav_start_Callback(msg); };
         nav_start_subscriber_ = this->create_subscription<std_msgs::msg::Empty>("/nav_start", 10, callback);
         path_subscriber_ = this->create_subscription<nav_msgs::msg::Path>(
@@ -32,8 +34,16 @@ public:
 
 private:
     void odomCallback(const nav_msgs::msg::Odometry::SharedPtr msg) {
-        current_position_x_ = msg->pose.pose.position.x;
-        current_position_y_ = msg->pose.pose.position.y;
+        
+        if (vectornav_init_flag_)
+        {
+            vectornav_base_x = msg->pose.pose.position.x;
+            vectornav_base_y = msg->pose.pose.position.y;
+            vectornav_init_flag_ = false;
+        }
+
+        current_position_x_ = msg->pose.pose.position.x - vectornav_base_x;
+        current_position_y_ = msg->pose.pose.position.y - vectornav_base_y;
         current_yaw_ = calculateYawFromQuaternion(msg->pose.pose.orientation);
         followPath();
     }
@@ -127,9 +137,12 @@ private:
 
     bool autonomous_flag_;
     bool nav_start_flag_;
+    bool vectornav_init_flag_;
     double current_position_x_ = 0.0;
     double current_position_y_ = 0.0;
     double current_yaw_ = 0.0;
+    double vectornav_base_x = 0.0;
+    double vectornav_base_y = 0.0;
     double k_vel = 3;
     double lookahead_distance_;
     double max_linear_velocity_;
@@ -137,7 +150,7 @@ private:
     double goal_tolerance_;
     std::vector<geometry_msgs::msg::PoseStamped> path_;
 
-    rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_subscriber_;
+    rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr odom_subscriber_;
     rclcpp::Subscription<nav_msgs::msg::Path>::SharedPtr path_subscriber_;
     rclcpp::Subscription<std_msgs::msg::Empty>::SharedPtr nav_start_subscriber_;
     rclcpp::Publisher<geometry_msgs::msg::Vector3>::SharedPtr cmd_pub_;
