@@ -28,6 +28,7 @@ public:
         path_subscriber_ = this->create_subscription<nav_msgs::msg::Path>(
             "/gnss_path", 10, std::bind(&PathFollowerNode::pathCallback, this, std::placeholders::_1));
         cmd_pub_ = this->create_publisher<geometry_msgs::msg::Vector3>("/cmd_vel", 10);
+        current_pose_pub_ = this->create_publisher<geometry_msgs::msg::PoseStamped>("/current_pose", 10);
         flag_subscriber_ = this->create_subscription<std_msgs::msg::Bool>(
             "/autonomous", 10, std::bind(&PathFollowerNode::flagCallback, this, std::placeholders::_1));
     }
@@ -47,7 +48,8 @@ private:
         current_position_y_ = msg->pose.pose.position.y - vectornav_base_y;
         current_yaw_diff = calculateYawFromQuaternion(msg->pose.pose.orientation) - vectornav_base_yaw;
         current_yaw_ = std::atan2(std::sin(current_yaw_diff), std::cos(current_yaw_diff));
-        //RCLCPP_INFO(this->get_logger(), "pose_x:%f, pose_y:%f", current_position_x_, current_position_y_);
+        RCLCPP_INFO(this->get_logger(), "pose_x:%f, pose_y:%f, pose_yaw:%f", current_position_x_, current_position_y_, current_yaw_);
+        publish_current_pose();
         followPath();
     }
 
@@ -63,6 +65,22 @@ private:
     void flagCallback(const std_msgs::msg::Bool::SharedPtr msg) {
         autonomous_flag_ = msg->data;  // autonomous_flag_を更新
         RCLCPP_INFO(this->get_logger(), "Autonomous flag updated to: %s", autonomous_flag_ ? "true" : "false");
+    }
+
+    void publish_current_pose()
+    {
+        geometry_msgs::msg::PoseStamped pose_msg;
+        pose_msg.header.stamp = this->now(); 
+        pose_msg.header.frame_id = "map"; 
+
+        pose_msg.pose.position.x = current_position_x_;  
+        pose_msg.pose.position.y = current_position_y_;  
+        pose_msg.pose.position.z = 0.0;  
+
+        tf2::Quaternion q;
+        q.setRPY(0, 0, current_yaw_);  // Roll, Pitch, Yawからクォータニオンを計算
+        pose_msg.pose.orientation = tf2::toMsg(q);
+        current_pose_pub_->publish(pose_msg);
     }
 
     void followPath() {
@@ -157,6 +175,7 @@ private:
     rclcpp::Subscription<std_msgs::msg::Empty>::SharedPtr nav_start_subscriber_;
     rclcpp::Publisher<geometry_msgs::msg::Vector3>::SharedPtr cmd_pub_;
     rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr flag_subscriber_;
+    rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr current_pose_pub_;
 };
 
 int main(int argc, char **argv) {
