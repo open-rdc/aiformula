@@ -45,6 +45,7 @@ private:
         current_position_x_ = msg->pose.pose.position.x - vectornav_base_x;
         current_position_y_ = msg->pose.pose.position.y - vectornav_base_y;
         current_yaw_ = calculateYawFromQuaternion(msg->pose.pose.orientation);
+        RCLCPP_INFO(this->get_logger(), "pose_x:%f, pose_y:%f", current_position_x_, current_position_y_);
         followPath();
     }
 
@@ -107,11 +108,8 @@ private:
         // double curvature = 2 * std::sin(angle_difference) / distance_to_lookahead;
 
         double controlled_angular_speed = std::copysign(std::min(std::abs(angle_difference), max_angular_velocity_), angle_difference);
-        double controlled_linear_speed = std::min(max_linear_velocity_, max_linear_velocity_ - std::abs(controlled_angular_speed) * k_vel);
+        double controlled_linear_speed = std::min(max_linear_velocity_, distance_to_lookahead);
 
-        if (lookahead_index >= path_.size()-10) {
-            controlled_linear_speed = std::min(max_linear_velocity_,  distance_to_lookahead);
-        }
 
         RCLCPP_INFO(this->get_logger(), "Current distance to target: %f meters, Current angle to target: %f radians", distance_to_lookahead, target_angle);
 
@@ -140,9 +138,9 @@ private:
     bool vectornav_init_flag_;
     double current_position_x_ = 0.0;
     double current_position_y_ = 0.0;
-    double current_yaw_ = 0.0;
     double vectornav_base_x = 0.0;
     double vectornav_base_y = 0.0;
+    double vectornav_base_yaw = 0.0;
     double k_vel = 3;
     double lookahead_distance_;
     double max_linear_velocity_;
