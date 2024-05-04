@@ -50,7 +50,7 @@ void Controller::_subscriber_callback_joy(const sensor_msgs::msg::Joy::SharedPtr
         RCLCPP_INFO(this->get_logger(), "自動フラグ : %d", msg_autonomous->data);
     }
     // 自律走行開始
-    if(upedge_share(msg->buttons[static_cast<int>(Buttons::Triangle)])){
+    if(upedge_circle(msg->buttons[static_cast<int>(Buttons::Circle)])){
         publisher_nav_start->publish(*std::make_shared<std_msgs::msg::Empty>());
         RCLCPP_INFO(this->get_logger(), "自律走行開始");
     }
