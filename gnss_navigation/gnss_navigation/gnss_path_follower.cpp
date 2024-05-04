@@ -3,6 +3,8 @@
 #include "nav_msgs/msg/path.hpp"
 #include "geometry_msgs/msg/twist.hpp"
 #include "geometry_msgs/msg/vector3.hpp"
+#include <std_msgs/msg/empty.hpp>
+#include <std_msgs/msg/bool.hpp>
 #include <cmath>
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>  // tf2 geometry_msgs extensions
@@ -11,16 +13,21 @@ class PathFollowerNode : public rclcpp::Node {
 public:
     PathFollowerNode()
     : Node("path_follower"),
-      k_p_linear_(1.0),  // 線形速度の比例定数
+      autonomous_flag_(false),
+      nav_start_flag_(false),
       lookahead_distance_(1.5),  // 先読み距離
       max_linear_velocity_(1.0),
-      max_angular_velocity_(0.7),
+      max_angular_velocity_(0.5),
       goal_tolerance_(0.5) {
         odom_subscriber_ = this->create_subscription<nav_msgs::msg::Odometry>(
-            "/aiformula_sensing/gyro_odometry/odom", 10, std::bind(&PathFollowerNode::odomCallback, this, std::placeholders::_1));
+            "/odom", 10, std::bind(&PathFollowerNode::odomCallback, this, std::placeholders::_1));
+        auto callback = [this](const std_msgs::msg::Empty::SharedPtr msg) { this->nav_start_Callback(msg); };
+        nav_start_subscriber_ = this->create_subscription<std_msgs::msg::Empty>("/nav_start", 10, callback);
         path_subscriber_ = this->create_subscription<nav_msgs::msg::Path>(
             "/gnss_path", 10, std::bind(&PathFollowerNode::pathCallback, this, std::placeholders::_1));
         cmd_pub_ = this->create_publisher<geometry_msgs::msg::Vector3>("/cmd_vel", 10);
+        flag_subscriber_ = this->create_subscription<std_msgs::msg::Bool>(
+            "/autonomous", 10, std::bind(&PathFollowerNode::flagCallback, this, std::placeholders::_1));
     }
 
 private:
@@ -35,8 +42,20 @@ private:
         path_ = msg->poses;
     }
 
+    void nav_start_Callback(const std_msgs::msg::Empty::SharedPtr&) {
+        nav_start_flag_ = true;
+        RCLCPP_INFO(this->get_logger(), "自律走行開始");
+    }
+
+    void flagCallback(const std_msgs::msg::Bool::SharedPtr msg) {
+        autonomous_flag_ = msg->data;  // autonomous_flag_を更新
+        RCLCPP_INFO(this->get_logger(), "Autonomous flag updated to: %s", autonomous_flag_ ? "true" : "false");
+    }
+
     void followPath() {
         if (path_.empty()) return;
+
+        if (!nav_start_flag_) return;
 
         // 先読み点を探索
         double closest_distance = std::numeric_limits<double>::max();
@@ -52,18 +71,20 @@ private:
         }
 
         // 先読み点を見つける
-        double accumulated_distance = 0.0;
+        // double accumulated_distance = 0.0;
         size_t lookahead_index = target_index;
         for (size_t i = target_index; i < path_.size() - 1; ++i) {
             double segment_length = std::hypot(
-                path_[i + 1].pose.position.x - path_[i].pose.position.x,
-                path_[i + 1].pose.position.y - path_[i].pose.position.y);
-            accumulated_distance += segment_length;
-            if (accumulated_distance >= lookahead_distance_) {
+                path_[i + 1].pose.position.x - current_position_x_,
+                path_[i + 1].pose.position.y - current_position_y_);
+            // accumulated_distance += segment_length;
+            if (segment_length >= lookahead_distance_) {
                 lookahead_index = i + 1;
                 break;
             }
         }
+
+        // RCLCPP_INFO(this->get_logger(), "%d", lookahead_index);
 
         auto& lookahead_pose = path_[lookahead_index].pose.position;
         double dx = lookahead_pose.x - current_position_x_;
@@ -73,16 +94,25 @@ private:
         double target_angle = std::atan2(dy, dx);
         double angle_difference = target_angle - current_yaw_;
         angle_difference = std::atan2(std::sin(angle_difference), std::cos(angle_difference));
+        // double curvature = 2 * std::sin(angle_difference) / distance_to_lookahead;
 
-        RCLCPP_INFO(this->get_logger(), "Current distance to target: %f meters, Current angle to target: %f radians", distance_to_lookahead, angle_difference);
-
-        double controlled_linear_speed = std::min(max_linear_velocity_, k_p_linear_ * distance_to_lookahead);
         double controlled_angular_speed = std::copysign(std::min(std::abs(angle_difference), max_angular_velocity_), angle_difference);
+        double controlled_linear_speed = std::min(max_linear_velocity_, max_linear_velocity_ - std::abs(controlled_angular_speed) * k_vel);
+
+        if (lookahead_index >= path_.size()-10) {
+            controlled_linear_speed = std::min(max_linear_velocity_,  distance_to_lookahead);
+        }
+
+        RCLCPP_INFO(this->get_logger(), "Current distance to target: %f meters, Current angle to target: %f radians", distance_to_lookahead, target_angle);
 
         geometry_msgs::msg::Vector3 cmd_vel;
         cmd_vel.x = controlled_linear_speed;
         cmd_vel.z = controlled_angular_speed;
 
+        if ((distance_to_lookahead < 0.1) && (lookahead_index >= path_.size() - 10)){
+            cmd_vel.x = 0.0;
+            cmd_vel.z = 0.0;
+        }
         cmd_pub_->publish(cmd_vel);
     }
 
@@ -94,10 +124,12 @@ private:
         return yaw;
     }
 
+    bool autonomous_flag_;
+    bool nav_start_flag_;
     double current_position_x_ = 0.0;
     double current_position_y_ = 0.0;
     double current_yaw_ = 0.0;
-    double k_p_linear_;
+    double k_vel = 3;
     double lookahead_distance_;
     double max_linear_velocity_;
     double max_angular_velocity_;
@@ -106,7 +138,9 @@ private:
 
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_subscriber_;
     rclcpp::Subscription<nav_msgs::msg::Path>::SharedPtr path_subscriber_;
+    rclcpp::Subscription<std_msgs::msg::Empty>::SharedPtr nav_start_subscriber_;
     rclcpp::Publisher<geometry_msgs::msg::Vector3>::SharedPtr cmd_pub_;
+    rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr flag_subscriber_;
 };
 
 int main(int argc, char **argv) {
