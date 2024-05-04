@@ -31,6 +31,7 @@ private:
     rclcpp::Publisher<std_msgs::msg::Empty>::SharedPtr publisher_restart;
     rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr publisher_emergency;
     rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr publisher_autonomous;
+    rclcpp::Publisher<std_msgs::msg::Empty>::SharedPtr publisher_nav_start;
 
     rclcpp::QoS _qos = rclcpp::QoS(10);
 
