@@ -25,6 +25,7 @@ is_autonomous(get_parameter("autonomous_flag").as_bool())
     publisher_restart = this->create_publisher<std_msgs::msg::Empty>("restart", _qos);
     publisher_emergency = this->create_publisher<std_msgs::msg::Bool>("emergency", _qos);
     publisher_autonomous = this->create_publisher<std_msgs::msg::Bool>("autonomous", _qos);
+    publisher_nav_start = this->create_publisher<std_msgs::msg::Empty>("nav_start", _qos);
 
     // 駆動系に電源が行っている可能性もあるのでリスタートする
     publisher_restart->publish(*std::make_shared<std_msgs::msg::Empty>());
@@ -47,6 +48,11 @@ void Controller::_subscriber_callback_joy(const sensor_msgs::msg::Joy::SharedPtr
         msg_autonomous->data = is_autonomous = !is_autonomous;
         publisher_autonomous->publish(*msg_autonomous);
         RCLCPP_INFO(this->get_logger(), "自動フラグ : %d", msg_autonomous->data);
+    }
+    // 自律走行開始
+    if(upedge_share(msg->buttons[static_cast<int>(Buttons::Triangle)])){
+        publisher_nav_start->publish(*std::make_shared<std_msgs::msg::Empty>());
+        RCLCPP_INFO(this->get_logger(), "自律走行開始");
     }
     // リスタート
     if(upedge_options(msg->buttons[static_cast<int>(Buttons::Options)])){
