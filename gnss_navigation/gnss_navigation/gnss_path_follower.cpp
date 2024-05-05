@@ -97,15 +97,12 @@ private:
         double angle_difference = target_angle - current_yaw_;
         angle_difference = std::atan2(std::sin(angle_difference), std::cos(angle_difference));
 
-        rclcpp::Time now = this->get_clock()->now();
-        double delta_time = (now - last_time_).seconds();
         double error_derivative = (angle_difference - last_angle_difference) / delta_time;
 
         double controlled_angular_speed = std::copysign(std::min(std::abs(angle_difference + (error_derivative * k_d)), max_angular_velocity_), angle_difference * k_p);
         double controlled_linear_speed = std::min(max_linear_velocity_, max_linear_velocity_ - std::abs(controlled_angular_speed) * k_vel);
 
         last_angle_difference = angle_difference;
-        last_time_ = now;
 
         if (lookahead_index >= path_.size()-10) {
             controlled_linear_speed = std::min(max_linear_velocity_,  distance_to_lookahead);
@@ -138,6 +135,8 @@ private:
     double current_position_x_ = 0.0;
     double current_position_y_ = 0.0;
     double current_yaw_ = 0.0;
+    double last_angle_difference = 0;
+    double delta_time = 0.05;//Hz check
     double k_p = 1.0; //p
     double k_d = 0; //d
     double k_vel = 3;
