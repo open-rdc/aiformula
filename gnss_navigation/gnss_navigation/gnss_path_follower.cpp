@@ -9,6 +9,8 @@
 #include <cmath>
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>  // tf2 geometry_msgs extensions
+#include <proj.h>
+
 
 class PathFollowerNode : public rclcpp::Node {
 public:
@@ -19,15 +21,16 @@ public:
       vectornav_init_flag_(true),
       lookahead_distance_(1.5),  // 先読み距離
       max_linear_velocity_(1.0),
-      max_angular_velocity_(0.5),
+      max_angular_velocity_(0.7),
       goal_tolerance_(0.5) {
         odom_subscriber_ = this->create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>(
             "/vectornav/pose", 10, std::bind(&PathFollowerNode::odomCallback, this, std::placeholders::_1));
         auto callback = [this](const std_msgs::msg::Empty::SharedPtr msg) { this->nav_start_Callback(msg); };
         nav_start_subscriber_ = this->create_subscription<std_msgs::msg::Empty>("/nav_start", 10, callback);
         path_subscriber_ = this->create_subscription<nav_msgs::msg::Path>(
-            "/gnss_path", 10, std::bind(&PathFollowerNode::pathCallback, this, std::placeholders::_1));
+            "/origin_gnss_path", 10, std::bind(&PathFollowerNode::pathCallback, this, std::placeholders::_1));
         cmd_pub_ = this->create_publisher<geometry_msgs::msg::Vector3>("/cmd_vel", 10);
+        to_target_pub_ = this->create_publisher<geometry_msgs::msg::Vector3>("/to_target", 10);
         current_pose_pub_ = this->create_publisher<geometry_msgs::msg::PoseStamped>("/current_pose", 10);
         flag_subscriber_ = this->create_subscription<std_msgs::msg::Bool>(
             "/autonomous", 10, std::bind(&PathFollowerNode::flagCallback, this, std::placeholders::_1));
@@ -35,19 +38,13 @@ public:
 
 private:
     void odomCallback(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg) {
-        
-        if (vectornav_init_flag_)
-        {
-            vectornav_base_x = msg->pose.pose.position.x;
-            vectornav_base_y = msg->pose.pose.position.y;
-            vectornav_base_yaw = calculateYawFromQuaternion(msg->pose.pose.orientation);
-            vectornav_init_flag_ = false;
-        }
+        // Need ECEF->WGS84->UTM function
+        auto [x, y] = convertECEFtoUTM(msg->pose.pose.position.x, msg->pose.pose.position.y, msg->pose.pose.position.z);
 
-        current_position_x_ = msg->pose.pose.position.x - vectornav_base_x;
-        current_position_y_ = msg->pose.pose.position.y - vectornav_base_y;
-        current_yaw_diff = calculateYawFromQuaternion(msg->pose.pose.orientation) - vectornav_base_yaw;
-        current_yaw_ = std::atan2(std::sin(current_yaw_diff), std::cos(current_yaw_diff));
+        current_position_x_ = x;
+        current_position_y_ = y;
+        current_yaw_ = calculateYawFromQuaternion(msg->pose.pose.orientation);
+        // current_yaw_ = std::atan2(std::sin(current_yaw_diff), std::cos(current_yaw_diff));
         RCLCPP_INFO(this->get_logger(), "pose_x:%f, pose_y:%f, pose_yaw:%f", current_position_x_, current_position_y_, current_yaw_);
         publish_current_pose();
         followPath();
@@ -125,11 +122,24 @@ private:
         double target_angle = std::atan2(dy, dx);
         double angle_difference = target_angle - current_yaw_;
         angle_difference = std::atan2(std::sin(angle_difference), std::cos(angle_difference));
+
         // double curvature = 2 * std::sin(angle_difference) / distance_to_lookahead;
 
         double controlled_angular_speed = std::copysign(std::min(std::abs(angle_difference), max_angular_velocity_), angle_difference);
-        double controlled_linear_speed = std::min(max_linear_velocity_, distance_to_lookahead);
 
+        double controlled_linear_speed = std::max(std::min(max_linear_velocity_, max_linear_velocity_ - std::abs(controlled_angular_speed) * k_vel), 0.2);
+
+        if (lookahead_index >= path_.size() - 10)
+        {
+            controlled_linear_speed = std::min(max_linear_velocity_, distance_to_lookahead * 0.6);
+        }
+
+        geometry_msgs::msg::Vector3 to_target;
+        to_target.x = distance_to_lookahead;
+        to_target.y = controlled_linear_speed;
+        to_target.z = controlled_angular_speed;
+
+        to_target_pub_->publish(to_target);
 
         RCLCPP_INFO(this->get_logger(), "Current distance to target: %f meters, Current angle to target: %f radians", distance_to_lookahead, target_angle);
 
@@ -142,7 +152,11 @@ private:
             cmd_vel.z = 0.0;
             RCLCPP_INFO(this->get_logger(), "Reached goal");
         }
-        cmd_pub_->publish(cmd_vel);
+
+        if (autonomous_flag_ == true)
+        {
+            cmd_pub_->publish(cmd_vel);
+        }
     }
 
     double calculateYawFromQuaternion(const geometry_msgs::msg::Quaternion& quat) {
@@ -151,6 +165,30 @@ private:
         double roll, pitch, yaw;
         m.getRPY(roll, pitch, yaw);
         return yaw;
+    }
+
+    std::pair<double, double> convertECEFtoUTM(double x, double y, double z) {
+        PJ_CONTEXT *C = proj_context_create();
+        PJ *P = proj_create_crs_to_crs(C,
+                                   "EPSG:4978", // ECEF
+                                   "EPSG:32654", // UTMゾーン54N
+                                   NULL);
+        if (P == NULL) {
+        std::cerr << "PROJ transformation creation failed." << std::endl;
+        }
+        PJ_COORD a, b;
+
+        a.xyz.x = x;
+        a.xyz.y = y;
+        a.xyz.z = z;
+
+        b = proj_trans(P, PJ_FWD, a);
+
+        // リソースの解放
+        proj_destroy(P);
+        proj_context_destroy(C);
+
+        return {b.enu.e, b.enu.n};
     }
 
     bool autonomous_flag_;
@@ -174,6 +212,7 @@ private:
     rclcpp::Subscription<nav_msgs::msg::Path>::SharedPtr path_subscriber_;
     rclcpp::Subscription<std_msgs::msg::Empty>::SharedPtr nav_start_subscriber_;
     rclcpp::Publisher<geometry_msgs::msg::Vector3>::SharedPtr cmd_pub_;
+    rclcpp::Publisher<geometry_msgs::msg::Vector3>::SharedPtr to_target_pub_;
     rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr flag_subscriber_;
     rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr current_pose_pub_;
 };
