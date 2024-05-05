@@ -57,6 +57,8 @@ private:
 
         if (!nav_start_flag_) return;
 
+        if (autonomous_flag_ == false) return;
+
         // 先読み点を探索
         double closest_distance = std::numeric_limits<double>::max();
         size_t target_index = 0;
@@ -94,10 +96,16 @@ private:
         double target_angle = std::atan2(dy, dx);
         double angle_difference = target_angle - current_yaw_;
         angle_difference = std::atan2(std::sin(angle_difference), std::cos(angle_difference));
-        // double curvature = 2 * std::sin(angle_difference) / distance_to_lookahead;
 
-        double controlled_angular_speed = std::copysign(std::min(std::abs(angle_difference), max_angular_velocity_), angle_difference);
+        rclcpp::Time now = this->get_clock()->now();
+        double delta_time = (now - last_time_).seconds();
+        double error_derivative = (angle_difference - last_angle_difference) / delta_time;
+
+        double controlled_angular_speed = std::copysign(std::min(std::abs(angle_difference + (error_derivative * k_d)), max_angular_velocity_), angle_difference * k_p);
         double controlled_linear_speed = std::min(max_linear_velocity_, max_linear_velocity_ - std::abs(controlled_angular_speed) * k_vel);
+
+        last_angle_difference = angle_difference;
+        last_time_ = now;
 
         if (lookahead_index >= path_.size()-10) {
             controlled_linear_speed = std::min(max_linear_velocity_,  distance_to_lookahead);
@@ -130,6 +138,8 @@ private:
     double current_position_x_ = 0.0;
     double current_position_y_ = 0.0;
     double current_yaw_ = 0.0;
+    double k_p = 1.0; //p
+    double k_d = 0; //d
     double k_vel = 3;
     double lookahead_distance_;
     double max_linear_velocity_;
