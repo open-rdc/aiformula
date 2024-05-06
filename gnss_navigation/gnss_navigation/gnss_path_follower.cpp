@@ -139,7 +139,7 @@ private:
     double delta_time = 0.05;//Hz check
     double k_p = 1.0; //p
     double k_d = 0; //d
-    double k_vel = 3;
+    double k_vel = 0;
     double lookahead_distance_;
     double max_linear_velocity_;
     double max_angular_velocity_;
