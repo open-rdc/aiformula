@@ -22,20 +22,25 @@ class Converter(Node):
     def callback(self, msg):
         tx = PoseStamped()
         tx.header.frame_id = "map"
-        tx.header.stamp = self.get_clock().now().to_msg()
+        tx.header = msg.header
 
 
         if not self.is_callbacked:
             self.initial_pose = copy.deepcopy(msg.pose.pose)
             self.is_callbacked = True
 
-
         tx.pose = msg.pose.pose
+
+        #print(tx.header.stamp.sec," : ",tx.pose.position.x-self.initial_pose.position.x,",",tx.pose.position.y-self.initial_pose.position.y)
+        # print(msg.pose.pose.position.x , self.initial_pose.position.x)
+
+
         tx.pose.position.x -= self.initial_pose.position.x
         tx.pose.position.y -= self.initial_pose.position.y
         tx.pose.position.z -= self.initial_pose.position.z
 
         self.publisher.publish(tx)
+
 
 
 
