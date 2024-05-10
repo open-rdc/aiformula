@@ -19,8 +19,11 @@ public:
         std::ifstream file(file_path);
         std::string line;
         std::vector<Eigen::Vector2d> coordinates;
+        std::vector<Eigen::Vector2d> origin_coordinates;
         std::vector<double> xs;
         std::vector<double> ys;
+        std::vector<double> origin_xs;
+        std::vector<double> origin_ys;
         
         int cnt=0;
         double base_x;
@@ -41,6 +44,10 @@ public:
                 base_y = y;
             }
 
+            origin_coordinates.emplace_back(x, y);
+            origin_xs.push_back(x);
+            origin_ys.push_back(y);
+
             coordinates.emplace_back(x - base_x, y - base_y);
             xs.push_back(x - base_x);
             ys.push_back(y - base_y);
@@ -50,6 +57,7 @@ public:
         
 
         std::vector<Eigen::Vector2d> spline_points = interpolateSpline(xs, ys, 100);  // 100は補間点の数
+        std::vector<Eigen::Vector2d> origin_spline_points = interpolateSpline(origin_xs, origin_ys, 100);  // 100は補間点の数
 
         // Pathメッセージの初期化
         
@@ -64,6 +72,19 @@ public:
             path_msg.poses.push_back(pose);
         }
         publisher_ = this->create_publisher<nav_msgs::msg::Path>("gnss_path", 10);
+
+        origin_path_msg.header.stamp = this->now();
+        origin_path_msg.header.frame_id = "map";
+        for (const auto& origin_coord : origin_spline_points) {
+            geometry_msgs::msg::PoseStamped pose;
+            pose.header.stamp = this->now();
+            pose.header.frame_id = "map";
+            pose.pose.position.x = origin_coord.x();
+            pose.pose.position.y = origin_coord.y();
+            origin_path_msg.poses.push_back(pose);
+        }
+        origin_publisher_ = this->create_publisher<nav_msgs::msg::Path>("origin_gnss_path", 10);
+
         _pub_timer = this->create_wall_timer(
             std::chrono::seconds(1),
             [this] { _publisher_callback(); }
@@ -71,11 +92,14 @@ public:
     }
     void _publisher_callback() {
             publisher_->publish(path_msg);
+            origin_publisher_->publish(origin_path_msg);
     }
 private:
     rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr publisher_;
+    rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr origin_publisher_;
     rclcpp::TimerBase::SharedPtr _pub_timer;
     nav_msgs::msg::Path path_msg;
+    nav_msgs::msg::Path origin_path_msg;
     std::pair<double, double> convertGPStoUTM(double lat, double lon) {
         if (!(-90 <= lat) || !(lat <= 90) || !(-180 <= lon) || !(lon <= 180)) {
         std::cerr << "Error: Latitude or longitude values are out of valid range." << std::endl;
