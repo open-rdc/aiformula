@@ -127,7 +127,9 @@ private:
 
         double controlled_angular_speed = std::copysign(std::min(std::abs(angle_difference), max_angular_velocity_), angle_difference);
 
-        double controlled_linear_speed = std::max(std::min(max_linear_velocity_, max_linear_velocity_ - std::abs(controlled_angular_speed) * k_vel), 0.2);
+        // double controlled_linear_speed = std::max(std::min(max_linear_velocity_, max_linear_velocity_ - std::abs(controlled_angular_speed) * k_vel), 0.2);
+
+        double controlled_linear_speed = std::min(max_linear_velocity_, distance_to_lookahead);
 
         if (lookahead_index >= path_.size() - 10)
         {
@@ -224,4 +226,3 @@ int main(int argc, char **argv) {
     rclcpp::shutdown();
     return 0;
 }
-
