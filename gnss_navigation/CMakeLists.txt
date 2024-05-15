@@ -26,38 +26,29 @@ find_library(PROJ_LIBRARY NAMES proj PATHS /usr/lib/x86_64-linux-gnu)
 # Include directories
 include_directories(
   include
-  ${EIGEN3_INCLUDE_DIR}
-  ${rclcpp_INCLUDE_DIRS}
-  ${PROJ_INCLUDE_DIR}
-  ${tf2_INCLUDE_DIRS} 
-  ${tf2_ros_INCLUDE_DIRS}  
 )
 
 # Declare a C++ executable for gnss_path_publisher
-add_executable(gnss_path_publisher gnss_navigation/gnss_path_publisher.cpp)
+add_executable(gnss_path_publisher src/gnss_path_publisher.cpp)
+target_include_directories(gnss_path_publisher PRIVATE
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+)
 
 # Declare a C++ executable for gnss_path_follower
-add_executable(gnss_path_follower gnss_navigation/gnss_path_follower.cpp)
+add_executable(gnss_path_follower src/gnss_path_follower.cpp)
+target_include_directories(gnss_path_follower PRIVATE
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+)
 
 # Specify libraries to link a library or executable target against
 target_link_libraries(gnss_path_publisher
-  ${rclcpp_LIBRARIES}
-  ${nav_msgs_LIBRARIES}
-  ${geometry_msgs_LIBRARIES}
-  ${EIGEN3_LIBRARIES}
   ${PROJ_LIBRARY}
-  ${tf2_LIBRARIES} 
-  ${tf2_ros_LIBRARIES} 
 )
 
 target_link_libraries(gnss_path_follower
-  ${rclcpp_LIBRARIES}
-  ${nav_msgs_LIBRARIES}
-  ${geometry_msgs_LIBRARIES}
-  ${EIGEN3_LIBRARIES}
-  ${PROJ_LIBRARY}
-  ${tf2_LIBRARIES}  
-  ${tf2_ros_LIBRARIES}  
+  ${PROJ_LIBRARY} 
 )
 
 # Additional target dependencies
@@ -81,11 +72,20 @@ ament_target_dependencies(gnss_path_follower
   tf2_geometry_msgs  
 )
 
+ament_export_include_directories(
+  include
+)
+
 # Install targets
 install(TARGETS
   gnss_path_publisher
   gnss_path_follower
   DESTINATION lib/${PROJECT_NAME}
+)
+
+install(
+  DIRECTORY include/
+  DESTINATION include
 )
 
 install(DIRECTORY launch config
