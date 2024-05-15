@@ -10,8 +10,8 @@ GNSSPathPublisher::GNSSPathPublisher()
     declareParameter();
     initCommunication();
     loadCSV();
-    setMsg();
-    setOriginMsg();
+    path_msg_ = setMsg(xs_, ys_);
+    origin_path_msg_ = setMsg(origin_xs_, origin_ys_);    
 }
 
 GNSSPathPublisher::~GNSSPathPublisher() {}
@@ -65,36 +65,24 @@ void GNSSPathPublisher::loadCSV(void)
     }
 }
 
-// 可視化用pathの作成
-void GNSSPathPublisher::setMsg(void)
+// pathの生成
+nav_msgs::msg::Path GNSSPathPublisher::setMsg(const std::vector<double>& xs, const std::vector<double>& ys)
 {
-    std::vector<Eigen::Vector2d> spline_points_ = interpolateSpline(xs_, ys_, 100);
+    std::vector<Eigen::Vector2d> spline_points = interpolateSpline(xs, ys, 100);
 
-    path_msg_.header.stamp = this->now();
-    path_msg_.header.frame_id = "map";
-    for (const auto& coord : spline_points_) {
-        pose_.header.stamp = this->now();
-        pose_.header.frame_id = "map";
-        pose_.pose.position.x = coord.x();
-        pose_.pose.position.y = coord.y();
-        path_msg_.poses.push_back(pose_);
+    nav_msgs::msg::Path path_msg;
+    path_msg.header.stamp = this->now();
+    path_msg.header.frame_id = "map";
+    for (const auto& coord : spline_points) {
+        geometry_msgs::msg::PoseStamped pose;
+        pose.header.stamp = this->now();
+        pose.header.frame_id = "map";
+        pose.pose.position.x = coord.x();
+        pose.pose.position.y = coord.y();
+        path_msg.poses.push_back(pose);
     }
-}
 
-// 経路追従用pathの作成
-void GNSSPathPublisher::setOriginMsg(void)
-{
-    std::vector<Eigen::Vector2d> origin_spline_points_ = interpolateSpline(origin_xs_, origin_ys_, 100);
-
-    origin_path_msg_.header.stamp = this->now();
-    origin_path_msg_.header.frame_id = "map";
-    for (const auto& origin_coord : origin_spline_points_) {
-        origin_pose_.header.stamp = this->now();
-        origin_pose_.header.frame_id = "map";
-        origin_pose_.pose.position.x = origin_coord.x();
-        origin_pose_.pose.position.y = origin_coord.y();
-        origin_path_msg_.poses.push_back(origin_pose_);
-    }
+    return path_msg;
 }
 
 // スプライン補間

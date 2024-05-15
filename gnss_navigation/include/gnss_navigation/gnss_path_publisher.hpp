@@ -46,11 +46,11 @@ class GNSSPathPublisher : public rclcpp::Node
         std::vector<Eigen::Vector2d> interpolateSpline(const std::vector<double>& xs, const std::vector<double>& ys, int num_points);
         std::vector<Eigen::Vector2d> result_;
 
+        nav_msgs::msg::Path setMsg(const std::vector<double>& xs, const std::vector<double>& ys);
+
         void declareParameter(void);
         void initCommunication(void);
         void loadCSV(void);
-        void setMsg(void);
-        void setOriginMsg(void);
         void _publisher_callback();
         void setInitPose(double x, double y);
 
