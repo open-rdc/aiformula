@@ -14,6 +14,7 @@
   <depend>socketcan_interface</depend>
   <depend>controller</depend>
   <depend>roboteq_driver</depend>
+  <depend>gnssnav</depend>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 

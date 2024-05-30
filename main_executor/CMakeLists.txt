@@ -10,6 +10,10 @@ find_package(rclcpp REQUIRED)
 find_package(socketcan_interface REQUIRED)
 find_package(controller REQUIRED)
 find_package(roboteq_driver REQUIRED)
+find_package(gnssnav REQUIRED)
+find_package(Eigen3 REQUIRED)
+
+include_directories(/usr/include/eigen3)
 
 add_executable(main_exec
         src/main.cpp
@@ -20,6 +24,7 @@ ament_target_dependencies(main_exec
         socketcan_interface
         controller
         roboteq_driver
+        gnssnav
         )
 
 target_include_directories(main_exec
