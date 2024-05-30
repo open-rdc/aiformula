@@ -11,7 +11,9 @@ if(NOT CMAKE_CXX_STANDARD)
   set(CMAKE_CXX_STANDARD 14)
 endif()
 
-if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+
+
+if(CMAKE_COMPILER_IS_GNUCXX OR CMAKFE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
@@ -19,6 +21,14 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(ament_cmake_ros REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(nav_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
+find_package(Eigen3 REQUIRED)
+
+find_path(PROJ_INCLUDE_DIR NAMES proj.h PATHS /usr/include)
+find_library(PROJ_LIBRARY NAMES proj PATHS /usr/lib/x86_64-linux-gnu)
+
+include_directories(/usr/include/eigen3)
 
 add_library(navigation_node
   src/follower_node.cpp
