@@ -124,7 +124,6 @@ void Follower::findNearestIndex(const geometry_msgs::msg::Pose front_wheel_pos){
         double dy = point_[idx_].pose.position.y - front_wheel_pos.position.y;
         distance_ = std::hypot(dx, dy);
         // ld_より距離が近い点が目標地点
-        // ここの判定が良くない
         if(distance_ > ld_){
             break;
         }

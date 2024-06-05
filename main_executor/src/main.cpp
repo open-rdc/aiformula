@@ -4,6 +4,7 @@
 #include "controller/controller_node.hpp"
 #include "roboteq_driver/roboteq_driver_node.hpp"
 #include "gnssnav/path_publisher_node.hpp"
+#include "gnssnav/follower_node.hpp"
 
 int main(int argc, char * argv[]){
     rclcpp::init(argc,argv);
@@ -16,12 +17,14 @@ int main(int argc, char * argv[]){
     auto socketcan_node = std::make_shared<socketcan_interface::SocketcanInterface>(nodes_option);
     auto controller_node = std::make_shared<controller::Controller>(nodes_option);
     auto roboteq_driver_node = std::make_shared<roboteq_driver::RoboteqDriver>(nodes_option);
-    // auto publisher_node = std::make_shared<gnssnav::Publisher>(nodes_option);
-
+    auto path_publisher_node = std::make_shared<gnssnav::Publisher>(nodes_option);
+    auto follower_node = std::make_shared<gnssnav::Follower>(nodes_option);
 
     exec.add_node(socketcan_node);
     exec.add_node(controller_node);
     exec.add_node(roboteq_driver_node);
+    exec.add_node(path_publisher_node);
+    exec.add_node(follower_node);
 
     exec.spin();
     rclcpp::shutdown();
