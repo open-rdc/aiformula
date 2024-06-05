@@ -11,8 +11,6 @@ if(NOT CMAKE_CXX_STANDARD)
   set(CMAKE_CXX_STANDARD 14)
 endif()
 
-
-
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKFE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
@@ -24,11 +22,40 @@ find_package(rclcpp REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(Eigen3 REQUIRED)
+find_package(tf2 REQUIRED)
+find_package(tf2_ros REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
 
 find_path(PROJ_INCLUDE_DIR NAMES proj.h PATHS /usr/include)
 find_library(PROJ_LIBRARY NAMES proj PATHS /usr/lib/x86_64-linux-gnu)
 
 include_directories(/usr/include/eigen3)
+
+add_executable(path_publisher_node src/path_publisher_node.cpp)
+target_include_directories(path_publisher_node PRIVATE include)
+ament_target_dependencies(
+  path_publisher_node
+  rclcpp
+  nav_msgs
+  tf2
+  tf2_ros
+  tf2_geometry_msgs
+)
+target_link_libraries(path_publisher_node ${PROJ_LIBRARY})
+
+add_executable(follower_node src/follower_node.cpp)
+target_include_directories(follower_node PRIVATE include)
+ament_target_dependencies(
+  follower_node
+  rclcpp
+  nav_msgs
+  geometry_msgs
+  tf2
+  tf2_ros
+  tf2_geometry_msgs
+)
+target_link_libraries(follower_node ${PROJ_LIBRARY})
+
 
 add_library(navigation_node
   src/follower_node.cpp

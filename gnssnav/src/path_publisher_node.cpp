@@ -57,7 +57,7 @@ nav_msgs::msg::Path Publisher::setMsg(const std::vector<double>& xs, const std::
 
     nav_msgs::msg::Path path_msg;
     path_msg.header.stamp = this->now();
-    path_msg.header.frame_id = 'map';
+    path_msg.header.frame_id = "map";
     for (const auto& coord : spline_points) {
         geometry_msgs::msg::PoseStamped pose;
         pose.header.stamp = this->now();
@@ -108,4 +108,4 @@ void Publisher::loop(void){
 }
 
 
-};  // namespace gnssnav
+}  // namespace gnssnav
