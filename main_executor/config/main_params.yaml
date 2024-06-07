@@ -34,3 +34,11 @@ roboteq_driver_node:
     tread : 0.6
     reverse_left_flag : false
     reverse_right_flag : false
+
+follower_node:
+  ros__parameters:
+    lookahead_gain : 1.0
+    cte_gain : 1.0
+    min_lookaahead_distance : 3.0
+    max_linear_vel : 1.0
+    max_angular : 1.0
