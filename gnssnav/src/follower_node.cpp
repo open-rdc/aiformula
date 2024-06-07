@@ -19,7 +19,6 @@ Follower::Follower(const std::string& name_space, const rclcpp::NodeOptions& opt
     current_pose_pub_ = this->create_publisher<geometry_msgs::msg::PoseStamped>("/current_pose", 10);
     current_ld_pub_ = this->create_publisher<geometry_msgs::msg::PoseStamped>("/current_ld", 10); 
 
-    this->get_parameter("loop_freq", freq_);
     this->get_parameter("lookahead_gain", ld_gain_);
     this->get_parameter("cte_gain", cte_gain_);
     this->get_parameter("min_lookahead_distance", ld_min_);
@@ -255,3 +254,10 @@ std::pair<double, double> Follower::convertECEFtoUTM(double x, double y, double 
 }
 
 }  // namespace gnssnav
+
+int main(int argc, char * argv[]){
+    rclcpp::init(argc, argv);
+    // rclcpp::spin(std::make_shared<gnssnav::Follower>());
+    rclcpp::shutdown();
+    return 0;
+}

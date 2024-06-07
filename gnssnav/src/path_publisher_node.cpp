@@ -2,7 +2,7 @@
 
 namespace gnssnav{
 
-Publisher::Publisher()
+Publisher::Publisher(const rclcpp::NodeOptions& options)
     :Node("path_publisher_node"),
     init_flag_(true)
 {

@@ -6,9 +6,9 @@ if(NOT CMAKE_C_STANDARD)
   set(CMAKE_C_STANDARD 99)
 endif()
 
-# Default to C++14
+# Default to C++17
 if(NOT CMAKE_CXX_STANDARD)
-  set(CMAKE_CXX_STANDARD 14)
+  set(CMAKE_CXX_STANDARD 17)
 endif()
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKFE_CXX_COMPILER_ID MATCHES "Clang")
@@ -31,32 +31,6 @@ find_library(PROJ_LIBRARY NAMES proj PATHS /usr/lib/x86_64-linux-gnu)
 
 include_directories(/usr/include/eigen3)
 
-add_executable(path_publisher_node src/path_publisher_node.cpp)
-target_include_directories(path_publisher_node PRIVATE include)
-ament_target_dependencies(
-  path_publisher_node
-  rclcpp
-  nav_msgs
-  tf2
-  tf2_ros
-  tf2_geometry_msgs
-)
-target_link_libraries(path_publisher_node ${PROJ_LIBRARY})
-
-add_executable(follower_node src/follower_node.cpp)
-target_include_directories(follower_node PRIVATE include)
-ament_target_dependencies(
-  follower_node
-  rclcpp
-  nav_msgs
-  geometry_msgs
-  tf2
-  tf2_ros
-  tf2_geometry_msgs
-)
-target_link_libraries(follower_node ${PROJ_LIBRARY})
-
-
 add_library(navigation_node
   src/follower_node.cpp
   src/path_publisher_node.cpp)
@@ -65,8 +39,14 @@ target_include_directories(navigation_node PUBLIC
   $<INSTALL_INTERFACE:include>)
 ament_target_dependencies(
   navigation_node
-  "rclcpp"
+  rclcpp
+  nav_msgs
+  geometry_msgs
+  tf2
+  tf2_ros
+  tf2_geometry_msgs
 )
+target_link_libraries(navigation_node ${PROJ_LIBRARY})
 
 # Causes the visibility macros to use dllexport rather than dllimport,
 # which is appropriate when building the dll but not consuming it.
