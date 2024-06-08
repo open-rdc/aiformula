@@ -42,3 +42,7 @@ follower_node:
     min_lookaahead_distance : 3.0
     max_linear_vel : 1.0
     max_angular : 1.0
+
+path_publisher_node:
+  ros__parameters:
+    file_path : "shihou_full_teleop.csv"
