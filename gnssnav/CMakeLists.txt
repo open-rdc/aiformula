@@ -81,8 +81,8 @@ install(
   RUNTIME DESTINATION bin
 )
 
-install(DIRECTORY config
-  DESTINATION share/${PROJECT_NAME})
+# install(DIRECTORY config
+#   DESTINATION share/main_executor)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
