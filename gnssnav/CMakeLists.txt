@@ -17,6 +17,7 @@ endif()
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
+find_package(ament_index_cpp REQUIRED)
 find_package(ament_cmake_ros REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(nav_msgs REQUIRED)
@@ -39,6 +40,7 @@ target_include_directories(navigation_node PUBLIC
   $<INSTALL_INTERFACE:include>)
 ament_target_dependencies(
   navigation_node
+  ament_index_cpp
   rclcpp
   nav_msgs
   geometry_msgs
@@ -52,6 +54,21 @@ target_link_libraries(navigation_node ${PROJ_LIBRARY})
 # which is appropriate when building the dll but not consuming it.
 target_compile_definitions(navigation_node PRIVATE "GNSSNAV_BUILDING_LIBRARY")
 
+
+ament_export_include_directories(
+  include
+)
+ament_export_libraries(
+  navigation_node
+)
+ament_export_targets(
+  export_${PROJECT_NAME}
+)
+ament_export_dependencies(
+        ament_index_cpp
+        rclcpp
+)
+
 install(
   DIRECTORY include/
   DESTINATION include
@@ -64,6 +81,9 @@ install(
   RUNTIME DESTINATION bin
 )
 
+install(DIRECTORY config
+  DESTINATION share/${PROJECT_NAME})
+
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   # the following line skips the linter which checks for copyrights
@@ -75,14 +95,6 @@ if(BUILD_TESTING)
   ament_lint_auto_find_test_dependencies()
 endif()
 
-ament_export_include_directories(
-  include
-)
-ament_export_libraries(
-  navigation_node
-)
-ament_export_targets(
-  export_${PROJECT_NAME}
-)
+
 
 ament_package()

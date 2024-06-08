@@ -1,4 +1,5 @@
 #include "gnssnav/path_publisher_node.hpp"
+#include <ament_index_cpp/get_package_share_directory.hpp>
 
 namespace gnssnav{
 
@@ -17,8 +18,8 @@ void Publisher::initCommunication(void){
     publisher_ = this->create_publisher<nav_msgs::msg::Path>("gnss_path", 10);
     origin_publisher_ = this->create_publisher<nav_msgs::msg::Path>("origin_gnss_path", 10);
 
-    this->get_parameter("loop_freq", freq_);
-    file_path_ = this->get_parameter("file_path").as_string();
+    //file_path_ = this->get_parameter("file_path").as_string();
+    file_path_ = ament_index_cpp::get_package_share_directory("main_executor")+"/config/"+"shihou_full_teleop.csv";
 }
 
 // load CSV file
