@@ -11,6 +11,10 @@ Publisher::Publisher(const rclcpp::NodeOptions& options)
     loadCSV();
     path_msg_ = setMsg(xs_, ys_);
     origin_path_msg_ = setMsg(origin_xs_, origin_ys_);
+
+    timer_ = this->create_wall_timer(
+        std::chrono::seconds(1),
+        std::bind(&Publisher::loop, this));
 }
 
 // pub, param config
@@ -19,7 +23,7 @@ void Publisher::initCommunication(void){
     origin_publisher_ = this->create_publisher<nav_msgs::msg::Path>("origin_gnss_path", 10);
 
     //file_path_ = this->get_parameter("file_path").as_string();
-    file_path_ = ament_index_cpp::get_package_share_directory("main_executor")+"/config/"+"shihou_full_teleop.csv";
+    file_path_ = ament_index_cpp::get_package_share_directory("main_executor")+"/config/"+"/cource_data/"+"shihou_full_teleop.csv";
 }
 
 // load CSV file
@@ -74,7 +78,7 @@ nav_msgs::msg::Path Publisher::setMsg(const std::vector<double>& xs, const std::
 // spline
 std::vector<Eigen::Vector2d> Publisher::interpolateSpline(const std::vector<double>& xs, const std::vector<double>& ys, int num_points){
     Eigen::Matrix<double, Eigen::Dynamic, 2> points(xs.size(), 2);
-    for (size_t i=0; i < xs.size(); ++i){
+    for (size_t i=0; i < xs.size(); i++){
         points(i, 0) = xs[i];
         points(i, 1) = ys[i];
     }
@@ -107,6 +111,5 @@ void Publisher::loop(void){
     publisher_->publish(path_msg_);
     origin_publisher_->publish(origin_path_msg_);
 }
-
 
 }  // namespace gnssnav

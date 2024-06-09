@@ -47,7 +47,7 @@ private:
     rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr origin_publisher_;
     nav_msgs::msg::Path path_msg_;
     nav_msgs::msg::Path origin_path_msg_;
-    rclcpp::TimerBase::SharedPtr _pub_timer;
+    rclcpp::TimerBase::SharedPtr timer_;
 
     std::pair<double, double> convertGPStoUTM(double lat, double lon);
     std::vector<Eigen::Vector2d> interpolateSpline(const std::vector<double>& xs, const std::vector<double>& ys, int num_points);
