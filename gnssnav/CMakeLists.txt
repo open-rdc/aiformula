@@ -34,7 +34,8 @@ include_directories(/usr/include/eigen3)
 
 add_library(navigation_node
   src/follower_node.cpp
-  src/path_publisher_node.cpp)
+  src/path_publisher_node.cpp
+  )
 target_include_directories(navigation_node PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
