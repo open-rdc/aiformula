@@ -23,12 +23,20 @@ void Publisher::initCommunication(void){
     origin_publisher_ = this->create_publisher<nav_msgs::msg::Path>("origin_gnss_path", 10);
 
     //file_path_ = this->get_parameter("file_path").as_string();
-    file_path_ = ament_index_cpp::get_package_share_directory("main_executor")+"/config/"+"/cource_data/"+"shihou_full_teleop.csv";
+    file_path_ = ament_index_cpp::get_package_share_directory("main_executor")+"/config/"+"course_data/"+"shihou_full.csv";
 }
 
 // load CSV file
 void Publisher::loadCSV(void){
     std::ifstream file(file_path_);
+    printf("loadCSV: file_path_ = %s\n", file_path_.c_str());
+
+    if (!file.is_open()) {
+        std::cerr << "loadCSV is failed to open file" << file_path_ << std::endl;
+        return;
+    }else {
+        std::cerr << "loadCSV is sucsess to open file" << std::endl;
+    }
 
     while(std::getline(file, line_)) {
         std::stringstream ss(line_);
@@ -78,14 +86,15 @@ nav_msgs::msg::Path Publisher::setMsg(const std::vector<double>& xs, const std::
 // spline
 std::vector<Eigen::Vector2d> Publisher::interpolateSpline(const std::vector<double>& xs, const std::vector<double>& ys, int num_points){
     Eigen::Matrix<double, Eigen::Dynamic, 2> points(xs.size(), 2);
-    for (size_t i=0; i < xs.size(); i++){
+    for (size_t i=0; i < xs.size(); ++i){
         points(i, 0) = xs[i];
         points(i, 1) = ys[i];
     }
 
     auto spline = Eigen::SplineFitting<Eigen::Spline<double, 2>>::Interpolate(points.transpose(), 2); //2次のキュービックスプライン
 
-    double step = 1.0 / (num_points -1);
+    if(num_points > 1)
+        step = 1.0 / (num_points -1);
     for (int i = 0; i < num_points; ++i) {
         double u = i * step;
         Eigen::Vector2d pt = spline(u);
