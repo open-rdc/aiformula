@@ -63,6 +63,7 @@ private:
     bool init_flag_;
     double base_x_;
     double base_y_;
+    double step;
 
 };
 
