@@ -201,7 +201,7 @@ void Follower::followPath(const geometry_msgs::msg::PoseStamped pose_msg){
 
 
     if(point_.empty()) return;
-    // if(!nav_start_flag_) return;
+    if(!nav_start_flag_) return;
 
     std::cerr << "follower is sucsess2" << std::endl;
 
