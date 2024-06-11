@@ -30,6 +30,8 @@ Follower::Follower(const std::string& name_space, const rclcpp::NodeOptions& opt
 void Follower::vectornavCallback(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg) {
     auto [x, y] = convertECEFtoUTM(msg->pose.pose.position.x, msg->pose.pose.position.y, msg->pose.pose.position.z);
 
+    // std::cerr << "read to vectornav callback" << std::endl;
+
     current_position_x_ = x;
     current_position_y_ = y;
     current_yaw_ = calculateYawFromQuaternion(msg->pose.pose.orientation);
@@ -100,6 +102,8 @@ void Follower::publishCurrentPose(){
     pose_msg.pose.orientation = tf2::toMsg(result_q);
     current_pose_pub_->publish(pose_msg);
 
+    std::cerr << "Publish current pose is sucsess" << std::endl;
+
     followPath(pose_msg);
 }
 
@@ -133,10 +137,15 @@ void Follower::findNearestIndex(const geometry_msgs::msg::Pose front_wheel_pos){
 // 目標地点を探索する
 void Follower::findLookaheadDistance(const geometry_msgs::msg::PoseStamped pose_msg){
     wheel_base_ = 600;
+    std::cerr << "findLookahead is to read" << std::endl;
+
     double front_x_ =
         current_position_x_ + wheel_base_ / 2.0 * std::cos(pose_msg.pose.orientation.z);
     double front_y_ =
         current_position_y_ + wheel_base_ / 2.0 * std::sin(pose_msg.pose.orientation.z);
+
+    std::cerr << "front_x_y_ is sucsess" << std::endl;
+
 
     geometry_msgs::msg::Pose front_wheel_pos;
     front_wheel_pos.position.x = front_x_;
@@ -188,11 +197,17 @@ double Follower::calculateHeadingError(){
 }
 
 void Follower::followPath(const geometry_msgs::msg::PoseStamped pose_msg){
-    if(point_.empty()) return;
-    if(!nav_start_flag_) return;
+    std::cerr << "follower is sucsess1" << std::endl;
 
+
+    if(point_.empty()) return;
+    // if(!nav_start_flag_) return;
+
+    std::cerr << "follower is sucsess2" << std::endl;
 
     findLookaheadDistance(pose_msg);
+    std::cerr << "follower is sucsess3" << std::endl;
+
     publishLookahead();
 
     // 横方向のズレ
