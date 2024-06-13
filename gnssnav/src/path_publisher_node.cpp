@@ -12,8 +12,10 @@ Publisher::Publisher(const rclcpp::NodeOptions& options)
     path_msg_ = setMsg(xs_, ys_);
     origin_path_msg_ = setMsg(origin_xs_, origin_ys_);
 
+    this->get_parameter("path_publish_freq", freq);
+
     timer_ = this->create_wall_timer(
-        std::chrono::seconds(1),
+        std::chrono::milliseconds(freq),
         std::bind(&Publisher::loop, this));
 }
 

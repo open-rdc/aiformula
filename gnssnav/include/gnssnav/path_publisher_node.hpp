@@ -23,7 +23,6 @@ public:
     Publisher();
 
     void loop(void);
-    int freq_;
 
     GNSSNAV_PUBLIC
     explicit Publisher(const rclcpp::NodeOptions& options = rclcpp::NodeOptions());
@@ -42,6 +41,7 @@ private:
     std::vector<std::string> tokens_;
 
     geometry_msgs::msg::PoseStamped pose_;
+
     geometry_msgs::msg::PoseStamped origin_pose_;
     rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr publisher_;
     rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr origin_publisher_;
@@ -64,6 +64,8 @@ private:
     double base_x_;
     double base_y_;
     double step;
+
+    int freq;
 
 };
 

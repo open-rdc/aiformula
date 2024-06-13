@@ -52,6 +52,10 @@ private:
     double distance_;
     double theta;
 
+    int freq;
+
+    geometry_msgs::msg::PoseStamped pose_msg;
+
     rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr vectornav_subscriber_;
     rclcpp::Subscription<nav_msgs::msg::Path>::SharedPtr path_subscriber_;
     rclcpp::Subscription<std_msgs::msg::Empty>::SharedPtr nav_start_subscriber_;
@@ -79,8 +83,8 @@ private:
     void findNearestIndex(const geometry_msgs::msg::Pose);
     void publishCurrentPose(void);
     void publishLookahead(void);
-    void followPath(const geometry_msgs::msg::PoseStamped pose_msg);
-    void findLookaheadDistance(const geometry_msgs::msg::PoseStamped pose_msg);
+    void followPath();
+    void findLookaheadDistance();
     void setBasePose(void);
     void calcPathDirection(void);
 

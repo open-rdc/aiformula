@@ -7,6 +7,12 @@ Follower::Follower(const rclcpp::NodeOptions& options) : Follower("", options) {
 // pub, sub, param
 Follower::Follower(const std::string& name_space, const rclcpp::NodeOptions& options)
 : rclcpp::Node("gnssnav_follower_node", name_space, options)
+// ld_gain_(get_parameter("lookahead_gain").as_double()),
+// cte_gain_(get_parameter("cte_gain").as_double()),
+// ld_min_(get_parameter("min_lookahead_distance").as_int()),
+// v_max_(get_parameter("max_linear_vel").as_double()),
+// w_max_(get_parameter("max_angular_vel").as_double()),
+// freq(get_parameter("follower_freq").as_int())
 {
     auto callback = [this](const std_msgs::msg::Empty::SharedPtr msg) { this->navStartCallback(msg); };
 
@@ -24,6 +30,13 @@ Follower::Follower(const std::string& name_space, const rclcpp::NodeOptions& opt
     this->get_parameter("min_lookahead_distance", ld_min_);
     this->get_parameter("max_linear_vel", v_max_);
     this->get_parameter("max_angular_vel", w_max_);
+    this->get_parameter("follower_freq", freq);
+
+    std::cerr << "freq is " << freq <<std::endl;
+
+    timer_ = this->create_wall_timer(
+        std::chrono::milliseconds(freq),//仮で100msに設定
+        std::bind(&Follower::loop, this));
 }
 
 // vectornav/pose callback
@@ -88,7 +101,7 @@ void Follower::publishCurrentPose(){
 
     tf2::Vector3 corrected_position = tf2::quatRotate(initial_q, current_position);
 
-    geometry_msgs::msg::PoseStamped pose_msg;
+    // geometry_msgs::msg::PoseStamped pose_msg;
     pose_msg.header.stamp = this->now();
     pose_msg.header.frame_id = "map";
 
@@ -102,9 +115,7 @@ void Follower::publishCurrentPose(){
     pose_msg.pose.orientation = tf2::toMsg(result_q);
     current_pose_pub_->publish(pose_msg);
 
-    std::cerr << "Publish current pose is sucsess" << std::endl;
-
-    followPath(pose_msg);
+    // followPath(pose_msg);
 }
 
 void Follower::publishLookahead(){
@@ -121,13 +132,16 @@ void Follower::publishLookahead(){
 
 // 最も近い経路点を見つける(座標とidx)
 void Follower::findNearestIndex(const geometry_msgs::msg::Pose front_wheel_pos){
+        std::cerr << "findNearestIndex is to read" << std::endl;
 
-    for(;idx_ < point_.size(); idx_++){
+    for(idx_=0;idx_ < point_.size() && idx_ >= 0; idx_++){
+        std::cerr << "idx_ is" << idx_ <<std::endl;
         double dx = point_[idx_].pose.position.x - front_wheel_pos.position.x;
         double dy = point_[idx_].pose.position.y - front_wheel_pos.position.y;
         distance_ = std::hypot(dx, dy);
         // ld_より距離が近い点が目標地点
         if(distance_ > ld_){
+            std::cerr << "idx_ is" << idx_ <<std::endl;
             break;
         }
     }
@@ -135,7 +149,7 @@ void Follower::findNearestIndex(const geometry_msgs::msg::Pose front_wheel_pos){
 }
 
 // 目標地点を探索する
-void Follower::findLookaheadDistance(const geometry_msgs::msg::PoseStamped pose_msg){
+void Follower::findLookaheadDistance(){
     wheel_base_ = 600;
     std::cerr << "findLookahead is to read" << std::endl;
 
@@ -144,14 +158,12 @@ void Follower::findLookaheadDistance(const geometry_msgs::msg::PoseStamped pose_
     double front_y_ =
         current_position_y_ + wheel_base_ / 2.0 * std::sin(pose_msg.pose.orientation.z);
 
-    std::cerr << "front_x_y_ is sucsess" << std::endl;
-
-
     geometry_msgs::msg::Pose front_wheel_pos;
     front_wheel_pos.position.x = front_x_;
     front_wheel_pos.position.y = front_y_;
 
     // 前の車輪から一番近い経路点を見つける
+    std::cerr << "findNearIndex start" << std::endl;
     findNearestIndex(front_wheel_pos);
 
     if(idx_ > 0){
@@ -161,8 +173,6 @@ void Follower::findLookaheadDistance(const geometry_msgs::msg::PoseStamped pose_
     } else {
         pre_point = point_[idx_].pose.position;
     }
-    // 完走判定(別の箇所で実装済み)
-    // 目標までの距離を速度に応じて可変にする
 }
 
 double Follower::radian2deg(double rad){
@@ -196,18 +206,24 @@ double Follower::calculateHeadingError(){
     return heading_error;
 }
 
-void Follower::followPath(const geometry_msgs::msg::PoseStamped pose_msg){
+void Follower::followPath(){
     std::cerr << "follower is sucsess1" << std::endl;
 
 
-    if(point_.empty()) return;
-    if(!nav_start_flag_) return;
+    if(point_.empty()){
+        std::cerr << "point_empty error" << std::endl;
+        return;
+    }
+    // if(!nav_start_flag_){
+    //     std::cerr << "nav_start_flag error" << std::endl;
+    //     return;
+    // }
 
-    std::cerr << "follower is sucsess2" << std::endl;
+    ld_ = ld_gain_ * v_ + ld_min_; 
+    std::cerr << "ld is" << ld_ <<std::endl;
 
-    findLookaheadDistance(pose_msg);
-    std::cerr << "follower is sucsess3" << std::endl;
 
+    findLookaheadDistance();
     publishLookahead();
 
     // 横方向のズレ
@@ -215,9 +231,8 @@ void Follower::followPath(const geometry_msgs::msg::PoseStamped pose_msg){
     // pointとpre_pointを結ぶ先に対する現在の車体の角度
     double he = calculateHeadingError();
 
-    ld_ = ld_gain_ * v_ + ld_min_; 
-
-    v_ = std::min(v_max_, ld_);
+    // v_ = std::min(v_max_, ld_);
+    v_ = 0.5;
     w_ = he + std::atan2(cte_gain_ * cte, v_);
 
     RCLCPP_INFO(this->get_logger(), "distance: %f meters, angle: %f rad", distance_, theta);
@@ -267,12 +282,14 @@ std::pair<double, double> Follower::convertECEFtoUTM(double x, double y, double 
 
     return {b.enu.e, b.enu.n};
 }
+void Follower::loop(void){
+    followPath();
+}
 
 }  // namespace gnssnav
 
 int main(int argc, char * argv[]){
     rclcpp::init(argc, argv);
-    // rclcpp::spin(std::make_shared<gnssnav::Follower>());
     rclcpp::shutdown();
     return 0;
 }
