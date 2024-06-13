@@ -19,7 +19,7 @@ int main(int argc, char * argv[]){
     auto roboteq_driver_node = std::make_shared<roboteq_driver::RoboteqDriver>(nodes_option);
     auto path_publisher_node = std::make_shared<gnssnav::Publisher>(nodes_option);
     auto follower_node = std::make_shared<gnssnav::Follower>(nodes_option);
-
+    
     exec.add_node(socketcan_node);
     exec.add_node(controller_node);
     exec.add_node(roboteq_driver_node);
