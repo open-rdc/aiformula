@@ -67,8 +67,7 @@ private:
 
     rclcpp::TimerBase::SharedPtr timer_;
 
-    std::vector<geometry_msgs::msg::PoseStamped> point_;
-    // std::vector<geometry_msgs::msg::Pose> front_wheel_pos;
+    std::vector<geometry_msgs::msg::Pose> front_wheel_pos;
 
     void declareParameter(void);
 
@@ -80,7 +79,7 @@ private:
     double calculateCrossError();
     double calculateHeadingError();
 
-    void findNearestIndex(const geometry_msgs::msg::Pose);
+    void findNearestIndex(const geometry_msgs::msg::Pose front_wheel_pos);
     void publishCurrentPose(void);
     void publishLookahead(void);
     void followPath();
@@ -102,7 +101,8 @@ private:
     double vectornav_base_yaw_;
     double path_direction_;
 
-    geometry_msgs::msg::Point pre_point;
+    std::vector<geometry_msgs::msg::Point> point_;
+    std::vector<geometry_msgs::msg::Point> pre_point;
 };
 
 }  // namespace gnssnav

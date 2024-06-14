@@ -43,13 +43,10 @@ Follower::Follower(const std::string& name_space, const rclcpp::NodeOptions& opt
 void Follower::vectornavCallback(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg) {
     auto [x, y] = convertECEFtoUTM(msg->pose.pose.position.x, msg->pose.pose.position.y, msg->pose.pose.position.z);
 
-    // std::cerr << "read to vectornav callback" << std::endl;
-
     current_position_x_ = x;
     current_position_y_ = y;
     current_yaw_ = calculateYawFromQuaternion(msg->pose.pose.orientation);
 
-    // double current_yaw_deg = radian2deg(current_yaw_);
     if(init_base_flag_ && !(x == 0.0) && !(y == 0.0)) {
         setBasePose();
     } else {
@@ -59,7 +56,9 @@ void Follower::vectornavCallback(const geometry_msgs::msg::PoseWithCovarianceSta
 
 // received path
 void Follower::pathCallback(const nav_msgs::msg::Path::SharedPtr msg) {
-    point_ = msg->poses;
+    for(const auto& position : msg->poses){
+        point_.push_back(position.pose.position);
+    }
 }
 
 // gnssnav permit
@@ -84,9 +83,8 @@ void Follower::setBasePose(){
 
 // 現在地をパブリッシュ
 void Follower::publishCurrentPose(){
-    // calcPathDirection();
-    double dx = point_[1].pose.position.x - point_[0].pose.position.x;
-    double dy = point_[1].pose.position.y - point_[0].pose.position.y;
+    double dx = point_[1].x - point_[0].x;
+    double dy = point_[1].y - point_[0].y;
     path_direction_ = std::atan2(dy, dx);
 
     tf2::Quaternion initial_q, current_q, result_q;
@@ -101,7 +99,6 @@ void Follower::publishCurrentPose(){
 
     tf2::Vector3 corrected_position = tf2::quatRotate(initial_q, current_position);
 
-    // geometry_msgs::msg::PoseStamped pose_msg;
     pose_msg.header.stamp = this->now();
     pose_msg.header.frame_id = "map";
 
@@ -114,8 +111,6 @@ void Follower::publishCurrentPose(){
 
     pose_msg.pose.orientation = tf2::toMsg(result_q);
     current_pose_pub_->publish(pose_msg);
-
-    // followPath(pose_msg);
 }
 
 void Follower::publishLookahead(){
@@ -123,23 +118,22 @@ void Follower::publishLookahead(){
     pose_msg.header.stamp = this->now(); 
     pose_msg.header.frame_id = "map"; 
 
-    pose_msg.pose.position.x = point_[idx_].pose.position.x - vectornav_base_x_;  
-    pose_msg.pose.position.y = point_[idx_].pose.position.y - vectornav_base_y_;  
+    pose_msg.pose.position.x = point_[idx_].x - vectornav_base_x_;  
+    pose_msg.pose.position.y = point_[idx_].y - vectornav_base_y_;  
     pose_msg.pose.position.z = 0.0;  
 
     current_ld_pub_->publish(pose_msg);
 }
 
 // 最も近い経路点を見つける(座標とidx)
-void Follower::findNearestIndex(const geometry_msgs::msg::Pose front_wheel_pos){
+void Follower::findNearestIndex(geometry_msgs::msg::Pose front_wheel_pos){
         std::cerr << "findNearestIndex is to read" << std::endl;
 
-    for(idx_=0;idx_ < point_.size() && idx_ >= 0; idx_++){
-        std::cerr << "idx_ is" << idx_ <<std::endl;
-        double dx = point_[idx_].pose.position.x - front_wheel_pos.position.x;
-        double dy = point_[idx_].pose.position.y - front_wheel_pos.position.y;
+    for(idx_ = 0;idx_ < point_.size(); idx_++){
+        double dx = point_[idx_].x - front_wheel_pos.position.x;
+        double dy = point_[idx_].y - front_wheel_pos.position.y;
         distance_ = std::hypot(dx, dy);
-        // ld_より距離が近い点が目標地点
+
         if(distance_ > ld_){
             std::cerr << "idx_ is" << idx_ <<std::endl;
             break;
@@ -151,8 +145,6 @@ void Follower::findNearestIndex(const geometry_msgs::msg::Pose front_wheel_pos){
 // 目標地点を探索する
 void Follower::findLookaheadDistance(){
     wheel_base_ = 600;
-    std::cerr << "findLookahead is to read" << std::endl;
-
     double front_x_ =
         current_position_x_ + wheel_base_ / 2.0 * std::cos(pose_msg.pose.orientation.z);
     double front_y_ =
@@ -168,10 +160,8 @@ void Follower::findLookaheadDistance(){
 
     if(idx_ > 0){
         pre_point_idx = idx_ - 1;
-        // geometry_msgs::msg::Poseposition
-        pre_point = point_[pre_point_idx].pose.position;
-    } else {
-        pre_point = point_[idx_].pose.position;
+    }else{
+        pre_point_idx = idx_;
     }
 }
 
@@ -182,8 +172,8 @@ double Follower::radian2deg(double rad){
 
 // not scope 経路に対しての横方向のズレを計算
 double Follower::calculateCrossError(){
-    double dx = point_[idx_].pose.position.x - current_position_x_;
-    double dy = point_[idx_].pose.position.y - current_position_y_;
+    double dx = point_[idx_].x - current_position_x_;
+    double dy = point_[idx_].y - current_position_y_;
 
     double target_angle = std::atan2(dx, dy);
     theta = target_angle - current_yaw_;
@@ -197,8 +187,8 @@ double Follower::calculateCrossError(){
 // pointとpre_pointを結ぶ先に対する現在の車体の角度を計算
 double Follower::calculateHeadingError(){
     double traj_theta = 
-        std::atan2(point_[idx_].pose.position.y - point_[pre_point_idx].pose.position.y,
-                   point_[idx_].pose.position.x - point_[pre_point_idx].pose.position.x);
+        std::atan2(point_[idx_].y - point_[pre_point_idx].y,
+                   point_[idx_].x - point_[pre_point_idx].x);
 
     double heading_error = traj_theta - theta;
     heading_error = std::atan2(std::sin(heading_error), std::cos(heading_error));
@@ -245,6 +235,7 @@ void Follower::followPath(){
     if(idx_ >= point_.size() - 5){
         cmd_vel.x = 0.0;
         cmd_vel.y = 0.0;
+        RCLCPP_INFO(this->get_logger(), "Goal to reach");
     }
 
     cmd_pub_->publish(cmd_vel);
