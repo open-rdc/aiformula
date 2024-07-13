@@ -107,12 +107,10 @@ void SocketcanInterface::_publisher_callback() {
         if(frame.can_id & CAN_EFF_FLAG){
             msg->canid = frame.can_id & CAN_EFF_MASK;
             msg->eff = true;
-            RCLCPP_INFO(this->get_logger(), "GOT EFF");
         }
         else{
             msg->canid = frame.can_id & CAN_SFF_MASK;
             msg->eff = false;
-            RCLCPP_INFO(this->get_logger(), "GOT SFF");
         }
 
         msg->candlc = frame.can_dlc;
@@ -154,7 +152,7 @@ void SocketcanInterface::_subscriber_callback(const socketcan_interface_msg::msg
         sprintf(str, "0x%03X, ", msg->candata[i]);
         can_data_print = can_data_print + str;
     }
-    RCLCPP_INFO(this->get_logger(), "Sending to can bus ID: 0x%X, can data: %s", msg->canid, can_data_print.c_str());
+    // RCLCPP_INFO(this->get_logger(), "Sending to can bus ID: 0x%X, can data: %s", msg->canid, can_data_print.c_str());
 
     if (write(s, &frame, sizeof(struct can_frame)) != sizeof(struct can_frame)) {
         perror("Write frame0");
