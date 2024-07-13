@@ -102,7 +102,19 @@ void SocketcanInterface::_publisher_callback() {
         if(is_ignoreid)continue;
 
         msg->header.stamp = this->now();
-        msg->canid = frame.can_id;
+
+        // 拡張CANIDフォーマットかどうか確認
+        if(frame.can_id & CAN_EFF_FLAG){
+            msg->canid = frame.can_id & CAN_EFF_MASK;
+            msg->eff = true;
+            RCLCPP_INFO(this->get_logger(), "GOT EFF");
+        }
+        else{
+            msg->canid = frame.can_id & CAN_SFF_MASK;
+            msg->eff = false;
+            RCLCPP_INFO(this->get_logger(), "GOT SFF");
+        }
+
         msg->candlc = frame.can_dlc;
         for (int i = 0; i < frame.can_dlc; i++) {
             msg->candata[i] = frame.data[i];
@@ -120,7 +132,14 @@ void SocketcanInterface::_publisher_callback() {
 void SocketcanInterface::_subscriber_callback(const socketcan_interface_msg::msg::SocketcanIF::SharedPtr msg) {
     struct can_frame frame{};
 
-    frame.can_id = msg->canid;
+    // 確認CANIDフォーマットかどうか
+    if(msg->eff){
+        frame.can_id = CAN_EFF_FLAG | (msg->canid & CAN_EFF_MASK);
+    }
+    else{
+        frame.can_id = msg->canid & CAN_SFF_MASK;
+    }
+
     if ((msg->candlc >= 0) and (msg->candlc <= 8)) {
         frame.can_dlc = msg->candlc;
     } else {
@@ -135,7 +154,7 @@ void SocketcanInterface::_subscriber_callback(const socketcan_interface_msg::msg
         sprintf(str, "0x%03X, ", msg->candata[i]);
         can_data_print = can_data_print + str;
     }
-    // RCLCPP_INFO(this->get_logger(), "Sending to can bus ID: 0x%03X, can data: %s", msg->canid, can_data_print.c_str());
+    RCLCPP_INFO(this->get_logger(), "Sending to can bus ID: 0x%X, can data: %s", msg->canid, can_data_print.c_str());
 
     if (write(s, &frame, sizeof(struct can_frame)) != sizeof(struct can_frame)) {
         perror("Write frame0");
