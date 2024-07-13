@@ -1,7 +1,7 @@
 launch: #起動パラメータ
   ros__parameters:
     can: true
-    joy: true
+    joy: false
 
 /**:  #ワイルドカード(ここのパラメータは全ノードから読める: <名前に注意>)
   ros__parameters:
@@ -34,3 +34,9 @@ roboteq_driver_node:
     tread : 0.6
     reverse_left_flag : false
     reverse_right_flag : false
+
+cybergear_interface_node:
+  ros__parameters:
+    master_id : 0x00
+    target_id : 0x7F
+    interval_ms : 1000
