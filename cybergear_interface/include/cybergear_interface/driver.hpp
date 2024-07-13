@@ -16,8 +16,8 @@ public:
     void enable_motor();
 
     // 命令
-    void set_position_ref(const float position);
-    void set_speed_ref(const float speed);
+    void set_position_ref(const float position, const float min, const float max);
+    void set_speed_ref(const float speed, const float min, const float max);
     void set_mech_position_to_zero();
 
     // 取得

@@ -1,5 +1,4 @@
 #include "cybergear_interface/driver.hpp"
-
 #include "cybergear_interface/cybergear_defs.h"
 
 #include "utilities/data_utils.hpp"
@@ -23,7 +22,7 @@ void Driver::init_motor(const uint8_t run_mode){
     set_run_mode(run_mode);
 }
 void Driver::set_limit_speed(const float speed){
-    write_float_data(target_id, ADDR::LIMIT_SPEED, speed, 0.0f, V_MAX);
+    write_float_data(target_id, ADDR::LIMIT_SPEED, speed, 0.0f, LIMIT::VEL_MAX);
 }
 void Driver::enable_motor(){
     uint8_t data[8] = {0x00};
@@ -31,17 +30,17 @@ void Driver::enable_motor(){
 }
 
 // 命令
-void Driver::set_position_ref(const float position){
-    write_float_data(target_id, ADDR::LOC_REF, position, P_MIN, P_MAX);
+void Driver::set_position_ref(const float position, const float min, const float max){
+    write_float_data(target_id, ADDR::LOC_REF, position, min, max);
 }
-void Driver::set_speed_ref(const float speed){
-  write_float_data(target_id, ADDR::SPEED_REF, speed, V_MIN, V_MAX);
+void Driver::set_speed_ref(const float speed, const float min, const float max){
+    write_float_data(target_id, ADDR::SPEED_REF, speed, min, max);
 }
 
 void Driver::set_mech_position_to_zero(){
-  uint8_t data[8] = {0x00};
-  data[0] = 0x01;
-  send_command(target_can_id_, CMD::SET_MECH_POSITION_TO_ZERO, master_can_id_, 8, data);
+    uint8_t data[8] = {0x00};
+    data[0] = 0x01;
+    send_command(target_id, CMD::SET_MECH_POSITION_TO_ZERO, master_id, 8, data);
 }
 
 
@@ -66,9 +65,8 @@ void Driver::write_float_data(const uint8_t id, const uint16_t addr, const float
     data[0] = addr & 0x00FF;
     data[1] = addr >> 8;
 
-    float val = (max < value) ? max : value;
-    val = (min > value) ? min : value;
-    memcpy(&data[4], &value, 4);
+    const float value_ = constrain(value, min, max);
+    memcpy(&data[4], &value_, 4);
     send_command(id, CMD::RAM_WRITE, master_id, 8, data);
 }
 void Driver::send_command(const uint8_t id, const uint8_t cmd_id, const uint16_t option, const uint8_t len, uint8_t * data){

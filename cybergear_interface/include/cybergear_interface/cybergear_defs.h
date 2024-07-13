@@ -45,10 +45,10 @@ namespace MODE{
     constexpr uint8_t CURRENT = 0x03;
 }
 
-/*その他*/
-constexpr float P_MIN = -12.5f;
-constexpr float P_MAX = 12.5f;
-constexpr float V_MIN = -30.0f;
-constexpr float V_MAX = 30.0f;
+/*リミット*/
+namespace LIMIT{
+    constexpr float VEL_MIN = -30.f;
+    constexpr float VEL_MAX = 30.f;
+}
 
 }  // namespace cybergear_defs

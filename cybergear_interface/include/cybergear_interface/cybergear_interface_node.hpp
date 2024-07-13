@@ -2,6 +2,7 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include <std_msgs/msg/empty.hpp>
+#include <std_msgs/msg/float64.hpp>
 #include <geometry_msgs/msg/vector3.hpp>
 
 #include "cybergear_interface/driver.hpp"
@@ -18,12 +19,12 @@ public:
     explicit CybergearInterface(const std::string& name_space, const rclcpp::NodeOptions& options = rclcpp::NodeOptions());
 
 private:
-    rclcpp::Subscription<geometry_msgs::msg::Vector3>::SharedPtr _subscription_pos;
+    rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr _subscription_pos;
     rclcpp::Subscription<std_msgs::msg::Empty>::SharedPtr _subscription_stop;
     rclcpp::Subscription<std_msgs::msg::Empty>::SharedPtr _subscription_restart;
     rclcpp::TimerBase::SharedPtr _pub_timer;
 
-    void _subscriber_callback_pos(const geometry_msgs::msg::Vector3::SharedPtr msg);
+    void _subscriber_callback_pos(const std_msgs::msg::Float64::SharedPtr msg);
     void _subscriber_callback_stop(const std_msgs::msg::Empty::SharedPtr msg);
     void _subscriber_callback_restart(const std_msgs::msg::Empty::SharedPtr msg);
     void _publisher_callback();
@@ -34,9 +35,13 @@ private:
 
     // 定数
     const int interval_ms;
+    const double limit_speed;
+    const double gear_rate;
+    const double pos_limit_min;
+    const double pos_limit_max;
 
     // 変数
-    double init_speed = 0.0;
+    double pos_ref = 0.0;
 };
 
 }  // namespace cybergear_interface
