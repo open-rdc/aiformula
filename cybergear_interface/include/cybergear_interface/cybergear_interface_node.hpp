@@ -20,11 +20,13 @@ public:
 
 private:
     rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr _subscription_pos;
+    rclcpp::Subscription<std_msgs::msg::Empty>::SharedPtr _subscription_reset;
     rclcpp::Subscription<std_msgs::msg::Empty>::SharedPtr _subscription_stop;
     rclcpp::Subscription<std_msgs::msg::Empty>::SharedPtr _subscription_restart;
     rclcpp::TimerBase::SharedPtr _pub_timer;
 
     void _subscriber_callback_pos(const std_msgs::msg::Float64::SharedPtr msg);
+    void _subscriber_callback_reset(const std_msgs::msg::Empty::SharedPtr msg);
     void _subscriber_callback_stop(const std_msgs::msg::Empty::SharedPtr msg);
     void _subscriber_callback_restart(const std_msgs::msg::Empty::SharedPtr msg);
     void _publisher_callback();
@@ -42,6 +44,13 @@ private:
 
     // 変数
     double pos_ref = 0.0;
+
+    // 動作モード
+    enum class Mode{
+        cmd,
+        stay,
+        stop
+    } mode = Mode::stay;
 };
 
 }  // namespace cybergear_interface

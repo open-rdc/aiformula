@@ -13,6 +13,7 @@ namespace CMD{
     constexpr uint8_t RAM_READ = 17;
     constexpr uint8_t RAM_WRITE = 18;
     constexpr uint8_t GET_MOTOR_FAIL = 21;
+    constexpr uint8_t CHANGE_BOARDRATE = 22;
 }
 
 /*アドレス*/
