@@ -32,6 +32,7 @@ roboteq_driver_node:
     wheel_radius : 0.124
     reduction_ratio : 1.0
     tread : 0.6
+    wheelbase : 0.0
     reverse_left_flag : false
     reverse_right_flag : false
 
@@ -42,7 +43,7 @@ cybergear_interface_node:
     target_id : 0x7F
 
     limit_speed : 3.14
-    gear_rate : 1.0
+    gear_rate : 5.0
     # 制御対象の最小・最大位置[deg]
-    pos_limit_min : -360.0
-    pos_limit_max : 360.0
+    pos_limit_min : -10.0
+    pos_limit_max : 10.0
