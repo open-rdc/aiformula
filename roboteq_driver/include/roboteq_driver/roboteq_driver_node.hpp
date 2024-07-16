@@ -3,6 +3,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <geometry_msgs/msg/vector3.hpp>
 #include <std_msgs/msg/empty.hpp>
+#include <std_msgs/msg/float64.hpp>
 #include "socketcan_interface_msg/msg/socketcan_if.hpp"
 
 #include "roboteq_driver/visibility_control.h"
@@ -34,6 +35,7 @@ private:
     void send_rpm(const double linear_vel, const double angular_vel);
 
     rclcpp::Publisher<socketcan_interface_msg::msg::SocketcanIF>::SharedPtr publisher_can;
+    rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr publisher_steer;
 
     rclcpp::QoS _qos = rclcpp::QoS(10);
 
@@ -41,6 +43,7 @@ private:
     const int interval_ms;
     const double wheel_radius;
     const double tread;
+    const double wheelbase;
     const double rotate_ratio;
     const bool is_reverse_left;
     const bool is_reverse_right;

@@ -3,6 +3,7 @@
 #include "utilities/data_utils.hpp"
 #include "utilities/utils.hpp"
 #include <float.h>
+#include <cmath>
 
 using namespace utils;
 
@@ -15,6 +16,7 @@ RoboteqDriver::RoboteqDriver(const std::string& name_space, const rclcpp::NodeOp
 interval_ms(get_parameter("interval_ms").as_int()),
 wheel_radius(get_parameter("wheel_radius").as_double()),
 tread(get_parameter("tread").as_double()),
+wheelbase(get_parameter("wheelbase").as_double()),
 rotate_ratio(1.0 / get_parameter("reduction_ratio").as_double()),
 is_reverse_left(get_parameter("reverse_left_flag").as_bool()),
 is_reverse_right(get_parameter("reverse_right_flag").as_bool())
@@ -45,6 +47,7 @@ is_reverse_right(get_parameter("reverse_right_flag").as_bool())
         std::bind(&RoboteqDriver::_subscriber_callback_emergency, this, std::placeholders::_1)
     );
     publisher_can = this->create_publisher<socketcan_interface_msg::msg::SocketcanIF>("can_tx", _qos);
+    publisher_steer = this->create_publisher<std_msgs::msg::Float64>("cybergear/pos", _qos);
 
     _pub_timer = this->create_wall_timer(
         std::chrono::milliseconds(interval_ms),
@@ -66,6 +69,16 @@ void RoboteqDriver::_publisher_callback(){
     }
     if(vel == nullptr) return;
     send_rpm(vel->x, vel->z);
+
+    // 従動輪角度の送信
+    auto msg_steer = std::make_shared<std_msgs::msg::Float64>();
+    if(vel->x == 0.0){
+        msg_steer->data = 0.0;
+    }
+    else{
+        msg_steer->data = std::asin((wheelbase*vel->z) / vel->x);
+    }
+    publisher_steer->publish(*msg_steer);
 }
 
 void RoboteqDriver::_subscriber_callback_stop(const std_msgs::msg::Empty::SharedPtr msg){
