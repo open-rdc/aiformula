@@ -14,14 +14,20 @@ driver(get_parameter("master_id").as_int(), get_parameter("target_id").as_int(),
     this->create_publisher<socketcan_interface_msg::msg::SocketcanIF>("can_tx", _qos)),
 limit_speed(get_parameter("limit_speed").as_double()),
 gear_rate(get_parameter("gear_rate").as_double()),
+
 pos_limit_min(dtor(get_parameter("pos_limit_min").as_double()) * gear_rate),
 pos_limit_max(dtor(get_parameter("pos_limit_max").as_double()) * gear_rate),
 interval_ms(get_parameter("interval_ms").as_int())
 {
     _subscription_pos = this->create_subscription<std_msgs::msg::Float64>(
-        "pos",
+        "cybergear/pos",
         _qos,
         std::bind(&CybergearInterface::_subscriber_callback_pos, this, std::placeholders::_1)
+    );
+    _subscription_reset = this->create_subscription<std_msgs::msg::Empty>(
+        "cybergear/reset",
+        _qos,
+        std::bind(&CybergearInterface::_subscriber_callback_reset, this, std::placeholders::_1)
     );
     _subscription_stop = this->create_subscription<std_msgs::msg::Empty>(
         "stop",
@@ -42,7 +48,6 @@ interval_ms(get_parameter("interval_ms").as_int())
     driver.init_motor(cybergear_defs::MODE::POSITION);
     driver.set_limit_speed(static_cast<float>(limit_speed));
     driver.enable_motor();
-    driver.set_mech_position_to_zero();
 
     RCLCPP_INFO(this->get_logger(), "init cybergear interface node");
     RCLCPP_INFO(this->get_logger(), "マスターID:0x%03X  ターゲットID:0x%03X", get_parameter("master_id").as_int(), get_parameter("target_id").as_int());
@@ -50,6 +55,9 @@ interval_ms(get_parameter("interval_ms").as_int())
 
 void CybergearInterface::_publisher_callback(){
     // driver.set_speed_ref(1.5f);
+    if(mode == Mode::stop || mode == Mode::stay){
+        return;
+    }
 
     if(driver.get_run_mode() == cybergear_defs::MODE::POSITION){
         driver.set_position_ref(static_cast<float>(pos_ref), pos_limit_min, pos_limit_max);
@@ -57,13 +65,24 @@ void CybergearInterface::_publisher_callback(){
 }
 
 void CybergearInterface::_subscriber_callback_pos(const std_msgs::msg::Float64::SharedPtr msg){
-    if(driver.get_run_mode() != cybergear_defs::MODE::POSITION) driver.init_motor(cybergear_defs::MODE::POSITION);
+    if(mode == Mode::stop) return;
 
+    if(driver.get_run_mode() != cybergear_defs::MODE::POSITION) driver.init_motor(cybergear_defs::MODE::POSITION);
     this->pos_ref = msg->data;
+    // RCLCPP_INFO(this->get_logger(), "目標位置を設定");
+    mode = Mode::cmd;
+}
+
+void CybergearInterface::_subscriber_callback_reset(const std_msgs::msg::Empty::SharedPtr msg){
+    driver.set_mech_position_to_zero();
+    RCLCPP_INFO(this->get_logger(), "機構の零点を現在値に変更");
+    mode = Mode::stay;
 }
 void CybergearInterface::_subscriber_callback_stop(const std_msgs::msg::Empty::SharedPtr msg){
+    mode = Mode::stop;
 }
 void CybergearInterface::_subscriber_callback_restart(const std_msgs::msg::Empty::SharedPtr msg){
+    mode = Mode::stay;
 }
 
 }  // namespace cybergear_interface

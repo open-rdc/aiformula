@@ -29,6 +29,18 @@ void Driver::enable_motor(){
     send_command(target_id, CMD::ENABLE, master_id, 8, data);
 }
 
+// 基幹情報変更
+void Driver::change_motor_can_id(const uint8_t can_id){
+  uint8_t data[8] = {0x00};
+  uint16_t option = can_id << 8 | master_id;
+  send_command(target_id, CMD::CHANGE_CAN_ID, option, 8, data);
+}
+void Driver::change_motor_boardrate(const uint8_t value){
+  uint8_t data[8] = {0x00};
+  data[0] = value;
+  send_command(target_id, CMD::CHANGE_BOARDRATE, master_id, 8, data);
+}
+
 // 命令
 void Driver::set_position_ref(const float position, const float min, const float max){
     write_float_data(target_id, ADDR::LOC_REF, position, min, max);
