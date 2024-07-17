@@ -37,6 +37,7 @@ private:
 
     // 定数
     const int interval_ms;
+    const bool is_reversed;
     const double limit_speed;
     const double gear_rate;
     const double pos_limit_min;
