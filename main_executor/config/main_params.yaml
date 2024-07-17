@@ -1,7 +1,7 @@
 launch: #起動パラメータ
   ros__parameters:
-    can: true
-    joy: true
+    can: false
+    joy: false
 
 /**:  #ワイルドカード(ここのパラメータは全ノードから読める: <名前に注意>)
   ros__parameters:
@@ -42,8 +42,10 @@ cybergear_interface_node:
     master_id : 0x00
     target_id : 0x7F
 
-    limit_speed : 6.28
     gear_rate : 3.33333
+    reverse_flag : false
     # 制御対象の最小・最大位置[deg]
     pos_limit_min : -30.0
     pos_limit_max : 30.0
+    # 制御対象の最大速度[deg/s] <-サイバーギアの限界速度以下に設定する
+    limit_speed : 30.0
