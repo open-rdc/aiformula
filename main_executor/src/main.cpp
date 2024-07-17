@@ -20,7 +20,7 @@ int main(int argc, char * argv[]){
 
     exec.add_node(socketcan_node);
     exec.add_node(controller_node);
-    // exec.add_node(roboteq_driver_node);
+    exec.add_node(roboteq_driver_node);
     exec.add_node(cybergear_interface_node);
 
     exec.spin();
