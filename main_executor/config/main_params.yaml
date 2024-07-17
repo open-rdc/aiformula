@@ -1,7 +1,7 @@
 launch: #起動パラメータ
   ros__parameters:
     can: true
-    joy: false
+    joy: true
 
 /**:  #ワイルドカード(ここのパラメータは全ノードから読める: <名前に注意>)
   ros__parameters:
@@ -32,18 +32,18 @@ roboteq_driver_node:
     wheel_radius : 0.124
     reduction_ratio : 1.0
     tread : 0.6
-    wheelbase : 0.0
+    wheelbase : 0.65
     reverse_left_flag : false
     reverse_right_flag : false
 
 cybergear_interface_node:
   ros__parameters:
-    interval_ms : 1000
+    interval_ms : 10
     master_id : 0x00
     target_id : 0x7F
 
-    limit_speed : 3.14
-    gear_rate : 5.0
+    limit_speed : 6.28
+    gear_rate : 3.33333
     # 制御対象の最小・最大位置[deg]
-    pos_limit_min : -10.0
-    pos_limit_max : 10.0
+    pos_limit_min : -30.0
+    pos_limit_max : 30.0
