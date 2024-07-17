@@ -68,7 +68,7 @@ void CybergearInterface::_subscriber_callback_pos(const std_msgs::msg::Float64::
     if(mode == Mode::stop) return;
 
     if(driver.get_run_mode() != cybergear_defs::MODE::POSITION) driver.init_motor(cybergear_defs::MODE::POSITION);
-    this->pos_ref = msg->data;
+    this->pos_ref = msg->data * gear_rate;
     // RCLCPP_INFO(this->get_logger(), "目標位置を設定");
     mode = Mode::cmd;
 }
