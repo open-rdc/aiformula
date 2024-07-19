@@ -48,4 +48,4 @@ cybergear_interface_node:
     pos_limit_min : -30.0
     pos_limit_max : 30.0
     # 制御対象の最大速度[deg/s] <-サイバーギアの限界速度以下に設定する
-    limit_speed : 30.0
+    limit_speed : 60.0
