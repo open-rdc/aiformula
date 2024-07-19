@@ -9,16 +9,18 @@
 #include <cstdio>
 #include <boost/format.hpp>
 #include <fstream>
+#include <string>
 
 #include <ament_index_cpp/get_package_share_directory.hpp>
 #include "socketcan_interface/socketcan_interface_node.hpp"
 
 namespace socketcan_interface {
 
-SocketcanInterface::SocketcanInterface(const rclcpp::NodeOptions &options) : SocketcanInterface("", options) {}
+SocketcanInterface::SocketcanInterface(const int id, const rclcpp::NodeOptions &options) : SocketcanInterface(id, "", options) {}
 
-SocketcanInterface::SocketcanInterface(const std::string &name_space, const rclcpp::NodeOptions &options)
+SocketcanInterface::SocketcanInterface(const int id, const std::string &name_space, const rclcpp::NodeOptions &options)
 : rclcpp::Node("socketcan_interface_node", name_space, options),
+id(id),
 ignoreid_file_path(ament_index_cpp::get_package_share_directory("socketcan_interface")+"/config/"+"ignoreid.cfg")
 {
     using namespace std::chrono_literals;
@@ -31,7 +33,8 @@ ignoreid_file_path(ament_index_cpp::get_package_share_directory("socketcan_inter
         RCLCPP_ERROR(this->get_logger(), "Socket error");
     }
 
-    strcpy(ifr.ifr_name, "can0");
+    const std::string name = "can" + std::to_string(id);
+    strcpy(ifr.ifr_name, name.c_str());
     ioctl(s, SIOCGIFINDEX, &ifr);
 
     memset(&addr, 0, sizeof(addr));

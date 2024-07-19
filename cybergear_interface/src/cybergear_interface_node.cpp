@@ -11,14 +11,14 @@ CybergearInterface::CybergearInterface(const rclcpp::NodeOptions& options) : Cyb
 CybergearInterface::CybergearInterface(const std::string& name_space, const rclcpp::NodeOptions& options)
 : rclcpp::Node("cybergear_interface_node", name_space, options),
 driver(get_parameter("master_id").as_int(), get_parameter("target_id").as_int(),
-    this->create_publisher<socketcan_interface_msg::msg::SocketcanIF>("can_tx", _qos)),
+    this->create_publisher<socketcan_interface_msg::msg::SocketcanIF>("cybergear/can_tx", _qos)),
 interval_ms(get_parameter("interval_ms").as_int()),
 gear_rate(get_parameter("gear_rate").as_double()),
 is_reversed(get_parameter("reverse_flag").as_bool()),
 
 pos_limit_min(dtor(get_parameter("pos_limit_min").as_double()) * gear_rate),
 pos_limit_max(dtor(get_parameter("pos_limit_max").as_double()) * gear_rate),
-limit_speed(dtor(get_parameter("limit_speed").as_double()) * gear_rate)
+limit_speed(dtor(get_parameter("limit_speed").as_double()))
 {
     _subscription_pos = this->create_subscription<std_msgs::msg::Float64>(
         "cybergear/pos",
@@ -46,12 +46,14 @@ limit_speed(dtor(get_parameter("limit_speed").as_double()) * gear_rate)
         [this] { _publisher_callback(); }
     );
 
+    // driver.change_motor_boardrate(0x02);
     driver.init_motor(cybergear_defs::MODE::POSITION);
-    driver.set_limit_speed(static_cast<float>(limit_speed));
+    driver.set_limit_speed(static_cast<float>(limit_speed*gear_rate));
     driver.enable_motor();
 
     RCLCPP_INFO(this->get_logger(), "init cybergear interface node");
     RCLCPP_INFO(this->get_logger(), "マスターID:0x%03X  ターゲットID:0x%03X", get_parameter("master_id").as_int(), get_parameter("target_id").as_int());
+    RCLCPP_INFO(this->get_logger(), "逆転:%d  最大位置:%.3lf  最小位置:%.3lf", is_reversed, pos_limit_max, pos_limit_min);
 }
 
 void CybergearInterface::_publisher_callback(){
@@ -70,7 +72,7 @@ void CybergearInterface::_publisher_callback(){
             limit_min = this->pos_limit_min;
             limit_max = this->pos_limit_max;
         }
-        driver.set_position_ref(static_cast<float>(pos_ref), static_cast<float>(limit_min), static_cast<float>(limit_max));
+        driver.set_position_ref(static_cast<float>(pos_ref), static_cast<float>(pos_limit_min), static_cast<float>(pos_limit_max));
     }
 }
 
