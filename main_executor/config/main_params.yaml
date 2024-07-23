@@ -16,12 +16,20 @@ launch: #起動パラメータ
       jer: 0.0
     # 回転  速度[deg/s],加速度[deg/s^2],加減速度[-deg/s^2],躍度[deg/s^3]
     angular_max :
-      vel: 40.0
-      acc: 60.0
-      dec: 60.0
+      vel: 30.0
+      acc: 40.0
+      dec: 40.0
       jer: 0.0
 
     autonomous_flag : false
+
+socketcan_interface_node:
+  ros__parameters:
+    if_name : "_kvaser"
+cybergear:
+  socketcan_interface_node:
+    ros__parameters:
+      if_name : "_candleLight"
 
 # controller_node:
 #   ros__parameters:
@@ -32,5 +40,20 @@ roboteq_driver_node:
     wheel_radius : 0.124
     reduction_ratio : 1.0
     tread : 0.6
+    wheelbase : 0.65
     reverse_left_flag : false
     reverse_right_flag : false
+
+cybergear_interface_node:
+  ros__parameters:
+    interval_ms : 10
+    master_id : 0x00
+    target_id : 0x7F
+
+    gear_rate : 3.33333
+    reverse_flag : false
+    # 制御対象の最小・最大位置[deg]
+    pos_limit_min : -30.0
+    pos_limit_max : 30.0
+    # 制御対象の最大速度[deg/s] <-サイバーギアの限界速度以下に設定する
+    limit_speed : 60.0

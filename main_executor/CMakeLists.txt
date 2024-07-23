@@ -10,6 +10,7 @@ find_package(rclcpp REQUIRED)
 find_package(socketcan_interface REQUIRED)
 find_package(controller REQUIRED)
 find_package(roboteq_driver REQUIRED)
+find_package(cybergear_interface REQUIRED)
 
 add_executable(main_exec
         src/main.cpp
@@ -20,6 +21,7 @@ ament_target_dependencies(main_exec
         socketcan_interface
         controller
         roboteq_driver
+        cybergear_interface
         )
 
 target_include_directories(main_exec
