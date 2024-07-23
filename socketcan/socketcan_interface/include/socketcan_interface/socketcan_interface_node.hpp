@@ -34,6 +34,7 @@ private:
     struct sockaddr_can addr{};
     struct ifreq ifr{};
     int s;
+    const std::string if_name; // CANデバイスの識別
     const std::string ignoreid_file_path;   //無視するCAN IDリストのファイルパス
     std::vector<int> ignoreid;
 
