@@ -16,11 +16,11 @@
 
 namespace socketcan_interface {
 
-SocketcanInterface::SocketcanInterface(const int id, const rclcpp::NodeOptions &options) : SocketcanInterface(id, "", options) {}
+SocketcanInterface::SocketcanInterface(const rclcpp::NodeOptions &options) : SocketcanInterface("", options) {}
 
-SocketcanInterface::SocketcanInterface(const int id, const std::string &name_space, const rclcpp::NodeOptions &options)
+SocketcanInterface::SocketcanInterface(const std::string &name_space, const rclcpp::NodeOptions &options)
 : rclcpp::Node("socketcan_interface_node", name_space, options),
-id(id),
+if_name(get_parameter("if_name").as_string()),
 ignoreid_file_path(ament_index_cpp::get_package_share_directory("socketcan_interface")+"/config/"+"ignoreid.cfg")
 {
     using namespace std::chrono_literals;
@@ -33,7 +33,7 @@ ignoreid_file_path(ament_index_cpp::get_package_share_directory("socketcan_inter
         RCLCPP_ERROR(this->get_logger(), "Socket error");
     }
 
-    const std::string name = "can" + std::to_string(id);
+    const std::string name = "can" + if_name;
     strcpy(ifr.ifr_name, name.c_str());
     ioctl(s, SIOCGIFINDEX, &ifr);
 

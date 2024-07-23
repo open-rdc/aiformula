@@ -15,10 +15,10 @@ namespace socketcan_interface {
 class SocketcanInterface : public rclcpp::Node {
 public:
     SOCKETCAN_INTERFACE_PUBLIC
-    explicit SocketcanInterface(const int id, const rclcpp::NodeOptions& options = rclcpp::NodeOptions());
+    explicit SocketcanInterface(const rclcpp::NodeOptions& options = rclcpp::NodeOptions());
 
     SOCKETCAN_INTERFACE_PUBLIC
-    explicit SocketcanInterface(const int id, const std::string& name_space, const rclcpp::NodeOptions& options = rclcpp::NodeOptions());
+    explicit SocketcanInterface(const std::string& name_space, const rclcpp::NodeOptions& options = rclcpp::NodeOptions());
 
 private:
     rclcpp::Subscription<socketcan_interface_msg::msg::SocketcanIF>::SharedPtr _subscription;
@@ -34,7 +34,7 @@ private:
     struct sockaddr_can addr{};
     struct ifreq ifr{};
     int s;
-    const int id;   // CANデバイスの識別
+    const std::string if_name; // CANデバイスの識別
     const std::string ignoreid_file_path;   //無視するCAN IDリストのファイルパス
     std::vector<int> ignoreid;
 
