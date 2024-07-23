@@ -77,6 +77,7 @@ void RoboteqDriver::_publisher_callback(){
     }
     else{
         msg_steer->data = std::asin((wheelbase*vel->z) / vel->x);
+        if(std::isnan(msg_steer->data)) msg_steer->data = 0.0;
     }
     publisher_steer->publish(*msg_steer);
 }
