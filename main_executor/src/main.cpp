@@ -13,8 +13,8 @@ int main(int argc, char * argv[]){
     nodes_option.allow_undeclared_parameters(true);
     nodes_option.automatically_declare_parameters_from_overrides(true);
 
-    auto socketcan_node = std::make_shared<socketcan_interface::SocketcanInterface>(0, nodes_option);
-    auto socketcan_cybergear_node = std::make_shared<socketcan_interface::SocketcanInterface>(1, "cybergear", nodes_option);
+    auto socketcan_node = std::make_shared<socketcan_interface::SocketcanInterface>(nodes_option);
+    auto socketcan_cybergear_node = std::make_shared<socketcan_interface::SocketcanInterface>("cybergear", nodes_option);
     auto controller_node = std::make_shared<controller::Controller>(nodes_option);
     auto roboteq_driver_node = std::make_shared<roboteq_driver::RoboteqDriver>(nodes_option);
     auto cybergear_interface_node = std::make_shared<cybergear_interface::CybergearInterface>(nodes_option);

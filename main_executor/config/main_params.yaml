@@ -1,7 +1,7 @@
 launch: #起動パラメータ
   ros__parameters:
-    can: false
-    joy: false
+    can: true
+    joy: true
 
 /**:  #ワイルドカード(ここのパラメータは全ノードから読める: <名前に注意>)
   ros__parameters:
@@ -16,12 +16,20 @@ launch: #起動パラメータ
       jer: 0.0
     # 回転  速度[deg/s],加速度[deg/s^2],加減速度[-deg/s^2],躍度[deg/s^3]
     angular_max :
-      vel: 40.0
-      acc: 60.0
-      dec: 60.0
+      vel: 30.0
+      acc: 40.0
+      dec: 40.0
       jer: 0.0
 
     autonomous_flag : false
+
+socketcan_interface_node:
+  ros__parameters:
+    if_name : "_kvaser"
+cybergear:
+  socketcan_interface_node:
+    ros__parameters:
+      if_name : "_candleLight"
 
 # controller_node:
 #   ros__parameters:
