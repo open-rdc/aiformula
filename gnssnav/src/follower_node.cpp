@@ -7,12 +7,6 @@ Follower::Follower(const rclcpp::NodeOptions& options) : Follower("", options) {
 // pub, sub, param
 Follower::Follower(const std::string& name_space, const rclcpp::NodeOptions& options)
 : rclcpp::Node("gnssnav_follower_node", name_space, options)
-// ld_gain_(get_parameter("lookahead_gain").as_double()),
-// cte_gain_(get_parameter("cte_gain").as_double()),
-// ld_min_(get_parameter("min_lookahead_distance").as_int()),
-// v_max_(get_parameter("max_linear_vel").as_double()),
-// w_max_(get_parameter("max_angular_vel").as_double()),
-// freq(get_parameter("follower_freq").as_int())
 {
     auto callback = [this](const std_msgs::msg::Empty::SharedPtr msg) { this->navStartCallback(msg); };
 
@@ -32,10 +26,8 @@ Follower::Follower(const std::string& name_space, const rclcpp::NodeOptions& opt
     this->get_parameter("max_angular_vel", w_max_);
     this->get_parameter("follower_freq", freq);
 
-    std::cerr << "freq is " << freq <<std::endl;
-
     timer_ = this->create_wall_timer(
-        std::chrono::milliseconds(freq),//仮で100msに設定
+        std::chrono::milliseconds(freq),
         std::bind(&Follower::loop, this));
 }
 
@@ -127,15 +119,12 @@ void Follower::publishLookahead(){
 
 // 最も近い経路点を見つける(座標とidx)
 void Follower::findNearestIndex(geometry_msgs::msg::Pose front_wheel_pos){
-        std::cerr << "findNearestIndex is to read" << std::endl;
-
     for(idx_ = 0;idx_ < point_.size(); idx_++){
         double dx = point_[idx_].x - front_wheel_pos.position.x;
         double dy = point_[idx_].y - front_wheel_pos.position.y;
         distance_ = std::hypot(dx, dy);
 
         if(distance_ > ld_){
-            std::cerr << "idx_ is" << idx_ <<std::endl;
             break;
         }
     }
@@ -155,7 +144,6 @@ void Follower::findLookaheadDistance(){
     front_wheel_pos.position.y = front_y_;
 
     // 前の車輪から一番近い経路点を見つける
-    std::cerr << "findNearIndex start" << std::endl;
     findNearestIndex(front_wheel_pos);
 
     if(idx_ > 0){
@@ -197,21 +185,16 @@ double Follower::calculateHeadingError(){
 }
 
 void Follower::followPath(){
-    std::cerr << "follower is sucsess1" << std::endl;
-
-
     if(point_.empty()){
         std::cerr << "point_empty error" << std::endl;
         return;
     }
-    // if(!nav_start_flag_){
-    //     std::cerr << "nav_start_flag error" << std::endl;
-    //     return;
-    // }
+    if(!nav_start_flag_){
+        // std::cerr << "nav_start_flag error" << std::endl;
+        return;
+    }
 
     ld_ = ld_gain_ * v_ + ld_min_; 
-    std::cerr << "ld is" << ld_ <<std::endl;
-
 
     findLookaheadDistance();
     publishLookahead();
