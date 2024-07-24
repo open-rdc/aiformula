@@ -226,7 +226,15 @@ void Follower::followPath(){
 
 // クオータニオンからオイラーへ変換
 double Follower::calculateYawFromQuaternion(const geometry_msgs::msg::Quaternion& quat){
-    tf2::Quaternion q(quat.x, quat.y, quat.z, quat.w);
+    if(init_flag_){
+        base_x = quat.x;
+        base_y = quat.y;
+        base_z = quat.z;
+        base_w = quat.w;
+        init_flag_ = false;
+    }
+
+    tf2::Quaternion q(quat.x - base_x, quat.y - base_y, quat.z - base_z, quat.w - base_w);
     tf2::Matrix3x3 m(q);
     double roll, pitch, yaw;
     m.getRPY(roll, pitch, yaw);
