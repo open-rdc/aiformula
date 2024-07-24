@@ -37,10 +37,15 @@ private:
     bool autonomous_flag_;
     bool nav_start_flag_;
     bool init_base_flag_;
+    bool init_flag_;
 
     double ld_;
     double ld_x_;
     double ld_y_;
+    double base_x;
+    double base_y;
+    double base_z;
+    double base_w;
     double ld_min_;
     double ld_gain_;
     double v_;
