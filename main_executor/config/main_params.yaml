@@ -20,7 +20,13 @@ launch: #起動パラメータ
       acc: 40.0
       dec: 40.0
       jer: 0.0
-
+    follower_freq : 100 #milliseconds
+    path_publisher_freq : 100 #milliseconds
+    lookahead_gain : 1.0
+    cte_gain : 1.0
+    min_lookahead_distance : 3.0
+    max_linear_vel : 1.0
+    max_angular_vel : 1.0
     autonomous_flag : false
 
 socketcan_interface_node:
