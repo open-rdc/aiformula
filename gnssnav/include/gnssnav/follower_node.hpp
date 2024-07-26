@@ -73,6 +73,7 @@ private:
     rclcpp::TimerBase::SharedPtr timer_;
 
     std::vector<geometry_msgs::msg::Pose> front_wheel_pos;
+    std::vector<geometry_msgs::msg::PoseStamped> point_;
 
     void declareParameter(void);
 
@@ -106,7 +107,6 @@ private:
     double vectornav_base_yaw_;
     double path_direction_;
 
-    std::vector<geometry_msgs::msg::Point> point_;
     std::vector<geometry_msgs::msg::Point> pre_point;
 };
 
