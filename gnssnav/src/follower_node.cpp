@@ -79,6 +79,10 @@ void Follower::publishCurrentPose(){
     double dy = point_[1].pose.position.y - point_[0].pose.position.y;
     path_direction_ = std::atan2(dy, dx);
 
+    geometry_msgs::msg::PoseStamped pose_msg;
+    pose_msg.header.stamp = this->now();
+    pose_msg.header.frame_id = "map";
+
     tf2::Quaternion initial_q, current_q, result_q;
     initial_q.setRPY(0, 0, path_direction_ - vectornav_base_yaw_);
     initial_q = initial_q.inverse();
@@ -91,9 +95,6 @@ void Follower::publishCurrentPose(){
 
     tf2::Vector3 corrected_position = tf2::quatRotate(initial_q, current_position);
 
-    pose_msg.header.stamp = this->now();
-    pose_msg.header.frame_id = "map";
-
     pose_msg.pose.position.x = corrected_position.x();
     pose_msg.pose.position.y = corrected_position.y();
     pose_msg.pose.position.z = corrected_position.z();
@@ -103,6 +104,8 @@ void Follower::publishCurrentPose(){
 
     pose_msg.pose.orientation = tf2::toMsg(result_q);
     current_pose_pub_->publish(pose_msg);
+
+    pose_orientation_z_ = pose_msg.pose.orientation.z;
 }
 
 void Follower::publishLookahead(){
@@ -135,9 +138,9 @@ void Follower::findNearestIndex(geometry_msgs::msg::Pose front_wheel_pos){
 void Follower::findLookaheadDistance(){
     wheel_base_ = 600;
     double front_x_ =
-        current_position_x_ + wheel_base_ / 2.0 * std::cos(pose_msg.pose.orientation.z);
+        current_position_x_ + wheel_base_ / 2.0 * std::cos(pose_orientation_z_);
     double front_y_ =
-        current_position_y_ + wheel_base_ / 2.0 * std::sin(pose_msg.pose.orientation.z);
+        current_position_y_ + wheel_base_ / 2.0 * std::sin(pose_orientation_z_);
 
     geometry_msgs::msg::Pose front_wheel_pos;
     front_wheel_pos.position.x = front_x_;
