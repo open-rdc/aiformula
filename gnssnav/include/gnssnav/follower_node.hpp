@@ -59,7 +59,7 @@ private:
 
     int freq;
 
-    geometry_msgs::msg::PoseStamped pose_msg;
+    // geometry_msgs::msg::PoseStamped pose_msg;
 
     rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr vectornav_subscriber_;
     rclcpp::Subscription<nav_msgs::msg::Path>::SharedPtr path_subscriber_;
@@ -106,6 +106,7 @@ private:
     double vectornav_base_y_;
     double vectornav_base_yaw_;
     double path_direction_;
+    double pose_orientation_z_;
 
     std::vector<geometry_msgs::msg::Point> pre_point;
 };
