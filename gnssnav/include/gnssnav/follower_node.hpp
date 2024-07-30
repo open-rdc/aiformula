@@ -110,6 +110,7 @@ private:
     double path_direction_;
     double pose_orientation_z_;
     double count;
+    double init_yaw;
 
     std::vector<geometry_msgs::msg::Point> pre_point;
 };
