@@ -40,7 +40,7 @@ void Follower::vectornavCallback(const geometry_msgs::msg::PoseWithCovarianceSta
     current_position_y_ = y;
     current_yaw_ = calculateYawFromQuaternion(msg->pose.pose.orientation);
     double current_yaw_deg = radian2deg(current_yaw_);
-    // RCLCPP_INFO(this->get_logger(), "yaw_deg: %f", current_yaw_deg);
+    RCLCPP_INFO(this->get_logger(), "current_yaw_deg: %f", current_yaw_deg);
 	count++;
 	if(count < 110)
 	std::cerr << "count:" <<count << std::endl;
@@ -234,13 +234,12 @@ void Follower::followPath(){
     v_ = 0.5;
     w_ = he + std::atan2(cte_gain_ * cte, v_);
 
-    RCLCPP_INFO(this->get_logger(), "distance: %f meters, angle: %f rad", distance_, theta);
+    // RCLCPP_INFO(this->get_logger(), "distance: %f meters, angle: %f rad", distance_, theta);
 
 	double theta_deg = radian2deg(theta);
     //theta_degをパブリッシュ
     theta_pub_->publish(theta_deg);
-
-    //RCLCPP_INFO(this->get_logger(), "theta_deg: %f", theta_deg);
+    RCLCPP_INFO(this->get_logger(), "theta_deg: %f", theta_deg);
 
     geometry_msgs::msg::Vector3 cmd_vel;
     cmd_vel.x = v_;
@@ -253,7 +252,11 @@ void Follower::followPath(){
         RCLCPP_INFO(this->get_logger(), "Goal to reach");
     }
 
-    cmd_pub_->publish(cmd_vel);
+    //  自律フラグonのときのみパブリッシュ
+    if(!autonomous_flag_){
+        // std::cerr << "nav_start_flag error" << std::endl;
+        cmd_pub_->publish(cmd_vel);
+    }
 }
 
 // クオータニオンからオイラーへ変換
