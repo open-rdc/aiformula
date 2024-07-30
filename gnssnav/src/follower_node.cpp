@@ -18,6 +18,7 @@ Follower::Follower(const std::string& name_space, const rclcpp::NodeOptions& opt
     cmd_pub_ = this->create_publisher<geometry_msgs::msg::Vector3>("/cmd_vel", 2);
     current_pose_pub_ = this->create_publisher<geometry_msgs::msg::PoseStamped>("/current_pose", 10);
     current_ld_pub_ = this->create_publisher<geometry_msgs::msg::PoseStamped>("/current_ld", 10); 
+    theta_pub_ =this->create_publisher<std_msgs::msg::Float64>("/theta", 10);
 
     this->get_parameter("lookahead_gain", ld_gain_);
     this->get_parameter("cte_gain", cte_gain_);
@@ -236,6 +237,8 @@ void Follower::followPath(){
     RCLCPP_INFO(this->get_logger(), "distance: %f meters, angle: %f rad", distance_, theta);
 
 	double theta_deg = (theta*3.14)/180;
+    //theta_degをパブリッシュ
+    theta_pub_->publish(theta_deg);
 
     //RCLCPP_INFO(this->get_logger(), "theta_deg: %f", theta_deg);
 

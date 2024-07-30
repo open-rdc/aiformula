@@ -12,6 +12,7 @@
 #include "geometry_msgs/msg/pose_stamped.hpp"
 
 #include <std_msgs/msg/empty.hpp>
+#include <std_msgs/msg/float64.hpp>
 #include <std_msgs/msg/bool.hpp>
 #include <rclcpp/rclcpp.hpp>
 
@@ -69,6 +70,7 @@ private:
     rclcpp::Publisher<geometry_msgs::msg::Vector3>::SharedPtr cmd_pub_;
     rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr current_pose_pub_;
     rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr current_ld_pub_;
+    rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr theta_pub_;
 
     rclcpp::TimerBase::SharedPtr timer_;
 
