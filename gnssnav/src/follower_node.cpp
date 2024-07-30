@@ -38,12 +38,22 @@ void Follower::vectornavCallback(const geometry_msgs::msg::PoseWithCovarianceSta
 
     current_position_x_ = x;
     current_position_y_ = y;
-    current_yaw_ = calculateYawFromQuaternion(msg->pose.pose.orientation);
+    //if(!init_base_flag_ && count >= 100){
+    //	 init_yaw = calculateYawFromQuaternion(msg->pose.pose.orientation);
+
+    //}
+    current_yaw_ = calculateYawFromQuaternion(msg->pose.pose.orientation) - vectornav_base_yaw_;
     double current_yaw_deg = radian2deg(current_yaw_);
-    RCLCPP_INFO(this->get_logger(), "current_yaw_deg: %f", current_yaw_deg);
+   //RCLCPP_INFO(this->get_logger(), "current_yaw_deg: %f", current_yaw_deg);
+   if(current_yaw_ < -180){
+	   current_yaw_ += 360;
+   }else if(current_yaw_ > 180){
+	   current_yaw_ -= 360;
+   }
+
 	count++;
 	if(count < 110)
-	std::cerr << "count:" <<count << std::endl;
+		std::cerr << "count:" <<count << std::endl;
 
     // RCLCPP_INFO(this->get_logger(), "base_x: %f\ncurrent_position_x: %f\nbase_yaw: %f", vectornav_base_x_, current_position_x_, vectornav_base_yaw_);
     // std::cerr << init_base_flag_ << std::endl;
@@ -147,7 +157,8 @@ void Follower::findNearestIndex(geometry_msgs::msg::Pose front_wheel_pos){
 //if(idx_ >= 100)
 //std::cerr << "distance" << distance_ << std::endl;
 
-        if(distance_ > ld_ && point_[idx_].pose.position.x > 400000){
+        if(distance_ > ld_ && point_[idx_].pose.position.x > 400000 && idx_ > pre_point_idx){
+		pre_point_idx = idx_;
             break;
         }
     }
@@ -189,9 +200,13 @@ double Follower::calculateCrossError(){
     double dx = point_[idx_].pose.position.x - current_position_x_;
     double dy = point_[idx_].pose.position.y - current_position_y_;
 
-    double target_angle = std::atan2(dx, dy);
+    double target_angle = M_PI -  std::atan2(dy, dx);
+	double target_angle_deg = radian2deg(target_angle);
+    RCLCPP_INFO(this->get_logger(), "target_angle_deg: %f", target_angle_deg);
     theta = target_angle - current_yaw_;
     theta = std::atan2(std::sin(theta), std::cos(theta));
+
+   // RCLCPP_INFO(this->get_logger(), "target_angle:%f, theta_deg: %f", target_angle, radian2deg(theta));
 
     double cross_error = dy * std::cos(theta) - dx * std::sin(theta);
 
@@ -215,10 +230,10 @@ void Follower::followPath(){
         std::cerr << "point_empty error" << std::endl;
         return;
     }
-    if(!autonomous_flag_){
+    //if(!autonomous_flag_){
         // std::cerr << "nav_start_flag error" << std::endl;
-        return;
-    }
+     //   return;
+    //}
 
     ld_ = ld_gain_ * v_ + ld_min_; 
 
@@ -234,16 +249,16 @@ void Follower::followPath(){
     v_ = 0.5;
     w_ = he + std::atan2(cte_gain_ * cte, v_);
 
-    // RCLCPP_INFO(this->get_logger(), "distance: %f meters, angle: %f rad", distance_, theta);
+    double theta_deg = radian2deg(theta);
+     RCLCPP_INFO(this->get_logger(), "distance: %f meters, theta_deg: %f deg, idx %d", distance_, theta_deg, idx_);
 
-	double theta_deg = radian2deg(theta);
     //theta_degをパブリッシュ
     theta_pub_->publish(theta_deg);
-    RCLCPP_INFO(this->get_logger(), "theta_deg: %f", theta_deg);
+    //RCLCPP_INFO(this->get_logger(), "hand error : %f", he);
 
     geometry_msgs::msg::Vector3 cmd_vel;
     cmd_vel.x = v_;
-    cmd_vel.z = std::max(std::min(w_, w_max_), -1*w_max_);
+    cmd_vel.z = std::max(std::min(theta, 1.0), -1.0);
 
     // 完走した判定
     if(idx_ >= point_.size() - 5){
@@ -253,7 +268,7 @@ void Follower::followPath(){
     }
 
     //  自律フラグonのときのみパブリッシュ
-    if(!autonomous_flag_){
+    if(autonomous_flag_){
         // std::cerr << "nav_start_flag error" << std::endl;
         cmd_pub_->publish(cmd_vel);
     }
@@ -261,14 +276,14 @@ void Follower::followPath(){
 
 // クオータニオンからオイラーへ変換
 double Follower::calculateYawFromQuaternion(const geometry_msgs::msg::Quaternion& quat){
-    if(!init_flag_ && count > 100){
-        base_x = quat.x;
-        base_y = quat.y;
-        base_z = quat.z;
-        base_w = quat.w;
-        init_flag_ = true;
-	std::cerr << "init quat" << std::endl;
-    }
+    //if(!init_flag_ && count > 100){
+    //    base_x = quat.x;
+    //    base_y = quat.y;
+    //    base_z = quat.z;
+    //    base_w = quat.w;
+    //    init_flag_ = true;
+//	std::cerr << "init quat" << std::endl;
+  //  }
 
     tf2::Quaternion q(quat.x - base_x, quat.y - base_y, quat.z - base_z, quat.w - base_w);
     tf2::Matrix3x3 m(q);
