@@ -39,8 +39,9 @@ void Follower::vectornavCallback(const geometry_msgs::msg::PoseWithCovarianceSta
     current_position_y_ = y;
     current_yaw_ = calculateYawFromQuaternion(msg->pose.pose.orientation);
     double current_yaw_deg = current_yaw_ * 180 / M_PI;
-    // RCLCPP_INFO(this->get_logger(), "pose_yaw: %f deg", current_yaw_deg);
+    // RCLCPP_INFO(this->get_logger(), "yaw_deg: %f", current_yaw_deg);
 	count++;
+	if(count < 110)
 	std::cerr << "count:" <<count << std::endl;
 
     // RCLCPP_INFO(this->get_logger(), "base_x: %f\ncurrent_position_x: %f\nbase_yaw: %f", vectornav_base_x_, current_position_x_, vectornav_base_yaw_);
@@ -55,6 +56,8 @@ void Follower::vectornavCallback(const geometry_msgs::msg::PoseWithCovarianceSta
 // received path
 void Follower::pathCallback(const nav_msgs::msg::Path::SharedPtr msg) {
     point_ = msg->poses;
+
+    // RCLCPP_INFO(this->get_logger(), "received %zu pose", point_.size());
 }
 
 // gnssnav permit
@@ -76,6 +79,10 @@ void Follower::setBasePose(){
 
     std::cerr << "set Base Pose" << std::endl;
     init_base_flag_ = true;
+
+    // for(const auto &pose : point_){
+           // RCLCPP_INFO(this->get_logger(), "path_x:%f , path_y:%f", pose.pose.position.x, pose.pose.position.y);
+   // }
 }
 
 // 現在地をパブリッシュ
@@ -132,9 +139,14 @@ void Follower::findNearestIndex(geometry_msgs::msg::Pose front_wheel_pos){
         double dy = point_[idx_].pose.position.y - front_wheel_pos.position.y;
         distance_ = std::hypot(dx, dy);
 
-	std::cerr << "point_x:"<< point_[idx_].pose.position.x << std::endl;
+ //std::cerr << "idx:" << idx_ << std::endl;
+        //std::cerr << "point_y:"<< point_[idx_].pose.position.y << std::endl;
+	//std::cerr << "wheel_pos_y:" << front_wheel_pos.position.y << std::endl;
+//std::cerr << "dx:" << dx << "  " <<"dy" << dy << std::endl;
+//if(idx_ >= 100)
+//std::cerr << "distance" << distance_ << std::endl;
 
-        if(distance_ > ld_){
+        if(distance_ > ld_ && point_[idx_].pose.position.x > 400000){
             break;
         }
     }
@@ -145,15 +157,17 @@ void Follower::findNearestIndex(geometry_msgs::msg::Pose front_wheel_pos){
 void Follower::findLookaheadDistance(){
     wheel_base_ = 600;
     double front_x_ =
-        current_position_x_ + wheel_base_ / 2.0 * std::cos(pose_orientation_z_);
+	    current_position_x_;
+        //current_position_x_ + wheel_base_ / 2.0 * std::cos(pose_orientation_z_);
     double front_y_ =
-        current_position_y_ + wheel_base_ / 2.0 * std::sin(pose_orientation_z_);
+	    current_position_y_;
+        //current_position_y_ + wheel_base_ / 2.0 * std::sin(pose_orientation_z_);
 
     geometry_msgs::msg::Pose front_wheel_pos;
     front_wheel_pos.position.x = front_x_;
     front_wheel_pos.position.y = front_y_;
 
-    std::cerr << front_x_<< std::endl;
+    //std::cerr << "current_y_2: "<<current_position_y_<< std::endl;
     // 前の車輪から一番近い経路点を見つける
     findNearestIndex(front_wheel_pos);
 
@@ -221,9 +235,13 @@ void Follower::followPath(){
 
     RCLCPP_INFO(this->get_logger(), "distance: %f meters, angle: %f rad", distance_, theta);
 
+	double theta_deg = (theta*3.14)/180;
+
+    //RCLCPP_INFO(this->get_logger(), "theta_deg: %f", theta_deg);
+
     geometry_msgs::msg::Vector3 cmd_vel;
     cmd_vel.x = v_;
-    cmd_vel.z = w_;
+    cmd_vel.z = std::max(std::min(w_, w_max_), -1*w_max_);
 
     // 完走した判定
     if(idx_ >= point_.size() - 5){
@@ -237,12 +255,13 @@ void Follower::followPath(){
 
 // クオータニオンからオイラーへ変換
 double Follower::calculateYawFromQuaternion(const geometry_msgs::msg::Quaternion& quat){
-    if(init_flag_){
+    if(!init_flag_ && count > 100){
         base_x = quat.x;
         base_y = quat.y;
         base_z = quat.z;
         base_w = quat.w;
-        init_flag_ = false;
+        init_flag_ = true;
+	std::cerr << "init quat" << std::endl;
     }
 
     tf2::Quaternion q(quat.x - base_x, quat.y - base_y, quat.z - base_z, quat.w - base_w);
