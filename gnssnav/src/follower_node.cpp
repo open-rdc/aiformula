@@ -39,7 +39,7 @@ void Follower::vectornavCallback(const geometry_msgs::msg::PoseWithCovarianceSta
     current_position_x_ = x;
     current_position_y_ = y;
     current_yaw_ = calculateYawFromQuaternion(msg->pose.pose.orientation);
-    double current_yaw_deg = current_yaw_ * 180 / M_PI;
+    double current_yaw_deg = radian2deg(current_yaw_);
     // RCLCPP_INFO(this->get_logger(), "yaw_deg: %f", current_yaw_deg);
 	count++;
 	if(count < 110)
@@ -180,7 +180,7 @@ void Follower::findLookaheadDistance(){
 }
 
 double Follower::radian2deg(double rad){
-    double deg = rad * 180 / M_PI;
+    double deg = rad * (180 / M_PI);
     return deg;
 }
 
@@ -236,7 +236,7 @@ void Follower::followPath(){
 
     RCLCPP_INFO(this->get_logger(), "distance: %f meters, angle: %f rad", distance_, theta);
 
-	double theta_deg = (theta*3.14)/180;
+	double theta_deg = radian2deg(theta);
     //theta_degをパブリッシュ
     theta_pub_->publish(theta_deg);
 
