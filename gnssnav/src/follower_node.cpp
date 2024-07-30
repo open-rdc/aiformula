@@ -39,9 +39,13 @@ void Follower::vectornavCallback(const geometry_msgs::msg::PoseWithCovarianceSta
     current_position_y_ = y;
     current_yaw_ = calculateYawFromQuaternion(msg->pose.pose.orientation);
     double current_yaw_deg = current_yaw_ * 180 / M_PI;
-    RCLCPP_INFO(this->get_logger(), "pose_yaw: %f deg", current_yaw_deg);
+    // RCLCPP_INFO(this->get_logger(), "pose_yaw: %f deg", current_yaw_deg);
+	count++;
+	std::cerr << "count:" <<count << std::endl;
 
-    if(init_base_flag_ && !(x == 0.0) && !(y == 0.0)) {
+    // RCLCPP_INFO(this->get_logger(), "base_x: %f\ncurrent_position_x: %f\nbase_yaw: %f", vectornav_base_x_, current_position_x_, vectornav_base_yaw_);
+    // std::cerr << init_base_flag_ << std::endl;
+    if(!init_base_flag_ && count >= 100) {
         setBasePose();
     } else {
         publishCurrentPose();
@@ -70,7 +74,8 @@ void Follower::setBasePose(){
     vectornav_base_y_ = current_position_y_;
     vectornav_base_yaw_ = current_yaw_;
 
-    init_base_flag_ = false;
+    std::cerr << "set Base Pose" << std::endl;
+    init_base_flag_ = true;
 }
 
 // 現在地をパブリッシュ
@@ -127,6 +132,8 @@ void Follower::findNearestIndex(geometry_msgs::msg::Pose front_wheel_pos){
         double dy = point_[idx_].pose.position.y - front_wheel_pos.position.y;
         distance_ = std::hypot(dx, dy);
 
+	std::cerr << "point_x:"<< point_[idx_].pose.position.x << std::endl;
+
         if(distance_ > ld_){
             break;
         }
@@ -146,6 +153,7 @@ void Follower::findLookaheadDistance(){
     front_wheel_pos.position.x = front_x_;
     front_wheel_pos.position.y = front_y_;
 
+    std::cerr << front_x_<< std::endl;
     // 前の車輪から一番近い経路点を見つける
     findNearestIndex(front_wheel_pos);
 
@@ -192,7 +200,7 @@ void Follower::followPath(){
         std::cerr << "point_empty error" << std::endl;
         return;
     }
-    if(!nav_start_flag_){
+    if(!autonomous_flag_){
         // std::cerr << "nav_start_flag error" << std::endl;
         return;
     }
@@ -215,12 +223,12 @@ void Follower::followPath(){
 
     geometry_msgs::msg::Vector3 cmd_vel;
     cmd_vel.x = v_;
-    cmd_vel.y = w_;
+    cmd_vel.z = w_;
 
     // 完走した判定
     if(idx_ >= point_.size() - 5){
         cmd_vel.x = 0.0;
-        cmd_vel.y = 0.0;
+        cmd_vel.z = 0.0;
         RCLCPP_INFO(this->get_logger(), "Goal to reach");
     }
 
