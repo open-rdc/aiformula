@@ -42,22 +42,15 @@ void Follower::vectornavCallback(const geometry_msgs::msg::PoseWithCovarianceSta
     //	 init_yaw = calculateYawFromQuaternion(msg->pose.pose.orientation);
 
     //}
-    current_yaw_ = calculateYawFromQuaternion(msg->pose.pose.orientation) - vectornav_base_yaw_;
+    RCLCPP_INFO(this->get_logger(), "current_position_x: %f\ncurrent_position_y: %f", current_position_x_, current_position_y_);
+
+    current_yaw_ = calculateYawFromQuaternion(msg->pose.pose.orientation);
     double current_yaw_deg = radian2deg(current_yaw_);
    //RCLCPP_INFO(this->get_logger(), "current_yaw_deg: %f", current_yaw_deg);
-   if(current_yaw_ < -180){
-	   current_yaw_ += 360;
-   }else if(current_yaw_ > 180){
-	   current_yaw_ -= 360;
-   }
-
-	count++;
-	if(count < 110)
-		std::cerr << "count:" <<count << std::endl;
 
     // RCLCPP_INFO(this->get_logger(), "base_x: %f\ncurrent_position_x: %f\nbase_yaw: %f", vectornav_base_x_, current_position_x_, vectornav_base_yaw_);
     // std::cerr << init_base_flag_ << std::endl;
-    if(!init_base_flag_ && count >= 100) {
+    if(!init_base_flag_) {
         setBasePose();
     } else {
         publishCurrentPose();
@@ -67,7 +60,6 @@ void Follower::vectornavCallback(const geometry_msgs::msg::PoseWithCovarianceSta
 // received path
 void Follower::pathCallback(const nav_msgs::msg::Path::SharedPtr msg) {
     point_ = msg->poses;
-
     // RCLCPP_INFO(this->get_logger(), "received %zu pose", point_.size());
 }
 
@@ -202,7 +194,7 @@ double Follower::calculateCrossError(){
 
     double target_angle = M_PI -  std::atan2(dy, dx);
 	double target_angle_deg = radian2deg(target_angle);
-    RCLCPP_INFO(this->get_logger(), "target_angle_deg: %f", target_angle_deg);
+    // RCLCPP_INFO(this->get_logger(), "target_angle_deg: %f", target_angle_deg);
     theta = target_angle - current_yaw_;
     theta = std::atan2(std::sin(theta), std::cos(theta));
 
@@ -250,7 +242,7 @@ void Follower::followPath(){
     w_ = he + std::atan2(cte_gain_ * cte, v_);
 
     double theta_deg = radian2deg(theta);
-     RCLCPP_INFO(this->get_logger(), "distance: %f meters, theta_deg: %f deg, idx %d", distance_, theta_deg, idx_);
+    // RCLCPP_INFO(this->get_logger(), "distance: %f meters, theta_deg: %f deg, idx %d", distance_, theta_deg, idx_);
 
     //theta_degをパブリッシュ
     theta_pub_->publish(theta_deg);
@@ -276,16 +268,8 @@ void Follower::followPath(){
 
 // クオータニオンからオイラーへ変換
 double Follower::calculateYawFromQuaternion(const geometry_msgs::msg::Quaternion& quat){
-    //if(!init_flag_ && count > 100){
-    //    base_x = quat.x;
-    //    base_y = quat.y;
-    //    base_z = quat.z;
-    //    base_w = quat.w;
-    //    init_flag_ = true;
-//	std::cerr << "init quat" << std::endl;
-  //  }
 
-    tf2::Quaternion q(quat.x - base_x, quat.y - base_y, quat.z - base_z, quat.w - base_w);
+    tf2::Quaternion q(quat.x, quat.y, quat.z, quat.w);
     tf2::Matrix3x3 m(q);
     double roll, pitch, yaw;
     m.getRPY(roll, pitch, yaw);
