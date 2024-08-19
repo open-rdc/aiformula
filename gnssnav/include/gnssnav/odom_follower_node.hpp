@@ -7,6 +7,7 @@
 #include <cmath>
 
 #include "nav_msgs/msg/path.hpp"
+#include "nav_msgs/msg/odometry.hpp"
 #include "geometry_msgs/msg/twist.hpp"
 #include "geometry_msgs/msg/vector3.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
@@ -62,7 +63,8 @@ private:
 
     // geometry_msgs::msg::PoseStamped pose_msg;
 
-    rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr vectornav_subscriber_;
+    // rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr vectornav_subscriber_;
+    rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;
     rclcpp::Subscription<nav_msgs::msg::Path>::SharedPtr path_subscriber_;
     rclcpp::Subscription<std_msgs::msg::Empty>::SharedPtr nav_start_subscriber_;
     rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr autonomous_flag_subscriber_;
@@ -79,7 +81,8 @@ private:
 
     void declareParameter(void);
 
-    void vectornavCallback(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg);
+    // void vectornavCallback(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg);
+    void vectornavCallback(const nav_msgs::msg::Odometry::SharedPtr msg);
     void pathCallback(const nav_msgs::msg::Path::SharedPtr msg);
     void navStartCallback(const std_msgs::msg::Empty::SharedPtr&);
     void autonomousFlagCallback(const std_msgs::msg::Bool::SharedPtr msg);

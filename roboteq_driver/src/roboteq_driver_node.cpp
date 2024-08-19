@@ -21,7 +21,7 @@ rotate_ratio(1.0 / get_parameter("reduction_ratio").as_double()),
 is_reverse_left(get_parameter("reverse_left_flag").as_bool()),
 is_reverse_right(get_parameter("reverse_right_flag").as_bool())
 {
-    _subscription_vel = this->create_subscription<geometry_msgs::msg::Vector3>(
+    _subscription_vel = this->create_subscription<geometry_msgs::msg::Twist>(
         "cmd_vel",
         _qos,
         std::bind(&RoboteqDriver::_subscriber_callback_vel, this, std::placeholders::_1)
@@ -55,7 +55,7 @@ is_reverse_right(get_parameter("reverse_right_flag").as_bool())
     );
 }
 
-void RoboteqDriver::_subscriber_callback_vel(const geometry_msgs::msg::Vector3::SharedPtr msg){
+void RoboteqDriver::_subscriber_callback_vel(const geometry_msgs::msg::Twist::SharedPtr msg){
     if(mode == Mode::stop) return;
     mode = Mode::cmd;
 
@@ -68,15 +68,15 @@ void RoboteqDriver::_publisher_callback(){
         return;
     }
     if(vel == nullptr) return;
-    send_rpm(vel->x, vel->z);
+    send_rpm(vel->linear.x, vel->angular.z);
 
     // 従動輪角度の送信
     auto msg_steer = std::make_shared<std_msgs::msg::Float64>();
-    if(vel->x == 0.0){
+    if(vel->linear.x == 0.0){
         msg_steer->data = 0.0;
     }
     else{
-        msg_steer->data = std::asin((wheelbase*vel->z) / vel->x);
+        msg_steer->data = std::asin((wheelbase*vel->angular.z) / vel->linear.x);
         if(std::isnan(msg_steer->data)) msg_steer->data = 0.0;
     }
     publisher_steer->publish(*msg_steer);
