@@ -4,7 +4,7 @@ import subprocess
 import yaml
 import datetime
 
-import launch 
+import launch
 from launch import LaunchDescription
 from launch_ros.actions import Node, SetParameter
 from launch.actions import DeclareLaunchArgument, GroupAction, IncludeLaunchDescription
@@ -40,7 +40,7 @@ def generate_launch_description():
     bag_file = os.path.expanduser('~/rosbag/rosbag2_' + formatted_datetime)
 
     # コースデータの設定
-    course_data = os.path.join(config_dir, 'course_data', '0425_test_curve.csv')
+    course_data = os.path.join(config_dir, 'course_data', 'gazebo_shihou_course.csv')
     # course_data = os.path.join(config_dir, 'course_data', '0425_test_straight.csv')
 
     print("-"*50)
@@ -129,7 +129,7 @@ def generate_launch_description():
     )
 
     # vectornavへ実行権限の付与
-    subprocess.run(['sudo', 'sh', vectornav_launch_path])
+    # subprocess.run(['sudo', 'sh', vectornav_launch_path])
 
     # 起動エンティティ作成，起動項目の追加
     ld = LaunchDescription()
@@ -138,15 +138,15 @@ def generate_launch_description():
     ld.add_action(declare_use_rviz)
     ld.add_action(declare_publish_tf)
 
-    ld.add_action(other_launch)
+    # ld.add_action(other_launch)
 
     ld.add_action(launch_node)
 
     # rosbag開始
-    ld.add_action(launch.actions.ExecuteProcess(
-        cmd=['ros2', 'bag', 'record', '-a', '-o', bag_file],
-        output='screen',
-        condition=IfCondition(use_rosbag)
-    ))
+    # ld.add_action(launch.actions.ExecuteProcess(
+    #     cmd=['ros2', 'bag', 'record', '-a', '-o', bag_file],
+    #     output='screen',
+    #     condition=IfCondition(use_rosbag)
+    # ))
 
     return ld

@@ -29,7 +29,7 @@ public:
         nav_start_subscriber_ = this->create_subscription<std_msgs::msg::Empty>("/nav_start", 10, callback);
         path_subscriber_ = this->create_subscription<nav_msgs::msg::Path>(
             "/origin_gnss_path", 10, std::bind(&PathFollowerNode::pathCallback, this, std::placeholders::_1));
-        cmd_pub_ = this->create_publisher<geometry_msgs::msg::Vector3>("/cmd_vel", 10);
+        cmd_pub_ = this->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel", 10);
         to_target_pub_ = this->create_publisher<geometry_msgs::msg::Vector3>("/to_target", 10);
         current_pose_pub_ = this->create_publisher<geometry_msgs::msg::PoseStamped>("/current_pose", 10);
         flag_subscriber_ = this->create_subscription<std_msgs::msg::Bool>(
@@ -45,7 +45,7 @@ private:
         current_position_y_ = y;
         current_yaw_ = calculateYawFromQuaternion(msg->pose.pose.orientation);
         // current_yaw_ = std::atan2(std::sin(current_yaw_diff), std::cos(current_yaw_diff));
-        RCLCPP_INFO(this->get_logger(), "pose_x:%f, pose_y:%f, pose_yaw:%f", current_position_x_, current_position_y_, current_yaw_);
+        // RCLCPP_INFO(this->get_logger(), "pose_x:%f, pose_y:%f, pose_yaw:%f", current_position_x_, current_position_y_, current_yaw_);
         publish_current_pose();
         followPath();
     }
@@ -67,12 +67,12 @@ private:
     void publish_current_pose()
     {
         geometry_msgs::msg::PoseStamped pose_msg;
-        pose_msg.header.stamp = this->now(); 
-        pose_msg.header.frame_id = "map"; 
+        pose_msg.header.stamp = this->now();
+        pose_msg.header.frame_id = "map";
 
-        pose_msg.pose.position.x = current_position_x_;  
-        pose_msg.pose.position.y = current_position_y_;  
-        pose_msg.pose.position.z = 0.0;  
+        pose_msg.pose.position.x = current_position_x_;
+        pose_msg.pose.position.y = current_position_y_;
+        pose_msg.pose.position.z = 0.0;
 
         tf2::Quaternion q;
         q.setRPY(0, 0, current_yaw_);  // Roll, Pitch, Yawからクォータニオンを計算
@@ -143,15 +143,15 @@ private:
 
         to_target_pub_->publish(to_target);
 
-        RCLCPP_INFO(this->get_logger(), "Current distance to target: %f meters, Current angle to target: %f radians", distance_to_lookahead, target_angle);
+        RCLCPP_INFO(this->get_logger(), "DIFF linear:%lf  angular:%lf  (target angle:%lf)", distance_to_lookahead, angle_difference, target_angle);
 
-        geometry_msgs::msg::Vector3 cmd_vel;
-        cmd_vel.x = controlled_linear_speed;
-        cmd_vel.z = controlled_angular_speed;
+        geometry_msgs::msg::Twist cmd_vel;
+        cmd_vel.linear.x = controlled_linear_speed;
+        cmd_vel.angular.z = controlled_angular_speed;
 
         if ((distance_to_lookahead < 0.1) && (lookahead_index >= path_.size() - 10)){
-            cmd_vel.x = 0.0;
-            cmd_vel.z = 0.0;
+            cmd_vel.linear.x = 0.0;
+            cmd_vel.angular.z = 0.0;
             RCLCPP_INFO(this->get_logger(), "Reached goal");
         }
 
@@ -213,7 +213,7 @@ private:
     rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr odom_subscriber_;
     rclcpp::Subscription<nav_msgs::msg::Path>::SharedPtr path_subscriber_;
     rclcpp::Subscription<std_msgs::msg::Empty>::SharedPtr nav_start_subscriber_;
-    rclcpp::Publisher<geometry_msgs::msg::Vector3>::SharedPtr cmd_pub_;
+    rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmd_pub_;
     rclcpp::Publisher<geometry_msgs::msg::Vector3>::SharedPtr to_target_pub_;
     rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr flag_subscriber_;
     rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr current_pose_pub_;
