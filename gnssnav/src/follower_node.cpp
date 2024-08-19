@@ -38,17 +38,9 @@ void Follower::vectornavCallback(const geometry_msgs::msg::PoseWithCovarianceSta
 
     current_position_x_ = x;
     current_position_y_ = y;
-    //if(!init_base_flag_ && count >= 100){
-    //	 init_yaw = calculateYawFromQuaternion(msg->pose.pose.orientation);
-    //}
-    // RCLCPP_INFO(this->get_logger(), "current_position_x: %f\ncurrent_position_y: %f", current_position_x_, current_position_y_);
-
+  
     current_yaw_ = calculateYawFromQuaternion(msg->pose.pose.orientation);
-    double current_yaw_deg = radian2deg(current_yaw_);
-    // RCLCPP_INFO(this->get_logger(), "current_yaw_deg: %f", current_yaw_deg);
 
-    // RCLCPP_INFO(this->get_logger(), "base_x: %f\ncurrent_position_x: %f\nbase_yaw: %f", vectornav_base_x_, current_position_x_, vectornav_base_yaw_);
-    // std::cerr << init_base_flag_ << std::endl;
     if(!init_base_flag_) {
         setBasePose();
     } else {
@@ -136,21 +128,18 @@ void Follower::publishLookahead(){
 
 // 最も近い経路点を見つける(座標とidx)
 void Follower::findNearestIndex(geometry_msgs::msg::Pose front_wheel_pos){
-    for(idx_ = 0;idx_ < point_.size(); idx_++){
+    for(idx_ = pre_point_idx;idx_ < point_.size(); idx_++){
         double dx = point_[idx_].pose.position.x - front_wheel_pos.position.x;
         double dy = point_[idx_].pose.position.y - front_wheel_pos.position.y;
         distance_ = std::hypot(dx, dy);
 
- //std::cerr << "idx:" << idx_ << std::endl;
-    // std::cerr << "point_x:" << point_[idx_].pose.position.x << "point_y:"<< point_[idx_].pose.position.y << std::endl;
-	//std::cerr << "wheel_pos_y:" << front_wheel_pos.position.y << std::endl;
-//std::cerr << "dx:" << dx << "  " <<"dy" << dy << std::endl;
-//if(idx_ >= 100)
-//std::cerr << "distance" << distance_ << std::endl;
-
         if(distance_ > ld_ && idx_ > pre_point_idx){
-		    pre_point_idx = idx_;
-            RCLCPP_INFO(this->get_logger(), "idx:%d", idx_);
+		    pre_point_idx = idx_ - 1;
+            // RCLCPP_INFO(this->get_logger(), "idx : %d\npre_idx : %d", idx_, pre_point_idx);
+            // std::cerr << "point_x:" << point_[idx_].pose.position.x << "\npoint_y:"<< point_[idx_].pose.position.y << std::endl;
+            // std::cerr << "point_size:" << point_.size() << std::endl;
+            // std::cerr << "distance" << distance_ << std::endl;
+        	// std::cerr << "wheel_pos_x:" << front_wheel_pos.position.x << "\nwheel_pos_y:" << front_wheel_pos.position.y << std::endl;
             break;
         }
     }
@@ -159,27 +148,18 @@ void Follower::findNearestIndex(geometry_msgs::msg::Pose front_wheel_pos){
 
 // 目標地点を探索する
 void Follower::findLookaheadDistance(){
-    wheel_base_ = 600;
+    wheel_base_ = 0.6;
     double front_x_ =
-	    current_position_x_;
-        //current_position_x_ + wheel_base_ / 2.0 * std::cos(pose_orientation_z_);
+        current_position_x_ + wheel_base_ / 2.0 * std::cos(pose_orientation_z_);
     double front_y_ =
-	    current_position_y_;
-        //current_position_y_ + wheel_base_ / 2.0 * std::sin(pose_orientation_z_);
+        current_position_y_ + wheel_base_ / 2.0 * std::sin(pose_orientation_z_);
 
     geometry_msgs::msg::Pose front_wheel_pos;
     front_wheel_pos.position.x = front_x_;
     front_wheel_pos.position.y = front_y_;
 
-    //std::cerr << "current_y_2: "<<current_position_y_<< std::endl;
     // 前の車輪から一番近い経路点を見つける
     findNearestIndex(front_wheel_pos);
-
-    if(idx_ > 0){
-        pre_point_idx = idx_ - 1;
-    }else{
-        pre_point_idx = idx_;
-    }
 }
 
 double Follower::radian2deg(double rad){
@@ -192,13 +172,12 @@ double Follower::calculateCrossError(){
     double dx = point_[idx_].pose.position.x - current_position_x_;
     double dy = point_[idx_].pose.position.y - current_position_y_;
 
-    double target_angle = M_PI -  std::atan2(dy, dx);
+    double target_angle = std::atan2(dy, dx);
 	double target_angle_deg = radian2deg(target_angle);
     // RCLCPP_INFO(this->get_logger(), "target_angle_deg: %f", target_angle_deg);
+
     theta = target_angle - current_yaw_;
     theta = std::atan2(std::sin(theta), std::cos(theta));
-
-   // RCLCPP_INFO(this->get_logger(), "target_angle:%f, theta_deg: %f", target_angle, radian2deg(theta));
 
     double cross_error = dy * std::cos(theta) - dx * std::sin(theta);
 
@@ -222,10 +201,6 @@ void Follower::followPath(){
         std::cerr << "point_empty error" << std::endl;
         return;
     }
-    //if(!autonomous_flag_){
-        // std::cerr << "nav_start_flag error" << std::endl;
-     //   return;
-    //}
 
     ld_ = ld_gain_ * v_ + ld_min_; 
 
@@ -237,8 +212,7 @@ void Follower::followPath(){
     // pointとpre_pointを結ぶ先に対する現在の車体の角度
     double he = calculateHeadingError();
 
-    // v_ = std::min(v_max_, ld_);
-    v_ = 1.5;
+    v_ = std::min(v_max_, ld_);
     w_ = he + std::atan2(cte_gain_ * cte, v_);
 
     double theta_deg = radian2deg(theta);
