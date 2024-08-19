@@ -394,19 +394,9 @@
         <always_on>true</always_on>
         <update_rate>1.0</update_rate>
 
-        <!-- <referenceLatitude>-30.06022459407145675</referenceLatitude>
-        <referenceLongitude>-51.173913575780311191</referenceLongitude> -->
-        <referenceHeading>0.0</referenceHeading>
-        <referenceAltitude>0.0</referenceAltitude>
-        <!-- <offset>0 0 0</offset> -->
-        <!-- <drift>0.001 0.001 0.001</drift> -->
-        <!-- <gaussianNoise>0.05 0.05 0.05</gaussianNoise> -->
-        <!-- <velocityDrift>0.001 0.001 0.001</velocityDrift> -->
-        <!-- <velocityGaussianNoise>0.5 0.5 0.5</velocityGaussianNoise> -->
-
         <plugin name="gps_controller" filename="libgazebo_ros_gps_sensor.so">
             <ros>
-                <namespace>/gps</namespace>
+                <!-- <namespace>/gps</namespace> -->
                 <remapping>~/out:=gps</remapping>
             </ros>
         </plugin>
