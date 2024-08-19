@@ -33,7 +33,7 @@ find_library(PROJ_LIBRARY NAMES proj PATHS /usr/lib/x86_64-linux-gnu)
 include_directories(/usr/include/eigen3)
 
 add_library(navigation_node
-  src/follower_node.cpp
+  src/odom_follower_node.cpp
   src/path_publisher_node.cpp
   )
 target_include_directories(navigation_node PUBLIC

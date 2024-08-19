@@ -13,9 +13,9 @@ Follower::Follower(const std::string& name_space, const rclcpp::NodeOptions& opt
     autonomous_flag_subscriber_ = this->create_subscription<std_msgs::msg::Bool>("/autonomous", 10, std::bind(&Follower::autonomousFlagCallback, this, std::placeholders::_1));
     nav_start_subscriber_ = this->create_subscription<std_msgs::msg::Empty>("/nav_start", 10, callback);
     vectornav_subscriber_ = this->create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>("/vectornav/pose", 10, std::bind(&Follower::vectornavCallback, this, std::placeholders::_1));
-    path_subscriber_ = this->create_subscription<nav_msgs::msg::Path>("/origin_gnss_path", 10, std::bind(&Follower::pathCallback, this, std::placeholders::_1));
+    path_subscriber_ = this->create_subscription<nav_msgs::msg::Path>("/gnss_path", 10, std::bind(&Follower::pathCallback, this, std::placeholders::_1));
 
-    cmd_pub_ = this->create_publisher<geometry_msgs::msg::Vector3>("/cmd_vel", 2);
+    cmd_pub_ = this->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel", 10);
     current_pose_pub_ = this->create_publisher<geometry_msgs::msg::PoseStamped>("/current_pose", 10);
     current_ld_pub_ = this->create_publisher<geometry_msgs::msg::PoseStamped>("/current_ld", 10); 
     theta_pub_ =this->create_publisher<std_msgs::msg::Float64>("/theta", 10);
@@ -40,13 +40,12 @@ void Follower::vectornavCallback(const geometry_msgs::msg::PoseWithCovarianceSta
     current_position_y_ = y;
     //if(!init_base_flag_ && count >= 100){
     //	 init_yaw = calculateYawFromQuaternion(msg->pose.pose.orientation);
-
     //}
-    RCLCPP_INFO(this->get_logger(), "current_position_x: %f\ncurrent_position_y: %f", current_position_x_, current_position_y_);
+    // RCLCPP_INFO(this->get_logger(), "current_position_x: %f\ncurrent_position_y: %f", current_position_x_, current_position_y_);
 
     current_yaw_ = calculateYawFromQuaternion(msg->pose.pose.orientation);
     double current_yaw_deg = radian2deg(current_yaw_);
-   //RCLCPP_INFO(this->get_logger(), "current_yaw_deg: %f", current_yaw_deg);
+    // RCLCPP_INFO(this->get_logger(), "current_yaw_deg: %f", current_yaw_deg);
 
     // RCLCPP_INFO(this->get_logger(), "base_x: %f\ncurrent_position_x: %f\nbase_yaw: %f", vectornav_base_x_, current_position_x_, vectornav_base_yaw_);
     // std::cerr << init_base_flag_ << std::endl;
@@ -143,14 +142,15 @@ void Follower::findNearestIndex(geometry_msgs::msg::Pose front_wheel_pos){
         distance_ = std::hypot(dx, dy);
 
  //std::cerr << "idx:" << idx_ << std::endl;
-        //std::cerr << "point_y:"<< point_[idx_].pose.position.y << std::endl;
+    // std::cerr << "point_x:" << point_[idx_].pose.position.x << "point_y:"<< point_[idx_].pose.position.y << std::endl;
 	//std::cerr << "wheel_pos_y:" << front_wheel_pos.position.y << std::endl;
 //std::cerr << "dx:" << dx << "  " <<"dy" << dy << std::endl;
 //if(idx_ >= 100)
 //std::cerr << "distance" << distance_ << std::endl;
 
-        if(distance_ > ld_ && point_[idx_].pose.position.x > 400000 && idx_ > pre_point_idx){
-		pre_point_idx = idx_;
+        if(distance_ > ld_ && idx_ > pre_point_idx){
+		    pre_point_idx = idx_;
+            RCLCPP_INFO(this->get_logger(), "idx:%d", idx_);
             break;
         }
     }
@@ -238,24 +238,24 @@ void Follower::followPath(){
     double he = calculateHeadingError();
 
     // v_ = std::min(v_max_, ld_);
-    v_ = 0.5;
+    v_ = 1.5;
     w_ = he + std::atan2(cte_gain_ * cte, v_);
 
     double theta_deg = radian2deg(theta);
-    // RCLCPP_INFO(this->get_logger(), "distance: %f meters, theta_deg: %f deg, idx %d", distance_, theta_deg, idx_);
+    RCLCPP_INFO(this->get_logger(), "distance: %f meters, theta_deg: %f deg, idx %d", distance_, theta_deg, idx_);
 
     //theta_degをパブリッシュ
     theta_pub_->publish(theta_deg);
     //RCLCPP_INFO(this->get_logger(), "hand error : %f", he);
 
-    geometry_msgs::msg::Vector3 cmd_vel;
-    cmd_vel.x = v_;
-    cmd_vel.z = std::max(std::min(theta, 1.0), -1.0);
+    geometry_msgs::msg::Twist cmd_vel;
+    cmd_vel.linear.x = v_;
+    cmd_vel.angular.z = std::max(std::min(theta, 1.0), -1.0);
 
     // 完走した判定
     if(idx_ >= point_.size() - 5){
-        cmd_vel.x = 0.0;
-        cmd_vel.z = 0.0;
+        cmd_vel.linear.x = 0.0;
+        cmd_vel.angular.z = 0.0;
         RCLCPP_INFO(this->get_logger(), "Goal to reach");
     }
 
@@ -308,6 +308,8 @@ void Follower::loop(void){
 
 int main(int argc, char * argv[]){
     rclcpp::init(argc, argv);
+    auto node = std::make_shared<gnssnav::Follower>(rclcpp::NodeOptions());
+    rclcpp::spin(node);
     rclcpp::shutdown();
     return 0;
 }

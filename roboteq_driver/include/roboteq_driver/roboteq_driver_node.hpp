@@ -1,7 +1,7 @@
 #pragma once
 
 #include <rclcpp/rclcpp.hpp>
-#include <geometry_msgs/msg/vector3.hpp>
+#include <geometry_msgs/msg/twist.hpp>
 #include <std_msgs/msg/empty.hpp>
 #include <std_msgs/msg/float64.hpp>
 #include "socketcan_interface_msg/msg/socketcan_if.hpp"
@@ -19,14 +19,14 @@ public:
     explicit RoboteqDriver(const std::string& name_space, const rclcpp::NodeOptions& options = rclcpp::NodeOptions());
 
 private:
-    rclcpp::Subscription<geometry_msgs::msg::Vector3>::SharedPtr _subscription_vel;
+    rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr _subscription_vel;
     rclcpp::Subscription<std_msgs::msg::Empty>::SharedPtr _subscription_stop;
     rclcpp::Subscription<std_msgs::msg::Empty>::SharedPtr _subscription_restart;
     rclcpp::Subscription<socketcan_interface_msg::msg::SocketcanIF>::SharedPtr _subscription_rpm;
     rclcpp::Subscription<socketcan_interface_msg::msg::SocketcanIF>::SharedPtr _subscription_emergency;
     rclcpp::TimerBase::SharedPtr _pub_timer;
 
-    void _subscriber_callback_vel(const geometry_msgs::msg::Vector3::SharedPtr msg);
+    void _subscriber_callback_vel(const geometry_msgs::msg::Twist::SharedPtr msg);
     void _subscriber_callback_stop(const std_msgs::msg::Empty::SharedPtr msg);
     void _subscriber_callback_restart(const std_msgs::msg::Empty::SharedPtr msg);
     void _subscriber_callback_rpm(const socketcan_interface_msg::msg::SocketcanIF::SharedPtr msg);
@@ -49,7 +49,7 @@ private:
     const bool is_reverse_right;
 
     // 制御
-    std::shared_ptr<geometry_msgs::msg::Vector3> vel;
+    std::shared_ptr<geometry_msgs::msg::Twist> vel;
 
     // 動作モード
     enum class Mode{
