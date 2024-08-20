@@ -1,5 +1,10 @@
 #include "gnssnav/follower_node.hpp"
 
+#include "utilities/utils.hpp"
+#include <cmath>
+
+using namespace utils;
+
 namespace gnssnav{
 
 Follower::Follower(const rclcpp::NodeOptions& options) : Follower("", options) {}
@@ -40,7 +45,7 @@ void Follower::vectornavCallback(const geometry_msgs::msg::PoseWithCovarianceSta
 
     //std::cerr << "x : " << x << "y : "<< y << std::endl;
     current_yaw_ = calculateYawFromQuaternion(msg->pose.pose.orientation);
-    // RCLCPP_INFO(this->get_logger(), "current yaw:%lf°", radian2deg(current_yaw_));
+    // RCLCPP_INFO(this->get_logger(), "current yaw:%lf°", rtod(current_yaw_));
 
     if(!init_base_flag_) {
         setBasePose();
@@ -162,11 +167,6 @@ void Follower::findLookaheadDistance(){
     findNearestIndex(front_wheel_pos);
 }
 
-double Follower::radian2deg(double rad){
-    double deg = rad * (180 / M_PI);
-    return deg;
-}
-
 // not scope 経路に対しての横方向のズレを計算
 double Follower::calculateCrossError(){
     double dx = point_[idx_].pose.position.x - current_position_x_;
@@ -182,7 +182,7 @@ double Follower::calculateCrossError(){
 
     double cross_error = dy * std::cos(theta) - dx * std::sin(theta);
 
-    RCLCPP_INFO(this->get_logger(), "target:%lf° current:%lf°", radian2deg(target_angle), radian2deg(angle));
+    RCLCPP_INFO(this->get_logger(), "target:%lf° current:%lf°", rtod(target_angle), rtod(angle));
     return cross_error;
 }
 
@@ -219,7 +219,8 @@ void Follower::followPath(){
 
     geometry_msgs::msg::Twist cmd_vel;
     cmd_vel.linear.x = v_;
-    cmd_vel.angular.z = std::max(std::min(theta, 1.0), -1.0);
+    // cmd_vel.angular.z = std::max(std::min(theta, 1.0), -1.0);
+    cmd_vel.angular.z = constrain(theta, -w_max_, w_max_);
 
     // 完走した判定
     if(idx_ >= point_.size() - 5){

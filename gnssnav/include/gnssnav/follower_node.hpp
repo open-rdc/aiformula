@@ -4,8 +4,6 @@
 
 #include <proj.h>
 
-#include <cmath>
-
 #include "nav_msgs/msg/path.hpp"
 #include "geometry_msgs/msg/twist.hpp"
 #include "geometry_msgs/msg/vector3.hpp"
@@ -96,7 +94,7 @@ private:
 
     double calculateYawFromQuaternion(const geometry_msgs::msg::Quaternion&);
     std::pair<double, double> convertECEFtoUTM(double x, double y, double z);
-    double radian2deg(double rad);
+    // double radian2deg(double rad);
 
     double current_position_x_=0;
     double current_position_y_=0;
