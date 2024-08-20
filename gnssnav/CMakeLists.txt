@@ -26,6 +26,7 @@ find_package(Eigen3 REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
+find_package(utilities REQUIRED)
 
 find_path(PROJ_INCLUDE_DIR NAMES proj.h PATHS /usr/include)
 find_library(PROJ_LIBRARY NAMES proj PATHS /usr/lib/x86_64-linux-gnu)
@@ -48,6 +49,7 @@ ament_target_dependencies(
   tf2
   tf2_ros
   tf2_geometry_msgs
+  utilities
 )
 target_link_libraries(navigation_node ${PROJ_LIBRARY})
 
@@ -66,8 +68,9 @@ ament_export_targets(
   export_${PROJECT_NAME}
 )
 ament_export_dependencies(
-        ament_index_cpp
-        rclcpp
+  ament_index_cpp
+  rclcpp
+  utilities
 )
 
 install(
