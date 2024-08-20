@@ -3,16 +3,18 @@
 
 namespace gnssnav{
 
-Publisher::Publisher(const rclcpp::NodeOptions& options)
-    :Node("path_publisher_node"),
-    init_flag_(true)
+Publisher::Publisher(const rclcpp::NodeOptions& options) : Publisher("", options) {}
+
+Publisher::Publisher(const std::string &name_space, const rclcpp::NodeOptions &options)
+: rclcpp::Node("path_publisher_node", name_space, options),
+init_flag_(true),
+freq(get_parameter("interval_ms").as_int()),
+path_file_name(get_parameter("path_file_name").as_string())
 {
     initCommunication();
     loadCSV();
     path_msg_ = setMsg(xs_, ys_);
     origin_path_msg_ = setMsg(origin_xs_, origin_ys_);
-
-    this->get_parameter("path_publish_freq", freq);
 
     timer_ = this->create_wall_timer(
         std::chrono::milliseconds(freq),
@@ -25,7 +27,7 @@ void Publisher::initCommunication(void){
     origin_publisher_ = this->create_publisher<nav_msgs::msg::Path>("origin_gnss_path", 10);
 
     //file_path_ = this->get_parameter("file_path").as_string();
-    file_path_ = ament_index_cpp::get_package_share_directory("main_executor")+"/config/"+"course_data/"+"gazebo_shihou_course.csv";
+    file_path_ = ament_index_cpp::get_package_share_directory("gnssnav")+"/config/"+"course_data/"+path_file_name+".csv";
 }
 
 // load CSV file

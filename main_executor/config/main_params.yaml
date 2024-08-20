@@ -1,7 +1,8 @@
 launch: #起動パラメータ
   ros__parameters:
-    can: true
-    joy: true
+    can: false
+    joy: false
+    vectornav : false
 
 /**:  #ワイルドカード(ここのパラメータは全ノードから読める: <名前に注意>)
   ros__parameters:
@@ -20,13 +21,10 @@ launch: #起動パラメータ
       acc: 40.0
       dec: 40.0
       jer: 0.0
-    follower_freq : 100 #milliseconds
-    path_publisher_freq : 100 #milliseconds
-    lookahead_gain : 1.0
-    cte_gain : 1.0
-    min_lookahead_distance : 3.0
-    max_linear_vel : 1.0
-    max_angular_vel : 1.0
+
+    tread : 0.6
+    wheelbase : 0.65
+
     autonomous_flag : false
 
 socketcan_interface_node:
@@ -45,8 +43,6 @@ roboteq_driver_node:
     interval_ms : 10
     wheel_radius : 0.124
     reduction_ratio : 1.0
-    tread : 0.6
-    wheelbase : 0.65
     reverse_left_flag : false
     reverse_right_flag : false
 
@@ -63,3 +59,17 @@ cybergear_interface_node:
     pos_limit_max : 30.0
     # 制御対象の最大速度[deg/s] <-サイバーギアの限界速度以下に設定する
     limit_speed : 60.0
+
+path_publisher_node:
+  ros__parameters:
+    interval_ms : 100
+    path_file_name : "gazebo_shihou_course"
+
+gnssnav_follower_node:
+  ros__parameters:
+    interval_ms : 100
+    lookahead_gain : 1.0
+    cte_gain : 1.0
+    min_lookahead_distance : 3.0
+    max_linear_vel : 1.0
+    max_angular_vel : 1.0
