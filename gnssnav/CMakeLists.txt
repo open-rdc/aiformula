@@ -31,8 +31,6 @@ find_package(utilities REQUIRED)
 find_path(PROJ_INCLUDE_DIR NAMES proj.h PATHS /usr/include)
 find_library(PROJ_LIBRARY NAMES proj PATHS /usr/lib/x86_64-linux-gnu)
 
-include_directories(/usr/include/eigen3)
-
 add_library(navigation_node
   src/follower_node.cpp
   src/path_publisher_node.cpp
@@ -46,6 +44,7 @@ ament_target_dependencies(
   rclcpp
   nav_msgs
   geometry_msgs
+  Eigen3
   tf2
   tf2_ros
   tf2_geometry_msgs
@@ -70,6 +69,12 @@ ament_export_targets(
 ament_export_dependencies(
   ament_index_cpp
   rclcpp
+  nav_msgs
+  geometry_msgs
+  Eigen3
+  tf2
+  tf2_ros
+  tf2_geometry_msgs
   utilities
 )
 
