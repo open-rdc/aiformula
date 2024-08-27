@@ -13,11 +13,11 @@ Follower::Follower(const std::string& name_space, const rclcpp::NodeOptions& opt
     autonomous_flag_subscriber_ = this->create_subscription<std_msgs::msg::Bool>("/autonomous", 10, std::bind(&Follower::autonomousFlagCallback, this, std::placeholders::_1));
     nav_start_subscriber_ = this->create_subscription<std_msgs::msg::Empty>("/nav_start", 10, callback);
     vectornav_subscriber_ = this->create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>("/vectornav/pose", 10, std::bind(&Follower::vectornavCallback, this, std::placeholders::_1));
-    path_subscriber_ = this->create_subscription<nav_msgs::msg::Path>("/gnss_path", 10, std::bind(&Follower::pathCallback, this, std::placeholders::_1));
+    path_subscriber_ = this->create_subscription<nav_msgs::msg::Path>("/origin_gnss_path", 10, std::bind(&Follower::pathCallback, this, std::placeholders::_1));
 
     cmd_pub_ = this->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel", 10);
     current_pose_pub_ = this->create_publisher<geometry_msgs::msg::PoseStamped>("/current_pose", 10);
-    current_ld_pub_ = this->create_publisher<geometry_msgs::msg::PoseStamped>("/current_ld", 10); 
+    current_ld_pub_ = this->create_publisher<geometry_msgs::msg::PoseStamped>("/current_ld", 10);
     theta_pub_ =this->create_publisher<std_msgs::msg::Float64>("/theta", 10);
 
     this->get_parameter("lookahead_gain", ld_gain_);
@@ -38,8 +38,10 @@ void Follower::vectornavCallback(const geometry_msgs::msg::PoseWithCovarianceSta
 
     current_position_x_ = x;
     current_position_y_ = y;
-  
+
+    //std::cerr << "x : " << x << "y : "<< y << std::endl;
     current_yaw_ = calculateYawFromQuaternion(msg->pose.pose.orientation);
+    // RCLCPP_INFO(this->get_logger(), "current yaw:%lf°", radian2deg(current_yaw_));
 
     if(!init_base_flag_) {
         setBasePose();
@@ -74,9 +76,9 @@ void Follower::setBasePose(){
     std::cerr << "set Base Pose" << std::endl;
     init_base_flag_ = true;
 
-    // for(const auto &pose : point_){
-           // RCLCPP_INFO(this->get_logger(), "path_x:%f , path_y:%f", pose.pose.position.x, pose.pose.position.y);
-   // }
+     for(const auto &pose : point_){
+            RCLCPP_INFO(this->get_logger(), "path_x:%f , path_y:%f", pose.pose.position.x, pose.pose.position.y);
+    }
 }
 
 // 現在地をパブリッシュ
@@ -116,12 +118,12 @@ void Follower::publishCurrentPose(){
 
 void Follower::publishLookahead(){
     geometry_msgs::msg::PoseStamped pose_msg;
-    pose_msg.header.stamp = this->now(); 
-    pose_msg.header.frame_id = "map"; 
+    pose_msg.header.stamp = this->now();
+    pose_msg.header.frame_id = "map";
 
-    pose_msg.pose.position.x = point_[idx_].pose.position.x - vectornav_base_x_;  
-    pose_msg.pose.position.y = point_[idx_].pose.position.y - vectornav_base_y_;  
-    pose_msg.pose.position.z = 0.0;  
+    pose_msg.pose.position.x = point_[idx_].pose.position.x - vectornav_base_x_;
+    pose_msg.pose.position.y = point_[idx_].pose.position.y - vectornav_base_y_;
+    pose_msg.pose.position.z = 0.0;
 
     current_ld_pub_->publish(pose_msg);
 }
@@ -133,7 +135,7 @@ void Follower::findNearestIndex(geometry_msgs::msg::Pose front_wheel_pos){
         double dy = point_[idx_].pose.position.y - front_wheel_pos.position.y;
         distance_ = std::hypot(dx, dy);
 
-        if(distance_ > ld_ && idx_ > pre_point_idx){
+        if(distance_ > ld_ && idx_ > pre_point_idx && point_[idx_].pose.position.x > 30000){
 		    pre_point_idx = idx_ - 1;
             // RCLCPP_INFO(this->get_logger(), "idx : %d\npre_idx : %d", idx_, pre_point_idx);
             // std::cerr << "point_x:" << point_[idx_].pose.position.x << "\npoint_y:"<< point_[idx_].pose.position.y << std::endl;
@@ -173,20 +175,22 @@ double Follower::calculateCrossError(){
     double dy = point_[idx_].pose.position.y - current_position_y_;
 
     double target_angle = std::atan2(dy, dx);
-	double target_angle_deg = radian2deg(target_angle);
-    // RCLCPP_INFO(this->get_logger(), "target_angle_deg: %f", target_angle_deg);
 
-    theta = target_angle - current_yaw_;
+    double angle = current_yaw_ + (M_PI/2.0);
+    angle = std::atan2(std::sin(angle), std::cos(angle));
+
+    theta = target_angle - angle;
     theta = std::atan2(std::sin(theta), std::cos(theta));
 
     double cross_error = dy * std::cos(theta) - dx * std::sin(theta);
 
+    RCLCPP_INFO(this->get_logger(), "target:%lf° current:%lf°", radian2deg(target_angle), radian2deg(angle));
     return cross_error;
 }
 
 // pointとpre_pointを結ぶ先に対する現在の車体の角度を計算
 double Follower::calculateHeadingError(){
-    double traj_theta = 
+    double traj_theta =
         std::atan2(point_[idx_].pose.position.y - point_[pre_point_idx].pose.position.y,
                    point_[idx_].pose.position.x - point_[pre_point_idx].pose.position.x);
 
@@ -202,7 +206,7 @@ void Follower::followPath(){
         return;
     }
 
-    ld_ = ld_gain_ * v_ + ld_min_; 
+    ld_ = ld_gain_ * v_ + ld_min_;
 
     findLookaheadDistance();
     publishLookahead();
@@ -216,7 +220,7 @@ void Follower::followPath(){
     w_ = he + std::atan2(cte_gain_ * cte, v_);
 
     double theta_deg = radian2deg(theta);
-    RCLCPP_INFO(this->get_logger(), "distance: %f meters, theta_deg: %f deg, idx %d", distance_, theta_deg, idx_);
+    //RCLCPP_INFO(this->get_logger(), "distance: %f meters, theta_deg: %f deg, idx %d", distance_, theta_deg, idx_);
 
     //theta_degをパブリッシュ
     theta_pub_->publish(theta_deg);
