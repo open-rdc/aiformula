@@ -33,7 +33,7 @@ public:
     explicit Follower(const std::string& name_space, const rclcpp::NodeOptions& options = rclcpp::NodeOptions());
 
 private:
-    bool autonomous_flag_;
+    bool autonomous_flag_=false;
     bool nav_start_flag_;
     bool init_base_flag_;
     bool init_flag_;
@@ -57,6 +57,7 @@ private:
     double theta;
 
     const int freq;
+    const int is_debug;
 
     // geometry_msgs::msg::PoseStamped pose_msg;
 

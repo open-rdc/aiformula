@@ -12,6 +12,7 @@ Follower::Follower(const rclcpp::NodeOptions& options) : Follower("", options) {
 // pub, sub, param
 Follower::Follower(const std::string& name_space, const rclcpp::NodeOptions& options)
 : rclcpp::Node("gnssnav_follower_node", name_space, options),
+is_debug(get_parameter("debug_flag").as_bool()),
 freq(get_parameter("interval_ms").as_int()),
 ld_gain_(get_parameter("lookahead_gain").as_double()),
 cte_gain_(get_parameter("cte_gain").as_double()),
@@ -44,7 +45,7 @@ void Follower::vectornavCallback(const geometry_msgs::msg::PoseWithCovarianceSta
     current_position_y_ = y;
 
     //std::cerr << "x : " << x << "y : "<< y << std::endl;
-    current_yaw_ = calculateYawFromQuaternion(msg->pose.pose.orientation);
+    current_yaw_ = calculateYawFromQuaternion(msg->pose.pose.orientation) + (M_PI/2.0);
     // RCLCPP_INFO(this->get_logger(), "current yaw:%lf°", rtod(current_yaw_));
 
     if(!init_base_flag_) {
@@ -81,7 +82,7 @@ void Follower::setBasePose(){
     init_base_flag_ = true;
 
      for(const auto &pose : point_){
-            RCLCPP_INFO(this->get_logger(), "path_x:%f , path_y:%f", pose.pose.position.x, pose.pose.position.y);
+            RCLCPP_INFO_EXPRESSION(this->get_logger(), is_debug, "path_x:%f , path_y:%f", pose.pose.position.x, pose.pose.position.y);
     }
 }
 
@@ -174,7 +175,7 @@ double Follower::calculateCrossError(){
 
     double target_angle = std::atan2(dy, dx);
 
-    double angle = current_yaw_ + (M_PI/2.0);
+    double angle = current_yaw_;
     angle = std::atan2(std::sin(angle), std::cos(angle));
 
     theta = target_angle - angle;
@@ -182,7 +183,7 @@ double Follower::calculateCrossError(){
 
     double cross_error = dy * std::cos(theta) - dx * std::sin(theta);
 
-    RCLCPP_INFO(this->get_logger(), "target:%lf° current:%lf°", rtod(target_angle), rtod(angle));
+    RCLCPP_INFO_EXPRESSION(this->get_logger(), is_debug, "target:%lf° current:%lf°", rtod(target_angle), rtod(angle));
     return cross_error;
 }
 
@@ -215,6 +216,7 @@ void Follower::followPath(){
     double he = calculateHeadingError();
 
     v_ = std::min(v_max_, ld_);
+    // RCLCPP_INFO(this->get_logger(), "cmdvel:%lf vmax:%lf ld:%lf", v_,v_max_,ld_);
     w_ = he + std::atan2(cte_gain_ * cte, v_);
 
     geometry_msgs::msg::Twist cmd_vel;
