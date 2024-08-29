@@ -22,7 +22,7 @@ int main(int argc, char * argv[]){
     auto cybergear_interface_node = std::make_shared<cybergear_interface::CybergearInterface>(nodes_option);
     auto path_publisher_node = std::make_shared<gnssnav::Publisher>(nodes_option);
     auto follower_node = std::make_shared<gnssnav::Follower>(nodes_option);
-    
+
     exec.add_node(socketcan_node);
     exec.add_node(socketcan_cybergear_node);
     exec.add_node(controller_node);
