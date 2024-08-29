@@ -3,6 +3,7 @@ launch: #起動パラメータ
     can: false
     joy: false
     vectornav : false
+    log_level : 10
 
 /**:  #ワイルドカード(ここのパラメータは全ノードから読める: <名前に注意>)
   ros__parameters:
@@ -67,9 +68,10 @@ path_publisher_node:
 
 gnssnav_follower_node:
   ros__parameters:
+    debug_flag : false
     interval_ms : 100
     lookahead_gain : 1.0
     cte_gain : 1.0
     min_lookahead_distance : 3.0
-    max_linear_vel : 1.0
-    max_angular_vel : 1.0
+    max_linear_vel : 7.0
+    max_angular_vel : 1.5

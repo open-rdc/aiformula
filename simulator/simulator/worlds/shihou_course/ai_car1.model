@@ -621,7 +621,8 @@
         <latitude_deg>36.11339585571819</latitude_deg>
         <longitude_deg>139.9815010597697</longitude_deg>
         <elevation>0.0</elevation>
-        <heading_deg>93.41</heading_deg>
+        <!-- <heading_deg>-93.41</heading_deg> -->
+        <heading_deg>183.41</heading_deg>
     </spherical_coordinates>
 
   </world>
