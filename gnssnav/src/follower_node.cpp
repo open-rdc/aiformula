@@ -1,12 +1,24 @@
 #include "gnssnav/follower_node.hpp"
 
+#include "utilities/utils.hpp"
+#include <cmath>
+
+using namespace utils;
+
 namespace gnssnav{
 
 Follower::Follower(const rclcpp::NodeOptions& options) : Follower("", options) {}
 
 // pub, sub, param
 Follower::Follower(const std::string& name_space, const rclcpp::NodeOptions& options)
-: rclcpp::Node("gnssnav_follower_node", name_space, options)
+: rclcpp::Node("gnssnav_follower_node", name_space, options),
+freq(get_parameter("interval_ms").as_int()),
+ld_gain_(get_parameter("lookahead_gain").as_double()),
+cte_gain_(get_parameter("cte_gain").as_double()),
+ld_min_(get_parameter("min_lookahead_distance").as_double()),
+v_max_(get_parameter("max_linear_vel").as_double()),
+w_max_(get_parameter("max_angular_vel").as_double()),
+wheel_base_(get_parameter("wheelbase").as_double())
 {
     auto callback = [this](const std_msgs::msg::Empty::SharedPtr msg) { this->navStartCallback(msg); };
 
@@ -18,14 +30,6 @@ Follower::Follower(const std::string& name_space, const rclcpp::NodeOptions& opt
     cmd_pub_ = this->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel", 10);
     current_pose_pub_ = this->create_publisher<geometry_msgs::msg::PoseStamped>("/current_pose", 10);
     current_ld_pub_ = this->create_publisher<geometry_msgs::msg::PoseStamped>("/current_ld", 10);
-    theta_pub_ =this->create_publisher<std_msgs::msg::Float64>("/theta", 10);
-
-    this->get_parameter("lookahead_gain", ld_gain_);
-    this->get_parameter("cte_gain", cte_gain_);
-    this->get_parameter("min_lookahead_distance", ld_min_);
-    this->get_parameter("max_linear_vel", v_max_);
-    this->get_parameter("max_angular_vel", w_max_);
-    this->get_parameter("follower_freq", freq);
 
     timer_ = this->create_wall_timer(
         std::chrono::milliseconds(freq),
@@ -41,7 +45,7 @@ void Follower::vectornavCallback(const geometry_msgs::msg::PoseWithCovarianceSta
 
     //std::cerr << "x : " << x << "y : "<< y << std::endl;
     current_yaw_ = calculateYawFromQuaternion(msg->pose.pose.orientation);
-    // RCLCPP_INFO(this->get_logger(), "current yaw:%lf°", radian2deg(current_yaw_));
+    // RCLCPP_INFO(this->get_logger(), "current yaw:%lf°", rtod(current_yaw_));
 
     if(!init_base_flag_) {
         setBasePose();
@@ -150,7 +154,6 @@ void Follower::findNearestIndex(geometry_msgs::msg::Pose front_wheel_pos){
 
 // 目標地点を探索する
 void Follower::findLookaheadDistance(){
-    wheel_base_ = 0.6;
     double front_x_ =
         current_position_x_ + wheel_base_ / 2.0 * std::cos(pose_orientation_z_);
     double front_y_ =
@@ -162,11 +165,6 @@ void Follower::findLookaheadDistance(){
 
     // 前の車輪から一番近い経路点を見つける
     findNearestIndex(front_wheel_pos);
-}
-
-double Follower::radian2deg(double rad){
-    double deg = rad * (180 / M_PI);
-    return deg;
 }
 
 // not scope 経路に対しての横方向のズレを計算
@@ -184,7 +182,7 @@ double Follower::calculateCrossError(){
 
     double cross_error = dy * std::cos(theta) - dx * std::sin(theta);
 
-    RCLCPP_INFO(this->get_logger(), "target:%lf° current:%lf°", radian2deg(target_angle), radian2deg(angle));
+    RCLCPP_INFO(this->get_logger(), "target:%lf° current:%lf°", rtod(target_angle), rtod(angle));
     return cross_error;
 }
 
@@ -219,16 +217,10 @@ void Follower::followPath(){
     v_ = std::min(v_max_, ld_);
     w_ = he + std::atan2(cte_gain_ * cte, v_);
 
-    double theta_deg = radian2deg(theta);
-    //RCLCPP_INFO(this->get_logger(), "distance: %f meters, theta_deg: %f deg, idx %d", distance_, theta_deg, idx_);
-
-    //theta_degをパブリッシュ
-    theta_pub_->publish(theta_deg);
-    //RCLCPP_INFO(this->get_logger(), "hand error : %f", he);
-
     geometry_msgs::msg::Twist cmd_vel;
     cmd_vel.linear.x = v_;
-    cmd_vel.angular.z = std::max(std::min(theta, 1.0), -1.0);
+    // cmd_vel.angular.z = std::max(std::min(theta, 1.0), -1.0);
+    cmd_vel.angular.z = constrain(theta, -w_max_, w_max_);
 
     // 完走した判定
     if(idx_ >= point_.size() - 5){
