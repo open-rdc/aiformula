@@ -73,16 +73,25 @@ def generate_launch_description():
         output='screen'
     )
 
+    controller_manager = Node(
+        package='controller_manager',
+        executable='spawner.py',
+        arguments=['position_controller'],
+        output='screen'
+    )
+
+    caster_controller_sim = Node(
+        package='simulator',
+        executable='caster_controller_sim',
+        output='screen'
+    )
+
     return LaunchDescription([
         *launch_args,
         tf_static_publisher,
         gzserver,
         gzclient,
         set_use_sim_time,
-        Node(
-            package='controller_manager',
-            executable='spawner.py',
-            arguments=['position_controller'],
-            output='screen'
-        )
+        controller_manager,
+        caster_controller_sim
     ])
