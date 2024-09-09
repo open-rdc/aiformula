@@ -2,6 +2,7 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include <geometry_msgs/msg/twist.hpp>
+#include <geometry_msgs/msg/twist_stamped.hpp>
 #include <std_msgs/msg/empty.hpp>
 #include <std_msgs/msg/float64.hpp>
 #include "socketcan_interface_msg/msg/socketcan_if.hpp"
@@ -37,6 +38,7 @@ private:
 
     rclcpp::Publisher<socketcan_interface_msg::msg::SocketcanIF>::SharedPtr publisher_can;
     rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr publisher_steer;
+    rclcpp::Publisher<geometry_msgs::msg::TwistStamped>::SharedPtr publisher_ref_vel;
 
     rclcpp::QoS _qos = rclcpp::QoS(10);
 
