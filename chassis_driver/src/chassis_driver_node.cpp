@@ -58,6 +58,7 @@ angular_planner(angular_limit)
     );
     publisher_can = this->create_publisher<socketcan_interface_msg::msg::SocketcanIF>("can_tx", _qos);
     publisher_steer = this->create_publisher<std_msgs::msg::Float64>("cybergear/pos", _qos);
+    publisher_ref_vel = this->create_publisher<geometry_msgs::msg::TwistStamped>("ref_vel", _qos);
 
     _pub_timer = this->create_wall_timer(
         std::chrono::milliseconds(interval_ms),
@@ -69,8 +70,10 @@ void ChassisDriver::_subscriber_callback_vel(const geometry_msgs::msg::Twist::Sh
     if(mode == Mode::stop) return;
     mode = Mode::cmd;
 
-    linear_planner.vel(msg->linear.x);
-    angular_planner.vel(msg->angular.z);
+    const double linear_vel = constrain(msg->linear.x, -linear_limit.vel, linear_limit.vel);
+    const double angular_vel = constrain(msg->angular.z, -angular_limit.vel, angular_limit.vel);
+    linear_planner.vel(linear_vel);
+    angular_planner.vel(angular_vel);
 }
 
 void ChassisDriver::_publisher_callback(){
@@ -85,6 +88,14 @@ void ChassisDriver::_publisher_callback(){
     const double linear_vel = linear_planner.vel();
     const double angular_vel = angular_planner.vel();
     send_rpm(linear_vel, angular_vel);
+
+    // デバッグ用にロボットの目標速度指令値を出版
+    auto msg_ref_vel = std::make_shared<geometry_msgs::msg::TwistStamped>();
+    msg_ref_vel->header.stamp = this->now();
+    msg_ref_vel->header.frame_id = "map";
+    msg_ref_vel->twist.linear.x = linear_vel;
+    msg_ref_vel->twist.angular.z = angular_vel;
+    publisher_ref_vel->publish(*msg_ref_vel);
 
     // 従動輪角度の送信
     auto msg_steer = std::make_shared<std_msgs::msg::Float64>();
@@ -125,8 +136,10 @@ void ChassisDriver::_subscriber_callback_emergency(const socketcan_interface_msg
 
 void ChassisDriver::send_rpm(const double linear_vel, const double angular_vel){
     // 駆動輪の目標角速度
-    const double left_vel = (1.0 / wheel_radius) * linear_vel + (tread / wheel_radius*2.0) * angular_vel;
-    const double right_vel = (1.0 / wheel_radius) * linear_vel - (tread / wheel_radius*2.0) * angular_vel;
+    // const double left_vel = (1.0 / wheel_radius) * linear_vel + (tread / wheel_radius*2.0) * angular_vel;
+    // const double right_vel = (1.0 / wheel_radius) * linear_vel - (tread / wheel_radius*2.0) * angular_vel;
+    const double left_vel = (-tread*angular_vel + 2.0*linear_vel) / (2.0*wheel_radius);
+    const double right_vel = (tread*angular_vel + 2.0*linear_vel) / (2.0*wheel_radius);
 
     // rad/s -> rpm  &  回転方向制御
     const double left_rpm = (is_reverse_left ? -1 : 1) * (left_vel*30.0 / d_pi) * rotate_ratio;
