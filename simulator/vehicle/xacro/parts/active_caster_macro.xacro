@@ -27,13 +27,13 @@
     <link name="${caster_back}_steering_link"/>
     <link name="${caster_back}_link">
       <visual>
-        <origin xyz="${x} ${y} ${z}" rpy="${roll} ${pitch} ${yaw+PI/2}"/>
+        <origin xyz="${x} ${y} ${z}" rpy="${roll} ${pitch} ${yaw}"/>
         <geometry>
           <mesh filename="${MESH_FILE}" scale="${SCALE} ${SCALE} ${SCALE}"/>
         </geometry>
       </visual>
       <collision>
-        <origin xyz="${x} ${y} ${z}" rpy="${roll} ${pitch} ${yaw+PI/2}"/>
+        <origin xyz="${x} ${y} ${z}" rpy="${roll} ${pitch} ${yaw}"/>
         <geometry>
           <mesh filename="${MESH_FILE}" scale="${SCALE} ${SCALE} ${SCALE}"/>
         </geometry>
@@ -43,7 +43,7 @@
         </geometry> -->
       </collision>
       <inertial>
-        <origin xyz="${x} ${y} ${z}" rpy="${roll} ${pitch} ${yaw+PI/2}"/>
+        <origin xyz="${x} ${y} ${z}" rpy="${roll} ${pitch} ${yaw}"/>
         <mass value="0.005" />
         <inertia ixx="0.001" ixy="0.0" ixz="0.0" iyy="0.001" iyz="0.0" izz="0.001"/>
         <!-- <mass value="5.0" />
