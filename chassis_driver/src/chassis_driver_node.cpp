@@ -1,4 +1,4 @@
-#include "roboteq_driver/roboteq_driver_node.hpp"
+#include "chassis_driver/chassis_driver_node.hpp"
 
 #include "utilities/data_utils.hpp"
 #include "utilities/utils.hpp"
@@ -7,44 +7,54 @@
 
 using namespace utils;
 
-namespace roboteq_driver{
+namespace chassis_driver{
 
-RoboteqDriver::RoboteqDriver(const rclcpp::NodeOptions& options) : RoboteqDriver("", options) {}
+ChassisDriver::ChassisDriver(const rclcpp::NodeOptions& options) : ChassisDriver("", options) {}
 
-RoboteqDriver::RoboteqDriver(const std::string& name_space, const rclcpp::NodeOptions& options)
-: rclcpp::Node("roboteq_driver_node", name_space, options),
+ChassisDriver::ChassisDriver(const std::string& name_space, const rclcpp::NodeOptions& options)
+: rclcpp::Node("chassis_driver_node", name_space, options),
 interval_ms(get_parameter("interval_ms").as_int()),
 wheel_radius(get_parameter("wheel_radius").as_double()),
 tread(get_parameter("tread").as_double()),
 wheelbase(get_parameter("wheelbase").as_double()),
 rotate_ratio(1.0 / get_parameter("reduction_ratio").as_double()),
 is_reverse_left(get_parameter("reverse_left_flag").as_bool()),
-is_reverse_right(get_parameter("reverse_right_flag").as_bool())
+is_reverse_right(get_parameter("reverse_right_flag").as_bool()),
+
+linear_limit(DBL_MAX,
+get_parameter("linear_max.vel").as_double(),
+get_parameter("linear_max.acc").as_double()),
+linear_planner(linear_limit),
+
+angular_limit(DBL_MAX,
+get_parameter("angular_max.vel").as_double(),
+get_parameter("angular_max.acc").as_double()),
+angular_planner(angular_limit)
 {
     _subscription_vel = this->create_subscription<geometry_msgs::msg::Twist>(
         "cmd_vel",
         _qos,
-        std::bind(&RoboteqDriver::_subscriber_callback_vel, this, std::placeholders::_1)
+        std::bind(&ChassisDriver::_subscriber_callback_vel, this, std::placeholders::_1)
     );
     _subscription_stop = this->create_subscription<std_msgs::msg::Empty>(
         "stop",
         _qos,
-        std::bind(&RoboteqDriver::_subscriber_callback_stop, this, std::placeholders::_1)
+        std::bind(&ChassisDriver::_subscriber_callback_stop, this, std::placeholders::_1)
     );
     _subscription_restart = this->create_subscription<std_msgs::msg::Empty>(
         "restart",
         _qos,
-        std::bind(&RoboteqDriver::_subscriber_callback_restart, this, std::placeholders::_1)
+        std::bind(&ChassisDriver::_subscriber_callback_restart, this, std::placeholders::_1)
     );
     _subscription_rpm = this->create_subscription<socketcan_interface_msg::msg::SocketcanIF>(
         "can_rx_711",
         _qos,
-        std::bind(&RoboteqDriver::_subscriber_callback_rpm, this, std::placeholders::_1)
+        std::bind(&ChassisDriver::_subscriber_callback_rpm, this, std::placeholders::_1)
     );
     _subscription_emergency = this->create_subscription<socketcan_interface_msg::msg::SocketcanIF>(
         "can_rx_712",
         _qos,
-        std::bind(&RoboteqDriver::_subscriber_callback_emergency, this, std::placeholders::_1)
+        std::bind(&ChassisDriver::_subscriber_callback_emergency, this, std::placeholders::_1)
     );
     publisher_can = this->create_publisher<socketcan_interface_msg::msg::SocketcanIF>("can_tx", _qos);
     publisher_steer = this->create_publisher<std_msgs::msg::Float64>("cybergear/pos", _qos);
@@ -55,45 +65,55 @@ is_reverse_right(get_parameter("reverse_right_flag").as_bool())
     );
 }
 
-void RoboteqDriver::_subscriber_callback_vel(const geometry_msgs::msg::Twist::SharedPtr msg){
+void ChassisDriver::_subscriber_callback_vel(const geometry_msgs::msg::Twist::SharedPtr msg){
     if(mode == Mode::stop) return;
     mode = Mode::cmd;
 
-    vel = msg;
+    linear_planner.vel(msg->linear.x);
+    angular_planner.vel(msg->angular.z);
 }
 
-void RoboteqDriver::_publisher_callback(){
+void ChassisDriver::_publisher_callback(){
+    linear_planner.cycle();
+    angular_planner.cycle();
+
     if(mode == Mode::stop || mode == Mode::stay){
         this->send_rpm(0.0, 0.0);
         return;
     }
-    if(vel == nullptr) return;
-    send_rpm(vel->linear.x, vel->angular.z);
+
+    const double linear_vel = linear_planner.vel();
+    const double angular_vel = angular_planner.vel();
+    send_rpm(linear_vel, angular_vel);
 
     // 従動輪角度の送信
     auto msg_steer = std::make_shared<std_msgs::msg::Float64>();
-    if(vel->linear.x == 0.0){
+    if(linear_vel == 0.0){
         msg_steer->data = 0.0;
     }
     else{
-        msg_steer->data = std::asin((wheelbase*vel->angular.z) / vel->linear.x);
+        msg_steer->data = std::asin((wheelbase*angular_vel) / linear_vel);
         if(std::isnan(msg_steer->data)) msg_steer->data = 0.0;
     }
     publisher_steer->publish(*msg_steer);
 }
 
-void RoboteqDriver::_subscriber_callback_stop(const std_msgs::msg::Empty::SharedPtr msg){
+void ChassisDriver::_subscriber_callback_stop(const std_msgs::msg::Empty::SharedPtr msg){
     mode = Mode::stop;
     RCLCPP_INFO(this->get_logger(), "停止");
 }
-void RoboteqDriver::_subscriber_callback_restart(const std_msgs::msg::Empty::SharedPtr msg){
+void ChassisDriver::_subscriber_callback_restart(const std_msgs::msg::Empty::SharedPtr msg){
     mode = Mode::stay;
+
+    velplanner::Physics_t physics_zero(0.0, 0.0, 0.0);
+    linear_planner.current(physics_zero);
+    angular_planner.current(physics_zero);
     RCLCPP_INFO(this->get_logger(), "再稼働");
 }
 
-void RoboteqDriver::_subscriber_callback_rpm(const socketcan_interface_msg::msg::SocketcanIF::SharedPtr msg){
+void ChassisDriver::_subscriber_callback_rpm(const socketcan_interface_msg::msg::SocketcanIF::SharedPtr msg){
 }
-void RoboteqDriver::_subscriber_callback_emergency(const socketcan_interface_msg::msg::SocketcanIF::SharedPtr msg){
+void ChassisDriver::_subscriber_callback_emergency(const socketcan_interface_msg::msg::SocketcanIF::SharedPtr msg){
     uint8_t _candata[8];
     for(int i=0; i<msg->candlc; i++) _candata[i] = msg->candata[i];
 
@@ -103,7 +123,7 @@ void RoboteqDriver::_subscriber_callback_emergency(const socketcan_interface_msg
     }
 }
 
-void RoboteqDriver::send_rpm(const double linear_vel, const double angular_vel){
+void ChassisDriver::send_rpm(const double linear_vel, const double angular_vel){
     // 駆動輪の目標角速度
     const double left_vel = (1.0 / wheel_radius) * linear_vel + (tread / wheel_radius*2.0) * angular_vel;
     const double right_vel = (1.0 / wheel_radius) * linear_vel - (tread / wheel_radius*2.0) * angular_vel;
@@ -127,4 +147,4 @@ void RoboteqDriver::send_rpm(const double linear_vel, const double angular_vel){
 }
 
 
-}  // namespace roboteq_driver
+}  // namespace chassis_driver

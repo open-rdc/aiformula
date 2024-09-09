@@ -13,13 +13,11 @@ launch: #起動パラメータ
     linear_max:
       vel : 1.5
       acc: 2.0
-      dec: 2.0
       jer: 0.0
     # 回転  速度[deg/s],加速度[deg/s^2],加減速度[-deg/s^2],躍度[deg/s^3]
     angular_max :
       vel: 30.0
       acc: 40.0
-      dec: 40.0
       jer: 0.0
 
     tread : 0.6
@@ -38,7 +36,7 @@ cybergear:
 # controller_node:
 #   ros__parameters:
 
-roboteq_driver_node:
+chassis_driver_node:
   ros__parameters:
     interval_ms : 10
     wheel_radius : 0.124
