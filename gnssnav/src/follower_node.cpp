@@ -142,11 +142,6 @@ void Follower::findNearestIndex(geometry_msgs::msg::Pose front_wheel_pos){
 
         if(distance_ > ld_ && idx_ > pre_point_idx && point_[idx_].pose.position.x > 30000){
 		    pre_point_idx = idx_ - 1;
-            // RCLCPP_INFO(this->get_logger(), "idx : %d\npre_idx : %d", idx_, pre_point_idx);
-            // std::cerr << "point_x:" << point_[idx_].pose.position.x << "\npoint_y:"<< point_[idx_].pose.position.y << std::endl;
-            // std::cerr << "point_size:" << point_.size() << std::endl;
-            // std::cerr << "distance" << distance_ << std::endl;
-        	// std::cerr << "wheel_pos_x:" << front_wheel_pos.position.x << "\nwheel_pos_y:" << front_wheel_pos.position.y << std::endl;
             break;
         }
     }
@@ -181,7 +176,7 @@ double Follower::calculateCrossError(){
     theta = target_angle - angle;
     theta = std::atan2(std::sin(theta), std::cos(theta));
 
-    double cross_error = dy * std::cos(theta) - dx * std::sin(theta);
+    double cross_error = dy * std::cos(current_yaw_) - dx * std::sin(current_yaw_);
 
     RCLCPP_INFO_EXPRESSION(this->get_logger(), is_debug, "target:%lf° current:%lf°", rtod(target_angle), rtod(angle));
     return cross_error;
@@ -194,7 +189,7 @@ double Follower::calculateHeadingError(){
                    point_[idx_].pose.position.x - point_[pre_point_idx].pose.position.x);
 
     double heading_error = traj_theta - theta;
-    heading_error = std::atan2(std::sin(heading_error), std::cos(heading_error));
+    heading_error = std::atan2(std::sin(heading_error), std::cos(heading_error)) *-1;
 
     return heading_error;
 }
@@ -215,14 +210,13 @@ void Follower::followPath(){
     // pointとpre_pointを結ぶ先に対する現在の車体の角度
     double he = calculateHeadingError();
 
-    v_ = std::min(v_max_, ld_);
-    // RCLCPP_INFO(this->get_logger(), "cmdvel:%lf vmax:%lf ld:%lf", v_,v_max_,ld_);
+    v_ = v_max_;
+    // RCLCPP_INFO(this->get_logger(), "distance : %lf idx_ : %d", distance_, idx_);
     w_ = he + std::atan2(cte_gain_ * cte, v_);
 
     geometry_msgs::msg::Twist cmd_vel;
     cmd_vel.linear.x = v_;
-    // cmd_vel.angular.z = std::max(std::min(theta, 1.0), -1.0);
-    cmd_vel.angular.z = constrain(theta, -w_max_, w_max_);
+    cmd_vel.angular.z = constrain(w_, -w_max_, w_max_);
 
     // 完走した判定
     if(idx_ >= point_.size() - 5){
