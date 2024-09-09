@@ -65,7 +65,8 @@ private:
     double base_y_;
     double step;
 
-    int freq;
+    const int freq;
+    const std::string path_file_name;
 
 };
 

@@ -4,6 +4,8 @@ import yaml
 import launch
 from launch import LaunchDescription
 from launch.launch_description_sources import PythonLaunchDescriptionSource
+from launch.actions import DeclareLaunchArgument
+from launch.substitutions import LaunchConfiguration
 from ament_index_python.packages import get_package_share_directory
 from launch_ros.actions import Node
 
@@ -25,11 +27,22 @@ def generate_launch_description():
     with open(config_file_path, 'r') as file:
         launch_params = yaml.safe_load(file)['launch']['ros__parameters']
 
+
+    # メイン実行機のログレベルの設定
+    log_level = LaunchConfiguration("log_level")
+    # デフォルトのログレベルを'info'に設定
+    log_level_arg = DeclareLaunchArgument(
+        "log_level",
+        default_value=["info"],
+        description="Logging level",
+    )
+
     # メイン実行機ノードの作成
     main_exec_node = Node(
         package = 'main_executor',
         executable = 'main_exec',
         parameters = [config_file_path],
+        arguments=["--ros-args", "--log-level", log_level],
         output='screen'
     )
 
@@ -49,6 +62,7 @@ def generate_launch_description():
     if(launch_params['joy'] is True):
         launch_discription.add_entity(joy_node)
 
+    launch_discription.add_action(log_level_arg)
     launch_discription.add_entity(main_exec_node)
 
     return launch_discription
