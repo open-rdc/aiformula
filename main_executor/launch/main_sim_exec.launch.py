@@ -88,6 +88,7 @@ def generate_launch_description():
     # if(launch_params['joy'] is True):
     #    launch_discription.add_entity(joy_node)
 
+    launch_discription.add_action(simulator_launch_arg)
     launch_discription.add_entity(simulator_launch)
     launch_discription.add_entity(convert_sim_to_vectornav_pose)
     launch_discription.add_action(log_level_arg)
