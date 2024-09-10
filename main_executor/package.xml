@@ -13,7 +13,7 @@
 
   <depend>socketcan_interface</depend>
   <depend>controller</depend>
-  <depend>roboteq_driver</depend>
+  <depend>chassis_driver</depend>
   <depend>cybergear_interface</depend>
   <depend>gnssnav</depend>
 
