@@ -9,7 +9,7 @@ endif()
 find_package(rclcpp REQUIRED)
 find_package(socketcan_interface REQUIRED)
 find_package(controller REQUIRED)
-find_package(roboteq_driver REQUIRED)
+find_package(chassis_driver REQUIRED)
 find_package(cybergear_interface REQUIRED)
 find_package(gnssnav REQUIRED)
 
@@ -21,7 +21,7 @@ ament_target_dependencies(main_exec
         rclcpp
         socketcan_interface
         controller
-        roboteq_driver
+        chassis_driver
         cybergear_interface
         gnssnav
         )
@@ -32,6 +32,21 @@ target_include_directories(main_exec
         $<INSTALL_INTERFACE:include>
         )
 
+add_executable(main_sim_exec
+        src/main_sim.cpp
+        )
+
+ament_target_dependencies(main_sim_exec
+        rclcpp
+        controller
+        gnssnav
+        )
+
+target_include_directories(main_sim_exec
+        PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:include>
+        )
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
@@ -55,6 +70,11 @@ install(DIRECTORY launch config
 
 install(TARGETS
         main_exec
+        DESTINATION lib/${PROJECT_NAME}
+        )
+
+install(TARGETS
+        main_sim_exec
         DESTINATION lib/${PROJECT_NAME}
         )
 
