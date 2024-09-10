@@ -24,12 +24,10 @@ is_reverse_right(get_parameter("reverse_right_flag").as_bool()),
 linear_limit(DBL_MAX,
 get_parameter("linear_max.vel").as_double(),
 get_parameter("linear_max.acc").as_double()),
-linear_planner(linear_limit),
 
 angular_limit(DBL_MAX,
 get_parameter("angular_max.vel").as_double(),
-get_parameter("angular_max.acc").as_double()),
-angular_planner(angular_limit)
+get_parameter("angular_max.acc").as_double())
 {
     _subscription_vel = this->create_subscription<geometry_msgs::msg::Twist>(
         "cmd_vel",
@@ -64,6 +62,9 @@ angular_planner(angular_limit)
         std::chrono::milliseconds(interval_ms),
         [this] { _publisher_callback(); }
     );
+
+    linear_planner.limit(linear_limit);
+    angular_planner.limit(angular_limit);
 }
 
 void ChassisDriver::_subscriber_callback_vel(const geometry_msgs::msg::Twist::SharedPtr msg){

@@ -15,7 +15,7 @@ struct Physics_t{
 
 class VelPlanner{
 public:
-    VelPlanner(const Physics_t limit): limit_(limit){}
+    VelPlanner(const Physics_t limit = Physics_t(0.0, 0.0, 0.0)): limit_(limit){}
     void cycle();
     void current(const Physics_t physics);
     void limit(const Physics_t limit){ limit_ = limit; }
