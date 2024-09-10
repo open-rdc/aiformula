@@ -9,7 +9,7 @@ endif()
 find_package(rclcpp REQUIRED)
 find_package(socketcan_interface REQUIRED)
 find_package(controller REQUIRED)
-find_package(roboteq_driver REQUIRED)
+find_package(chassis_driver REQUIRED)
 find_package(cybergear_interface REQUIRED)
 find_package(gnssnav REQUIRED)
 
@@ -21,7 +21,7 @@ ament_target_dependencies(main_exec
         rclcpp
         socketcan_interface
         controller
-        roboteq_driver
+        chassis_driver
         cybergear_interface
         gnssnav
         )
