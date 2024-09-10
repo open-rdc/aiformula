@@ -62,14 +62,14 @@ cybergear_interface_node:
 path_publisher_node:
   ros__parameters:
     interval_ms : 1000
-    path_file_name : "gazebo_shihou_course"
+    path_file_name : "shihou_gnssnav"
 
 gnssnav_follower_node:
   ros__parameters:
     debug_flag : false
     interval_ms : 50
     lookahead_gain : 1.0
-    cte_gain : 0.5
+    cte_gain : 1.5
     min_lookahead_distance : 3.0
     max_linear_vel : 2.0
     max_angular_vel : 1.5
