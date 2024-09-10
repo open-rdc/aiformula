@@ -23,12 +23,19 @@ def generate_launch_description():
         'convert_sim_to_vectornav_pose.py'
     )
 
-    # シミュレータ起動ファイルのパス設定
-    simulator_launch_path = os.path.join(
-        get_package_share_directory('simulator'),
-        'launch',
-        'gazebo_simulator.launch.py'
+    # 引数の宣言
+    simulator_launch_arg = DeclareLaunchArgument(
+        'simulator_launch_path',
+        default_value=os.path.join(
+            get_package_share_directory('simulator'),
+            'launch',
+            'gazebo_simulator.launch.py'
+        ),
+        description='Path to the Gazebo simulator launch file'
     )
+
+    # シミュレータ起動ファイルのパス設定
+    simulator_launch_path = LaunchConfiguration('simulator_launch_path')
 
     # 起動パラメータファイルのロード
     with open(config_file_path, 'r') as file:
