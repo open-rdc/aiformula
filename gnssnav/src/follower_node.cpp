@@ -35,6 +35,18 @@ wheel_base_(get_parameter("wheelbase").as_double())
     timer_ = this->create_wall_timer(
         std::chrono::milliseconds(freq),
         std::bind(&Follower::loop, this));
+
+    C = proj_context_create();
+    P = proj_create_crs_to_crs(C,
+        "EPSG:4978", // ECEF
+        "EPSG:32654", // UTMゾーン54N
+        NULL);
+}
+
+Follower::~Follower(){
+    // リソースの解放
+    proj_destroy(P);
+    proj_context_destroy(C);
 }
 
 // vectornav/pose callback
@@ -243,11 +255,6 @@ double Follower::calculateYawFromQuaternion(const geometry_msgs::msg::Quaternion
 }
 
 std::pair<double, double> Follower::convertECEFtoUTM(double x, double y, double z){
-    PJ_CONTEXT *C = proj_context_create();
-    PJ *P = proj_create_crs_to_crs(C,
-                                "EPSG:4978", // ECEF
-                                "EPSG:32654", // UTMゾーン54N
-                                NULL);
     if(P == NULL) {
         std::cerr << "PROJ transformation creation failed." << std::endl;
     }
@@ -258,10 +265,6 @@ std::pair<double, double> Follower::convertECEFtoUTM(double x, double y, double 
     a.xyz.z = z;
 
     b = proj_trans(P, PJ_FWD, a);
-
-    // リソースの解放
-    proj_destroy(P);
-    proj_context_destroy(C);
 
     return {b.enu.e, b.enu.n};
 }
