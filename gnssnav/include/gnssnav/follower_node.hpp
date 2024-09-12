@@ -21,6 +21,8 @@ namespace gnssnav{
 
 class Follower : public rclcpp::Node{
 public:
+    Follower();
+
     void loop(void);
     int freq_;
 
@@ -29,8 +31,6 @@ public:
 
     GNSSNAV_PUBLIC
     explicit Follower(const std::string& name_space, const rclcpp::NodeOptions& options = rclcpp::NodeOptions());
-
-    GNSSNAV_PUBLIC ~Follower();
 
 private:
     bool autonomous_flag_=false;
@@ -111,9 +111,6 @@ private:
     double init_yaw=0;
 
     std::vector<geometry_msgs::msg::Point> pre_point;
-
-    PJ_CONTEXT *C;
-    PJ *P;
 };
 
 }  // namespace gnssnav
