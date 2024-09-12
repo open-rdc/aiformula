@@ -12,7 +12,10 @@ Follower::Follower(const rclcpp::NodeOptions& options) : Follower("", options) {
 // pub, sub, param
 Follower::Follower(const std::string& name_space, const rclcpp::NodeOptions& options)
 : rclcpp::Node("gnssnav_follower_node", name_space, options),
+<<<<<<< HEAD
 is_debug(get_parameter("debug_flag").as_bool()),
+=======
+>>>>>>> launch
 freq(get_parameter("interval_ms").as_int()),
 ld_gain_(get_parameter("lookahead_gain").as_double()),
 cte_gain_(get_parameter("cte_gain").as_double()),
@@ -45,7 +48,11 @@ void Follower::vectornavCallback(const geometry_msgs::msg::PoseWithCovarianceSta
     current_position_y_ = y;
 
     //std::cerr << "x : " << x << "y : "<< y << std::endl;
+<<<<<<< HEAD
     current_yaw_ = calculateYawFromQuaternion(msg->pose.pose.orientation) + (M_PI/2.0);
+=======
+    current_yaw_ = calculateYawFromQuaternion(msg->pose.pose.orientation);
+>>>>>>> launch
     // RCLCPP_INFO(this->get_logger(), "current yaw:%lf°", rtod(current_yaw_));
 
     if(!init_base_flag_) {
@@ -183,7 +190,11 @@ double Follower::calculateCrossError(){
 
     double cross_error = dy * std::cos(theta) - dx * std::sin(theta);
 
+<<<<<<< HEAD
     RCLCPP_INFO_EXPRESSION(this->get_logger(), is_debug, "target:%lf° current:%lf°", rtod(target_angle), rtod(angle));
+=======
+    RCLCPP_INFO(this->get_logger(), "target:%lf° current:%lf°", rtod(target_angle), rtod(angle));
+>>>>>>> launch
     return cross_error;
 }
 

@@ -2,21 +2,23 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include <geometry_msgs/msg/twist.hpp>
+#include <geometry_msgs/msg/twist_stamped.hpp>
 #include <std_msgs/msg/empty.hpp>
 #include <std_msgs/msg/float64.hpp>
 #include "socketcan_interface_msg/msg/socketcan_if.hpp"
+#include "utilities/velplanner.hpp"
 
-#include "roboteq_driver/visibility_control.h"
+#include "chassis_driver/visibility_control.h"
 
-namespace roboteq_driver{
+namespace chassis_driver{
 
-class RoboteqDriver : public rclcpp::Node {
+class ChassisDriver : public rclcpp::Node {
 public:
-    ROBOTEQ_DRIVER_PUBLIC
-    explicit RoboteqDriver(const rclcpp::NodeOptions& options = rclcpp::NodeOptions());
+    CHASSIS_DRIVER_PUBLIC
+    explicit ChassisDriver(const rclcpp::NodeOptions& options = rclcpp::NodeOptions());
 
-    ROBOTEQ_DRIVER_PUBLIC
-    explicit RoboteqDriver(const std::string& name_space, const rclcpp::NodeOptions& options = rclcpp::NodeOptions());
+    CHASSIS_DRIVER_PUBLIC
+    explicit ChassisDriver(const std::string& name_space, const rclcpp::NodeOptions& options = rclcpp::NodeOptions());
 
 private:
     rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr _subscription_vel;
@@ -36,8 +38,16 @@ private:
 
     rclcpp::Publisher<socketcan_interface_msg::msg::SocketcanIF>::SharedPtr publisher_can;
     rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr publisher_steer;
+    rclcpp::Publisher<geometry_msgs::msg::TwistStamped>::SharedPtr publisher_ref_vel;
 
     rclcpp::QoS _qos = rclcpp::QoS(10);
+
+
+    // 速度計画機
+    velplanner::VelPlanner linear_planner;
+    const velplanner::Limit linear_limit;
+    velplanner::VelPlanner angular_planner;
+    const velplanner::Limit angular_limit;
 
     // 定数
     const int interval_ms;
@@ -48,9 +58,6 @@ private:
     const bool is_reverse_left;
     const bool is_reverse_right;
 
-    // 制御
-    std::shared_ptr<geometry_msgs::msg::Twist> vel;
-
     // 動作モード
     enum class Mode{
         cmd,
@@ -60,4 +67,4 @@ private:
 
 };
 
-}  // namespace roboteq_driver
+}  // namespace chassis_driver

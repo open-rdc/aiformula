@@ -57,7 +57,10 @@ private:
     double theta;
 
     const int freq;
+<<<<<<< HEAD
     const int is_debug;
+=======
+>>>>>>> launch
 
     // geometry_msgs::msg::PoseStamped pose_msg;
 
