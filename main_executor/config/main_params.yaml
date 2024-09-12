@@ -3,6 +3,7 @@ launch: #起動パラメータ
     can: false
     joy: false
     vectornav : false
+    log_level : 10
 
 /**:  #ワイルドカード(ここのパラメータは全ノードから読める: <名前に注意>)
   ros__parameters:

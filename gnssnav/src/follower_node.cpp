@@ -35,6 +35,18 @@ wheel_base_(get_parameter("wheelbase").as_double())
     timer_ = this->create_wall_timer(
         std::chrono::milliseconds(freq),
         std::bind(&Follower::loop, this));
+
+    C = proj_context_create();
+    P = proj_create_crs_to_crs(C,
+        "EPSG:4978", // ECEF
+        "EPSG:32654", // UTMゾーン54N
+        NULL);
+}
+
+Follower::~Follower(){
+    // リソースの解放
+    proj_destroy(P);
+    proj_context_destroy(C);
 }
 
 // vectornav/pose callback
@@ -142,11 +154,6 @@ void Follower::findNearestIndex(geometry_msgs::msg::Pose front_wheel_pos){
 
         if(distance_ > ld_ && idx_ > pre_point_idx && point_[idx_].pose.position.x > 30000){
 		    pre_point_idx = idx_ - 1;
-            // RCLCPP_INFO(this->get_logger(), "idx : %d\npre_idx : %d", idx_, pre_point_idx);
-            // std::cerr << "point_x:" << point_[idx_].pose.position.x << "\npoint_y:"<< point_[idx_].pose.position.y << std::endl;
-            // std::cerr << "point_size:" << point_.size() << std::endl;
-            // std::cerr << "distance" << distance_ << std::endl;
-        	// std::cerr << "wheel_pos_x:" << front_wheel_pos.position.x << "\nwheel_pos_y:" << front_wheel_pos.position.y << std::endl;
             break;
         }
     }
@@ -181,7 +188,7 @@ double Follower::calculateCrossError(){
     theta = target_angle - angle;
     theta = std::atan2(std::sin(theta), std::cos(theta));
 
-    double cross_error = dy * std::cos(theta) - dx * std::sin(theta);
+    double cross_error = dy * std::cos(current_yaw_) - dx * std::sin(current_yaw_);
 
     RCLCPP_INFO_EXPRESSION(this->get_logger(), is_debug, "target:%lf° current:%lf°", rtod(target_angle), rtod(angle));
     return cross_error;
@@ -194,7 +201,7 @@ double Follower::calculateHeadingError(){
                    point_[idx_].pose.position.x - point_[pre_point_idx].pose.position.x);
 
     double heading_error = traj_theta - theta;
-    heading_error = std::atan2(std::sin(heading_error), std::cos(heading_error));
+    heading_error = std::atan2(std::sin(heading_error), std::cos(heading_error)) *-1;
 
     return heading_error;
 }
@@ -221,8 +228,7 @@ void Follower::followPath(){
 
     geometry_msgs::msg::Twist cmd_vel;
     cmd_vel.linear.x = v_;
-    // cmd_vel.angular.z = std::max(std::min(theta, 1.0), -1.0);
-    cmd_vel.angular.z = constrain(theta, -w_max_, w_max_);
+    cmd_vel.angular.z = constrain(w_, -w_max_, w_max_);
 
     // 完走した判定
     if(idx_ >= point_.size() - 5){
@@ -249,11 +255,6 @@ double Follower::calculateYawFromQuaternion(const geometry_msgs::msg::Quaternion
 }
 
 std::pair<double, double> Follower::convertECEFtoUTM(double x, double y, double z){
-    PJ_CONTEXT *C = proj_context_create();
-    PJ *P = proj_create_crs_to_crs(C,
-                                "EPSG:4978", // ECEF
-                                "EPSG:32654", // UTMゾーン54N
-                                NULL);
     if(P == NULL) {
         std::cerr << "PROJ transformation creation failed." << std::endl;
     }
@@ -264,10 +265,6 @@ std::pair<double, double> Follower::convertECEFtoUTM(double x, double y, double 
     a.xyz.z = z;
 
     b = proj_trans(P, PJ_FWD, a);
-
-    // リソースの解放
-    proj_destroy(P);
-    proj_context_destroy(C);
 
     return {b.enu.e, b.enu.n};
 }
