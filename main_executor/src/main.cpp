@@ -15,6 +15,14 @@ int main(int argc, char * argv[]){
     nodes_option.allow_undeclared_parameters(true);
     nodes_option.automatically_declare_parameters_from_overrides(true);
 
+    bool sim_flag = false;
+    for(int i = 0; i < argc; ++i){
+        if(std::string(argv[i])=="--sim-flag"){
+            if(std::string(argv[i+1])=="true") sim_flag = true;
+            break;
+        }
+    }
+
     auto socketcan_node = std::make_shared<socketcan_interface::SocketcanInterface>(nodes_option);
     auto socketcan_cybergear_node = std::make_shared<socketcan_interface::SocketcanInterface>("cybergear", nodes_option);
     auto controller_node = std::make_shared<controller::Controller>(nodes_option);
@@ -23,8 +31,11 @@ int main(int argc, char * argv[]){
     auto path_publisher_node = std::make_shared<gnssnav::Publisher>(nodes_option);
     auto follower_node = std::make_shared<gnssnav::Follower>(nodes_option);
 
-    exec.add_node(socketcan_node);
-    exec.add_node(socketcan_cybergear_node);
+    if(sim_flag){}
+    if(not sim_flag){
+        exec.add_node(socketcan_node);
+        exec.add_node(socketcan_cybergear_node);
+    }
     exec.add_node(controller_node);
     exec.add_node(chassis_driver_node);
     exec.add_node(cybergear_interface_node);

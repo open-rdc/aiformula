@@ -11,13 +11,13 @@ launch: #起動パラメータ
 
     # 並進  速度[m/s],加速度[m/s^2],加減速度[-m/s^2],躍度[m/s^3]
     linear_max:
-      vel : 1.5
-      acc: 2.0
+      vel : 3.0
+      acc: 9.0
       jer: 0.0
     # 回転  速度[deg/s],加速度[deg/s^2],加減速度[-deg/s^2],躍度[deg/s^3]
     angular_max :
-      vel: 30.0
-      acc: 40.0
+      vel: 60.0
+      acc: 180.0
       jer: 0.0
 
     tread : 0.6
@@ -60,14 +60,15 @@ cybergear_interface_node:
 
 path_publisher_node:
   ros__parameters:
-    interval_ms : 100
-    path_file_name : "gazebo_shihou_course"
+    interval_ms : 1000
+    path_file_name : "shihou_gnssnav"
 
 gnssnav_follower_node:
   ros__parameters:
-    interval_ms : 100
+    debug_flag : false
+    interval_ms : 50
     lookahead_gain : 1.0
-    cte_gain : 1.0
+    cte_gain : 1.5
     min_lookahead_distance : 3.0
-    max_linear_vel : 1.0
-    max_angular_vel : 1.0
+    max_linear_vel : 2.0
+    max_angular_vel : 1.5
