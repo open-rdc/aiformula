@@ -17,6 +17,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
+            'caster_controller_sim = simulator.caster_controller_sim:main',
         ],
     },
 )
