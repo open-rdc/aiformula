@@ -52,10 +52,14 @@ Follower::~Follower(){
 // received path
 void Follower::pathCallback(const nav_msgs::msg::Path::SharedPtr msg) {
     point_ = msg->poses;
+    path_get_flag_ = true;
 }
 
 // vectornav/pose callback
 void Follower::vectornavCallback(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg) {
+    if(point_.empty())
+        return;
+    
     auto [x, y] = convertECEFtoUTM(msg->pose.pose.position.x, msg->pose.pose.position.y, msg->pose.pose.position.z);
 
     current_position_x_ = x;
