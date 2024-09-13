@@ -12,6 +12,7 @@ Follower::Follower(const rclcpp::NodeOptions& options) : Follower("", options) {
 // pub, sub, param
 Follower::Follower(const std::string& name_space, const rclcpp::NodeOptions& options)
 : rclcpp::Node("gnssnav_follower_node", name_space, options),
+is_debug(get_parameter("debug_flag").as_bool()),
 freq(get_parameter("interval_ms").as_int()),
 ld_gain_(get_parameter("lookahead_gain").as_double()),
 cte_gain_(get_parameter("cte_gain").as_double()),
@@ -34,35 +35,51 @@ wheel_base_(get_parameter("wheelbase").as_double())
     timer_ = this->create_wall_timer(
         std::chrono::milliseconds(freq),
         std::bind(&Follower::loop, this));
+
+    C = proj_context_create();
+    P = proj_create_crs_to_crs(C,
+        "EPSG:4978", // ECEF
+        "EPSG:32654", // UTMゾーン54N
+        NULL);
 }
 
-// vectornav/pose callback
-void Follower::vectornavCallback(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg) {
-    auto [x, y] = convertECEFtoUTM(msg->pose.pose.position.x, msg->pose.pose.position.y, msg->pose.pose.position.z);
-
-    current_position_x_ = x;
-    current_position_y_ = y;
-
-    //std::cerr << "x : " << x << "y : "<< y << std::endl;
-    current_yaw_ = calculateYawFromQuaternion(msg->pose.pose.orientation);
-    // RCLCPP_INFO(this->get_logger(), "current yaw:%lf°", rtod(current_yaw_));
-
-    if(!init_base_flag_) {
-        setBasePose();
-    } else {
-        publishCurrentPose();
-    }
+Follower::~Follower(){
+    // リソースの解放
+    proj_destroy(P);
+    proj_context_destroy(C);
 }
 
 // received path
 void Follower::pathCallback(const nav_msgs::msg::Path::SharedPtr msg) {
     point_ = msg->poses;
-    // RCLCPP_INFO(this->get_logger(), "received %zu pose", point_.size());
+    path_get_flag_ = true;
+}
+
+// vectornav/pose callback
+void Follower::vectornavCallback(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg) {
+    if(point_.empty())
+        return;
+    
+    auto [x, y] = convertECEFtoUTM(msg->pose.pose.position.x, msg->pose.pose.position.y, msg->pose.pose.position.z);
+
+    current_position_x_ = x;
+    current_position_y_ = y;
+
+    current_yaw_ = calculateYawFromQuaternion(msg->pose.pose.orientation) + (M_PI/2.0);
+    // RCLCPP_INFO(this->get_logger(), "current yaw:%lf°", rtod(current_yaw_));
+
+    if(!init_base_flag_) {
+        setBasePose();
+    } else {
+        // publishCurrentPose();
+    }
 }
 
 // gnssnav permit
 void Follower::navStartCallback(const std_msgs::msg::Empty::SharedPtr&) {
-    nav_start_flag_ = true;
+    idx_ = 0;
+    pre_point_idx = 0;
+    RCLCPP_ERROR(this->get_logger(), "idx_がリセットされます");
     RCLCPP_INFO(this->get_logger(), "自律走行開始");
 }
 
@@ -81,7 +98,7 @@ void Follower::setBasePose(){
     init_base_flag_ = true;
 
      for(const auto &pose : point_){
-            RCLCPP_INFO(this->get_logger(), "path_x:%f , path_y:%f", pose.pose.position.x, pose.pose.position.y);
+            RCLCPP_INFO_EXPRESSION(this->get_logger(), is_debug, "path_x:%f , path_y:%f", pose.pose.position.x, pose.pose.position.y);
     }
 }
 
@@ -141,11 +158,6 @@ void Follower::findNearestIndex(geometry_msgs::msg::Pose front_wheel_pos){
 
         if(distance_ > ld_ && idx_ > pre_point_idx && point_[idx_].pose.position.x > 30000){
 		    pre_point_idx = idx_ - 1;
-            // RCLCPP_INFO(this->get_logger(), "idx : %d\npre_idx : %d", idx_, pre_point_idx);
-            // std::cerr << "point_x:" << point_[idx_].pose.position.x << "\npoint_y:"<< point_[idx_].pose.position.y << std::endl;
-            // std::cerr << "point_size:" << point_.size() << std::endl;
-            // std::cerr << "distance" << distance_ << std::endl;
-        	// std::cerr << "wheel_pos_x:" << front_wheel_pos.position.x << "\nwheel_pos_y:" << front_wheel_pos.position.y << std::endl;
             break;
         }
     }
@@ -174,15 +186,15 @@ double Follower::calculateCrossError(){
 
     double target_angle = std::atan2(dy, dx);
 
-    double angle = current_yaw_ + (M_PI/2.0);
+    double angle = current_yaw_;
     angle = std::atan2(std::sin(angle), std::cos(angle));
 
     theta = target_angle - angle;
     theta = std::atan2(std::sin(theta), std::cos(theta));
 
-    double cross_error = dy * std::cos(theta) - dx * std::sin(theta);
+    double cross_error = dy * std::cos(current_yaw_) - dx * std::sin(current_yaw_);
 
-    RCLCPP_INFO(this->get_logger(), "target:%lf° current:%lf°", rtod(target_angle), rtod(angle));
+    RCLCPP_INFO_EXPRESSION(this->get_logger(), is_debug, "target:%lf° current:%lf°", rtod(target_angle), rtod(angle));
     return cross_error;
 }
 
@@ -193,7 +205,7 @@ double Follower::calculateHeadingError(){
                    point_[idx_].pose.position.x - point_[pre_point_idx].pose.position.x);
 
     double heading_error = traj_theta - theta;
-    heading_error = std::atan2(std::sin(heading_error), std::cos(heading_error));
+    heading_error = std::atan2(std::sin(heading_error), std::cos(heading_error)) *-1;
 
     return heading_error;
 }
@@ -214,12 +226,12 @@ void Follower::followPath(){
     // pointとpre_pointを結ぶ先に対する現在の車体の角度
     double he = calculateHeadingError();
 
-    v_ = std::min(v_max_, ld_);
+    v_ = v_max_;
+    // RCLCPP_INFO(this->get_logger(), "distance : %lf idx_ : %d", distance_, idx_);
     w_ = he + std::atan2(cte_gain_ * cte, v_);
 
     geometry_msgs::msg::Twist cmd_vel;
     cmd_vel.linear.x = v_;
-    // cmd_vel.angular.z = std::max(std::min(theta, 1.0), -1.0);
     cmd_vel.angular.z = constrain(theta, -w_max_, w_max_);
 
     // 完走した判定
@@ -247,11 +259,6 @@ double Follower::calculateYawFromQuaternion(const geometry_msgs::msg::Quaternion
 }
 
 std::pair<double, double> Follower::convertECEFtoUTM(double x, double y, double z){
-    PJ_CONTEXT *C = proj_context_create();
-    PJ *P = proj_create_crs_to_crs(C,
-                                "EPSG:4978", // ECEF
-                                "EPSG:32654", // UTMゾーン54N
-                                NULL);
     if(P == NULL) {
         std::cerr << "PROJ transformation creation failed." << std::endl;
     }
@@ -262,10 +269,6 @@ std::pair<double, double> Follower::convertECEFtoUTM(double x, double y, double 
     a.xyz.z = z;
 
     b = proj_trans(P, PJ_FWD, a);
-
-    // リソースの解放
-    proj_destroy(P);
-    proj_context_destroy(C);
 
     return {b.enu.e, b.enu.n};
 }

@@ -5,6 +5,9 @@ from sensor_msgs.msg import NavSatFix
 from sensor_msgs.msg import Imu
 
 import pymap3d as pm
+import math
+import numpy as np
+from scipy.spatial.transform import Rotation
 import copy
 
 class Converter(Node):
@@ -23,6 +26,8 @@ class Converter(Node):
 
 
     def callback_gps(self, msg):
+        self.pub_msg.header = msg.header
+
         x,y,z = pm.geodetic2ecef(msg.latitude, msg.longitude, msg.altitude)
         self.pub_msg.pose.pose.position.x = x
         self.pub_msg.pose.pose.position.y = y
@@ -30,16 +35,25 @@ class Converter(Node):
 
 
     def callback_imu(self, msg):
-        self.pub_msg.header = msg.header
-        self.pub_msg.pose.pose.orientation = msg.orientation
+        t = msg.orientation
+        q = self.fix_rotation([t.x, t.y, t.z, t.w], -93.41)
 
-        # ENUにする
-        # self.pub_msg.pose.pose.orientation.x = -msg.orientation.x
-        # self.pub_msg.pose.pose.orientation.w = -msg.orientation.w
+        self.pub_msg.pose.pose.orientation.x = q[0]
+        self.pub_msg.pose.pose.orientation.y = q[1]
+        self.pub_msg.pose.pose.orientation.z = q[2]
+        self.pub_msg.pose.pose.orientation.w = q[3]
 
         self.publisher.publish(self.pub_msg)
 
 
+    def fix_rotation(self, quaternion, yaw_degrees):
+        rotation = Rotation.from_quat(quaternion)
+        euler = rotation.as_euler('xyz', degrees=False)
+        euler[2] = euler[2] + np.deg2rad(yaw_degrees)
+
+        # print(np.deg2rad(euler))
+        fixed_rotation = Rotation.from_euler('xyz', euler)
+        return fixed_rotation.as_quat()
 
 
 def main():
