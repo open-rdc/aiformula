@@ -36,13 +36,21 @@ def generate_launch_description():
         default_value=["info"],
         description="Logging level",
     )
+    # メイン実行機のシミュレータ環境の設定
+    sim_flag = LaunchConfiguration("sim_flag")
+    # デフォルトのシミュレータ環境を'false'に設定
+    sim_flag_arg = DeclareLaunchArgument(
+        "sim_flag",
+        default_value=["false"],
+        description="Use simulator or not",
+    )
 
     # メイン実行機ノードの作成
     main_exec_node = Node(
         package = 'main_executor',
         executable = 'main_exec',
         parameters = [config_file_path],
-        arguments=["--ros-args", "--log-level", log_level],
+        arguments=["--sim-flag", sim_flag, "--ros-args", "--log-level", log_level],
         output='screen'
     )
 
@@ -53,6 +61,13 @@ def generate_launch_description():
         output='screen'
     )
 
+    # vectornav起動の作成
+    vectornav_launch = launch.actions.IncludeLaunchDescription(
+        PythonLaunchDescriptionSource([os.path.join(
+            get_package_share_directory('vectornav'), 'launch/'),
+            'vectornav.launch.py'])
+    )
+
     # 起動エンティティクラスの作成
     launch_discription = LaunchDescription()
 
@@ -61,8 +76,11 @@ def generate_launch_description():
         subprocess.run(['sudo', 'sh', can_launch_path])
     if(launch_params['joy'] is True):
         launch_discription.add_entity(joy_node)
+    if(launch_params['vectornav'] is True):
+        launch_discription.add_action(vectornav_launch)
 
     launch_discription.add_action(log_level_arg)
+    launch_discription.add_action(sim_flag_arg)
     launch_discription.add_entity(main_exec_node)
 
     return launch_discription
