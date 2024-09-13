@@ -34,7 +34,7 @@ public:
 
 private:
     bool autonomous_flag_=false;
-    bool nav_start_flag_;
+    bool nav_start_flag_=false;
     bool init_base_flag_;
     bool init_flag_;
 

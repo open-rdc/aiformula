@@ -49,6 +49,11 @@ Follower::~Follower(){
     proj_context_destroy(C);
 }
 
+// received path
+void Follower::pathCallback(const nav_msgs::msg::Path::SharedPtr msg) {
+    point_ = msg->poses;
+}
+
 // vectornav/pose callback
 void Follower::vectornavCallback(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg) {
     auto [x, y] = convertECEFtoUTM(msg->pose.pose.position.x, msg->pose.pose.position.y, msg->pose.pose.position.z);
@@ -56,26 +61,21 @@ void Follower::vectornavCallback(const geometry_msgs::msg::PoseWithCovarianceSta
     current_position_x_ = x;
     current_position_y_ = y;
 
-    //std::cerr << "x : " << x << "y : "<< y << std::endl;
     current_yaw_ = calculateYawFromQuaternion(msg->pose.pose.orientation) + (M_PI/2.0);
     // RCLCPP_INFO(this->get_logger(), "current yaw:%lf°", rtod(current_yaw_));
 
     if(!init_base_flag_) {
         setBasePose();
     } else {
-        publishCurrentPose();
+        // publishCurrentPose();
     }
-}
-
-// received path
-void Follower::pathCallback(const nav_msgs::msg::Path::SharedPtr msg) {
-    point_ = msg->poses;
-    // RCLCPP_INFO(this->get_logger(), "received %zu pose", point_.size());
 }
 
 // gnssnav permit
 void Follower::navStartCallback(const std_msgs::msg::Empty::SharedPtr&) {
-    nav_start_flag_ = true;
+    idx_ = 0;
+    pre_point_idx = 0;
+    RCLCPP_ERROR(this->get_logger(), "idx_がリセットされます");
     RCLCPP_INFO(this->get_logger(), "自律走行開始");
 }
 
@@ -228,7 +228,7 @@ void Follower::followPath(){
 
     geometry_msgs::msg::Twist cmd_vel;
     cmd_vel.linear.x = v_;
-    cmd_vel.angular.z = constrain(w_, -w_max_, w_max_);
+    cmd_vel.angular.z = constrain(theta, -w_max_, w_max_);
 
     // 完走した判定
     if(idx_ >= point_.size() - 5){
