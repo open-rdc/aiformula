@@ -15,7 +15,9 @@ Follower::Follower(const std::string& name_space, const rclcpp::NodeOptions& opt
 is_debug(get_parameter("debug_flag").as_bool()),
 freq(get_parameter("interval_ms").as_int()),
 ld_gain_(get_parameter("lookahead_gain").as_double()),
-cte_gain_(get_parameter("cte_gain").as_double()),
+p_gain_(get_parameter("p_gain").as_double()),
+i_gain_(get_parameter("i_gain").as_double()),
+d_gain_(get_parameter("d_gain").as_double()),
 ld_min_(get_parameter("min_lookahead_distance").as_double()),
 v_max_(get_parameter("max_linear_vel").as_double()),
 w_max_(get_parameter("max_angular_vel").as_double()),
@@ -71,7 +73,7 @@ void Follower::vectornavCallback(const geometry_msgs::msg::PoseWithCovarianceSta
     if(!init_base_flag_) {
         setBasePose();
     } else {
-        // publishCurrentPose();
+        publishCurrentPose();
     }
 }
 
@@ -223,16 +225,26 @@ void Follower::followPath(){
 
     // 横方向のズレ
     double cte = calculateCrossError();
+    if(!init_d){
+        init_d = true;
+        cte_error = cte;
+        prev_cte = cte;
+        cte_sum = cte;
+    }else{
+        cte_error = cte - prev_cte;
+        cte_sum += cte;
+        prev_cte = cte;
+    }
     // pointとpre_pointを結ぶ先に対する現在の車体の角度
-    double he = calculateHeadingError();
+    // double he = calculateHeadingError();
 
     v_ = v_max_;
     // RCLCPP_INFO(this->get_logger(), "distance : %lf idx_ : %d", distance_, idx_);
-    w_ = he + std::atan2(cte_gain_ * cte, v_);
-
+    w_ = p_gain_*cte + i_gain_*cte_sum + d_gain_*cte_error;
+    
     geometry_msgs::msg::Twist cmd_vel;
     cmd_vel.linear.x = v_;
-    cmd_vel.angular.z = constrain(theta, -w_max_, w_max_);
+    cmd_vel.angular.z = constrain(w_, -w_max_, w_max_);
 
     // 完走した判定
     if(idx_ >= point_.size() - 5){

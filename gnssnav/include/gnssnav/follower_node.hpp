@@ -37,6 +37,7 @@ private:
     bool nav_start_flag_=false;
     bool init_base_flag_=false;
     bool path_get_flag_=false;
+    bool init_d=false;
 
     double ld_;
     double ld_x_;
@@ -51,10 +52,15 @@ private:
     double w_;
     const double v_max_;
     const double w_max_;
-    const double cte_gain_;
+    const double p_gain_;
+    const double i_gain_;
+    const double d_gain_;
     const double wheel_base_;
     double distance_;
     double theta;
+    double cte_error;
+    double cte_sum;
+    double prev_cte;
 
     const int freq;
     const int is_debug;
