@@ -213,10 +213,9 @@ double Follower::calculateHeadingError(){
 }
 
 void Follower::followPath(){
-    if(point_.empty()){
-        std::cerr << "point_empty error" << std::endl;
+    std::cerr << "cte_sum : " << cte_sum << std::endl;
+    if(point_.empty() || !autonomous_flag_)
         return;
-    }
 
     ld_ = ld_gain_ * v_ + ld_min_;
 
@@ -241,23 +240,19 @@ void Follower::followPath(){
     v_ = v_max_;
     // RCLCPP_INFO(this->get_logger(), "distance : %lf idx_ : %d", distance_, idx_);
     w_ = p_gain_*cte + i_gain_*cte_sum + d_gain_*cte_error;
-    
+
     geometry_msgs::msg::Twist cmd_vel;
     cmd_vel.linear.x = v_;
     cmd_vel.angular.z = constrain(w_, -w_max_, w_max_);
 
     // 完走した判定
-    if(idx_ >= point_.size() - 5){
+    if(idx_ >= point_.size()){
         cmd_vel.linear.x = 0.0;
         cmd_vel.angular.z = 0.0;
         RCLCPP_INFO(this->get_logger(), "Goal to reach");
     }
 
-    //  自律フラグonのときのみパブリッシュ
-    if(autonomous_flag_){
-        // std::cerr << "nav_start_flag error" << std::endl;
-        cmd_pub_->publish(cmd_vel);
-    }
+    cmd_pub_->publish(cmd_vel);
 }
 
 // クオータニオンからオイラーへ変換
