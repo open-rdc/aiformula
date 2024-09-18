@@ -81,6 +81,7 @@ void Follower::vectornavCallback(const geometry_msgs::msg::PoseWithCovarianceSta
 void Follower::navStartCallback(const std_msgs::msg::Empty::SharedPtr&) {
     idx_ = 0;
     pre_point_idx = 0;
+    cte_sum = 0;
     RCLCPP_ERROR(this->get_logger(), "idx_がリセットされます");
     RCLCPP_INFO(this->get_logger(), "自律走行開始");
 }
