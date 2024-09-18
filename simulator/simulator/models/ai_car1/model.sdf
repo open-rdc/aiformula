@@ -445,5 +445,16 @@
       <joint_name>wheel_right_joint</joint_name>
     </plugin>
 
+    <plugin name="ground_truth" filename="libgazebo_ros_p3d.so">
+      <ros>
+        <namespace>p3d</namespace>
+        <remapping>odom:=odom</remapping>
+      </ros>
+      <frame_name>map</frame_name>
+      <body_name>base_footprint</body_name>
+      <update_rate>10.0</update_rate>
+      <always_on>true</always_on>
+    </plugin>
+
   </model>
 </sdf>
