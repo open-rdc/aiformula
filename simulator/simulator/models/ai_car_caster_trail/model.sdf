@@ -182,8 +182,8 @@
       <axis>
         <xyz>0 1 0</xyz>
         <limit>
-          <lower>-1.57</lower>
-          <upper>1.57</upper>
+          <lower>-0.78</lower>
+          <upper>0.78</upper>
         </limit>
       </axis>
    </joint>
