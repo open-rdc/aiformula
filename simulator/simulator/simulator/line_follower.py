@@ -21,7 +21,7 @@ class PurePursuitNode(Node):
 
         # 直線の始点と終点を設定 (例: x=0, y=0 から x=10, y=0)
         self.target_line_start = (0, 1)
-        self.target_line_end = (10, 1)
+        self.target_line_end = (100, 1)
 
         self.current_position = None
         self.current_orientation = None
@@ -97,8 +97,8 @@ class PurePursuitNode(Node):
         dy /= line_length
 
         # ロボットの現在位置とLookahead距離を使って目標点を計算
-        closest_point_x = robot_x - A * distance_to_line / (A**2 + B**2)
-        closest_point_y = robot_y - B * distance_to_line / (A**2 + B**2)
+        closest_point_x = robot_x - A * distance_to_line / sqrt(A**2 + B**2)
+        closest_point_y = robot_y - B * distance_to_line / sqrt(A**2 + B**2)
 
         # Lookahead距離分進んだ点を目標点とする
         goal_x = closest_point_x + dx * self.lookahead_distance
