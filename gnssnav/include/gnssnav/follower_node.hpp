@@ -58,9 +58,9 @@ private:
     const double wheel_base_;
     double distance_;
     double theta;
-    double cte_error;
-    double cte_sum;
-    double prev_cte;
+    double theta_error;
+    double theta_sum;
+    double prev_theta;
 
     const int freq;
     const int is_debug;
