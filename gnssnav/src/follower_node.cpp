@@ -81,7 +81,7 @@ void Follower::vectornavCallback(const geometry_msgs::msg::PoseWithCovarianceSta
 void Follower::navStartCallback(const std_msgs::msg::Empty::SharedPtr&) {
     idx_ = 0;
     pre_point_idx = 0;
-    cte_sum = 0;
+    theta_sum = 0;
     RCLCPP_ERROR(this->get_logger(), "idx_がリセットされます");
     RCLCPP_INFO(this->get_logger(), "自律走行開始");
 }
@@ -214,7 +214,6 @@ double Follower::calculateHeadingError(){
 }
 
 void Follower::followPath(){
-    std::cerr << "cte_sum : " << cte_sum << std::endl;
     if(point_.empty() || !autonomous_flag_)
         return;
 
@@ -227,20 +226,20 @@ void Follower::followPath(){
     double cte = calculateCrossError();
     if(!init_d){
         init_d = true;
-        cte_error = cte;
-        prev_cte = cte;
-        cte_sum = cte;
+        theta_error = theta;
+        prev_theta = theta;
+        theta_sum = theta;
     }else{
-        cte_error = cte - prev_cte;
-        cte_sum += cte;
-        prev_cte = cte;
+        theta_error = theta - prev_theta;
+        theta_sum += theta;
+        prev_theta = theta;
     }
     // pointとpre_pointを結ぶ先に対する現在の車体の角度
     // double he = calculateHeadingError();
 
     v_ = v_max_;
     // RCLCPP_INFO(this->get_logger(), "distance : %lf idx_ : %d", distance_, idx_);
-    w_ = p_gain_*cte + i_gain_*cte_sum + d_gain_*cte_error;
+    w_ = p_gain_*theta + i_gain_*theta_sum + d_gain_*theta_error;
 
     geometry_msgs::msg::Twist cmd_vel;
     cmd_vel.linear.x = v_;
