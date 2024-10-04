@@ -15,7 +15,9 @@ Follower::Follower(const std::string& name_space, const rclcpp::NodeOptions& opt
 is_debug(get_parameter("debug_flag").as_bool()),
 freq(get_parameter("interval_ms").as_int()),
 ld_gain_(get_parameter("lookahead_gain").as_double()),
-cte_gain_(get_parameter("cte_gain").as_double()),
+p_gain_(get_parameter("p_gain").as_double()),
+i_gain_(get_parameter("i_gain").as_double()),
+d_gain_(get_parameter("d_gain").as_double()),
 ld_min_(get_parameter("min_lookahead_distance").as_double()),
 v_max_(get_parameter("max_linear_vel").as_double()),
 w_max_(get_parameter("max_angular_vel").as_double()),
@@ -71,7 +73,7 @@ void Follower::vectornavCallback(const geometry_msgs::msg::PoseWithCovarianceSta
     if(!init_base_flag_) {
         setBasePose();
     } else {
-        // publishCurrentPose();
+        publishCurrentPose();
     }
 }
 
@@ -79,6 +81,7 @@ void Follower::vectornavCallback(const geometry_msgs::msg::PoseWithCovarianceSta
 void Follower::navStartCallback(const std_msgs::msg::Empty::SharedPtr&) {
     idx_ = 0;
     pre_point_idx = 0;
+    theta_sum = 0;
     RCLCPP_ERROR(this->get_logger(), "idx_がリセットされます");
     RCLCPP_INFO(this->get_logger(), "自律走行開始");
 }
@@ -179,7 +182,7 @@ void Follower::findLookaheadDistance(){
     findNearestIndex(front_wheel_pos);
 }
 
-// not scope 経路に対しての横方向のズレを計算
+// 目標地点に対しての角度のズレを計算
 double Follower::calculateCrossError(){
     double dx = point_[idx_].pose.position.x - current_position_x_;
     double dy = point_[idx_].pose.position.y - current_position_y_;
@@ -189,63 +192,52 @@ double Follower::calculateCrossError(){
     double angle = current_yaw_;
     angle = std::atan2(std::sin(angle), std::cos(angle));
 
-    theta = target_angle - angle;
+    double theta = target_angle - angle;
     theta = std::atan2(std::sin(theta), std::cos(theta));
 
-    double cross_error = dy * std::cos(current_yaw_) - dx * std::sin(current_yaw_);
-
     RCLCPP_INFO_EXPRESSION(this->get_logger(), is_debug, "target:%lf° current:%lf°", rtod(target_angle), rtod(angle));
-    return cross_error;
-}
-
-// pointとpre_pointを結ぶ先に対する現在の車体の角度を計算
-double Follower::calculateHeadingError(){
-    double traj_theta =
-        std::atan2(point_[idx_].pose.position.y - point_[pre_point_idx].pose.position.y,
-                   point_[idx_].pose.position.x - point_[pre_point_idx].pose.position.x);
-
-    double heading_error = traj_theta - theta;
-    heading_error = std::atan2(std::sin(heading_error), std::cos(heading_error)) *-1;
-
-    return heading_error;
+    return theta;
 }
 
 void Follower::followPath(){
-    if(point_.empty()){
-        std::cerr << "point_empty error" << std::endl;
+    if(point_.empty() || !autonomous_flag_)
         return;
-    }
 
     ld_ = ld_gain_ * v_ + ld_min_;
 
     findLookaheadDistance();
     publishLookahead();
 
-    // 横方向のズレ
-    double cte = calculateCrossError();
-    // pointとpre_pointを結ぶ先に対する現在の車体の角度
-    double he = calculateHeadingError();
+    // 目標地点との角度のズレ
+    double theta = calculateCrossError();
+
+    if(!init_d){
+        init_d = true;
+        theta_error = theta;
+        prev_theta = theta;
+        theta_sum = theta;
+    }else{
+        theta_error = theta - prev_theta;
+        theta_sum += theta;
+        prev_theta = theta;
+    }
 
     v_ = v_max_;
     // RCLCPP_INFO(this->get_logger(), "distance : %lf idx_ : %d", distance_, idx_);
-    w_ = he + std::atan2(cte_gain_ * cte, v_);
+    w_ = p_gain_*theta + i_gain_*theta_sum/freq + d_gain_*theta_error*freq;
 
     geometry_msgs::msg::Twist cmd_vel;
     cmd_vel.linear.x = v_;
-    cmd_vel.angular.z = constrain(theta, -w_max_, w_max_);
+    cmd_vel.angular.z = constrain(w_, -w_max_, w_max_);
 
     // 完走した判定
-    if(idx_ >= point_.size() - 5){
+    if(idx_ >= point_.size()){
         cmd_vel.linear.x = 0.0;
         cmd_vel.angular.z = 0.0;
         RCLCPP_INFO(this->get_logger(), "Goal to reach");
     }
 
-    //  自律フラグonのときのみパブリッシュ
-    if(autonomous_flag_){
-        // std::cerr << "nav_start_flag error" << std::endl;
-        cmd_pub_->publish(cmd_vel);
-    }
+    cmd_pub_->publish(cmd_vel);
 }
 
 // クオータニオンからオイラーへ変換
@@ -278,11 +270,3 @@ void Follower::loop(void){
 }
 
 }  // namespace gnssnav
-
-int main(int argc, char * argv[]){
-    rclcpp::init(argc, argv);
-    auto node = std::make_shared<gnssnav::Follower>(rclcpp::NodeOptions());
-    rclcpp::spin(node);
-    rclcpp::shutdown();
-    return 0;
-}
