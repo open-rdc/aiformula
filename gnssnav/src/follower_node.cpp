@@ -182,7 +182,7 @@ void Follower::findLookaheadDistance(){
     findNearestIndex(front_wheel_pos);
 }
 
-// not scope 経路に対しての横方向のズレを計算
+// 目標地点に対しての角度のズレを計算
 double Follower::calculateCrossError(){
     double dx = point_[idx_].pose.position.x - current_position_x_;
     double dy = point_[idx_].pose.position.y - current_position_y_;
@@ -192,25 +192,13 @@ double Follower::calculateCrossError(){
     double angle = current_yaw_;
     angle = std::atan2(std::sin(angle), std::cos(angle));
 
-    theta = target_angle - angle;
+    double theta = target_angle - angle;
     theta = std::atan2(std::sin(theta), std::cos(theta));
 
     double cross_error = dy * std::cos(current_yaw_) - dx * std::sin(current_yaw_);
 
     RCLCPP_INFO_EXPRESSION(this->get_logger(), is_debug, "target:%lf° current:%lf°", rtod(target_angle), rtod(angle));
-    return cross_error;
-}
-
-// pointとpre_pointを結ぶ先に対する現在の車体の角度を計算
-double Follower::calculateHeadingError(){
-    double traj_theta =
-        std::atan2(point_[idx_].pose.position.y - point_[pre_point_idx].pose.position.y,
-                   point_[idx_].pose.position.x - point_[pre_point_idx].pose.position.x);
-
-    double heading_error = traj_theta - theta;
-    heading_error = std::atan2(std::sin(heading_error), std::cos(heading_error)) *-1;
-
-    return heading_error;
+    return theta;
 }
 
 void Follower::followPath(){
@@ -222,8 +210,9 @@ void Follower::followPath(){
     findLookaheadDistance();
     publishLookahead();
 
-    // 横方向のズレ
-    double cte = calculateCrossError();
+    // 目標地点との角度のズレ
+    double theta = calculateCrossError();
+
     if(!init_d){
         init_d = true;
         theta_error = theta;
@@ -234,8 +223,6 @@ void Follower::followPath(){
         theta_sum += theta;
         prev_theta = theta;
     }
-    // pointとpre_pointを結ぶ先に対する現在の車体の角度
-    // double he = calculateHeadingError();
 
     v_ = v_max_;
     // RCLCPP_INFO(this->get_logger(), "distance : %lf idx_ : %d", distance_, idx_);
@@ -285,11 +272,3 @@ void Follower::loop(void){
 }
 
 }  // namespace gnssnav
-
-int main(int argc, char * argv[]){
-    rclcpp::init(argc, argv);
-    auto node = std::make_shared<gnssnav::Follower>(rclcpp::NodeOptions());
-    rclcpp::spin(node);
-    rclcpp::shutdown();
-    return 0;
-}

@@ -57,7 +57,6 @@ private:
     const double d_gain_;
     const double wheel_base_;
     double distance_;
-    double theta;
     double theta_error;
     double theta_sum;
     double prev_theta;
