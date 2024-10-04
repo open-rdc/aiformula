@@ -195,8 +195,6 @@ double Follower::calculateCrossError(){
     double theta = target_angle - angle;
     theta = std::atan2(std::sin(theta), std::cos(theta));
 
-    double cross_error = dy * std::cos(current_yaw_) - dx * std::sin(current_yaw_);
-
     RCLCPP_INFO_EXPRESSION(this->get_logger(), is_debug, "target:%lf° current:%lf°", rtod(target_angle), rtod(angle));
     return theta;
 }
@@ -226,7 +224,7 @@ void Follower::followPath(){
 
     v_ = v_max_;
     // RCLCPP_INFO(this->get_logger(), "distance : %lf idx_ : %d", distance_, idx_);
-    w_ = p_gain_*theta + i_gain_*theta_sum + d_gain_*theta_error;
+    w_ = p_gain_*theta + i_gain_*theta_sum/freq + d_gain_*theta_error*freq;
 
     geometry_msgs::msg::Twist cmd_vel;
     cmd_vel.linear.x = v_;
