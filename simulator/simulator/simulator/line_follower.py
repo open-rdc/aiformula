@@ -81,7 +81,7 @@ class PurePursuitNode(Node):
         C = x2 * y1 - x1 * y2
 
         # ロボットから直線への垂線の距離
-        distance_to_line = abs(A * robot_x + B * robot_y + C) / sqrt(A**2 + B**2)
+        distance_to_line = (A * robot_x + B * robot_y + C) / sqrt(A**2 + B**2)
 
         # 直線に沿ったLookaheadポイントの位置を計算
         # ロボットから直線上の最も近い点を見つけ、その点からlookahead距離を加えた点
