@@ -75,3 +75,10 @@ gnssnav_follower_node:
     min_lookahead_distance : 3.0
     max_linear_vel : 7.0
     max_angular_vel : 15.5
+
+line_publisher_node:
+  ros__parameters:
+    ksize : 9  # ガウシアンカーネルサイズ
+    threshold : 50  # 確率的ハフ変換のしきい値
+    min_th : 50
+    max_th : 150
