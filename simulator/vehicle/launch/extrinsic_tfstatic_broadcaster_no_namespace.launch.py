@@ -104,5 +104,5 @@ def generate_launch_description():
     return LaunchDescription([
         *launch_args,
         robot_state_publisher,
-        joint_state_publisher,
+        #joint_state_publisher,
     ])
