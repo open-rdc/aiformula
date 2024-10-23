@@ -147,36 +147,20 @@ void Follower::publishLookahead(){
     current_ld_pub_->publish(pose_msg);
 }
 
-// 最も近い経路点を見つける(座標とidx)
-void Follower::findNearestIndex(geometry_msgs::msg::Pose front_wheel_pos){
+// 目標地点を探索する
+double Follower::findLookaheadDistance(){
     double ld_ = ld_gain_ * v_ + ld_min_;
 
     for(idx_ = pre_point_idx;idx_ < point_.size(); idx_++){
-        double dx = point_[idx_].pose.position.x - front_wheel_pos.position.x;
-        double dy = point_[idx_].pose.position.y - front_wheel_pos.position.y;
+        double dx = point_[idx_].pose.position.x - current_position_x_;
+        double dy = point_[idx_].pose.position.y - current_position_y_;
         double distance_ = std::hypot(dx, dy);
 
         if(distance_ > ld_ && idx_ > pre_point_idx && point_[idx_].pose.position.x > 30000){
 		    pre_point_idx = idx_ - 1;
-            break;
+            return distance_;
         }
     }
-    return ;
-}
-
-// 目標地点を探索する
-void Follower::findLookaheadDistance(){
-    double front_x_ =
-        current_position_x_ + wheel_base_ / 2.0 * std::cos(current_yaw_);
-    double front_y_ =
-        current_position_y_ + wheel_base_ / 2.0 * std::sin(current_yaw_);
-
-    geometry_msgs::msg::Pose front_wheel_pos;
-    front_wheel_pos.position.x = front_x_;
-    front_wheel_pos.position.y = front_y_;
-
-    // 前の車輪から一番近い経路点を見つける
-    findNearestIndex(front_wheel_pos);
 }
 
 double Follower::calculateCrossError(){
@@ -198,25 +182,14 @@ double Follower::calculateCrossError(){
 void Follower::followPath(){
     if(point_.empty() || !autonomous_flag_) return;
 
-    findLookaheadDistance();
+    double distance = findLookaheadDistance();
     publishLookahead();
 
     // 目標地点との角度のズレ
     double theta = calculateCrossError();
 
-    if(!init_d){
-        init_d = true;
-        prev_theta = theta;
-        theta_error = theta;
-        theta_sum = theta;
-    }else{
-        theta_error = theta - prev_theta;
-        theta_sum += theta;
-        prev_theta = theta;
-    }
-
     v_ = v_max_;
-    w_ = p_gain_*theta + i_gain_*theta_sum/freq + d_gain_*theta_error*freq;
+    w_ = PIDcontrol(theta);
 
     geometry_msgs::msg::Twist cmd_vel;
     cmd_vel.linear.x = constrain(v_, -v_max_, v_max_);
@@ -240,6 +213,21 @@ double Follower::calculateYawFromQuaternion(const geometry_msgs::msg::Quaternion
     double roll, pitch, yaw;
     m.getRPY(roll, pitch, yaw);
     return yaw;
+}
+
+double Follower::PIDcontrol(const double theta){
+    if(!init_d){
+        init_d = true;
+        prev_theta = theta;
+        theta_error = theta;
+        theta_sum = theta;
+    }else{
+        theta_error = theta - prev_theta;
+        theta_sum += theta;
+        prev_theta = theta;
+    }
+
+    return p_gain_*theta + i_gain_*theta_sum/freq + d_gain_*theta_error*freq;
 }
 
 std::pair<double, double> Follower::convertECEFtoUTM(double x, double y, double z){
