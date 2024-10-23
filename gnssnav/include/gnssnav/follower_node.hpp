@@ -40,7 +40,6 @@ private:
 
     rclcpp::TimerBase::SharedPtr timer_;
 
-    std::vector<geometry_msgs::msg::Pose> front_wheel_pos;
     std::vector<geometry_msgs::msg::PoseStamped> point_;
 
     void vectornavCallback(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg);
@@ -48,14 +47,15 @@ private:
     void navStartCallback(const std_msgs::msg::Empty::SharedPtr&);
     void autonomousFlagCallback(const std_msgs::msg::Bool::SharedPtr msg);
 
-    double calculateCrossError();
-    void findNearestIndex(const geometry_msgs::msg::Pose front_wheel_pos);
     void publishCurrentPose(void);
     void publishLookahead(void);
     void followPath();
-    void findLookaheadDistance();
+    double findLookaheadDistance();
     void setBasePose(void);
     double calculateYawFromQuaternion(const geometry_msgs::msg::Quaternion&);
+    double calculateCrossError();
+    double PIDcontrol(const double theta);
+
     std::pair<double, double> convertECEFtoUTM(double x, double y, double z);
 
     const int freq;
