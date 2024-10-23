@@ -68,6 +68,8 @@ private:
     const double i_gain_;
     const double d_gain_;
     const double wheel_base_;
+    int laps;
+
 
     bool autonomous_flag_=false;
     bool nav_start_flag_=false;

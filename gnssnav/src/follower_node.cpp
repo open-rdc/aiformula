@@ -14,6 +14,7 @@ Follower::Follower(const std::string& name_space, const rclcpp::NodeOptions& opt
 : rclcpp::Node("gnssnav_follower_node", name_space, options),
 is_debug(get_parameter("debug_flag").as_bool()),
 freq(get_parameter("interval_ms").as_int()),
+laps(get_parameter("laps").as_int()),
 ld_gain_(get_parameter("lookahead_gain").as_double()),
 p_gain_(get_parameter("p_gain").as_double()),
 i_gain_(get_parameter("i_gain").as_double()),
@@ -197,9 +198,16 @@ void Follower::followPath(){
 
     // 完走した判定
     if(idx_ >= point_.size()){
-        cmd_vel.linear.x = 0.0;
-        cmd_vel.angular.z = 0.0;
-        RCLCPP_INFO(this->get_logger(), "Goal to reach");
+        if(laps == 0){
+            cmd_vel.linear.x = 0.0;
+            cmd_vel.angular.z = 0.0;
+            RCLCPP_INFO(this->get_logger(), "Goal to reach");
+        }else{
+            idx_ = 0;
+            pre_point_idx = 0;
+            laps--;
+            RCLCPP_INFO(this->get_logger(), "laps : %d", laps);
+        }
     }
 
     cmd_pub_->publish(cmd_vel);
