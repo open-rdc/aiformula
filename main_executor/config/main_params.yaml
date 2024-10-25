@@ -3,6 +3,7 @@ launch: #起動パラメータ
     can: true
     joy: true
     vectornav : false
+    zed : false
     log_level : 10
 
 /**:  #ワイルドカード(ここのパラメータは全ノードから読める: <名前に注意>)
