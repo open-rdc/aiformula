@@ -12,13 +12,9 @@ class GnssDataProcessor:
     def __init__(self, bag_file_path, target_csv_path):
         self.target_path = self.load_target_path(target_csv_path)  # CSVファイル名を指定
 
-        self.accumulated_error = 0.0
-        self.max_error = 0.0
-
         self.tracked_path, self.total_duration, self.average_frequency = self.read_rosbag_data(bag_file_path)
 
         self.fig, self.ax = plt.subplots()
-
         self.plot_data()    # プロット
 
     def load_target_path(self, file_path):
@@ -155,28 +151,40 @@ class GnssDataProcessor:
         tracked_lats = [lat for lat, lon in self.tracked_path]
         tracked_lons = [lon for lat, lon in self.tracked_path]
 
+        accumulated_error = 0
+        max_error = 0
+        max_error_coord = ()
+        datasize = 0
+
         # GNSSデータからの誤差を計算
         for i, (lat, lon) in enumerate(self.tracked_path):
             min_distance = self.calculate_min_distance_to_path(lat, lon)
-            self.accumulated_error += min_distance
-            self.max_error = max([self.max_error, min_distance])
-            # print(f'データ{i}  誤差: {min_distance:.2f} m')
+            accumulated_error += min_distance
+            if min_distance > max_error:
+                max_error_coord = (lon, lat)
+                max_error = min_distance
 
-        # プロット設定
+            datasize = datasize + 1
+
+        # グラフ表示
         self.ax.plot(target_lons, target_lats, 'bo-', label='Target Path')
         self.ax.plot(tracked_lons, tracked_lats, 'ro-', label='Tracked Path')
+        self.ax.plot(max_error_coord[0], max_error_coord[1], 'gx', ms=10 , label='Max Error')
+        self.ax.plot(tracked_lons[0], tracked_lats[0], 'ko', ms=5 , label='Start')
+        self.ax.plot(tracked_lons[-1], tracked_lats[-1], 'kx', ms=5 , label='Goal')
+
         self.ax.set_title('GNSS Tracking & Target Path')
         self.ax.set_xlabel('Longitude')
         self.ax.set_ylabel('Latitude')
         self.ax.legend(loc='upper right')
 
         # 累積誤差、累積時間、平均周波数を表示
-        self.ax.text(0.02, 0.95, f'Accumulated error: {self.accumulated_error:.2f} m', transform=self.ax.transAxes)
+        self.ax.text(0.02, 0.95, f'Accumulated error: {accumulated_error:.2f} m', transform=self.ax.transAxes)
         self.ax.text(0.02, 0.90, f'Total duration: {self.total_duration:.2f} sec', transform=self.ax.transAxes)
         self.ax.text(0.02, 0.85, f'Average frequency: {self.average_frequency:.2f} Hz', transform=self.ax.transAxes)
+        self.ax.text(0.02, 0.80, f'Max error: {max_error:.2f}m ', transform=self.ax.transAxes)
 
-        print(f'1データごとの平均誤差: {self.accumulated_error/(self.total_duration*self.average_frequency):.2f} m')
-        print(f'最大誤差: {self.max_error:.2f} m')
+        print(f'1データごとの平均誤差: {accumulated_error/datasize:.2f} m')
 
         plt.show()
 
@@ -190,7 +198,7 @@ def main():
         get_package_share_directory('gnssnav'),
         'config',
         'course_data',
-        'shihou_full.csv'
+        'gazebo_shihou_course.csv'
     )   # 目標経路
 
     GnssDataProcessor(bag_file_path, target_csv_path)
