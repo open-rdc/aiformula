@@ -70,11 +70,11 @@ gnssnav_follower_node:
     debug_flag : false
     interval_ms : 50
     lookahead_gain : 1.0
-    p_gain : 0.4
-    i_gain : 0.1
-    d_gain : 1.0
+    p_gain : 0.8
+    i_gain : 0.0
+    d_gain : 0.0
     min_lookahead_distance : 3.0
-    max_linear_vel : 7.0
+    max_linear_vel : 5.0
     max_angular_vel : 15.5
 
 line_publisher_node:
