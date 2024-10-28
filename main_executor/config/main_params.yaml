@@ -1,15 +1,12 @@
 launch: #起動パラメータ
   ros__parameters:
-    can: true
-    joy: true
+    can: false
+    joy: false
     vectornav : false
     log_level : 10
 
 /**:  #ワイルドカード(ここのパラメータは全ノードから読める: <名前に注意>)
   ros__parameters:
-    initial_pose: [0.0, 0.0, 0.0]  #初期位置[x,y,yaw]
-    tf_laser2robot: [0.0,0.0,0.0,  0.0,0.0,0.0]  #ロボット->lidarのTF[x,y,z,r,p,y]
-
     # 並進  速度[m/s],加速度[m/s^2],加減速度[-m/s^2],躍度[m/s^3]
     linear_max:
       vel : 3.0
