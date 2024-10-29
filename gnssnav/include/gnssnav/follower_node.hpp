@@ -16,6 +16,8 @@
 
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 
+#include "utilities/position_pid.hpp"
+
 namespace gnssnav{
 
 class Follower : public rclcpp::Node{
@@ -33,6 +35,8 @@ private:
     rclcpp::Subscription<nav_msgs::msg::Path>::SharedPtr path_subscriber_;
     rclcpp::Subscription<std_msgs::msg::Empty>::SharedPtr nav_start_subscriber_;
     rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr autonomous_flag_subscriber_;
+    rclcpp::Subscription<std_msgs::msg::Empty>::SharedPtr restart_subscriber_;
+
 
     rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmd_pub_;
     rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr current_pose_pub_;
@@ -46,6 +50,7 @@ private:
     void pathCallback(const nav_msgs::msg::Path::SharedPtr msg);
     void navStartCallback(const std_msgs::msg::Empty::SharedPtr&);
     void autonomousFlagCallback(const std_msgs::msg::Bool::SharedPtr msg);
+    void restartCallback(const std_msgs::msg::Empty::SharedPtr msg);
 
     void publishCurrentPose(void);
     void publishLookahead(void);
@@ -54,19 +59,17 @@ private:
     void setBasePose(void);
     double calculateYawFromQuaternion(const geometry_msgs::msg::Quaternion&);
     double calculateCrossError();
-    double PIDcontrol(const double theta);
 
     std::pair<double, double> convertECEFtoUTM(double x, double y, double z);
 
-    const int freq;
+    controller::PositionPid pid;
+
+    const int freq_ms;
     const int is_debug;
     const double ld_min_;
     const double ld_gain_;
     const double v_max_;
     const double w_max_;
-    const double p_gain_;
-    const double i_gain_;
-    const double d_gain_;
     const double wheel_base_;
     int laps;
 
