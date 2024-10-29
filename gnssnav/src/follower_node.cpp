@@ -13,12 +13,10 @@ Follower::Follower(const rclcpp::NodeOptions& options) : Follower("", options) {
 Follower::Follower(const std::string& name_space, const rclcpp::NodeOptions& options)
 : rclcpp::Node("gnssnav_follower_node", name_space, options),
 is_debug(get_parameter("debug_flag").as_bool()),
-freq(get_parameter("interval_ms").as_int()),
+freq_ms(get_parameter("interval_ms").as_int()),
+pid(get_parameter("interval_ms").as_int()),
 laps(get_parameter("laps").as_int()),
 ld_gain_(get_parameter("lookahead_gain").as_double()),
-p_gain_(get_parameter("p_gain").as_double()),
-i_gain_(get_parameter("i_gain").as_double()),
-d_gain_(get_parameter("d_gain").as_double()),
 ld_min_(get_parameter("min_lookahead_distance").as_double()),
 v_max_(get_parameter("max_linear_vel").as_double()),
 w_max_(get_parameter("max_angular_vel").as_double()),
@@ -30,13 +28,14 @@ wheel_base_(get_parameter("wheelbase").as_double())
     nav_start_subscriber_ = this->create_subscription<std_msgs::msg::Empty>("/nav_start", 10, callback);
     vectornav_subscriber_ = this->create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>("/vectornav/pose", 10, std::bind(&Follower::vectornavCallback, this, std::placeholders::_1));
     path_subscriber_ = this->create_subscription<nav_msgs::msg::Path>("/origin_gnss_path", 10, std::bind(&Follower::pathCallback, this, std::placeholders::_1));
+    restart_subscriber_ = this->create_subscription<std_msgs::msg::Empty>("/restart", 10, std::bind(&Follower::restartCallback, this, std::placeholders::_1));
 
     cmd_pub_ = this->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel", 10);
     current_pose_pub_ = this->create_publisher<geometry_msgs::msg::PoseStamped>("/current_pose", 10);
     current_ld_pub_ = this->create_publisher<geometry_msgs::msg::PoseStamped>("/current_ld", 10);
 
     timer_ = this->create_wall_timer(
-        std::chrono::milliseconds(freq),
+        std::chrono::milliseconds(freq_ms),
         std::bind(&Follower::followPath, this));
 
     C = proj_context_create();
@@ -44,6 +43,8 @@ wheel_base_(get_parameter("wheelbase").as_double())
         "EPSG:4978", // ECEF
         "EPSG:32654", // UTMゾーン54N
         NULL);
+
+    pid.gain(get_parameter("p_gain").as_double(), get_parameter("i_gain").as_double(), get_parameter("d_gain").as_double());
 }
 
 Follower::~Follower(){
@@ -61,7 +62,7 @@ void Follower::pathCallback(const nav_msgs::msg::Path::SharedPtr msg) {
 void Follower::vectornavCallback(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg) {
     if(point_.empty())
         return;
-    
+
     auto [x, y] = convertECEFtoUTM(msg->pose.pose.position.x, msg->pose.pose.position.y, msg->pose.pose.position.z);
 
     current_position_x_ = x;
@@ -88,6 +89,12 @@ void Follower::navStartCallback(const std_msgs::msg::Empty::SharedPtr&) {
 void Follower::autonomousFlagCallback(const std_msgs::msg::Bool::SharedPtr msg) {
     autonomous_flag_ = msg->data;
     RCLCPP_INFO(this->get_logger(), "Autonomous flag updated to: %s", autonomous_flag_ ? "true" : "false");
+}
+
+// restart
+void Follower::restartCallback(const std_msgs::msg::Empty::SharedPtr msg){
+    pid.reset();
+    RCLCPP_INFO(this->get_logger(), "再起動");
 }
 
 void Follower::setBasePose(){
@@ -190,7 +197,7 @@ void Follower::followPath(){
     double theta = calculateCrossError();
 
     v_ = v_max_;
-    w_ = PIDcontrol(theta);
+    w_ = pid.cycle(theta);
 
     geometry_msgs::msg::Twist cmd_vel;
     cmd_vel.linear.x = constrain(v_, -v_max_, v_max_);
@@ -221,21 +228,6 @@ double Follower::calculateYawFromQuaternion(const geometry_msgs::msg::Quaternion
     double roll, pitch, yaw;
     m.getRPY(roll, pitch, yaw);
     return yaw;
-}
-
-double Follower::PIDcontrol(const double theta){
-    if(!init_d){
-        init_d = true;
-        prev_theta = theta;
-        theta_error = theta;
-        theta_sum = theta;
-    }else{
-        theta_error = theta - prev_theta;
-        theta_sum += theta;
-        prev_theta = theta;
-    }
-
-    return p_gain_*theta + i_gain_*theta_sum/freq + d_gain_*theta_error*freq;
 }
 
 std::pair<double, double> Follower::convertECEFtoUTM(double x, double y, double z){
