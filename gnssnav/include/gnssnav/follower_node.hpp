@@ -47,7 +47,9 @@ private:
     std::vector<geometry_msgs::msg::PoseStamped> point_;
 
     void vectornavCallback(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg);
-    void pathCallback(const nav_msgs::msg::Path::SharedPtr msg);
+    void pathCallback(const nav_msgs::msg::Path::SharedPtr msg) {
+        point_ = msg->poses;
+    }
     void navStartCallback(const std_msgs::msg::Empty::SharedPtr&);
     void autonomousFlagCallback(const std_msgs::msg::Bool::SharedPtr msg);
     void restartCallback(const std_msgs::msg::Empty::SharedPtr msg);
