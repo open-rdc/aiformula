@@ -1,8 +1,8 @@
 launch: #起動パラメータ
   ros__parameters:
-    can: false
-    joy: false
-    vectornav : false
+    can: true
+    joy: true
+    vectornav : true
     log_level : 10
 
 /**:  #ワイルドカード(ここのパラメータは全ノードから読める: <名前に注意>)
@@ -59,17 +59,17 @@ cybergear_interface_node:
 path_publisher_node:
   ros__parameters:
     interval_ms : 1000
-    path_file_name : "shihou_gnssnav"
+    path_file_name : "shihou_241030_2"
 
 gnssnav_follower_node:
   ros__parameters:
     debug_flag : false
     interval_ms : 50
     lookahead_gain : 1.0
-    p_gain : 0.8
+    p_gain : 1.0
     i_gain : 0.0
-    d_gain : 0.0
+    d_gain : 0.15
     min_lookahead_distance : 3.0
-    max_linear_vel : 7.0
-    max_angular_vel : 15.5
-    laps : 3
+    max_linear_vel : 6.0
+    max_angular_vel : 3.14
+    laps : 1
