@@ -53,11 +53,6 @@ Follower::~Follower(){
     proj_context_destroy(C);
 }
 
-// received path
-void Follower::pathCallback(const nav_msgs::msg::Path::SharedPtr msg) {
-    point_ = msg->poses;
-}
-
 // vectornav/pose callback
 void Follower::vectornavCallback(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg) {
     if(point_.empty())
