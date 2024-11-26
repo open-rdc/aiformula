@@ -7,6 +7,7 @@ from ament_index_python.packages import get_package_share_directory
 import math
 import csv
 import matplotlib.pyplot as plt
+import numpy as np
 from pyproj import Transformer
 
 class GnssDataProcessor:
@@ -166,6 +167,7 @@ class GnssDataProcessor:
         plt.legend(loc='upper right')
 
         print(f'1データごとの平均誤差: {sum(errors) / len(errors):.2f} m')
+        print(f'不偏標準偏差: {np.std(errors, ddof=1):.2f} m')
 
         plt.show()
 
