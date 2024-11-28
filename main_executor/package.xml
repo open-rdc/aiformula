@@ -17,6 +17,7 @@
   <depend>cybergear_interface</depend>
   <depend>gnssnav</depend>
   <depend>line_publisher</depend>
+  <depend>path_planner</depend>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
