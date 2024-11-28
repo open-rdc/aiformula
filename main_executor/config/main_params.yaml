@@ -73,6 +73,7 @@ gnssnav_follower_node:
     min_lookahead_distance : 3.0
     max_linear_vel : 5.0
     max_angular_vel : 15.5
+    laps : 3
 
 line_publisher_node:
   ros__parameters:
