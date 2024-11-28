@@ -3,6 +3,7 @@ launch: #起動パラメータ
     can: false
     joy: false
     vectornav : false
+    zed : false
     log_level : 10
 
 /**:  #ワイルドカード(ここのパラメータは全ノードから読める: <名前に注意>)
@@ -70,6 +71,12 @@ gnssnav_follower_node:
     i_gain : 0.0
     d_gain : 0.0
     min_lookahead_distance : 3.0
-    max_linear_vel : 7.0
+    max_linear_vel : 5.0
     max_angular_vel : 15.5
-    laps : 3
+
+line_publisher_node:
+  ros__parameters:
+    ksize : 9  # ガウシアンカーネルサイズ
+    threshold : 50  # 確率的ハフ変換のしきい値
+    min_th : 50
+    max_th : 150

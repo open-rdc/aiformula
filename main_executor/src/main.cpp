@@ -6,6 +6,7 @@
 #include "cybergear_interface/cybergear_interface_node.hpp"
 #include "gnssnav/path_publisher_node.hpp"
 #include "gnssnav/follower_node.hpp"
+#include "line_publisher/line_publisher_node.hpp"
 
 int main(int argc, char * argv[]){
     rclcpp::init(argc,argv);
@@ -30,6 +31,7 @@ int main(int argc, char * argv[]){
     auto cybergear_interface_node = std::make_shared<cybergear_interface::CybergearInterface>(nodes_option);
     auto path_publisher_node = std::make_shared<gnssnav::Publisher>(nodes_option);
     auto follower_node = std::make_shared<gnssnav::Follower>(nodes_option);
+    auto line_publisher_node = std::make_shared<line_publisher::LinePublisherNode>(nodes_option);
 
     if(sim_flag){}
     if(not sim_flag){
@@ -41,6 +43,7 @@ int main(int argc, char * argv[]){
     exec.add_node(cybergear_interface_node);
     exec.add_node(path_publisher_node);
     exec.add_node(follower_node);
+    exec.add_node(line_publisher_node);
 
     exec.spin();
     rclcpp::shutdown();
