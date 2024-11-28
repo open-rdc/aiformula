@@ -1,6 +1,7 @@
 #pragma once
 
 #include <rclcpp/rclcpp.hpp>
+#include <sensor_msgs/msg/image.hpp>
 #include "path_planner/visibility_control.h"
 
 namespace path_planner{
@@ -14,18 +15,19 @@ public:
   explicit PathPlannerNode(const std::string& name_space, const rclcpp::NodeOptions& options = rclcpp::NodeOptions());
 
 private:
-  rclcpp::Subscriptions<sensor_msgs::msg::Image>::SharedPtr line_image_sub_;
+  rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr line_image_sub_;
   rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_pub_;
-  
-  sensor_msgs::msg::Image::SharedPtr image_;
+
+  sensor_msgs::msg::Image image_;
 
   rclcpp::TimerBase::SharedPtr timer_;
 
   void ImageCallback(const sensor_msgs::msg::Image img) {
     image_ = img;
   }
-  
   void PathPlanning();
+
+  const int interval_ms;
 };
 
 }  // namespace path_planner
