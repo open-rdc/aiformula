@@ -81,7 +81,8 @@ line_publisher_node:
     threshold : 50  # 確率的ハフ変換のしきい値
     min_th : 50
     max_th : 150
+    interval_ms : 100
 
 path_planner_node:
   ros__parameters:
-    imterval_ms : 100
+    interval_ms : 100
