@@ -22,16 +22,19 @@ private:
   rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_sub_;
   rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_pub_;
 
-  void ImageCallback(const sensor_msgs::msg::Image::SharedPtr msg);
+  rclcpp::TimerBase::SharedPtr timer_;
+  cv_bridge::CvImagePtr cv_img;
+
+  void ImageCallback(const sensor_msgs::msg::Image::SharedPtr img) {
+    cv_img = cv_bridge::toCvCopy(img, img->encoding);
+  }
   void LineDetector();
 
-  const int threshold;
   const int ksize;
+  const int threshold;
   const int min_th;
   const int max_th;
-
-  cv_bridge::CvImagePtr cv_img;
-  int detected_line_x = 0;
+  const int interval_ms;
 };
 
 }  // namespace line_publisher
