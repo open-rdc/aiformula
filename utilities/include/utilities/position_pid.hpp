@@ -7,7 +7,7 @@ public:
     PositionPid(const int sampling_time_ms): sampling_time(static_cast<double>(sampling_time_ms)/1000.0){}
     double cycle(double current_pos, double target_pos){
         double error = target_pos - current_pos;
-        cycle(error);
+        return cycle(error);
     }
     double cycle(double error){
         error_ = error;
