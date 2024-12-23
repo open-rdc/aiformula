@@ -146,14 +146,15 @@ void ChassisDriver::send_rpm(const double linear_vel, const double angular_vel){
     const double left_rpm = (is_reverse_left ? -1 : 1) * (left_vel*30.0 / d_pi) * rotate_ratio;
     const double right_rpm = (is_reverse_right ? -1 : 1) * (right_vel*30.0 / d_pi) * rotate_ratio;
 
+    // RCLCPP_INFO(this->get_logger(), "right:%f  left:%f", right_rpm, left_rpm);
     // 出版
     auto msg_can = std::make_shared<socketcan_interface_msg::msg::SocketcanIF>();
     msg_can->canid = 0x210;
     msg_can->candlc = 8;
 
     uint8_t _candata[8];
-    int_to_bytes(_candata, static_cast<int>(left_rpm));
-    int_to_bytes(_candata+4, static_cast<int>(right_rpm));
+    int_to_bytes(_candata, static_cast<int>(right_rpm));
+    int_to_bytes(_candata+4, static_cast<int>(left_rpm));
 
     for(int i=0; i<msg_can->candlc; i++) msg_can->candata[i]=_candata[i];
     publisher_can->publish(*msg_can);
