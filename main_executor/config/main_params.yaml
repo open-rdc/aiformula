@@ -9,13 +9,13 @@ launch: #起動パラメータ
   ros__parameters:
     # 並進  速度[m/s],加速度[m/s^2],加減速度[-m/s^2],躍度[m/s^3]
     linear_max:
-      vel : 3.0
-      acc: 9.0
+      vel : 2.5
+      acc: 3.5
       jer: 0.0
     # 回転  速度[deg/s],加速度[deg/s^2],加減速度[-deg/s^2],躍度[deg/s^3]
     angular_max :
       vel: 60.0
-      acc: 180.0
+      acc: 90.0
       jer: 0.0
 
     tread : 0.6
@@ -36,7 +36,7 @@ cybergear:
 
 chassis_driver_node:
   ros__parameters:
-    interval_ms : 10
+    interval_ms : 2
     wheel_radius : 0.124
     reduction_ratio : 1.0
     reverse_left_flag : false
@@ -59,7 +59,7 @@ cybergear_interface_node:
 path_publisher_node:
   ros__parameters:
     interval_ms : 1000
-    path_file_name : "shihou_241030_2"
+    path_file_name : "shihou_241127_dynamic2"
 
 gnssnav_follower_node:
   ros__parameters:
@@ -68,8 +68,8 @@ gnssnav_follower_node:
     lookahead_gain : 1.0
     p_gain : 1.0
     i_gain : 0.0
-    d_gain : 0.15
+    d_gain : 0.2
     min_lookahead_distance : 3.0
-    max_linear_vel : 6.0
+    max_linear_vel : 5.0
     max_angular_vel : 3.14
     laps : 1
