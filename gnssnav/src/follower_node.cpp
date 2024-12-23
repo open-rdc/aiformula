@@ -13,11 +13,10 @@ Follower::Follower(const rclcpp::NodeOptions& options) : Follower("", options) {
 Follower::Follower(const std::string& name_space, const rclcpp::NodeOptions& options)
 : rclcpp::Node("gnssnav_follower_node", name_space, options),
 is_debug(get_parameter("debug_flag").as_bool()),
-freq(get_parameter("interval_ms").as_int()),
+freq_ms(get_parameter("interval_ms").as_int()),
+pid(get_parameter("interval_ms").as_int()),
+laps(get_parameter("laps").as_int()),
 ld_gain_(get_parameter("lookahead_gain").as_double()),
-p_gain_(get_parameter("p_gain").as_double()),
-i_gain_(get_parameter("i_gain").as_double()),
-d_gain_(get_parameter("d_gain").as_double()),
 ld_min_(get_parameter("min_lookahead_distance").as_double()),
 v_max_(get_parameter("max_linear_vel").as_double()),
 w_max_(get_parameter("max_angular_vel").as_double()),
@@ -29,20 +28,23 @@ wheel_base_(get_parameter("wheelbase").as_double())
     nav_start_subscriber_ = this->create_subscription<std_msgs::msg::Empty>("/nav_start", 10, callback);
     vectornav_subscriber_ = this->create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>("/vectornav/pose", 10, std::bind(&Follower::vectornavCallback, this, std::placeholders::_1));
     path_subscriber_ = this->create_subscription<nav_msgs::msg::Path>("/origin_gnss_path", 10, std::bind(&Follower::pathCallback, this, std::placeholders::_1));
+    restart_subscriber_ = this->create_subscription<std_msgs::msg::Empty>("/restart", 10, std::bind(&Follower::restartCallback, this, std::placeholders::_1));
 
     cmd_pub_ = this->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel", 10);
     current_pose_pub_ = this->create_publisher<geometry_msgs::msg::PoseStamped>("/current_pose", 10);
     current_ld_pub_ = this->create_publisher<geometry_msgs::msg::PoseStamped>("/current_ld", 10);
 
     timer_ = this->create_wall_timer(
-        std::chrono::milliseconds(freq),
-        std::bind(&Follower::loop, this));
+        std::chrono::milliseconds(freq_ms),
+        std::bind(&Follower::followPath, this));
 
     C = proj_context_create();
     P = proj_create_crs_to_crs(C,
         "EPSG:4978", // ECEF
         "EPSG:32654", // UTMゾーン54N
         NULL);
+
+    pid.gain(get_parameter("p_gain").as_double(), get_parameter("i_gain").as_double(), get_parameter("d_gain").as_double());
 }
 
 Follower::~Follower(){
@@ -51,17 +53,11 @@ Follower::~Follower(){
     proj_context_destroy(C);
 }
 
-// received path
-void Follower::pathCallback(const nav_msgs::msg::Path::SharedPtr msg) {
-    point_ = msg->poses;
-    path_get_flag_ = true;
-}
-
 // vectornav/pose callback
 void Follower::vectornavCallback(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg) {
     if(point_.empty())
         return;
-    
+
     auto [x, y] = convertECEFtoUTM(msg->pose.pose.position.x, msg->pose.pose.position.y, msg->pose.pose.position.z);
 
     current_position_x_ = x;
@@ -80,16 +76,20 @@ void Follower::vectornavCallback(const geometry_msgs::msg::PoseWithCovarianceSta
 // gnssnav permit
 void Follower::navStartCallback(const std_msgs::msg::Empty::SharedPtr&) {
     idx_ = 0;
-    pre_point_idx = 0;
-    theta_sum = 0;
+    init_d = false;
     RCLCPP_ERROR(this->get_logger(), "idx_がリセットされます");
-    RCLCPP_INFO(this->get_logger(), "自律走行開始");
 }
 
 // autonomous_flag_を更新
 void Follower::autonomousFlagCallback(const std_msgs::msg::Bool::SharedPtr msg) {
     autonomous_flag_ = msg->data;
     RCLCPP_INFO(this->get_logger(), "Autonomous flag updated to: %s", autonomous_flag_ ? "true" : "false");
+}
+
+// restart
+void Follower::restartCallback(const std_msgs::msg::Empty::SharedPtr msg){
+    pid.reset();
+    RCLCPP_INFO(this->get_logger(), "再起動");
 }
 
 void Follower::setBasePose(){
@@ -109,7 +109,7 @@ void Follower::setBasePose(){
 void Follower::publishCurrentPose(){
     double dx = point_[1].pose.position.x - point_[0].pose.position.x;
     double dy = point_[1].pose.position.y - point_[0].pose.position.y;
-    path_direction_ = std::atan2(dy, dx);
+    double path_direction_ = std::atan2(dy, dx);
 
     geometry_msgs::msg::PoseStamped pose_msg;
     pose_msg.header.stamp = this->now();
@@ -136,8 +136,6 @@ void Follower::publishCurrentPose(){
 
     pose_msg.pose.orientation = tf2::toMsg(result_q);
     current_pose_pub_->publish(pose_msg);
-
-    pose_orientation_z_ = pose_msg.pose.orientation.z;
 }
 
 void Follower::publishLookahead(){
@@ -152,37 +150,22 @@ void Follower::publishLookahead(){
     current_ld_pub_->publish(pose_msg);
 }
 
-// 最も近い経路点を見つける(座標とidx)
-void Follower::findNearestIndex(geometry_msgs::msg::Pose front_wheel_pos){
+// 目標地点を探索する
+double Follower::findLookaheadDistance(){
+    double ld_ = ld_gain_ * v_ + ld_min_;
+
     for(idx_ = pre_point_idx;idx_ < point_.size(); idx_++){
-        double dx = point_[idx_].pose.position.x - front_wheel_pos.position.x;
-        double dy = point_[idx_].pose.position.y - front_wheel_pos.position.y;
-        distance_ = std::hypot(dx, dy);
+        double dx = point_[idx_].pose.position.x - current_position_x_;
+        double dy = point_[idx_].pose.position.y - current_position_y_;
+        double distance_ = std::hypot(dx, dy);
 
         if(distance_ > ld_ && idx_ > pre_point_idx && point_[idx_].pose.position.x > 30000){
 		    pre_point_idx = idx_ - 1;
-            break;
+            return distance_;
         }
     }
-    return ;
 }
 
-// 目標地点を探索する
-void Follower::findLookaheadDistance(){
-    double front_x_ =
-        current_position_x_ + wheel_base_ / 2.0 * std::cos(pose_orientation_z_);
-    double front_y_ =
-        current_position_y_ + wheel_base_ / 2.0 * std::sin(pose_orientation_z_);
-
-    geometry_msgs::msg::Pose front_wheel_pos;
-    front_wheel_pos.position.x = front_x_;
-    front_wheel_pos.position.y = front_y_;
-
-    // 前の車輪から一番近い経路点を見つける
-    findNearestIndex(front_wheel_pos);
-}
-
-// 目標地点に対しての角度のズレを計算
 double Follower::calculateCrossError(){
     double dx = point_[idx_].pose.position.x - current_position_x_;
     double dy = point_[idx_].pose.position.y - current_position_y_;
@@ -200,41 +183,33 @@ double Follower::calculateCrossError(){
 }
 
 void Follower::followPath(){
-    if(point_.empty() || !autonomous_flag_)
-        return;
+    if(point_.empty() || !autonomous_flag_) return;
 
-    ld_ = ld_gain_ * v_ + ld_min_;
-
-    findLookaheadDistance();
+    double distance = findLookaheadDistance();
     publishLookahead();
 
     // 目標地点との角度のズレ
     double theta = calculateCrossError();
 
-    if(!init_d){
-        init_d = true;
-        theta_error = theta;
-        prev_theta = theta;
-        theta_sum = theta;
-    }else{
-        theta_error = theta - prev_theta;
-        theta_sum += theta;
-        prev_theta = theta;
-    }
-
     v_ = v_max_;
-    // RCLCPP_INFO(this->get_logger(), "distance : %lf idx_ : %d", distance_, idx_);
-    w_ = p_gain_*theta + i_gain_*theta_sum/freq + d_gain_*theta_error*freq;
+    w_ = pid.cycle(theta);
 
     geometry_msgs::msg::Twist cmd_vel;
-    cmd_vel.linear.x = v_;
+    cmd_vel.linear.x = constrain(v_, -v_max_, v_max_);
     cmd_vel.angular.z = constrain(w_, -w_max_, w_max_);
 
     // 完走した判定
     if(idx_ >= point_.size()){
-        cmd_vel.linear.x = 0.0;
-        cmd_vel.angular.z = 0.0;
-        RCLCPP_INFO(this->get_logger(), "Goal to reach");
+        if(laps == 0){
+            cmd_vel.linear.x = 0.0;
+            cmd_vel.angular.z = 0.0;
+            RCLCPP_INFO(this->get_logger(), "Goal to reach");
+        }else{
+            idx_ = 0;
+            pre_point_idx = 0;
+            laps--;
+            RCLCPP_INFO(this->get_logger(), "laps : %d", laps);
+        }
     }
 
     cmd_pub_->publish(cmd_vel);
@@ -265,8 +240,5 @@ std::pair<double, double> Follower::convertECEFtoUTM(double x, double y, double 
     return {b.enu.e, b.enu.n};
 }
 
-void Follower::loop(void){
-    followPath();
-}
 
 }  // namespace gnssnav
