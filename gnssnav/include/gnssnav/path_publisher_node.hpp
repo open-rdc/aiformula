@@ -49,7 +49,7 @@ private:
     nav_msgs::msg::Path origin_path_msg_;
     rclcpp::TimerBase::SharedPtr timer_;
 
-    std::pair<double, double> convertGPStoUTM(double lat, double lon);
+    std::pair<double, double> convertECEFtoUTM(double x, double y, double z);
     std::vector<Eigen::Vector2d> interpolateSpline(const std::vector<double>& xs, const std::vector<double>& ys, int num_points);
     std::vector<Eigen::Vector2d> result_;
 
@@ -68,6 +68,8 @@ private:
     const int freq;
     const std::string path_file_name;
 
+    PJ_CONTEXT *C;
+    PJ *P;
 };
 
 }  // namespace gnssnav

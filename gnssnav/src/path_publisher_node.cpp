@@ -19,6 +19,12 @@ path_file_name(get_parameter("path_file_name").as_string())
     timer_ = this->create_wall_timer(
         std::chrono::milliseconds(freq),
         std::bind(&Publisher::loop, this));
+
+    C = proj_context_create();
+    P = proj_create_crs_to_crs(C,
+        "EPSG:4978", // ECEF
+        "EPSG:32654", // UTMゾーン54N
+        NULL);
 }
 
 // pub, param config
@@ -50,7 +56,8 @@ void Publisher::loadCSV(void){
         }
         double lat = std::stod(tokens_[0]);
         double lon = std::stod(tokens_[1]);
-        auto [x, y] = convertGPStoUTM(lat, lon);
+        double eli = std::stod(tokens_[2]);
+        auto [x, y] = convertECEFtoUTM(lat, lon, eli);
 
         if(init_flag_) setInitPose(x, y);
 
@@ -107,17 +114,19 @@ std::vector<Eigen::Vector2d> Publisher::interpolateSpline(const std::vector<doub
     return result_;
 }
 
-// WGS84系からUTM座標系へ変換
-std::pair<double, double> Publisher::convertGPStoUTM(double lat, double lon) {
-    if (!(-90 <= lat) || !(lat <= 90) || !(-180 <= lon) || !(lon <= 180)) {
-        std::cerr << "Error: Latitude or longitude values are out of valid range." << std::endl;
-        return {std::numeric_limits<double>::infinity(), std::numeric_limits<double>::infinity()};
+std::pair<double, double> Publisher::convertECEFtoUTM(double x, double y, double z){
+    if(P == NULL) {
+        std::cerr << "PROJ transformation creation failed." << std::endl;
     }
-    PJ *P = proj_create_crs_to_crs(PJ_DEFAULT_CTX, "EPSG:4326", "EPSG:32654", nullptr);
-    PJ_COORD p = proj_coord(lat, lon, 0, 0);
-    p = proj_trans(P, PJ_FWD, p);
-    proj_destroy(P);
-    return {p.xy.x, p.xy.y};
+    PJ_COORD a, b;
+
+    a.xyz.x = x;
+    a.xyz.y = y;
+    a.xyz.z = z;
+
+    b = proj_trans(P, PJ_FWD, a);
+
+    return {b.enu.e, b.enu.n};
 }
 
 void Publisher::loop(void){
