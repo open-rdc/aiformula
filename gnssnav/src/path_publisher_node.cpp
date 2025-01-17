@@ -11,6 +11,12 @@ init_flag_(true),
 freq(get_parameter("interval_ms").as_int()),
 path_file_name(get_parameter("path_file_name").as_string())
 {
+    C = proj_context_create();
+    P = proj_create_crs_to_crs(C,
+        "EPSG:4978", // ECEF
+        "EPSG:32654", // UTMゾーン54N
+        NULL);
+
     initCommunication();
     loadCSV();
     path_msg_ = setMsg(xs_, ys_);
@@ -19,12 +25,6 @@ path_file_name(get_parameter("path_file_name").as_string())
     timer_ = this->create_wall_timer(
         std::chrono::milliseconds(freq),
         std::bind(&Publisher::loop, this));
-
-    C = proj_context_create();
-    P = proj_create_crs_to_crs(C,
-        "EPSG:4978", // ECEF
-        "EPSG:32654", // UTMゾーン54N
-        NULL);
 }
 
 // pub, param config
@@ -115,6 +115,7 @@ std::vector<Eigen::Vector2d> Publisher::interpolateSpline(const std::vector<doub
 }
 
 std::pair<double, double> Publisher::convertECEFtoUTM(double x, double y, double z){
+
     if(P == NULL) {
         std::cerr << "PROJ transformation creation failed." << std::endl;
     }
