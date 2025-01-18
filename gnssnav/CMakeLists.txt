@@ -22,6 +22,7 @@ find_package(ament_cmake_ros REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
@@ -51,6 +52,23 @@ ament_target_dependencies(
   utilities
 )
 target_link_libraries(navigation_node ${PROJ_LIBRARY})
+
+
+# 実行可能ノード
+add_executable(vectornav_debug
+  src/vectornav_debug.cpp
+)
+target_include_directories(vectornav_debug PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
+)
+ament_target_dependencies(vectornav_debug
+  rclcpp
+  geometry_msgs
+  sensor_msgs
+  utilities
+)
+target_link_libraries(vectornav_debug ${PROJ_LIBRARY})
 
 # Causes the visibility macros to use dllexport rather than dllimport,
 # which is appropriate when building the dll but not consuming it.
@@ -92,6 +110,11 @@ install(
 
 install(DIRECTORY config
  DESTINATION share/${PROJECT_NAME}
+)
+
+install(
+  TARGETS vectornav_debug
+  DESTINATION lib/${PROJECT_NAME}
 )
 
 if(BUILD_TESTING)
