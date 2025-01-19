@@ -12,7 +12,7 @@ from pyproj import Transformer
 class GnssDataProcessor:
     def __init__(self, bag_file_path, target_csv_path):
         self.target_path = self.load_target_path(target_csv_path)
-        self.tracked_path, self.total_duration, self.average_frequency = self.read_rosbag_data(bag_file_path)
+        self.tracked_path, self.timestamps, self.total_duration, self.average_frequency = self.read_rosbag_data(bag_file_path)
 
         self.transformer = None
         if self.tracked_path:
@@ -45,6 +45,7 @@ class GnssDataProcessor:
 
     def read_rosbag_data(self, bag_file_path):
         tracked_path = []
+        timestamps = []
         first_timestamp = None
         last_timestamp = None
         intervals = []
@@ -63,7 +64,7 @@ class GnssDataProcessor:
         topic_name = '/vectornav/gnss'  # gnssトピックの指定
         if topic_name not in type_map:
             print(f"Topic '{topic_name}' not found in the bag file.")
-            return tracked_path, 0.0, 0.0
+            return tracked_path, timestamps, 0.0, 0.0
 
         previous_timestamp = None
 
@@ -76,6 +77,7 @@ class GnssDataProcessor:
 
                 msg = deserialize_message(data, NavSatFix)
                 tracked_path.append((msg.latitude, msg.longitude))
+                timestamps.append(t * 1e-9)
 
                 if previous_timestamp is not None:
                     interval = (t - previous_timestamp) * 1e-9
@@ -86,7 +88,7 @@ class GnssDataProcessor:
         total_duration = (last_timestamp - first_timestamp) * 1e-9 if first_timestamp and last_timestamp else 0.0
         average_frequency = 1.0 / (sum(intervals) / len(intervals)) if intervals else 0.0
 
-        return tracked_path, total_duration, average_frequency
+        return tracked_path, timestamps, total_duration, average_frequency
 
     def calculate_min_distance_to_path(self, lat, lon):
         min_distance = float('inf')
@@ -126,10 +128,17 @@ class GnssDataProcessor:
         max_error = 0
         max_error_coord = ()
         datasize = 0
+        previous_timestamp = None
 
         for i, (lat, lon) in enumerate(self.tracked_path):
             min_distance = self.calculate_min_distance_to_path(lat, lon)
-            accumulated_error += min_distance
+
+            if previous_timestamp is not None:
+                delta_t = self.timestamps[i] - previous_timestamp
+                accumulated_error += min_distance * delta_t
+
+            previous_timestamp = self.timestamps[i]
+
             if min_distance > max_error:
                 max_error_coord = (lon, lat)
                 max_error = min_distance
