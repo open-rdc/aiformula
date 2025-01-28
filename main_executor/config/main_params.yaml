@@ -48,7 +48,6 @@ cybergear_interface_node:
     interval_ms : 10
     master_id : 0x00
     target_id : 0x7F
-
     gear_rate : 3.33333
     reverse_flag : false
     # 制御対象の最小・最大位置[deg]
@@ -75,9 +74,9 @@ gnssnav_follower_node:
     max_angular_vel : 15.5
     laps : 0
 
-line_publisher_node:
-  ros__parameters:
-    ksize : 9  # ガウシアンカーネルサイズ
-    threshold : 50  # 確率的ハフ変換のしきい値
-    min_th : 50
-    max_th : 150
+# imagenav_node:
+#   ros__parameters:
+#     ksize : 9  # ガウシアンカーネルサイズ
+#     threshold : 50  # 確率的ハフ変換のしきい値
+#     min_th : 50
+#     max_th : 150
