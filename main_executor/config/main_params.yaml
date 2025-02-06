@@ -74,9 +74,8 @@ gnssnav_follower_node:
     max_angular_vel : 15.5
     laps : 0
 
-# imagenav_node:
-#   ros__parameters:
-#     ksize : 9  # ガウシアンカーネルサイズ
-#     threshold : 50  # 確率的ハフ変換のしきい値
-#     min_th : 50
-#     max_th : 150
+imagenav_node:
+  ros__parameters:
+    interval_ms : 50
+    max_linear_vel : 3.0
+    max_angular_vel : 15.5

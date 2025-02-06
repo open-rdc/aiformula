@@ -42,7 +42,7 @@ int main(int argc, char * argv[]){
     exec.add_node(chassis_driver_node);
     exec.add_node(cybergear_interface_node);
     exec.add_node(path_publisher_node);
-    exec.add_node(follower_node);
+    // exec.add_node(follower_node);
     exec.add_node(imagenav_node);
 
     exec.spin();
