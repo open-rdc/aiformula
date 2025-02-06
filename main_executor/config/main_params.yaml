@@ -79,3 +79,6 @@ imagenav_node:
     interval_ms : 50
     max_linear_vel : 3.0
     max_angular_vel : 15.5
+    p_gain : 1.0
+    i_gain : 0.0
+    d_gain : 0.0

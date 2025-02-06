@@ -12,6 +12,8 @@
 #include "imagenav/obstacle_detector.hpp"
 #include "imagenav/line_detector.hpp"
 
+#include "utilities/position_pid.hpp"
+
 #include "imagenav/visibility_control.h"
 
 namespace imagenav{
@@ -44,6 +46,8 @@ private:
   int right_line_x=0;
 
   std::vector<cv::Point> center_points;
+
+  controller::PositionPid pid;
 
   imagenav::LineDetector line;
   // まだ未実装

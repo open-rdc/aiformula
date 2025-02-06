@@ -10,6 +10,7 @@ ImageNav::ImageNav(const rclcpp::NodeOptions &options) : ImageNav("", options) {
 ImageNav::ImageNav(const std::string &name_space, const rclcpp::NodeOptions &options)
 : rclcpp::Node("imagenav_node", name_space, options),
 interval_ms(get_parameter("interval_ms").as_int()),
+pid(get_parameter("interval_ms").as_int()),
 linear_max_(get_parameter("max_linear_vel").as_double()),
 angular_max_(get_parameter("max_angular_vel").as_double())
 {
@@ -19,6 +20,8 @@ angular_max_(get_parameter("max_angular_vel").as_double())
 
     timer_ = this->create_wall_timer(std::chrono::milliseconds(interval_ms),
         std::bind(&ImageNav::ImageNavigation, this));
+
+    pid.gain(get_parameter("p_gain").as_double(), get_parameter("i_gain").as_double(), get_parameter("d_gain").as_double());
 }
 
 void ImageNav::autonomousFlagCallback(const std_msgs::msg::Bool::SharedPtr msg)
@@ -58,11 +61,11 @@ void ImageNav::ImageCallback(const sensor_msgs::msg::Image::SharedPtr img)
         center_points.push_back(cv::Point(x, y));
     }
 
-    cv::Mat point_img = line.PointVisualizar(cv_img->image, left_points);
-    point_img = line.PointVisualizar(point_img, right_points);
-    point_img = line.PointVisualizar(point_img, center_points);
+    // cv::Mat point_img = line.PointVisualizar(cv_img->image, left_points);
+    // point_img = line.PointVisualizar(point_img, right_points);
+    // point_img = line.PointVisualizar(point_img, center_points);
 
-    cv::imshow("image data", point_img);
+    cv::imshow("image data", cv_img->image);
     cv::waitKey(1);
 }
 
@@ -87,7 +90,7 @@ void ImageNav::ImageNavigation(void)
 
     geometry_msgs::msg::Twist cmd_vel;
     cmd_vel.linear.x = linear_max_;
-    cmd_vel.angular.z = angle;
+    cmd_vel.angular.z = pid.cycle(angle);
 
     cmd_pub_->publish(cmd_vel);
 }
