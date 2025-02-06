@@ -2,7 +2,7 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/image.hpp>
-#include <nav_msgs/msg/odometry.hpp>
+#include <std_msgs/msg/bool.hpp>
 #include <geometry_msgs/msg/point.hpp>
 #include <geometry_msgs/msg/twist.hpp>
 #include <cv_bridge/cv_bridge.h>
@@ -16,11 +16,6 @@
 
 namespace imagenav{
 
-typedef struct{
-  double x;
-  double y;
-}Position;
-
 class ImageNav : public rclcpp::Node{
 public:
   IMAGENAV_PUBLIC
@@ -30,30 +25,28 @@ public:
   explicit ImageNav(const std::string& name_space, const rclcpp::NodeOptions& options = rclcpp::NodeOptions());
 
 private:
+  rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr autonomous_flag_subscriber_;
   rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_sub_;
-  rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;
-  rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_pub_;
-  // rclcpp::Publisher<geometry_msgs::msg::Point>::SharedPtr obstacle_pub_;
-  rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr vel_pub_;
-
+  rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmd_pub_;
 
   rclcpp::TimerBase::SharedPtr timer_;
 
+  void autonomousFlagCallback(const std_msgs::msg::Bool::SharedPtr msg);
   void ImageCallback(const sensor_msgs::msg::Image::SharedPtr msg);
-  void OdomCallback(const nav_msgs::msg::Odometry::SharedPtr msg);
-  double AttractiveForce(const Position& robot, const Position& goal);
-  double RepulsiveForce(const Position& robot, const std::vector<Position>& obstacles);
-  double CalculatePotential(Position& robot, double bias_x, double bias_y);
+  void ImageNavigation(void);
 
-  void PotentialMethod();
-  int detected_line_x = 0;
+  const int interval_ms;
+  const double linear_max_;
+  const double angular_max_;
+  bool autonomous_flag_=false;
 
-  const double delta=0.1; // 勾配計算パラメータ
-  double linear_vel=3.0;
+  int left_line_x=0;
+  int right_line_x=0;
 
-  Position self_pose_;
+  std::vector<cv::Point> center_points;
 
   imagenav::LineDetector line;
+  // まだ未実装
   imagenav::ObstacleDetector obstacle;
 };
 

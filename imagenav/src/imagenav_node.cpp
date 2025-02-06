@@ -1,5 +1,6 @@
 #include "imagenav/imagenav_node.hpp"
 
+#include "utilities/utils.hpp"
 #include "cmath"
 
 namespace imagenav{
@@ -7,101 +8,88 @@ namespace imagenav{
 ImageNav::ImageNav(const rclcpp::NodeOptions &options) : ImageNav("", options) {}
 
 ImageNav::ImageNav(const std::string &name_space, const rclcpp::NodeOptions &options)
-: rclcpp::Node("imagenav_node", name_space, options)
+: rclcpp::Node("imagenav_node", name_space, options),
+interval_ms(get_parameter("interval_ms").as_int()),
+linear_max_(get_parameter("max_linear_vel").as_double()),
+angular_max_(get_parameter("max_angular_vel").as_double())
 {
-    image_sub_ = this->create_subscription<sensor_msgs::msg::Image>("/camera/image_raw", 10, std::bind(&ImageNav::ImageCallback, this, std::placeholders::_1));
-    odom_sub_ = this->create_subscription<nav_msgs::msg::Odometry>("/odom", 10, std::bind(&ImageNav::OdomCallback, this, std::placeholders::_1));
-    image_pub_ = this->create_publisher<sensor_msgs::msg::Image>("/line_detection/image", 10);
-    // obstacle_pub_ = this->create_publisher<geometry_msgs::msg::Point>("/obstacle_pos", 10);
-    vel_pub_ = this->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel", 10);
+    autonomous_flag_subscriber_ = this->create_subscription<std_msgs::msg::Bool>("/autonomous", 10, std::bind(&ImageNav::autonomousFlagCallback, this, std::placeholders::_1));
+    image_sub_ = this->create_subscription<sensor_msgs::msg::Image>("/zed/zed_node/rgb/image_rect_color", 10, std::bind(&ImageNav::ImageCallback, this, std::placeholders::_1));
+    cmd_pub_ = this->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel", 10);
 
-    timer_ = this->create_wall_timer(std::chrono::milliseconds(100),
-        std::bind(&ImageNav::PotentialMethod, this));
+    timer_ = this->create_wall_timer(std::chrono::milliseconds(interval_ms),
+        std::bind(&ImageNav::ImageNavigation, this));
+}
+
+void ImageNav::autonomousFlagCallback(const std_msgs::msg::Bool::SharedPtr msg)
+{
+    autonomous_flag_ = msg->data;
+    RCLCPP_INFO(this->get_logger(), "Autonomous flag updated to: %s", autonomous_flag_ ? "true" : "false");
 }
 
 void ImageNav::ImageCallback(const sensor_msgs::msg::Image::SharedPtr img)
 {
     cv_bridge::CvImagePtr cv_img = cv_bridge::toCvCopy(img, img->encoding);
-    if(cv_img->image.empty())    return;
+    if(cv_img->image.empty() || !autonomous_flag_)  return;
 
-    // 障害物の座標取得
-    // ポテンシャル関数計算に使う
-    cv::Point obstacles = obstacle.detectPotition(cv_img->image);
-    // 白線認識
-    cv::Mat bev_image = obstacle.toBEV(cv_img->image);
-    cv::Mat mask_img = line.detectLine(bev_image);
+    cv::Mat detect_img = line.detectLine(cv_img->image);
 
-    cv::imshow("BEV image data", mask_img);
+    // 白線の開始位置（x座標）を検出
+    std::vector<int> estimate_x = line.estimateLinePosition(detect_img);
+
+    if(estimate_x[0] > estimate_x[1])
+    {
+        left_line_x = estimate_x[0];
+        right_line_x = estimate_x[1];
+    }else{
+        right_line_x = estimate_x[0];
+        left_line_x = estimate_x[1];
+    }
+
+    // スライドウィンドウ法で窓の中心点を抽出
+    std::vector<cv::Point> left_points = line.SlideWindowMethod(detect_img, left_line_x);
+    std::vector<cv::Point> right_points = line.SlideWindowMethod(detect_img, right_line_x);
+
+    for(size_t i=0; i < left_points.size(); ++i)
+    {
+        int x = (left_points[i].x + right_points[i].x) / 2;
+        int y = (left_points[i].y + right_points[i].y) / 2;
+
+        center_points.push_back(cv::Point(x, y));
+    }
+
+    cv::Mat point_img = line.PointVisualizar(cv_img->image, left_points);
+    point_img = line.PointVisualizar(point_img, right_points);
+    point_img = line.PointVisualizar(point_img, center_points);
+
+    cv::imshow("image data", point_img);
     cv::waitKey(1);
 }
 
-void ImageNav::OdomCallback(const nav_msgs::msg::Odometry::SharedPtr msg)
+void ImageNav::ImageNavigation(void)
 {
-    self_pose_.x = msg->pose.pose.position.x;
-    self_pose_.y = msg->pose.pose.position.y;
-}
+    const int image_rows=240;
+    const int image_cols=240;
 
-double ImageNav::AttractiveForce(const Position& robot, const Position& goal)
-{
-    // ポテンシャル法 引力計算
-    double diff_x = robot.x - goal.x;
-    double diff_y = robot.y - goal.y;
-    double force = 1 / sqrt(diff_x*diff_x + diff_y*diff_y);
-
-    return force;
-}
-
-double ImageNav::RepulsiveForce(const Position& robot, const std::vector<Position>& obstacles)
-{
-    double force = 0; //初期化
-    // ポテンシャル法 斥力計算（障害物）
-    for(const auto& obs : obstacles)
+    if(center_points.empty() || !autonomous_flag_)
     {
-        double diff_x = robot.x - obs.x;
-        double diff_y = robot.y - obs.y;
-        force += 1 / sqrt(diff_x*diff_x + diff_y*diff_y);
+        center_points.clear();
+        return;
     }
 
-    return force;
-}
+    // center_pointsに向かうように移動<-[4]は適当
+    int dx = image_rows - center_points[4].x;
+    int dy = image_cols - center_points[4].y;
 
-double ImageNav::CalculatePotential(Position& robot, double bias_x, double bias_y)
-{
-    robot.x += bias_x;
-    robot.y += bias_y;
+    center_points.clear();
 
-    Position goal;
-    goal.x = 10;
-    goal.y = 0;
-
-    std::vector<Position> obstacles;
-
-    double attractive_force = AttractiveForce(robot, goal);
-    double repulsive_force = RepulsiveForce(robot, obstacles);
-    double potential = repulsive_force + attractive_force; // 後でゲインつける
-
-    return potential;
-}
-
-void ImageNav::PotentialMethod()
-{
-    Position robot;
-    robot.x = self_pose_.x;
-    robot.y = self_pose_.y;
-    
-    double grad_x = -(CalculatePotential(robot, delta, 0) - CalculatePotential(robot, 0, 0))/ delta;
-    double grad_y = -(CalculatePotential(robot, 0, delta) - CalculatePotential(robot, 0, 0))/ delta;
-
-    double v = sqrt(grad_x*grad_x + grad_y*grad_y);
-
-    grad_x /= v;
-    grad_y /= v; 
+    double angle = std::atan2(dx, dy); // 座標変換のため, dx,dyを入れ替え
 
     geometry_msgs::msg::Twist cmd_vel;
-    cmd_vel.linear.x = linear_vel;
-    cmd_vel.angular.z = std::atan(grad_y/grad_x);
+    cmd_vel.linear.x = linear_max_;
+    cmd_vel.angular.z = angle;
+
+    cmd_pub_->publish(cmd_vel);
 }
-
-
 
 }  // namespace imagenav
