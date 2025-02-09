@@ -41,16 +41,17 @@ std::vector<int> LineDetector::estimateLinePosition(const cv::Mat& img)
     int width = img.cols;
     const int threshold = 50;
 
-    int estimate_height = height / 3;
+    int estimate_height = height / 5;
 
     cv::Mat cat_img = img(cv::Rect(0, estimate_height, width, height - estimate_height));
 
     std::vector<int> white_pixel_counts(width, 0);
-    for(int x = 0; x < width; ++x)
+    for(int y = 0; y < cat_img.rows; ++y)
     {
-        for(int y = 0; y < cat_img.rows; ++y)
+        const uchar *pLine = img.ptr<uchar>(y);
+        for(int x = 0; x < img.cols; ++x)
         {
-            if(cat_img.at<uchar>(y, x) > 128)
+            if(pLine[x] > 128)
                 white_pixel_counts[x]++;
         }
     }
@@ -66,6 +67,11 @@ std::vector<int> LineDetector::estimateLinePosition(const cv::Mat& img)
         }
     }
 
+    if(peaks.size() <= 1)
+    {
+        return prev_start_xs;
+    }
+
     // ピークを降順にソート
     std::sort(peaks.begin(), peaks.end(), [&](int a, int b)
     {
@@ -79,10 +85,11 @@ std::vector<int> LineDetector::estimateLinePosition(const cv::Mat& img)
     // 以前の位置と比較して誤検出を防ぐ<-雑な処理になっているが, 厳密に計算するのであれば姿勢の情報を使うのが良さそう.
     for (size_t i = 0; i < start_xs.size(); ++i)
     {
-        if (prev_start_xs[i] != -1 && abs(start_xs[i] - prev_start_xs[i]) > threshold)
+        if (prev_start_xs[i] != -1 && abs(start_xs[i] - prev_start_xs[i]) > threshold && start_xs[i] <= img.cols && start_xs[i] >= 0)
         {
             start_xs[i] = prev_start_xs[i];
         }
+
     }
 
     // 現在の位置を記録
@@ -106,11 +113,12 @@ std::vector<cv::Point> LineDetector::SlideWindowMethod(const cv::Mat& img, const
     {
         std::fill(white_pixel_counts.begin(), white_pixel_counts.end(), 0);
 
-        for(int x = estimate_x-(window_width/2); x < estimate_x+(window_width/2); ++x)
+        for(int y = height; y < img.rows + window_height && y < img.rows; ++y)
         {
-            for(int y = height; y < img.rows + window_height && y < img.rows; ++y)
+            const uchar *pLine = img.ptr<uchar>(y);
+            for(int x = estimate_x-(window_width/2); x < estimate_x+(window_width/2); ++x)
             {
-                if(img.at<uchar>(y, x) > 128)
+                if(pLine[x] > 128)
                 {
                     int relative_x = x - (estimate_x - (window_width/2));
                     white_pixel_counts[relative_x]++;

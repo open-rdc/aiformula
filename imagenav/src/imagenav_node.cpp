@@ -61,9 +61,9 @@ void ImageNav::ImageCallback(const sensor_msgs::msg::Image::SharedPtr img)
         center_points.push_back(cv::Point(x, y));
     }
 
-    // cv::Mat point_img = line.PointVisualizar(cv_img->image, left_points);
-    // point_img = line.PointVisualizar(point_img, right_points);
-    // point_img = line.PointVisualizar(point_img, center_points);
+    cv::Mat point_img = line.PointVisualizar(cv_img->image, left_points);
+    point_img = line.PointVisualizar(point_img, right_points);
+    point_img = line.PointVisualizar(point_img, center_points);
 
     cv::imshow("image data", cv_img->image);
     cv::waitKey(1);
