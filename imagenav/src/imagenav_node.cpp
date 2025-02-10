@@ -12,7 +12,8 @@ ImageNav::ImageNav(const std::string &name_space, const rclcpp::NodeOptions &opt
 interval_ms(get_parameter("interval_ms").as_int()),
 pid(get_parameter("interval_ms").as_int()),
 linear_max_(get_parameter("max_linear_vel").as_double()),
-angular_max_(get_parameter("max_angular_vel").as_double())
+angular_max_(get_parameter("max_angular_vel").as_double()),
+visualize_flag_(get_parameter("visualize_flag").as_bool())
 {
     autonomous_flag_subscriber_ = this->create_subscription<std_msgs::msg::Bool>("/autonomous", 10, std::bind(&ImageNav::autonomousFlagCallback, this, std::placeholders::_1));
     image_sub_ = this->create_subscription<sensor_msgs::msg::Image>("/zed/zed_node/rgb/image_rect_color", 10, std::bind(&ImageNav::ImageCallback, this, std::placeholders::_1));
@@ -61,12 +62,15 @@ void ImageNav::ImageCallback(const sensor_msgs::msg::Image::SharedPtr img)
         center_points.push_back(cv::Point(x, y));
     }
 
-    cv::Mat point_img = line.PointVisualizar(cv_img->image, left_points);
-    point_img = line.PointVisualizar(point_img, right_points);
-    point_img = line.PointVisualizar(point_img, center_points);
+    if(visualize_flag_)
+    {
+        cv::Mat point_img = line.PointVisualizar(cv_img->image, left_points);
+        point_img = line.PointVisualizar(point_img, right_points);
+        point_img = line.PointVisualizar(point_img, center_points);
 
-    cv::imshow("image data", cv_img->image);
-    cv::waitKey(1);
+        cv::imshow("image data", cv_img->image);
+        cv::waitKey(1);
+    }
 }
 
 void ImageNav::ImageNavigation(void)

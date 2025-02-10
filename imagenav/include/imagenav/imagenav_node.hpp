@@ -40,6 +40,7 @@ private:
   const int interval_ms;
   const double linear_max_;
   const double angular_max_;
+  const bool visualize_flag_;
   bool autonomous_flag_=false;
 
   int left_line_x=0;
