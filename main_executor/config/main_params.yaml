@@ -59,7 +59,7 @@ cybergear_interface_node:
 path_publisher_node:
   ros__parameters:
     interval_ms : 1000
-    path_file_name : "shihou_241127_dynamic2"
+    path_file_name : "shihou_241030_dynamic"
 
 gnssnav_follower_node:
   ros__parameters:
