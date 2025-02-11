@@ -21,6 +21,19 @@
 namespace gnssnav{
 
 class Follower : public rclcpp::Node{
+
+    typedef struct{
+        double x;
+        double y;
+    }Force;
+
+    typedef struct{
+        double x;
+        double y;
+        double distance;
+        double theta;
+    }Obstacle;
+
 public:
     GNSSNAV_PUBLIC
     explicit Follower(const rclcpp::NodeOptions& options = rclcpp::NodeOptions());
@@ -61,10 +74,13 @@ private:
     void setBasePose(void);
     double calculateYawFromQuaternion(const geometry_msgs::msg::Quaternion&);
     double calculateCrossError();
+    // double ObstaclePotential();
 
     std::pair<double, double> convertECEFtoUTM(double x, double y, double z);
 
     controller::PositionPid pid;
+
+    Obstacle obstacle;
 
     const int freq_ms;
     const int is_debug;
@@ -95,6 +111,12 @@ private:
     double vectornav_base_x_=0;
     double vectornav_base_y_=0;
     double vectornav_base_yaw_=0;
+
+//
+    double th = 3.0;
+    double k_o = 1.0;
+//
+
 
     PJ_CONTEXT *C;
     PJ *P;
