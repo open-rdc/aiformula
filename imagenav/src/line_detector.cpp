@@ -34,66 +34,45 @@ cv::Mat LineDetector::detectLine(const cv::Mat& cv_img)
     return edges;
 }
 
-// 白線の開始位置（x座標）を推定<-あとで複数レーン検出できるように拡張
 std::vector<int> LineDetector::estimateLinePosition(const cv::Mat& img)
 {
-    int height = img.rows;
-    int width = img.cols;
-    const int threshold = 50;
+    int window_width = 100;
+    const int window_height = 40;
 
-    int estimate_height = height / 5;
-
-    cv::Mat cat_img = img(cv::Rect(0, estimate_height, width, height - estimate_height));
-
-    std::vector<int> white_pixel_counts(width, 0);
-    for(int y = 0; y < cat_img.rows; ++y)
-    {
-        const uchar *pLine = img.ptr<uchar>(y);
-        for(int x = 0; x < img.cols; ++x)
-        {
-            if(pLine[x] > 128)
-                white_pixel_counts[x]++;
-        }
-    }
-
-    std::vector<int> peaks;
-    for (int x = 1; x < width - 1; ++x)
-    {
-        if (white_pixel_counts[x] > white_pixel_counts[x - 1] &&
-            white_pixel_counts[x] > white_pixel_counts[x + 1] &&
-            white_pixel_counts[x] > 10) // ピークの最小閾値
-        {
-            peaks.push_back(x);
-        }
-    }
-
-    if(peaks.size() <= 1)
-    {
-        return prev_start_xs;
-    }
-
-    // ピークを降順にソート
-    std::sort(peaks.begin(), peaks.end(), [&](int a, int b)
-    {
-        return white_pixel_counts[a] > white_pixel_counts[b];
-    });
-
+    int max_white_x = 0;
     std::vector<int> start_xs;
-    if (peaks.size() > 0) start_xs.push_back(peaks[0]);
-    if (peaks.size() > 1) start_xs.push_back(peaks[1]);
 
-    // 以前の位置と比較して誤検出を防ぐ<-雑な処理になっているが, 厳密に計算するのであれば姿勢の情報を使うのが良さそう.
-    for (size_t i = 0; i < start_xs.size(); ++i)
+    for(int line=0; line < 2; line++)
     {
-        if (prev_start_xs[i] != -1 && abs(start_xs[i] - prev_start_xs[i]) > threshold && start_xs[i] <= img.cols && start_xs[i] >= 0)
+        std::vector<int> white_pixel_counts(window_width, 0);
+
+        for(int y = img.rows - window_height; y < img.rows; ++y)
         {
-            start_xs[i] = prev_start_xs[i];
+            const uchar *pLine = img.ptr<uchar>(y);
+            for(int x = 0; x < window_width; ++x)
+            {
+                int screen_x = prev_start_xs[line] - window_width/2 + x;
+
+                if(pLine[screen_x] > 128)
+                    white_pixel_counts[x]++;
+            }
         }
 
+        for(int x = 0; x < window_width; ++x)
+        {
+            if(white_pixel_counts[x] > white_pixel_counts[x - 1])
+            {
+                max_white_x = prev_start_xs[line] - window_width/2 + x;
+            }
+        }
+        start_xs.push_back(max_white_x);
+
+        if(abs(prev_start_xs[line] - start_xs[line]) > window_width && prev_start_xs[line] != -1)
+        {
+            start_xs[line] = prev_start_xs[line];
+        }
     }
 
-    // 現在の位置を記録
-    prev_start_xs = start_xs;
 
     return start_xs;
 }
@@ -101,11 +80,11 @@ std::vector<int> LineDetector::estimateLinePosition(const cv::Mat& img)
 // スライドウィンドウ法
 std::vector<cv::Point> LineDetector::SlideWindowMethod(const cv::Mat& img, const int start_x)
 {
-    const int window_width = 50;
+    const int window_width = 100;
     const int window_height = 40;
     std::vector<cv::Point> window_position;
     std::vector<int> white_pixel_counts(window_width, 0);
-    int estimate_x = start_x; // 値渡しだけど良いのかな<-あとでポインタに修正?
+    int estimate_x = start_x;
     int prev_estimate_x = start_x;
     int prev_delta_x = 0;
 
@@ -173,6 +152,23 @@ cv::Mat LineDetector::toBEV(const cv::Mat& img)
     cv::Mat trans_mat = cv::getPerspectiveTransform(src_points, dst_points);
 
     cv::warpPerspective(img, img, trans_mat, img.size());
+
+    return img;
+}
+
+cv::Mat LineDetector::WindowVisualizar(cv::Mat& img, const std::vector<cv::Point>& points)
+{
+    const int BOX_SIZE_height = 40;
+    const int BOX_SIZE_width = 100;
+
+    for (const auto& point : points)
+    {
+        cv::Point top_left(point.x - BOX_SIZE_width / 2, point.y - BOX_SIZE_height / 2);
+        cv::Point bottom_right(point.x + BOX_SIZE_width / 2, point.y + BOX_SIZE_height / 2);
+        
+        // 四角形の描画
+        cv::rectangle(img, top_left, bottom_right, cv::Scalar(0, 255, 0), 2);
+    }
 
     return img;
 }
