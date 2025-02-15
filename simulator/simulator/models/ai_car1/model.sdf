@@ -240,6 +240,26 @@
       </visual>
     </link>
 
+<joint name="camera_joint" type="fixed">
+  <parent>base_link</parent>
+  <child>camera_link</child>
+  <pose>0.35 0 1.5 0 0.087 0</pose>
+  <!-- <pose>0.0 0.35 0.42 0 0 1.57</pose> -->
+  <axis>
+    <xyz>0 0 1</xyz>
+  </axis>
+</joint>
+
+<joint name="camera_rgb_joint" type="fixed">
+  <parent>camera_link</parent>
+  <child>camera_rgb_frame</child>
+  <pose>0.35 0 1.5 0 0.087 0</pose>
+  <!-- <pose>0.0 0.35 0.42 0 0 1.57</pose> -->
+  <axis>
+    <xyz>0 0 1</xyz>
+  </axis>
+</joint>
+
 <link name="camera_link">
       <!-- <sensor name="camera_depth_sensor" type="depth">
         <always_on>true</always_on>
