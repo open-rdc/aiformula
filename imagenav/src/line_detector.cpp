@@ -88,13 +88,12 @@ std::vector<cv::Point> LineDetector::SlideWindowMethod(const cv::Mat& img, const
     int prev_estimate_x = start_x;
     int prev_delta_x = 0;
 
-    for(int height = img.rows; height > window_height; height-=window_height)
+    for(int height = img.rows - 1; height > window_height; height-=window_height)
     {
         std::fill(white_pixel_counts.begin(), white_pixel_counts.end(), 0);
 
-        for(int y = height; y < height + window_height; --y)
+        for(int y = height; y > height - window_height; --y)
         {
-            std::cerr << "y logger : " << y << std::endl;
             const uchar *pLine = img.ptr<uchar>(y);
             for(int x = estimate_x-(window_width/2); x < estimate_x+(window_width/2); ++x)
             {

@@ -37,45 +37,44 @@ void ImageNav::ImageCallback(const sensor_msgs::msg::Image::SharedPtr img)
     cv_bridge::CvImagePtr cv_img = cv_bridge::toCvCopy(img, img->encoding);
     if(cv_img->image.empty() || !autonomous_flag_)  return;
 
-    // cv::Mat detect_img = line.detectLine(cv_img->image);
+    cv::Mat detect_img = line.detectLine(cv_img->image);
     // cv::Mat obstacle_img = obstacle.detectObstacle(cv_img->image);
 
-    // // 白線の開始位置（x座標）を検出
-    // std::vector<int> estimate_x = line.estimateLinePosition(detect_img);
+    // 白線の開始位置（x座標）を検出
+    std::vector<int> estimate_x = line.estimateLinePosition(detect_img);
 
-    // if(estimate_x[0] > estimate_x[1])
-    // {
-    //     left_line_x = estimate_x[0];
-    //     right_line_x = estimate_x[1];
-    // }else{
-    //     right_line_x = estimate_x[0];
-    //     left_line_x = estimate_x[1];
-    // }
+    if(estimate_x[0] > estimate_x[1])
+    {
+        left_line_x = estimate_x[0];
+        right_line_x = estimate_x[1];
+    }else{
+        right_line_x = estimate_x[0];
+        left_line_x = estimate_x[1];
+    }
 
-    // // スライドウィンドウ法で窓の中心点を抽出
-    // std::vector<cv::Point> left_points = line.SlideWindowMethod(detect_img, left_line_x);
-    // std::vector<cv::Point> right_points = line.SlideWindowMethod(detect_img, right_line_x);
+    // スライドウィンドウ法で窓の中心点を抽出
+    std::vector<cv::Point> left_points = line.SlideWindowMethod(detect_img, left_line_x);
+    std::vector<cv::Point> right_points = line.SlideWindowMethod(detect_img, right_line_x);
 
-    // for(size_t i=0; i < left_points.size(); ++i)
-    // {
-    //     int x = (left_points[i].x + right_points[i].x) / 2;
-    //     int y = (left_points[i].y + right_points[i].y) / 2;
+    for(size_t i=0; i < left_points.size(); ++i)
+    {
+        int x = (left_points[i].x + right_points[i].x) / 2;
+        int y = (left_points[i].y + right_points[i].y) / 2;
 
-    //     center_points.push_back(cv::Point(x, y));
-    // }
+        center_points.push_back(cv::Point(x, y));
+    }
 
     if(visualize_flag_)
     {
-        // cv::Mat point_img = line.WindowVisualizar(cv_img->image, left_points);
-        // point_img = line.WindowVisualizar(point_img, right_points);
-        // point_img = line.PointVisualizar(point_img, center_points);
-        cv::Mat bev_img = line.toBEV(cv_img->image);
+        cv::Mat point_img = line.WindowVisualizar(cv_img->image, left_points);
+        point_img = line.WindowVisualizar(point_img, right_points);
+        point_img = line.PointVisualizar(point_img, center_points);
 
         std_msgs::msg::Header header;
         header.stamp = this->get_clock()->now();
         header.frame_id = "camera";
 
-        sensor_msgs::msg::Image::SharedPtr rosimg = cv_bridge::CvImage(header, "bgr8", bev_img).toImageMsg();
+        sensor_msgs::msg::Image::SharedPtr rosimg = cv_bridge::CvImage(header, "bgr8", point_img).toImageMsg();
         image_pub_->publish(*rosimg);
 
     }
