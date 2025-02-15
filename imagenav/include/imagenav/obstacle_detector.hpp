@@ -14,11 +14,10 @@ typedef struct{
 
 public:
     ObstacleDetector();
-    cv::Point detectPotition(const cv::Mat& img);
+    cv::Mat detectObstacle(const cv::Mat& img);
 
 private:
-    cv::Mat toBEV(const cv::Mat& img);
-    cv::Point detectObstacle(const cv::Mat& img);
+    cv::Mat MaskObstacleImage(const cv::Mat& img);
 };
 
 } // namespace
