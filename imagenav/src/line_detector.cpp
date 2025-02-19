@@ -36,43 +36,67 @@ cv::Mat LineDetector::detectLine(const cv::Mat& cv_img)
 
 std::vector<int> LineDetector::estimateLinePosition(const cv::Mat& img)
 {
-    int window_width = 100;
     const int window_height = 40;
+    const int threshold = 10;
 
     int max_white_x = 0;
+    int max_x = 0;
     std::vector<int> start_xs;
 
     for(int line=0; line < 2; line++)
     {
-        std::vector<int> white_pixel_counts(window_width, 0);
+        std::vector<int> white_pixel_counts(window_width[line], 0);
 
         for(int y = img.rows - window_height; y < img.rows; ++y)
         {
             const uchar *pLine = img.ptr<uchar>(y);
-            for(int x = 0; x < window_width; ++x)
+            for(int x = 0; x < window_width[line]; ++x)
             {
-                int screen_x = prev_start_xs[line] - window_width/2 + x;
+                int screen_x = prev_start_xs[line] - window_width[line]/2 + x;
 
                 if(pLine[screen_x] > 128)
                     white_pixel_counts[x]++;
             }
         }
 
-        for(int x = 0; x < window_width; ++x)
+        for(int x = 0; x < window_width[line]; ++x)
         {
             if(white_pixel_counts[x] > white_pixel_counts[x - 1])
             {
-                max_white_x = prev_start_xs[line] - window_width/2 + x;
+                max_white_x = prev_start_xs[line] - window_width[line]/2 + x;
+                max_x = x;
             }
         }
+
         start_xs.push_back(max_white_x);
 
-        if(abs(prev_start_xs[line] - start_xs[line]) > window_width && prev_start_xs[line] != -1)
+        if(start_xs[line] >= img.cols){
+            start_xs[line] = 400;
+        }else if(start_xs[line] <= 0){
+            start_xs[line] = 100;
+        }
+
+        if(abs(prev_start_xs[line] - start_xs[line]) > 10)
         {
             start_xs[line] = prev_start_xs[line];
         }
-    }
 
+        // 白ピクセルが規定量を下回ったらウィンドウ拡大
+        if(white_pixel_counts[max_x] <= threshold){
+            if(window_width[line] <= 200)
+                window_width[line] += 3;
+        }else{
+            window_width[line] = 50;
+        }
+
+        prev_start_xs[line] = start_xs[line];
+
+        // 検出が被ったらウィンドウを初期位置にリセット
+        if(abs(start_xs[0] - start_xs[1]) <= 20){
+            std::cerr << "window reset" << std::endl;
+            start_xs = {100, 400};
+        }
+    }
 
     return start_xs;
 }
@@ -109,7 +133,7 @@ std::vector<cv::Point> LineDetector::SlideWindowMethod(const cv::Mat& img, const
         std::vector<int> white_pixel_indices;
         for (int x = 0; x < window_width; ++x)
         {
-            if (white_pixel_counts[x] > 0)
+            if (white_pixel_counts[x] > 20)
             {
                 for (int i = 0; i < white_pixel_counts[x]; ++i)
                 {
@@ -127,6 +151,7 @@ std::vector<cv::Point> LineDetector::SlideWindowMethod(const cv::Mat& img, const
 
             estimate_x = estimate_x - (window_width / 2) + median_relative_x;
         }else{
+            std::cerr << "white_pixel_indices.empty" << std::endl;
             estimate_x = prev_estimate_x + prev_delta_x;
         }
 
@@ -156,16 +181,15 @@ cv::Mat LineDetector::toBEV(const cv::Mat& img)
     return img;
 }
 
-cv::Mat LineDetector::WindowVisualizar(cv::Mat& img, const std::vector<cv::Point>& points)
+cv::Mat LineDetector::WindowVisualizar(cv::Mat& img, const std::vector<cv::Point>& points, const int line)
 {
     const int BOX_SIZE_height = 40;
-    const int BOX_SIZE_width = 100;
 
     for (const auto& point : points)
     {
-        cv::Point top_left(point.x - BOX_SIZE_width / 2, point.y - BOX_SIZE_height / 2);
-        cv::Point bottom_right(point.x + BOX_SIZE_width / 2, point.y + BOX_SIZE_height / 2);
-        
+        cv::Point top_left(point.x - window_width[line] / 2, point.y - BOX_SIZE_height / 2);
+        cv::Point bottom_right(point.x + window_width[line] / 2, point.y + BOX_SIZE_height / 2);
+  
         // 四角形の描画
         cv::rectangle(img, top_left, bottom_right, cv::Scalar(0, 255, 0), 2);
     }
