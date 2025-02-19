@@ -4,3 +4,6 @@
 [submodule "vectornav"]
 	path = vectornav
 	url = https://github.com/open-rdc/vectornav
+[submodule "zed-sdk"]
+	path = zed-sdk
+	url = https://github.com/open-rdc/zed-sdk.git

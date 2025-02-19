@@ -1,7 +1,6 @@
 #pragma once
 
 #include <cv_bridge/cv_bridge.h>
-#include <opencv2/highgui.hpp>
 
 namespace imagenav{
 
@@ -14,10 +13,11 @@ typedef struct{
 
 public:
     ObstacleDetector();
-    cv::Mat detectObstacle(const cv::Mat& img);
+    std::vector<cv::Point> detectObstacle(const cv::Mat& img);
 
 private:
     cv::Mat MaskObstacleImage(const cv::Mat& img);
+    std::vector<cv::Point> EstimatePosition(const cv::Mat& img);
 };
 
 } // namespace

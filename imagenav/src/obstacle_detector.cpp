@@ -7,7 +7,7 @@ ObstacleDetector::ObstacleDetector()
 }
 
 // 障害物の座標推定
-cv::Mat ObstacleDetector::detectObstacle(const cv::Mat& img)
+std::vector<cv::Point> ObstacleDetector::detectObstacle(const cv::Mat& img)
 {
     cv::Mat img_yuv;
     cv::cvtColor(img, img_yuv, cv::COLOR_BGR2YUV);
@@ -24,7 +24,9 @@ cv::Mat ObstacleDetector::detectObstacle(const cv::Mat& img)
     // hsvに変換
     cv::cvtColor(img_gbr, img_hsv, cv::COLOR_BGR2HSV);
 
-    return detectObstacle(img_hsv);
+    cv::Mat mask_img = MaskObstacleImage(img_hsv);
+
+    return EstimatePosition(mask_img);
 }
 
 cv::Mat ObstacleDetector::MaskObstacleImage(const cv::Mat& img)
@@ -38,11 +40,37 @@ cv::Mat ObstacleDetector::MaskObstacleImage(const cv::Mat& img)
     // cv::inRange(img, LOW_COLOR2, HIGH_COLOR2, mask2);
     // cv::bitwise_and(mask1, mask2, mask);
 
-        
-    cv::imshow("obstacle image data", mask1);
-    cv::waitKey(1);
-
     return mask1;
+}
+
+std::vector<cv::Point> ObstacleDetector::EstimatePosition(const cv::Mat& img)
+{
+    std::vector<cv::Point> obstacles_x;
+    int max_white_x=-1;
+
+    std::vector<int> white_pixel_counts(img.cols, 0);
+    for(int y = 0; y < img.rows; ++y)
+    {
+        const uchar *pLine = img.ptr<uchar>(y);
+        for(int x = 0; x < img.cols; ++x)
+        {
+            if(pLine[x] > 128)
+            {
+                white_pixel_counts[x]++;
+            }
+        }
+    }
+
+    for(int x = 0; x < img.cols; ++x)
+    {
+        if(white_pixel_counts[x] > white_pixel_counts[x - 1] && white_pixel_counts[x] >= 10)
+        {
+            max_white_x = x;
+        }
+    }
+
+    obstacles_x.push_back(cv::Point{max_white_x, 0});
+    return obstacles_x;
 }
 
 } // namespace
