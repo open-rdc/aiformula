@@ -14,16 +14,23 @@ public:
     LineDetector();
     cv::Mat detectLine(const cv::Mat& cv_img);
     std::vector<int> estimateLinePosition(const cv::Mat& img);
-    std::vector<cv::Point> SlideWindowMethod(const cv::Mat& img, const int start_x);
-    cv::Mat WindowVisualizar(cv::Mat& img, const std::vector<cv::Point>& points, const int line);
+    std::vector<cv::Point> SlideWindowMethod(const cv::Mat& img, const int start_x, const int line);
+    cv::Mat WindowVisualizar(cv::Mat& img, const std::vector<cv::Point>& points, const int line, const cv::Scalar color);
     cv::Mat PointVisualizar(cv::Mat& img, const std::vector<cv::Point>& points);
 
 private:
     cv::Mat draw_lines(const cv::Mat& cv_img, const std::vector<cv::Vec4i>& line);
     std::vector<double> Spline(const std::vector<double> xs, const std::vector<double> ys, double num_point);
     cv::Mat toBEV(const cv::Mat& img);
+    bool JunctionDetectWindow(const cv::Mat& img, const cv::Point pos);
+
     std::vector<int> prev_start_xs={100, 350};
     std::vector<int> window_width={100, 100};
+
+    std::vector<std::vector<cv::Point>> prev_window_position = {
+        {cv::Point(0,0),cv::Point(0,0),cv::Point(0,0),cv::Point(0,0),cv::Point(0,0),cv::Point(0,0),cv::Point(0,0)},
+        {cv::Point(0,0),cv::Point(0,0),cv::Point(0,0),cv::Point(0,0),cv::Point(0,0),cv::Point(0,0),cv::Point(0,0)}
+    };
 };
 
 } // namespace
