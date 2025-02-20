@@ -37,38 +37,43 @@ void ImageNav::ImageCallback(const sensor_msgs::msg::Image::SharedPtr img)
     cv_bridge::CvImagePtr cv_img = cv_bridge::toCvCopy(img, img->encoding);
     if(cv_img->image.empty() || !autonomous_flag_)  return;
 
+    cv::Mat image = cv_img->image;
     cv::Mat detect_img = line.detectLine(cv_img->image);
-    // cv::Mat obstacle_img = obstacle.detectObstacle(cv_img->image);
+    std::vector<cv::Point> obstacle_pos = obstacle.detectObstacle(image);
 
     // 白線の開始位置（x座標）を検出
     std::vector<int> estimate_x = line.estimateLinePosition(detect_img);
-
-    if(estimate_x[0] > estimate_x[1])
-    {
-        left_line_x = estimate_x[0];
-        right_line_x = estimate_x[1];
-    }else{
-        right_line_x = estimate_x[0];
-        left_line_x = estimate_x[1];
-    }
-
+ 
     // スライドウィンドウ法で窓の中心点を抽出
-    std::vector<cv::Point> left_points = line.SlideWindowMethod(detect_img, left_line_x);
-    std::vector<cv::Point> right_points = line.SlideWindowMethod(detect_img, right_line_x);
+    std::vector<cv::Point> left_points = line.SlideWindowMethod(detect_img, estimate_x[0], 0);
+    std::vector<cv::Point> right_points = line.SlideWindowMethod(detect_img, estimate_x[1], 1);
 
     for(size_t i=0; i < left_points.size(); ++i)
     {
         int x = (left_points[i].x + right_points[i].x) / 2;
         int y = (left_points[i].y + right_points[i].y) / 2;
 
-        center_points.push_back(cv::Point(x, y));
+        if(obstacle_pos[0].x == -1){
+            center_points.push_back(cv::Point(x, y));
+        }else if(obstacle_pos[0].x <= x){
+
+            center_points.push_back(cv::Point((obstacle_pos[0].x + right_points[i].x*3) / 4, y));
+        }else if(obstacle_pos[0].x >= x){
+            center_points.push_back(cv::Point((left_points[i].x*3 + obstacle_pos[0].x) / 4, y));
+        }
+        
     }
 
     if(visualize_flag_)
     {
-        cv::Mat point_img = line.WindowVisualizar(cv_img->image, left_points);
-        point_img = line.WindowVisualizar(point_img, right_points);
+        cv::Mat point_img = line.WindowVisualizar(cv_img->image, left_points, 0, cv::Scalar(0,255,0));
+        point_img = line.WindowVisualizar(point_img, right_points, 1, cv::Scalar(0,255,0));
         point_img = line.PointVisualizar(point_img, center_points);
+
+        cv::line(point_img, cv::Point(obstacle_pos[0].x, 480), cv::Point(obstacle_pos[0].x, 0), cv::Scalar(255, 0, 0), 3);
+
+        cv::imshow("point_img", point_img);
+        cv::waitKey(1);
 
         std_msgs::msg::Header header;
         header.stamp = this->get_clock()->now();
@@ -76,7 +81,6 @@ void ImageNav::ImageCallback(const sensor_msgs::msg::Image::SharedPtr img)
 
         sensor_msgs::msg::Image::SharedPtr rosimg = cv_bridge::CvImage(header, "bgr8", point_img).toImageMsg();
         image_pub_->publish(*rosimg);
-
     }
 }
 
@@ -92,8 +96,8 @@ void ImageNav::ImageNavigation(void)
     }
 
     // center_pointsに向かうように移動<-[4]は適当
-    int dx = image_rows - center_points[4].x;
-    int dy = image_cols - center_points[4].y;
+    int dx = image_rows - center_points[3].x;
+    int dy = image_cols - center_points[3].y;
 
     center_points.clear();
 
