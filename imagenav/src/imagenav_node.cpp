@@ -57,9 +57,9 @@ void ImageNav::ImageCallback(const sensor_msgs::msg::Image::SharedPtr img)
             center_points.push_back(cv::Point(x, y));
         }else if(obstacle_pos[0].x <= x){
 
-            center_points.push_back(cv::Point((obstacle_pos[0].x + right_points[i].x*3) / 4, y));
+            center_points.push_back(cv::Point((obstacle_pos[0].x + right_points[i].x) / 2, y));
         }else if(obstacle_pos[0].x >= x){
-            center_points.push_back(cv::Point((left_points[i].x*3 + obstacle_pos[0].x) / 4, y));
+            center_points.push_back(cv::Point((left_points[i].x + obstacle_pos[0].x) / 2, y));
         }
         
     }
@@ -95,7 +95,7 @@ void ImageNav::ImageNavigation(void)
         return;
     }
 
-    // center_pointsに向かうように移動<-[4]は適当
+    // center_pointsに向かうように移動
     int dx = image_rows - center_points[3].x;
     int dy = image_cols - center_points[3].y;
 
