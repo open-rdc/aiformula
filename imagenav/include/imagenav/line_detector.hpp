@@ -22,7 +22,7 @@ private:
     cv::Mat draw_lines(const cv::Mat& cv_img, const std::vector<cv::Vec4i>& line);
     std::vector<double> Spline(const std::vector<double> xs, const std::vector<double> ys, double num_point);
     cv::Mat toBEV(const cv::Mat& img);
-    bool JunctionDetectWindow(const cv::Mat& img, const cv::Point pos);
+    bool JunctionDetectWindow(const cv::Mat& img, const cv::Point pos, const int delta_x);
 
     std::vector<int> prev_start_xs={100, 350};
     std::vector<int> window_width={100, 100};

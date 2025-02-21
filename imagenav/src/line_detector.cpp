@@ -151,7 +151,11 @@ std::vector<cv::Point> LineDetector::SlideWindowMethod(const cv::Mat& img, const
 
             estimate_x = estimate_x - (window_width / 2) + median_relative_x;
         }else{
-            estimate_x = prev_window_position[line][window_position.size()].x + prev_delta_x;
+            if(prev_delta_x >= 0){
+                estimate_x = prev_window_position[line][window_position.size()].x;
+            }else{
+                estimate_x = prev_window_position[line][window_position.size()].x + prev_delta_x;
+            }
         }
 
         // 検出したウィンドウが前回の位置と離れすぎていたら前回の位置を保持
@@ -168,7 +172,7 @@ std::vector<cv::Point> LineDetector::SlideWindowMethod(const cv::Mat& img, const
         // 分岐路検出
         if(window_position.size() > 0 && abs(estimate_x - window_position[window_position.size()-1].x) > window_width/5)
         {
-            if(JunctionDetectWindow(img, cv::Point{estimate_x, height}))
+            if(JunctionDetectWindow(img, cv::Point{estimate_x, height}, prev_delta_x))
             {
                 for(int y=height-window_height/2; y > window_height; y-=window_height)
                 {
@@ -192,7 +196,7 @@ std::vector<cv::Point> LineDetector::SlideWindowMethod(const cv::Mat& img, const
     return window_position;
 }
 
-bool LineDetector::JunctionDetectWindow(const cv::Mat& img, const cv::Point pos)
+bool LineDetector::JunctionDetectWindow(const cv::Mat& img, const cv::Point pos, const int delta_x)
 {
     const int window_width=100;
     const int window_height=40;
@@ -208,7 +212,7 @@ bool LineDetector::JunctionDetectWindow(const cv::Mat& img, const cv::Point pos)
         for(int y=height; y>height - window_height; y--)
         {
             const uchar *pLine = img.ptr<uchar>(y);
-            for(int x=pos.x-(window_width/2); x<=pos.x+(window_width/2); x++)
+            for(int x=pos.x+delta_x-(window_width/2); x<=pos.x+(window_width/2); x++)
             {
                 if(pLine[x] > 128)
                 {
