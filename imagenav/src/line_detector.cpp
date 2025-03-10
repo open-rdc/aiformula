@@ -10,13 +10,14 @@ LineDetector::LineDetector()
 
 cv::Mat LineDetector::detectLine(const cv::Mat& cv_img)
 {
+    cv::Mat cv_img_copy = cv_img.clone();
     cv::Mat bev_img, hsl_img, img, edges;
     std::vector<cv::Mat> channel;
 
     // 鳥瞰図変換<-パラメータチューニングがすごく難しい
-    bev_img = toBEV(cv_img);
+    bev_img = toBEV(cv_img_copy);
 
-    cv::cvtColor(cv_img, hsl_img, cv::COLOR_BGR2HLS);
+    cv::cvtColor(bev_img, hsl_img, cv::COLOR_BGR2HLS);
     cv::split(hsl_img, channel);
     img = channel[1];
     cv::GaussianBlur(img, img, cv::Size(5, 5), 0);
@@ -36,9 +37,8 @@ cv::Mat LineDetector::detectLine(const cv::Mat& cv_img)
 
 std::vector<int> LineDetector::estimateLinePosition(const cv::Mat& img)
 {
-    const int window_height = 40;
-    const int threshold = 10;
-
+    const int expand_th = 5;
+    const int white_th = 200;
     int max_white_x = 0;
     int max_x = 0;
     std::vector<int> start_xs;
@@ -54,7 +54,7 @@ std::vector<int> LineDetector::estimateLinePosition(const cv::Mat& img)
             {
                 int screen_x = prev_start_xs[line] - window_width[line]/2 + x;
 
-                if(pLine[screen_x] > 128)
+                if(pLine[screen_x] > white_th)
                     white_pixel_counts[x]++;
             }
         }
@@ -82,7 +82,7 @@ std::vector<int> LineDetector::estimateLinePosition(const cv::Mat& img)
         }
 
         // 白ピクセルが規定量を下回ったらウィンドウ拡大
-        if(white_pixel_counts[max_x] <= threshold){
+        if(white_pixel_counts[max_x] <= expand_th){
             if(window_width[line] <= 200)
                 window_width[line] += 3;
         }else{
@@ -90,12 +90,6 @@ std::vector<int> LineDetector::estimateLinePosition(const cv::Mat& img)
         }
 
         prev_start_xs[line] = start_xs[line];
-
-        // 検出が被ったらウィンドウを初期位置にリセット
-        if(abs(start_xs[0] - start_xs[1]) <= 20){
-            std::cerr << "window reset" << std::endl;
-            start_xs = {100, 400};
-        }
     }
 
     return start_xs;
@@ -105,7 +99,7 @@ std::vector<int> LineDetector::estimateLinePosition(const cv::Mat& img)
 std::vector<cv::Point> LineDetector::SlideWindowMethod(const cv::Mat& img, const int start_x, const int line)
 {
     const int window_width = 100;
-    const int window_height = 40;
+    const int white_th = 200;
     const int threshold = window_width/2;
     std::vector<cv::Point> window_position;
     std::vector<int> white_pixel_counts(window_width, 0);
@@ -121,7 +115,7 @@ std::vector<cv::Point> LineDetector::SlideWindowMethod(const cv::Mat& img, const
             const uchar *pLine = img.ptr<uchar>(y);
             for(int x = estimate_x-(window_width/2); x < estimate_x+(window_width/2); ++x)
             {
-                if(pLine[x] > 128)
+                if(pLine[x] > white_th)
                 {
                     int relative_x = x - (estimate_x - (window_width/2));
                     white_pixel_counts[relative_x]++;
@@ -151,10 +145,13 @@ std::vector<cv::Point> LineDetector::SlideWindowMethod(const cv::Mat& img, const
 
             estimate_x = estimate_x - (window_width / 2) + median_relative_x;
         }else{
-            if(prev_delta_x >= 0){
-                estimate_x = prev_window_position[line][window_position.size()].x;
-            }else{
-                estimate_x = prev_window_position[line][window_position.size()].x + prev_delta_x;
+            if(prev_window_position[line][window_position.size()].x)
+            {
+                if(prev_delta_x >= 0){
+                    estimate_x = prev_window_position[line][window_position.size()].x;
+                }else{
+                    estimate_x = prev_window_position[line][window_position.size()].x;
+                }
             }
         }
 
@@ -170,18 +167,18 @@ std::vector<cv::Point> LineDetector::SlideWindowMethod(const cv::Mat& img, const
         }
 
         // 分岐路検出
-        if(window_position.size() > 0 && abs(estimate_x - window_position[window_position.size()-1].x) > window_width/5)
+        if(window_position.size() > 0 && estimate_x - window_position[window_position.size()-1].x < -20 && line==0)
         {
-            if(JunctionDetectWindow(img, cv::Point{estimate_x, height}))
+            if(JunctionDetectWindow(img, cv::Point{estimate_x, height}, window_position[1].x - window_position[0].x))
             {
                 for(int y=height-window_height/2; y > window_height; y-=window_height)
                 {
                     window_position.push_back(cv::Point{estimate_x, y});
                 }
-                
                 return window_position;
             }
         }
+        
 
         prev_delta_x = estimate_x - prev_window_position[line][window_position.size()].x;
         // スライドウィンドウの中心座標<-window_position
@@ -196,85 +193,96 @@ std::vector<cv::Point> LineDetector::SlideWindowMethod(const cv::Mat& img, const
     return window_position;
 }
 
-bool LineDetector::JunctionDetectWindow(const cv::Mat& img, const cv::Point pos)
+bool LineDetector::JunctionDetectWindow(const cv::Mat& img, const cv::Point pos, const int delta_x)
 {
     const int window_width=100;
-    const int window_height=40;
     const int threshold=10;
-    std::vector<cv::Point> window_position;
+    const int white_th=200;
     std::vector<int> white_pixel_counts(window_width, 0);
+    int window_num=0;
 
     cv::Mat visualize_img = img;
     for(int height=pos.y-window_height; height > window_height; height-=window_height)
     {
+        window_num+=1;
         std::fill(white_pixel_counts.begin(), white_pixel_counts.end(), 0);
-
+        int start_x = pos.x - (window_width/2) + delta_x;
         for(int y=height; y>height - window_height; y--)
         {
             const uchar *pLine = img.ptr<uchar>(y);
-            for(int x=pos.x-(window_width/2); x<=pos.x+(window_width/2); x++)
+            for(int x=start_x; x<=start_x+window_width; x++)
             {
-                if(pLine[x] > 128)
+                if(pLine[x] > white_th)
                 {
-                    int relative_x = x - (pos.x - (window_width/2));
+                    int relative_x = x - start_x;
                     white_pixel_counts[relative_x]++;
                 }
             }
         }
-        window_position.push_back(cv::Point{pos.x, height});
     }
 
-    visualize_img = WindowVisualizar(visualize_img, window_position, 0, cv::Scalar(255, 0, 255));
-
-    for(int i=0; i<white_pixel_counts.size(); i++)
+    for(size_t i=0; i<white_pixel_counts.size(); i++)
     {
         if(white_pixel_counts[i] >= threshold)
-            return true;
+            return true;   
     }
-
+    
     return false;
 }
 
 cv::Mat LineDetector::toBEV(const cv::Mat& img)
 {
     // 俯瞰画像の変換座標 480x300
-    cv::Point2f src_points[4] = { {-400, 300}, {100, 175}, {380, 175}, {880, 300} };
-    cv::Point2f dst_points[4] = { {0, 480}, {0, 0}, {480, 0}, {480, 480} };
-
-    // cv::Point2f src_points[4] = { {0, 300}, {200, 160}, {280, 160}, {480, 300} };
+    // cv::Point2f src_points[4] = { {-400, 300}, {100, 175}, {380, 175}, {880, 300} };
     // cv::Point2f dst_points[4] = { {0, 480}, {0, 0}, {480, 0}, {480, 480} };
 
+    // シミュレータ用俯瞰座標
+    cv::Point2f src_points[4] = { {-100, 300}, {100, 180}, {380, 180}, {580, 300} };
+    cv::Point2f dst_points[4] = { {0, 300}, {0, 0}, {480, 0}, {480, 300} };
+
     cv::Mat trans_mat = cv::getPerspectiveTransform(src_points, dst_points);
+    inv_trans_mat = trans_mat.inv();
 
     cv::warpPerspective(img, img, trans_mat, img.size());
 
     return img;
 }
 
-cv::Mat LineDetector::WindowVisualizar(cv::Mat& img, const std::vector<cv::Point>& points, const int line, const cv::Scalar color)
+std::vector<cv::Point2f> LineDetector::BEVtoScreen(const std::vector<cv::Point2f>& points)
 {
-    const int BOX_SIZE_height = 40;
+    std::vector<cv::Point2f> result_points;
+
+    cv::perspectiveTransform(points, result_points, inv_trans_mat);
+
+    return result_points;
+}
+
+cv::Mat LineDetector::WindowVisualizar(const cv::Mat& img, const std::vector<cv::Point2f>& points, const int line, const cv::Scalar color)
+{
+    cv::Mat img_copy = img.clone();
 
     for (const auto& point : points)
     {
-        cv::Point top_left(point.x - window_width[line] / 2, point.y - BOX_SIZE_height / 2);
-        cv::Point bottom_right(point.x + window_width[line] / 2, point.y + BOX_SIZE_height / 2);
+        cv::Point top_left(point.x - window_width[line] / 2, point.y - window_height / 2);
+        cv::Point bottom_right(point.x + window_width[line] / 2, point.y + window_height / 2);
   
         // 四角形の描画
-        cv::rectangle(img, top_left, bottom_right, color, 2);
+        cv::rectangle(img_copy, top_left, bottom_right, color, 2);
     }
 
-    return img;
+    return img_copy;
 }
 
-cv::Mat LineDetector::PointVisualizar(cv::Mat& img, const std::vector<cv::Point>& points)
+cv::Mat LineDetector::PointVisualizar(const cv::Mat& img, const std::vector<cv::Point2f>& points, const cv::Scalar color)
 {
+    cv::Mat img_copy = img.clone();
+
     for(const auto& point : points)
     {
-        cv::circle(img, point, 5, cv::Scalar(0, 0, 255), 3);
+        cv::circle(img_copy, point, 5, color, 3);
     }
 
-    return img;
+    return img_copy;
 }
 
 cv::Mat LineDetector::draw_lines(const cv::Mat& cv_img ,const std::vector<cv::Vec4i>& line)
