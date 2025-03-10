@@ -7,7 +7,18 @@ ObstacleDetector::ObstacleDetector()
 }
 
 // 障害物の座標推定
-std::vector<cv::Point> ObstacleDetector::detectObstacle(const cv::Mat& img)
+std::vector<cv::Point> ObstacleDetector::detectObstacle(const cv::Mat& img, const cv::Mat& depth_img)
+{
+    cv::Mat img_copy = img.clone();
+    cv::Mat mask_img = ObstacleMaskImage(img_copy);
+
+    cv::imshow("mask img", mask_img);
+    cv::waitKey(1);
+
+    return EstimatePosition(mask_img, depth_img);;
+}
+
+cv::Mat ObstacleDetector::ObstacleMaskImage(const cv::Mat& img)
 {
     cv::Mat img_yuv;
     cv::cvtColor(img, img_yuv, cv::COLOR_BGR2YUV);
@@ -24,53 +35,50 @@ std::vector<cv::Point> ObstacleDetector::detectObstacle(const cv::Mat& img)
     // hsvに変換
     cv::cvtColor(img_gbr, img_hsv, cv::COLOR_BGR2HSV);
 
-    cv::Mat mask_img = MaskObstacleImage(img_hsv);
-
-    return EstimatePosition(mask_img);
-}
-
-cv::Mat ObstacleDetector::MaskObstacleImage(const cv::Mat& img)
-{
-    // 検出対象の色範囲を指定
-    cv::Scalar LOW_COLOR1(0, 50, 50), HIGH_COLOR1(6, 255, 255);
+    cv::Scalar LOW_COLOR1(0, 50, 50), HIGH_COLOR1(0, 255, 255);
     cv::Scalar LOW_COLOR2(174, 50, 50), HIGH_COLOR2(180, 255, 255);
 
-    cv::Mat mask1, mask2, mask;
-    cv::inRange(img, LOW_COLOR1, HIGH_COLOR1, mask1);
-    // cv::inRange(img, LOW_COLOR2, HIGH_COLOR2, mask2);
-    // cv::bitwise_and(mask1, mask2, mask);
+    cv::Mat mask_img, mask1, mask2;
+    cv::inRange(img_hsv, LOW_COLOR1, HIGH_COLOR1, mask1);
+    cv::inRange(img_hsv, LOW_COLOR2, HIGH_COLOR2, mask2);
 
-    return mask1;
+    cv::bitwise_or(mask1, mask2, mask_img);
+
+    return mask_img;
 }
 
-std::vector<cv::Point> ObstacleDetector::EstimatePosition(const cv::Mat& img)
+std::vector<cv::Point> ObstacleDetector::EstimatePosition(const cv::Mat& img, const cv::Mat& depth_img)
 {
-    std::vector<cv::Point> obstacles_x;
-    int max_white_x=-1;
+    cv::Mat depth_img_copy = depth_img.clone();
+    std::vector<cv::Point> obstacle_positions;
 
-    std::vector<int> white_pixel_counts(img.cols, 0);
-    for(int y = 0; y < img.rows; ++y)
-    {
-        const uchar *pLine = img.ptr<uchar>(y);
-        for(int x = 0; x < img.cols; ++x)
-        {
-            if(pLine[x] > 128)
-            {
-                white_pixel_counts[x]++;
-            }
+    // 障害物の輪郭を検出
+    std::vector<std::vector<cv::Point>> contours;
+    std::vector<cv::Vec4i> hierarchy;
+    cv::findContours(img, contours, hierarchy, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+
+    for (const std::vector<cv::Point>& contour : contours) {
+        double area = cv::contourArea(contour);
+        if (area < 2) continue; // 小さすぎる輪郭はノイズとして無視
+
+        // 輪郭の中心座標を求める
+        cv::Moments mu = cv::moments(contour);
+        if (mu.m00 == 0) continue;
+
+        int cx = static_cast<int>(mu.m10 / mu.m00);
+        int cy = static_cast<int>(mu.m01 / mu.m00);
+
+        float depth_value = depth_img.at<float>(cy, cx);
+
+        // 深度値が有効かチェック
+        if (std::isnan(depth_value) || depth_value <= 0.0f || depth_value > 5000.0f) {
+            continue;
         }
+
+        obstacle_positions.emplace_back(cx, cy);
     }
 
-    for(int x = 0; x < img.cols; ++x)
-    {
-        if(white_pixel_counts[x] > white_pixel_counts[x - 1] && white_pixel_counts[x] >= 10)
-        {
-            max_white_x = x;
-        }
-    }
-
-    obstacles_x.push_back(cv::Point{max_white_x, 0});
-    return obstacles_x;
+    return obstacle_positions;
 }
 
 } // namespace
