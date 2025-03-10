@@ -14,9 +14,12 @@
   <depend>sensor_msgs</depend>
   <depend>nav_msgs</depend>
   <depend>geometry_msgs</depend>
+  <depend>visualization_msgs</depend>
   <depend>cv_bridge</depend>
   <depend>image_transport</depend>
   <depend>opencv2</depend>
+  <depend>eigen3_cmake_module</depend>
+  <depend>eigen</depend>
   <depend>utilities</depend>
 
   <test_depend>ament_lint_auto</test_depend>
