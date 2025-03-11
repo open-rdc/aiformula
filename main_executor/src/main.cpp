@@ -6,6 +6,10 @@
 #include "cybergear_interface/cybergear_interface_node.hpp"
 #include "gnssnav/path_publisher_node.hpp"
 #include "gnssnav/follower_node.hpp"
+#include "lane_line_publisher/bird_eye_view_node.hpp"
+#include "lane_line_publisher/ll_path_publisher_node.hpp"
+#include "lane_line_publisher/ll_path_follower_node.hpp"
+
 
 int main(int argc, char * argv[]){
     rclcpp::init(argc,argv);
@@ -30,6 +34,9 @@ int main(int argc, char * argv[]){
     auto cybergear_interface_node = std::make_shared<cybergear_interface::CybergearInterface>(nodes_option);
     auto path_publisher_node = std::make_shared<gnssnav::Publisher>(nodes_option);
     auto follower_node = std::make_shared<gnssnav::Follower>(nodes_option);
+    auto bird_eye_view_node = std::make_shared<lane_line_publisher::BirdEyeViewNode>(nodes_option);
+    auto ll_path_publisher_node = std::make_shared<lane_line_publisher::PathPublisherNode>(nodes_option);
+    auto ll_path_follower_node = std::make_shared<lane_line_publisher::LLPathFollowerNode>(nodes_option);
 
     if(sim_flag){}
     if(not sim_flag){
@@ -39,8 +46,12 @@ int main(int argc, char * argv[]){
     exec.add_node(controller_node);
     exec.add_node(chassis_driver_node);
     exec.add_node(cybergear_interface_node);
-    exec.add_node(path_publisher_node);
-    exec.add_node(follower_node);
+    // exec.add_node(path_publisher_node);
+    // exec.add_node(follower_node);
+    exec.add_node(bird_eye_view_node);
+    exec.add_node(ll_path_publisher_node);
+    exec.add_node(ll_path_follower_node);
+
 
     exec.spin();
     rclcpp::shutdown();

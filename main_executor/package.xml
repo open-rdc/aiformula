@@ -16,6 +16,7 @@
   <depend>chassis_driver</depend>
   <depend>cybergear_interface</depend>
   <depend>gnssnav</depend>
+  <depend>lane_line_publisher</depend>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 

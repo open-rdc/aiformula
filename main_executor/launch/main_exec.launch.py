@@ -68,6 +68,14 @@ def generate_launch_description():
             'vectornav.launch.py'])
     )
 
+    # yolopノードの作成
+    yolop_node = Node(
+        package = 'road_detector',
+        executable = 'road_detector_node',
+        name = 'road_detector_node',
+        output = 'screen'
+    )
+
     # 起動エンティティクラスの作成
     launch_discription = LaunchDescription()
 
@@ -82,5 +90,6 @@ def generate_launch_description():
     launch_discription.add_action(log_level_arg)
     launch_discription.add_action(sim_flag_arg)
     launch_discription.add_entity(main_exec_node)
+    launch_discription.add_entity(yolop_node)
 
     return launch_discription

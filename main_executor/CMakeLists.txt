@@ -12,26 +12,34 @@ find_package(controller REQUIRED)
 find_package(chassis_driver REQUIRED)
 find_package(cybergear_interface REQUIRED)
 find_package(gnssnav REQUIRED)
+find_package(lane_line_publisher REQUIRED)
+find_package(cv_bridge REQUIRED)
 
 add_executable(main_exec
-        src/main.cpp
-        )
+  src/main.cpp
+)
 
 ament_target_dependencies(main_exec
-        rclcpp
-        socketcan_interface
-        controller
-        chassis_driver
-        cybergear_interface
-        gnssnav
-        )
+  rclcpp
+  socketcan_interface
+  controller
+  chassis_driver
+  cybergear_interface
+  gnssnav
+  lane_line_publisher
+  cv_bridge
+)
 
 target_include_directories(main_exec
-        PUBLIC
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-        $<INSTALL_INTERFACE:include>
-        )
+  PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
+  ${cv_bridge_INCLUDE_DIRS}
+)
 
+target_link_libraries(main_exec
+  ${cv_bridge_LIBRARIES}
+)
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
