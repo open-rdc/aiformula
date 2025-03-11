@@ -68,15 +68,6 @@ def generate_launch_description():
             'vectornav.launch.py'])
     )
 
-    # zed-ros2-wrapper起動の作成
-    zed_wrapper_launch = launch.actions.IncludeLaunchDescription(
-        PythonLaunchDescriptionSource([os.path.join(
-            get_package_share_directory('zed-wrapper'), 'launch'),
-            'zed_camera.launch.py']),
-        launch_arguments={
-            'camera_model': 'zedx',
-        }.items()
-    )
 
     # 起動エンティティクラスの作成
     launch_discription = LaunchDescription()
@@ -88,8 +79,6 @@ def generate_launch_description():
         launch_discription.add_entity(joy_node)
     if(launch_params['vectornav'] is True):
         launch_discription.add_action(vectornav_launch)
-    if(launch_params['zed'] is True):
-        launch_discription.add_action(zed_wrapper_launch)
 
     launch_discription.add_action(log_level_arg)
     launch_discription.add_action(sim_flag_arg)
