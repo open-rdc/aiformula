@@ -233,12 +233,12 @@ bool LineDetector::JunctionDetectWindow(const cv::Mat& img, const cv::Point pos,
 cv::Mat LineDetector::toBEV(const cv::Mat& img)
 {
     // 俯瞰画像の変換座標 480x300
-    // cv::Point2f src_points[4] = { {-400, 300}, {100, 175}, {380, 175}, {880, 300} };
-    // cv::Point2f dst_points[4] = { {0, 480}, {0, 0}, {480, 0}, {480, 480} };
+    cv::Point2f src_points[4] = { {-400, 300}, {100, 185}, {380, 185}, {880, 300} };
+    cv::Point2f dst_points[4] = { {0, 480}, {0, 0}, {480, 0}, {480, 480} };
 
     // シミュレータ用俯瞰座標
-    cv::Point2f src_points[4] = { {-100, 300}, {100, 180}, {380, 180}, {580, 300} };
-    cv::Point2f dst_points[4] = { {0, 300}, {0, 0}, {480, 0}, {480, 300} };
+    // cv::Point2f src_points[4] = { {-100, 300}, {100, 180}, {380, 180}, {580, 300} };
+    // cv::Point2f dst_points[4] = { {0, 300}, {0, 0}, {480, 0}, {480, 300} };
 
     cv::Mat trans_mat = cv::getPerspectiveTransform(src_points, dst_points);
     inv_trans_mat = trans_mat.inv();
