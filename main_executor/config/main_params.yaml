@@ -76,9 +76,9 @@ gnssnav_follower_node:
 
 ll_path_follower_node:
   ros__parameters:
-    ll_p_gain : 3.2
-    ll_i_gain : 0.0
-    ll_d_gain : 0.2
-    ll_max_linear_vel : 5.0
-    ll_max_angular_vel : 0.5
-    ll_interval_ms : 50
+    p_gain : 3.2
+    i_gain : 0.0
+    d_gain : 0.0
+    max_linear_vel : 5.0
+    max_angular_vel : 3.14
+    interval_ms : 50
