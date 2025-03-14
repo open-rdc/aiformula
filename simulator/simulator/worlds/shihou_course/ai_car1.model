@@ -168,11 +168,45 @@
       </material>
     </road>
 
+    <road name="my_road_in1">
+      <width>14.0</width>
+      <point>-35.171 -27.3 0</point>
+      <point>45.7 -27.3 0</point>
+      <material>
+        <script>
+          <uri>file://media/materials/scripts/gazebo.material</uri>
+          <name>Gazebo/Tertiary</name>
+        </script>
+      </material>
+    </road>
 
+    <road name="my_road_in2">
+      <width>14.0</width>
+      <point>-7.45 0 0</point>
+      <point>-7.45 -60 0</point>
+      <material>
+        <script>
+          <uri>file://media/materials/scripts/gazebo.material</uri>
+          <name>Gazebo/Tertiary</name>
+        </script>
+      </material>
+    </road>
+
+    <road name="my_road_in3">
+      <width>14.0</width>
+      <point>19.7 0 0</point>
+      <point>19.7 -27.4 0</point>
+      <material>
+        <script>
+          <uri>file://media/materials/scripts/gazebo.material</uri>
+          <name>Gazebo/Tertiary</name>
+        </script>
+      </material>
+    </road>
 
     <road name="my_road_center">
       <width>0.2</width>
-      <point>  0       1.800 0.001</point>
+      <!-- <point>  0       1.800 0.001</point> -->
       <point>-19.15 1.8 0.001</point>
       <point>-20.762 1.73 0.001</point>
       <point>-22.362 1.519 0.001</point>
@@ -230,26 +264,7 @@
       <point>44.719 -59.412 0.001</point>
       <point>44.93 -57.812 0.001</point>
       <point>45 -56.2 0.001</point>
-      <point>45 -16.7 0.001</point>
-      <point>44.93 -15.088 0.001</point>
-      <point>44.719 -13.488 0.001</point>
-      <point>44.37 -11.912 0.001</point>
-      <point>43.884 -10.373 0.001</point>
-      <point>43.267 -8.882 0.001</point>
-      <point>42.521 -7.45 0.001</point>
-      <point>41.654 -6.089 0.001</point>
-      <point>40.672 -4.808 0.001</point>
-      <point>39.581 -3.619 0.001</point>
-      <point>38.392 -2.528 0.001</point>
-      <point>37.111 -1.546 0.001</point>
-      <point>35.75 -0.679 0.001</point>
-      <point>34.318 0.067 0.001</point>
-      <point>32.827 0.684 0.001</point>
-      <point>31.288 1.17 0.001</point>
-      <point>29.712 1.519 0.001</point>
-      <point>28.112 1.73 0.001</point>
-      <point>26.5 1.8 0.001</point>
-      <point>  0      1.8 0.001</point>
+      <point>45 -47.7 0.01</point>
       <material>
         <script>
           <uri>file://media/materials/scripts/gazebo.material</uri>
@@ -258,10 +273,258 @@
       </material>
     </road>
 
-    <road name="my_road_left">
+    <road name="my_road_center_line1">
       <width>0.2</width>
-      <point>0 -1.5 0.001</point>
-      <point>-19.15 -1.5 0.001</point>
+      <point>45 -43.7 0.01</point>
+      <point>45 -38.7 0.001</point>
+      <material>
+        <script>
+          <uri>file://media/materials/scripts/gazebo.material</uri>
+          <name>Gazebo/White</name>
+        </script>
+      </material>
+    </road>
+
+    <road name="my_road_center_line2">
+      <width>0.2</width>
+      <point>45 -34.7 0.01</point>
+      <point>45 -29.7 0.001</point>
+      <material>
+        <script>
+          <uri>file://media/materials/scripts/gazebo.material</uri>
+          <name>Gazebo/White</name>
+        </script>
+      </material>
+    </road>
+
+    <road name="my_road_center_line3">
+      <width>0.2</width>
+      <point>45 -25.7 0.01</point>
+      <point>45 -22.7 0.01</point>
+      <point>45 -20.7 0.001</point>
+      <material>
+        <script>
+          <uri>file://media/materials/scripts/gazebo.material</uri>
+          <name>Gazebo/White</name>
+        </script>
+      </material>
+    </road>
+
+    <road name="my_road_center_line4">
+      <width>0.2</width>
+      <point>45 -16.7 0.01</point>
+      <point>44.93 -15.088 0.001</point>
+      <point>44.719 -13.488 0.001</point>
+      <point>44.37 -11.912 0.001</point>
+      <point>43.884 -10.373 0.001</point>
+      <point>43.267 -8.882 0.001</point>
+      <material>
+        <script>
+          <uri>file://media/materials/scripts/gazebo.material</uri>
+          <name>Gazebo/White</name>
+        </script>
+      </material>
+    </road>
+
+    <road name="my_road_center_line5">
+      <width>0.2</width>
+      <point>40.672 -4.808 0.001</point>
+      <point>39.581 -3.619 0.001</point>
+      <point>38.392 -2.528 0.001</point>
+      <point>37.111 -1.546 0.001</point>
+      <material>
+        <script>
+          <uri>file://media/materials/scripts/gazebo.material</uri>
+          <name>Gazebo/White</name>
+        </script>
+      </material>
+    </road>
+
+    <road name="my_road_center_line6">
+      <width>0.2</width>
+      <point>31.5 1 0.001</point>
+      <point>29.712 1.519 0.001</point>
+      <point>28.112 1.73 0.001</point>
+      <point>26.5 1.8 0.001</point>
+      <material>
+        <script>
+          <uri>file://media/materials/scripts/gazebo.material</uri>
+          <name>Gazebo/White</name>
+        </script>
+      </material>
+    </road>
+
+    <road name="my_road_center_line7">
+      <width>0.2</width>
+      <point>22.5 1.8 0.001</point>
+      <point>17.5 1.8 0.001</point>
+      <material>
+        <script>
+          <uri>file://media/materials/scripts/gazebo.material</uri>
+          <name>Gazebo/White</name>
+        </script>
+      </material>
+    </road>
+
+    <road name="my_road_center_line8">
+      <width>0.2</width>
+      <point>13.5 1.8 0.001</point>
+      <point>8.5 1.8 0.001</point>
+      <material>
+        <script>
+          <uri>file://media/materials/scripts/gazebo.material</uri>
+          <name>Gazebo/White</name>
+        </script>
+      </material>
+    </road>
+
+    <road name="my_road_center_line9">
+      <width>0.2</width>
+      <point>4.5 1.8 0.001</point>
+      <point>-0.5 1.8 0.001</point>
+      <material>
+        <script>
+          <uri>file://media/materials/scripts/gazebo.material</uri>
+          <name>Gazebo/White</name>
+        </script>
+      </material>
+    </road>
+
+    <road name="my_road_center_line10">
+      <width>0.2</width>
+      <point>-4.5 1.8 0.001</point>
+      <point>-9.5 1.8 0.001</point>
+      <material>
+        <script>
+          <uri>file://media/materials/scripts/gazebo.material</uri>
+          <name>Gazebo/White</name>
+        </script>
+      </material>
+    </road>
+
+    <road name="my_road_clossing_line1">
+      <width>0.4</width>
+      <point>-14.5 4.6 0.001</point>
+      <point>-18.75 4.6 0.001</point>
+      <material>
+        <script>
+          <uri>file://media/materials/scripts/gazebo.material</uri>
+          <name>Gazebo/White</name>
+        </script>
+      </material>
+    </road>
+
+    <road name="my_road_clossing_line2">
+      <width>0.4</width>
+      <point>-14.5 3.775 0.001</point>
+      <point>-18.75 3.775 0.001</point>
+      <material>
+        <script>
+          <uri>file://media/materials/scripts/gazebo.material</uri>
+          <name>Gazebo/White</name>
+        </script>
+      </material>
+    </road>
+
+    <road name="my_road_clossing_line3">
+      <width>0.4</width>
+      <point>-14.5 2.95 0.001</point>
+      <point>-18.75 2.95 0.001</point>
+      <material>
+        <script>
+          <uri>file://media/materials/scripts/gazebo.material</uri>
+          <name>Gazebo/White</name>
+        </script>
+      </material>
+    </road>
+
+    <road name="my_road_clossing_line4">
+      <width>0.4</width>
+      <point>-14.5 2.125 0.001</point>
+      <point>-18.75 2.125 0.001</point>
+      <material>
+        <script>
+          <uri>file://media/materials/scripts/gazebo.material</uri>
+          <name>Gazebo/White</name>
+        </script>
+      </material>
+    </road>
+
+    <road name="my_road_clossing_line5">
+      <width>0.4</width>
+      <point>-14.5 1.3 0.001</point>
+      <point>-18.75 1.3 0.001</point>
+      <material>
+        <script>
+          <uri>file://media/materials/scripts/gazebo.material</uri>
+          <name>Gazebo/White</name>
+        </script>
+      </material>
+    </road>
+
+    <road name="my_road_clossing_line6">
+      <width>0.4</width>
+      <point>-14.5 0.475 0.001</point>
+      <point>-18.75 0.475 0.001</point>
+      <material>
+        <script>
+          <uri>file://media/materials/scripts/gazebo.material</uri>
+          <name>Gazebo/White</name>
+        </script>
+      </material>
+    </road>
+
+    <road name="my_road_clossing_line7">
+      <width>0.4</width>
+      <point>-14.5 -0.35 0.001</point>
+      <point>-18.75 -0.35 0.001</point>
+      <material>
+        <script>
+          <uri>file://media/materials/scripts/gazebo.material</uri>
+          <name>Gazebo/White</name>
+        </script>
+      </material>
+    </road>
+
+    <road name="my_road_clossing_line8">
+      <width>0.4</width>
+      <point>-14.5 -1.175 0.001</point>
+      <point>-18.75 -1.175 0.001</point>
+      <material>
+        <script>
+          <uri>file://media/materials/scripts/gazebo.material</uri>
+          <name>Gazebo/White</name>
+        </script>
+      </material>
+    </road>
+
+    <road name="my_road_stopline">
+      <width>0.4</width>
+      <point>-1.0 -1.2 0.001</point>
+      <point>-1.0 1.5 0.001</point>
+      <material>
+        <script>
+          <uri>file://media/materials/scripts/gazebo.material</uri>
+          <name>Gazebo/White</name>
+        </script>
+      </material>
+    </road>
+
+    <road name="my_road_stopline2">
+      <width>0.4</width>
+      <point>-20.3 2.0 0.001</point>
+      <point>-20.45 4.7 0.001</point>
+      <material>
+        <script>
+          <uri>file://media/materials/scripts/gazebo.material</uri>
+          <name>Gazebo/White</name>
+        </script>
+      </material>
+    </road>
+
+    <road name="my_road_left1">
+      <width>0.2</width>
+      <point>-13.75 -1.5 0.001</point>
       <point>-20.475 -1.558 0.001</point>
       <point>-21.789 -1.731 0.001</point>
       <point>-23.084 -2.018 0.001</point>
@@ -279,7 +542,102 @@
       <point>-33.832 -12.766 0.001</point>
       <point>-34.119 -14.061 0.001</point>
       <point>-34.292 -15.375 0.001</point>
-      <point>-34.35 -16.7 0.001</point>
+      <point>-34.35 -21.0 0.001</point>
+      <material>
+        <script>
+          <uri>file://media/materials/scripts/gazebo.material</uri>
+          <name>Gazebo/White</name>
+        </script>
+      </material>
+    </road>
+
+    <road name="my_road_junction_line1">
+      <width>0.4</width>
+      <point>-34.15 -22.3 0.001</point>
+      <point>-34.15 -23.3 0.001</point>
+      <material>
+        <script>
+          <uri>file://media/materials/scripts/gazebo.material</uri>
+          <name>Gazebo/White</name>
+        </script>
+      </material>
+    </road>
+
+    <road name="my_road_junction_line2">
+      <width>0.4</width>
+      <point>-34.15 -23.8 0.001</point>
+      <point>-34.15 -24.8 0.001</point>
+      <material>
+        <script>
+          <uri>file://media/materials/scripts/gazebo.material</uri>
+          <name>Gazebo/White</name>
+        </script>
+      </material>
+    </road>
+
+    <road name="my_road_junction_line3">
+      <width>0.4</width>
+      <point>-34.15 -25.3 0.001</point>
+      <point>-34.15 -26.3 0.001</point>
+      <material>
+        <script>
+          <uri>file://media/materials/scripts/gazebo.material</uri>
+          <name>Gazebo/White</name>
+        </script>
+      </material>
+    </road>
+
+    <road name="my_road_junction_line4">
+      <width>0.4</width>
+      <point>-34.15 -26.8 0.001</point>
+      <point>-34.15 -27.8 0.001</point>
+      <material>
+        <script>
+          <uri>file://media/materials/scripts/gazebo.material</uri>
+          <name>Gazebo/White</name>
+        </script>
+      </material>
+    </road>
+
+    <road name="my_road_junction_line5">
+      <width>0.4</width>
+      <point>-34.15 -28.3 0.001</point>
+      <point>-34.15 -29.3 0.001</point>
+      <material>
+        <script>
+          <uri>file://media/materials/scripts/gazebo.material</uri>
+          <name>Gazebo/White</name>
+        </script>
+      </material>
+    </road>
+
+    <road name="my_road_junction_line6">
+      <width>0.4</width>
+      <point>-34.15 -29.8 0.001</point>
+      <point>-34.15 -30.8 0.001</point>
+      <material>
+        <script>
+          <uri>file://media/materials/scripts/gazebo.material</uri>
+          <name>Gazebo/White</name>
+        </script>
+      </material>
+    </road>
+
+    <road name="my_road_junction_line7">
+      <width>0.4</width>
+      <point>-34.15 -31.3 0.001</point>
+      <point>-34.15 -32.3 0.001</point>
+      <material>
+        <script>
+          <uri>file://media/materials/scripts/gazebo.material</uri>
+          <name>Gazebo/White</name>
+        </script>
+      </material>
+    </road>
+
+    <road name="my_road_left2">
+      <width>0.2</width>
+      <point>-34.35 -33.6 0.001</point>
       <point>-34.35 -37.7 0.001</point>
       <point>-34.292 -39.025 0.001</point>
       <point>-34.119 -40.339 0.001</point>
@@ -295,6 +653,102 @@
       <point>-26.75 -50.864 0.001</point>
       <point>-25.574 -51.476 0.001</point>
       <point>-24.349 -51.983 0.001</point>
+      <point>-13.75 -56.28 0.001</point>
+      <material>
+        <script>
+          <uri>file://media/materials/scripts/gazebo.material</uri>
+          <name>Gazebo/White</name>
+        </script>
+      </material>
+    </road>
+
+    <road name="my_road_junction2_line1">
+      <width>0.4</width>
+      <point>-12.545 -56.768 0.001</point>
+      <point>-11.618 -57.144 0.001</point>
+      <material>
+        <script>
+          <uri>file://media/materials/scripts/gazebo.material</uri>
+          <name>Gazebo/White</name>
+        </script>
+      </material>
+    </road>
+
+    <road name="my_road_junction2_line2">
+      <width>0.4</width>
+      <point>-11.155 -57.331 0.001</point>
+      <point>-10.228 -57.707 0.001</point>
+      <material>
+        <script>
+          <uri>file://media/materials/scripts/gazebo.material</uri>
+          <name>Gazebo/White</name>
+        </script>
+      </material>
+    </road>
+
+    <road name="my_road_junction2_line3">
+      <width>0.4</width>
+      <point>-9.765 -57.894 0.001</point>
+      <point>-8.838 -58.270 0.001</point>
+      <material>
+        <script>
+          <uri>file://media/materials/scripts/gazebo.material</uri>
+          <name>Gazebo/White</name>
+        </script>
+      </material>
+    </road>
+
+    <road name="my_road_junction2_line4">
+      <width>0.4</width>
+      <point>-8.374 -58.458 0.001</point>
+      <point>-7.447 -58.833 0.001</point>
+      <material>
+        <script>
+          <uri>file://media/materials/scripts/gazebo.material</uri>
+          <name>Gazebo/White</name>
+        </script>
+      </material>
+    </road>
+
+    <road name="my_road_junction2_line5">
+      <width>0.4</width>
+      <point>-6.984 -59.021 0.001</point>
+      <point>-6.057 -59.396 0.001</point>
+      <material>
+        <script>
+          <uri>file://media/materials/scripts/gazebo.material</uri>
+          <name>Gazebo/White</name>
+        </script>
+      </material>
+    </road>
+
+    <road name="my_road_junction2_line6">
+      <width>0.4</width>
+      <point>-5.594 -59.584 0.001</point>
+      <point>-4.667 -59.959 0.001</point>
+      <material>
+        <script>
+          <uri>file://media/materials/scripts/gazebo.material</uri>
+          <name>Gazebo/White</name>
+        </script>
+      </material>
+    </road>
+
+    <road name="my_road_junction2_line7">
+      <width>0.4</width>
+      <point>-4.204 -60.147 0.001</point>
+      <point>-3.277 -60.523 0.001</point>
+      <material>
+        <script>
+          <uri>file://media/materials/scripts/gazebo.material</uri>
+          <name>Gazebo/White</name>
+        </script>
+      </material>
+    </road>
+
+    <road name="my_road_left3">
+      <width>0.2</width>
+      <point>-1.15 -61.384 0.001</point>
       <point>21.301 -70.483 0.001</point>
       <point>22.566 -70.882 0.001</point>
       <point>23.861 -71.169 0.001</point>
@@ -318,6 +772,102 @@
       <point>41.469 -58.839 0.001</point>
       <point>41.642 -57.525 0.001</point>
       <point>41.7 -56.2 0.001</point>
+      <point>41.7 -33.6 0.001</point>
+      <material>
+        <script>
+          <uri>file://media/materials/scripts/gazebo.material</uri>
+          <name>Gazebo/White</name>
+        </script>
+      </material>
+    </road>
+
+    <road name="my_road_junction3_line1">
+      <width>0.4</width>
+      <point>41.7 -22.3 0.001</point>
+      <point>41.7 -23.3 0.001</point>
+      <material>
+        <script>
+          <uri>file://media/materials/scripts/gazebo.material</uri>
+          <name>Gazebo/White</name>
+        </script>
+      </material>
+    </road>
+
+    <road name="my_road_junction3_line2">
+      <width>0.4</width>
+      <point>41.7 -23.8 0.001</point>
+      <point>41.7 -24.8 0.001</point>
+      <material>
+        <script>
+          <uri>file://media/materials/scripts/gazebo.material</uri>
+          <name>Gazebo/White</name>
+        </script>
+      </material>
+    </road>
+
+    <road name="my_road_junction3_line3">
+      <width>0.4</width>
+      <point>41.7 -25.3 0.001</point>
+      <point>41.7 -26.3 0.001</point>
+      <material>
+        <script>
+          <uri>file://media/materials/scripts/gazebo.material</uri>
+          <name>Gazebo/White</name>
+        </script>
+      </material>
+    </road>
+
+    <road name="my_road_junction3_line4">
+      <width>0.4</width>
+      <point>41.7 -26.8 0.001</point>
+      <point>41.7 -27.8 0.001</point>
+      <material>
+        <script>
+          <uri>file://media/materials/scripts/gazebo.material</uri>
+          <name>Gazebo/White</name>
+        </script>
+      </material>
+    </road>
+
+    <road name="my_road_junction3_line5">
+      <width>0.4</width>
+      <point>41.7 -28.3 0.001</point>
+      <point>41.7 -29.3 0.001</point>
+      <material>
+        <script>
+          <uri>file://media/materials/scripts/gazebo.material</uri>
+          <name>Gazebo/White</name>
+        </script>
+      </material>
+    </road>
+
+    <road name="my_road_junction3_line6">
+      <width>0.4</width>
+      <point>41.7 -29.8 0.001</point>
+      <point>41.7 -30.8 0.001</point>
+      <material>
+        <script>
+          <uri>file://media/materials/scripts/gazebo.material</uri>
+          <name>Gazebo/White</name>
+        </script>
+      </material>
+    </road>
+
+    <road name="my_road_junction3_line7">
+      <width>0.4</width>
+      <point>41.7 -31.3 0.001</point>
+      <point>41.7 -32.3 0.001</point>
+      <material>
+        <script>
+          <uri>file://media/materials/scripts/gazebo.material</uri>
+          <name>Gazebo/White</name>
+        </script>
+      </material>
+    </road>
+
+    <road name="my_road_left4">
+      <width>0.2</width>
+      <point>41.7 -21.0 0.001</point>
       <point>41.7 -16.7 0.001</point>
       <point>41.642 -15.375 0.001</point>
       <point>41.469 -14.061 0.001</point>
@@ -337,7 +887,341 @@
       <point>29.139 -1.731 0.001</point>
       <point>27.825 -1.558 0.001</point>
       <point>26.5 -1.5 0.001</point>
-      <point>0 -1.5 0.001</point>
+      <point>26.0 -1.5 0.001</point>
+      <material>
+        <script>
+          <uri>file://media/materials/scripts/gazebo.material</uri>
+          <name>Gazebo/White</name>
+        </script>
+      </material>
+    </road>
+
+    <road name="my_road_junction4_line1">
+      <width>0.4</width>
+      <point>24.7 -1.5 0.001</point>
+      <point>23.7 -1.5 0.001</point>
+      <material>
+        <script>
+          <uri>file://media/materials/scripts/gazebo.material</uri>
+          <name>Gazebo/White</name>
+        </script>
+      </material>
+    </road>
+
+    <road name="my_road_junction4_line2">
+      <width>0.4</width>
+      <point>23.2 -1.5 0.001</point>
+      <point>22.2 -1.5 0.001</point>
+      <material>
+        <script>
+          <uri>file://media/materials/scripts/gazebo.material</uri>
+          <name>Gazebo/White</name>
+        </script>
+      </material>
+    </road>
+
+    <road name="my_road_junction4_line3">
+      <width>0.4</width>
+      <point>21.7 -1.5 0.001</point>
+      <point>20.7 -1.5 0.001</point>
+      <material>
+        <script>
+          <uri>file://media/materials/scripts/gazebo.material</uri>
+          <name>Gazebo/White</name>
+        </script>
+      </material>
+    </road>
+
+    <road name="my_road_junction4_line4">
+      <width>0.4</width>
+      <point>20.2 -1.5 0.001</point>
+      <point>19.2 -1.5 0.001</point>
+      <material>
+        <script>
+          <uri>file://media/materials/scripts/gazebo.material</uri>
+          <name>Gazebo/White</name>
+        </script>
+      </material>
+    </road>
+
+    <road name="my_road_junction4_line5">
+      <width>0.4</width>
+      <point>18.7 -1.5 0.001</point>
+      <point>17.7 -1.5 0.001</point>
+      <material>
+        <script>
+          <uri>file://media/materials/scripts/gazebo.material</uri>
+          <name>Gazebo/White</name>
+        </script>
+      </material>
+    </road>
+
+    <road name="my_road_junction4_line6">
+      <width>0.4</width>
+      <point>17.2 -1.5 0.001</point>
+      <point>16.2 -1.5 0.001</point>
+      <material>
+        <script>
+          <uri>file://media/materials/scripts/gazebo.material</uri>
+          <name>Gazebo/White</name>
+        </script>
+      </material>
+    </road>
+
+    <road name="my_road_junction4_line7">
+      <width>0.4</width>
+      <point>15.7 -1.5 0.001</point>
+      <point>14.7 -1.5 0.001</point>
+      <material>
+        <script>
+          <uri>file://media/materials/scripts/gazebo.material</uri>
+          <name>Gazebo/White</name>
+        </script>
+      </material>
+    </road>
+
+    <road name="my_road_left5">
+      <width>0.2</width>
+      <point>13.4 -1.5 0.001</point>
+      <point>-1.15 -1.5 0.001</point>
+      <material>
+        <script>
+          <uri>file://media/materials/scripts/gazebo.material</uri>
+          <name>Gazebo/White</name>
+        </script>
+      </material>
+    </road>
+
+    <road name="my_road_junction5_line1">
+      <width>0.4</width>
+      <point>-2.45 -1.5 0.001</point>
+      <point>-3.45 -1.5 0.001</point>
+      <material>
+        <script>
+          <uri>file://media/materials/scripts/gazebo.material</uri>
+          <name>Gazebo/White</name>
+        </script>
+      </material>
+    </road>
+
+    <road name="my_road_junction5_line2">
+      <width>0.4</width>
+      <point>-3.95 -1.5 0.001</point>
+      <point>-4.95 -1.5 0.001</point>
+      <material>
+        <script>
+          <uri>file://media/materials/scripts/gazebo.material</uri>
+          <name>Gazebo/White</name>
+        </script>
+      </material>
+    </road>
+
+    <road name="my_road_junction5_line3">
+      <width>0.4</width>
+      <point>-5.45 -1.5 0.001</point>
+      <point>-6.45 -1.5 0.001</point>
+      <material>
+        <script>
+          <uri>file://media/materials/scripts/gazebo.material</uri>
+          <name>Gazebo/White</name>
+        </script>
+      </material>
+    </road>
+
+    <road name="my_road_junction5_line4">
+      <width>0.4</width>
+      <point>-6.95 -1.5 0.001</point>
+      <point>-7.95 -1.5 0.001</point>
+      <material>
+        <script>
+          <uri>file://media/materials/scripts/gazebo.material</uri>
+          <name>Gazebo/White</name>
+        </script>
+      </material>
+    </road>
+
+    <road name="my_road_junction5_line5">
+      <width>0.4</width>
+      <point>-8.45 -1.5 0.001</point>
+      <point>-9.45 -1.5 0.001</point>
+      <material>
+        <script>
+          <uri>file://media/materials/scripts/gazebo.material</uri>
+          <name>Gazebo/White</name>
+        </script>
+      </material>
+    </road>
+
+    <road name="my_road_junction5_line6">
+      <width>0.4</width>
+      <point>-9.95 -1.5 0.001</point>
+      <point>-10.95 -1.5 0.001</point>
+      <material>
+        <script>
+          <uri>file://media/materials/scripts/gazebo.material</uri>
+          <name>Gazebo/White</name>
+        </script>
+      </material>
+    </road>
+
+    <road name="my_road_junction5_line7">
+      <width>0.4</width>
+      <point>-11.45 -1.5 0.001</point>
+      <point>-12.45 -1.5 0.001</point>
+      <material>
+        <script>
+          <uri>file://media/materials/scripts/gazebo.material</uri>
+          <name>Gazebo/White</name>
+        </script>
+      </material>
+    </road>
+
+    <road name="my_road_in_line1">
+      <width>0.2</width>
+      <point>-34.35 -21.00 0.001</point>
+      <point>-34.30 -21.52 0.001</point>
+      <point>-34.17 -22.03 0.001</point>
+      <point>-33.95 -22.50 0.001</point>
+      <point>-33.65 -22.93 0.001</point>
+      <point>-33.28 -23.30 0.001</point>
+      <point>-32.85 -23.60 0.001</point>
+      <point>-32.38 -23.82 0.001</point>
+      <point>-31.87 -23.95 0.001</point>
+      <point>-31.35 -24.0 0.001</point>
+      <point>-10.75 -24.0 0.001</point>
+      <point>-10.75 -4.50 0.001</point>
+      <point>-10.80 -3.98 0.001</point>
+      <point>-10.93 -3.47 0.001</point>
+      <point>-11.15 -3.00 0.001</point>
+      <point>-11.45 -2.57 0.001</point>
+      <point>-11.82 -2.20 0.001</point>
+      <point>-12.25 -1.90 0.001</point>
+      <point>-12.72 -1.68 0.001</point>
+      <point>-13.23 -1.55 0.001</point>
+      <point>-13.75 -1.50 0.001</point>
+      <material>
+        <script>
+          <uri>file://media/materials/scripts/gazebo.material</uri>
+          <name>Gazebo/White</name>
+        </script>
+      </material>
+    </road>
+
+    <road name="my_road_in_line2">
+      <width>0.2</width>
+      <point>-34.35 -33.60 0.001</point>
+      <point>-34.30 -33.08 0.001</point>
+      <point>-34.17 -32.57 0.001</point>
+      <point>-33.95 -32.10 0.001</point>
+      <point>-33.65 -31.67 0.001</point>
+      <point>-33.28 -31.30 0.001</point>
+      <point>-32.85 -31.00 0.001</point>
+      <point>-32.38 -30.78 0.001</point>
+      <point>-31.87 -30.65 0.001</point>
+      <point>-31.35 -30.6 0.001</point>
+      <point>-10.75 -30.6 0.001</point>
+      <point>-10.75 -54.496 0.001</point>
+      <point>-10.90 -54.79 0.001</point>
+      <point>-11.20 -55.22 0.001</point>
+      <point>-11.57 -55.59 0.001</point>
+      <point>-12.00 -55.89 0.001</point>
+      <point>-12.47 -56.11 0.001</point>
+      <point>-12.98 -56.24 0.001</point>
+      <point>-13.50 -56.29 0.001</point>
+      <point>-13.75 -56.28 0.001</point>
+      <material>
+        <script>
+          <uri>file://media/materials/scripts/gazebo.material</uri>
+          <name>Gazebo/White</name>
+        </script>
+      </material>
+    </road>
+
+    <road name="my_road_in_line3">
+      <width>0.2</width>
+      <point>-1.15 -61.384 0.001</point>
+      <point>-1.66 -61.13 0.001</point>
+      <point>-2.37 -60.63 0.001</point>
+      <point>-2.99 -60.01 0.001</point>
+      <point>-3.49 -59.30 0.001</point>
+      <point>-3.86 -58.51 0.001</point>
+      <point>-4.08 -57.67 0.001</point>
+      <point>-4.15 -57.17 0.001</point>
+      <point>-4.15 -30.6 0.001</point>
+      <point>38.7 -30.6 0.001</point>
+      <point>39.22 -30.65 0.001</point>
+      <point>39.73 -30.78 0.001</point>
+      <point>40.20 -31.00 0.001</point>
+      <point>40.63 -31.30 0.001</point>
+      <point>41.00 -31.67 0.001</point>
+      <point>41.30 -32.10 0.001</point>
+      <point>41.52 -32.57 0.001</point>
+      <point>41.65 -33.08 0.001</point>
+      <point>41.70 -33.60 0.001</point>
+      <material>
+        <script>
+          <uri>file://media/materials/scripts/gazebo.material</uri>
+          <name>Gazebo/White</name>
+        </script>
+      </material>
+    </road>
+
+    <road name="my_road_in_line4">
+      <width>0.2</width>
+      <point>41.65 -21.52 0.001</point>
+      <point>41.52 -22.03 0.001</point>
+      <point>41.30 -22.50 0.001</point>
+      <point>41.00 -22.93 0.001</point>
+      <point>40.63 -23.30 0.001</point>
+      <point>40.20 -23.60 0.001</point>
+      <point>39.73 -23.82 0.001</point>
+      <point>39.22 -23.95 0.001</point>
+      <point>38.7 -24.0 0.001</point>
+      <point>23.0 -24.0 0.001</point>
+      <point>23.00 -4.50 0.001</point>
+      <point>23.05 -3.98 0.001</point>
+      <point>23.18 -3.47 0.001</point>
+      <point>23.40 -3.00 0.001</point>
+      <point>23.70 -2.57 0.001</point>
+      <point>24.07 -2.20 0.001</point>
+      <point>24.50 -1.90 0.001</point>
+      <point>24.97 -1.68 0.001</point>
+      <point>25.48 -1.55 0.001</point>
+      <point>26.00 -1.50 0.001</point>
+
+      <material>
+        <script>
+          <uri>file://media/materials/scripts/gazebo.material</uri>
+          <name>Gazebo/White</name>
+        </script>
+      </material>
+    </road>
+
+    <road name="my_road_in_line5">
+      <width>0.2</width>
+      <point>13.40 -1.50 0.001</point>
+      <point>13.92 -1.55 0.001</point>
+      <point>14.43 -1.68 0.001</point>
+      <point>14.90 -1.90 0.001</point>
+      <point>15.33 -2.20 0.001</point>
+      <point>15.70 -2.57 0.001</point>
+      <point>16.00 -3.00 0.001</point>
+      <point>16.22 -3.47 0.001</point>
+      <point>16.35 -3.98 0.001</point>
+      <point>16.4 -4.5 0.001</point>
+      <point>16.4 -24.0 0.001</point>
+      <point>-4.15 -24.0 0.001</point>
+      <point>-4.15 -4.5 0.001</point>
+      <point>-4.15 -4.50 0.001</point>
+      <point>-4.10 -3.98 0.001</point>
+      <point>-3.97 -3.47 0.001</point>
+      <point>-3.75 -3.00 0.001</point>
+      <point>-3.45 -2.57 0.001</point>
+      <point>-3.08 -2.20 0.001</point>
+      <point>-2.65 -1.90 0.001</point>
+      <point>-2.18 -1.68 0.001</point>
+      <point>-1.67 -1.55 0.001</point>
+      <point>-1.15 -1.50 0.001</point>
       <material>
         <script>
           <uri>file://media/materials/scripts/gazebo.material</uri>
@@ -517,7 +1401,7 @@
       <material>
         <script>
           <uri>file://media/materials/scripts/gazebo.material</uri>
-          <name>Gazebo/Green</name>
+          <name>Gazebo/Tertiary</name>
         </script>
       </material>
     </road>
@@ -605,13 +1489,13 @@
       <material>
         <script>
           <uri>file://media/materials/scripts/gazebo.material</uri>
-          <name>Gazebo/Green</name>
+          <name>Gazebo/Tertiary</name>
         </script>
       </material>
     </road>
 
     <include>
-      <pose>0.0 0.0 0.01 0.0 0.0 </pose>
+      <pose>-35.171 -11.45 0.001 0.0 0.0 -1.57</pose>
       <uri>model://ai_car1</uri>
     </include>
 
