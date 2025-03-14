@@ -1,11 +1,12 @@
 #pragma once
 
+#include <vector>
+#include <cmath>
 #include <rclcpp/rclcpp.hpp>
 #include <geometry_msgs/msg/twist.hpp>
 #include <nav_msgs/msg/path.hpp>
-#include <vector>
-#include <cmath>
 #include <std_msgs/msg/bool.hpp>
+#include "lane_line_publisher/visibility_control.h"
 #include "utilities/visibility_control.h"
 #include "utilities/position_pid.hpp"
 #include "utilities/velplanner.hpp"
@@ -15,7 +16,7 @@
 namespace lane_line_publisher
 {
 
-class LLPathFollowerNode : public rclcpp::Node
+class LANE_LINE_PUBLISHER_PUBLIC LLPathFollowerNode : public rclcpp::Node
 {
 public:
     UTILITIES_PUBLIC explicit LLPathFollowerNode(const rclcpp::NodeOptions & options = rclcpp::NodeOptions());

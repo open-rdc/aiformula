@@ -11,7 +11,7 @@ find_package(cv_bridge REQUIRED)
 
 ament_auto_find_build_dependencies()
 
-ament_auto_add_library(lane_line_publisher
+ament_auto_add_library(lane_line_publisher SHARED
   src/bird_eye_view_node.cpp
   src/ll_path_publisher_node.cpp
   src/ll_path_follower_node.cpp
@@ -29,10 +29,9 @@ ament_export_dependencies(
 )
 
 include_directories(${cv_bridge_INCLUDE_DIRS})
-link_directories(${cv_bridge_LIBRARY_DIRS})
 
 target_link_libraries(lane_line_publisher
-  ${cv_bridge_LIBRARIES}
+  cv_bridge::cv_bridge
 )
 
 ament_auto_package(

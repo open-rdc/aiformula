@@ -2,7 +2,7 @@
 
 namespace lane_line_publisher {
 
-    PathPublisherNode::PathPublisherNode(const rclcpp::NodeOptions & options)
+PathPublisherNode::PathPublisherNode(const rclcpp::NodeOptions & options)
     : Node("ll_path_publisher_node", options), current_pose_received_(false), latest_pc_msg_(nullptr) {
     // サブスクライバの作成
     pointcloud_sub_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
@@ -18,7 +18,6 @@ namespace lane_line_publisher {
 
     RCLCPP_INFO(this->get_logger(), "PathPublisherNode initialized.");
 }
-
 
 void PathPublisherNode::pose_callback(const geometry_msgs::msg::PoseStamped::SharedPtr msg) {
     // ロボットの現在位置を保存
@@ -52,60 +51,37 @@ void PathPublisherNode::process_pointcloud(const sensor_msgs::msg::PointCloud2::
     sensor_msgs::PointCloud2ConstIterator<float> iter_y(*msg, "y");
 
     for (; iter_x != iter_x.end(); ++iter_x, ++iter_y) {
-        points.emplace_back(static_cast<int>(std::round(*iter_x)), *iter_y);
+        float x = *iter_x;
+        float y = *iter_y;
+        points.emplace_back(static_cast<int>(x), y);
     }
-
-    // RCLCPP_INFO(this->get_logger(), "Received %zu points from PointCloud2", points.size());
 
     if (points.empty()) {
         RCLCPP_WARN(this->get_logger(), "No points received in PointCloud2.");
         return;
     }
 
-    // x を 1, 2, 3, 4, 5 のポイントに制限
-    std::vector<int> target_x_vals = {1, 2, 3, 4, 5};
+    // 各 x ごとに y のリストを作成
     std::map<int, std::vector<float>> x_to_y;
-
-    // x に対する y を収集
     for (const auto& point : points) {
-        int x = point.first;
-        float y = point.second;
-        if (std::find(target_x_vals.begin(), target_x_vals.end(), x) != target_x_vals.end()) {
-            x_to_y[x].push_back(y);
-        }
-    }
-
-    // デバッグ: 各 x の y のリストを表示
-    for (const auto& kv : x_to_y) {
-        std::string y_values_str;
-        for (float y_val : kv.second) {
-            y_values_str += std::to_string(y_val) + " ";
-        }
-        // RCLCPP_INFO(this->get_logger(), "x=%d, y_list=[%s]", kv.first, y_values_str.c_str());
+        x_to_y[point.first].push_back(point.second);
     }
 
     // 各 x ごとに y の中心を計算
     std::vector<std::pair<int, float>> waypoints;
-    for (const auto& kv : x_to_y) {
+    for (const std::pair<const int, std::vector<float>>& kv : x_to_y) {
         int x = kv.first;
         std::vector<float> y_vals = kv.second;
-        
-        // y の値が2つ以上ある場合のみ計算
+
         if (y_vals.size() >= 2) {
-            // y の値をソート
             std::sort(y_vals.begin(), y_vals.end());
-            
-            // 2つの中心の計算 (最小と最大の y の平均を取る)
             float y_center = (y_vals.front() + y_vals.back()) / 2.0;
             waypoints.emplace_back(x, y_center);
         }
     }
 
-    // x でソート
-    std::sort(waypoints.begin(), waypoints.end());
-
     if (waypoints.size() < 2) {
-        // RCLCPP_WARN(this->get_logger(), "Insufficient path points for interpolation. Skipping path update.");
+        RCLCPP_WARN(this->get_logger(), "Insufficient path points for interpolation. Skipping path update.");
         return;
     }
 
@@ -123,7 +99,7 @@ void PathPublisherNode::process_pointcloud(const sensor_msgs::msg::PointCloud2::
     path_msg.poses.push_back(start_pose);
 
     // waypoints を基にパスを生成
-    for (const auto& waypoint : waypoints) {
+    for (const std::pair<int, float>& waypoint : waypoints) {
         geometry_msgs::msg::PoseStamped pose;
         pose.header = path_msg.header;
         pose.pose.position.x = waypoint.first;
@@ -137,22 +113,24 @@ void PathPublisherNode::process_pointcloud(const sensor_msgs::msg::PointCloud2::
     // RCLCPP_INFO(this->get_logger(), "Published Path with %zu points.", path_msg.poses.size());
 }
 
-
 std::vector<float> PathPublisherNode::cubic_spline_interpolation(const std::vector<float>& x, 
-                                                                 const std::vector<float>& y, 
-                                                                 const std::vector<float>& x_interp) {
-    std::vector<float> y_interp(x_interp.size());
+    const std::vector<float>& y, 
+    const std::vector<float>& x_interp) {
+std::vector<float> y_interp(x_interp.size());
     for (size_t i = 0; i < x_interp.size(); ++i) {
-        float xi = x_interp[i];
+    float xi = x_interp[i];
         for (size_t j = 0; j < x.size() - 1; ++j) {
             if (xi >= x[j] && xi <= x[j+1]) {
-                float t = (xi - x[j]) / (x[j+1] - x[j]);
-                y_interp[i] = (1 - t) * y[j] + t * y[j+1]; // 線形補間
-                break;
+            y_interp[i] = linear_interpolation(x[j], y[j], x[j+1], y[j+1], xi);
+            break;
             }
         }
     }
-    return y_interp;
+return y_interp;
+}
+
+float PathPublisherNode::linear_interpolation(float x0, float y0, float x1, float y1, float x) {
+    return y0 + (y1 - y0) * (x - x0) / (x1 - x0);
 }
 
 }  // namespace lane_line_publisher
