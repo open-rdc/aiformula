@@ -42,7 +42,7 @@ void BirdEyeViewNode::ll_callback(const sensor_msgs::msg::Image::SharedPtr msg) 
         cv_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::BGR8);
         ll_image = cv_ptr->image;
     } catch (cv_bridge::Exception& e) {
-        RCLCPP_ERROR(this->get_logger(), "cv_bridge exception: %s", e.what());
+        // RCLCPP_ERROR(this->get_logger(), "cv_bridge exception: %s", e.what());
         return;
     }
 
@@ -56,7 +56,7 @@ void BirdEyeViewNode::ll_callback(const sensor_msgs::msg::Image::SharedPtr msg) 
     // 非ゼロのピクセルを検出
     cv::findNonZero(binary_mask, points);
     if (points.empty()) {
-        RCLCPP_WARN(this->get_logger(), "No red regions detected. Skipping processing.");
+        // RCLCPP_WARN(this->get_logger(), "No red regions detected. Skipping processing.");
         return;
     }
 

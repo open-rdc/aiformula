@@ -5,12 +5,12 @@ namespace lane_line_publisher
 
 LLPathFollowerNode::LLPathFollowerNode(const rclcpp::NodeOptions & options)
     : Node("ll_path_follower_node", options),
-      pid_(100),
-      control_interval_ms_(100),
-      is_autonomous_(false),
-      max_linear_velocity_(5.0),
-      max_angular_velocity_(3.14)
-{
+    pid_(100),
+    control_interval_ms_(100),
+    is_autonomous_(false),
+    max_linear_velocity_(1.0),
+    max_angular_velocity_(3.14)
+    {
     // パラメータの取得
     this->get_parameter_or("max_linear_vel", max_linear_velocity_, max_linear_velocity_);
     this->get_parameter_or("max_angular_vel", max_angular_velocity_, max_angular_velocity_);
@@ -30,6 +30,8 @@ LLPathFollowerNode::LLPathFollowerNode(const rclcpp::NodeOptions & options)
     // 制御ループのタイマーを設定
     control_timer_ = this->create_wall_timer(
         std::chrono::milliseconds(control_interval_ms_), std::bind(&LLPathFollowerNode::control_loop, this));
+
+    RCLCPP_INFO(this->get_logger(), "PathFollowerNode initialized.");
 }
 
 // 経路データのコールバック関数
@@ -50,7 +52,7 @@ void LLPathFollowerNode::autonomous_flag_callback(const std_msgs::msg::Bool::Sha
 // 制御ループ
 void LLPathFollowerNode::control_loop()
 {
-    if (!is_autonomous_) {
+    if (!is_autonomous_ || path_points_.empty()) {
         return;
     }
 

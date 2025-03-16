@@ -32,7 +32,7 @@ void PathPublisherNode::pose_callback(const geometry_msgs::msg::PoseStamped::Sha
 
 void PathPublisherNode::pc_callback(const sensor_msgs::msg::PointCloud2::SharedPtr msg) {
     if (!current_pose_received_) {
-        RCLCPP_WARN(this->get_logger(), "Pose not received yet. Storing latest PointCloud2 message.");
+        // RCLCPP_WARN(this->get_logger(), "Pose not received yet. Storing latest PointCloud2 message.");
         latest_pc_msg_ = msg;
         return;
     }
@@ -41,7 +41,7 @@ void PathPublisherNode::pc_callback(const sensor_msgs::msg::PointCloud2::SharedP
 
 void PathPublisherNode::process_pointcloud(const sensor_msgs::msg::PointCloud2::SharedPtr msg) {
     if (!current_pose_received_) {
-        RCLCPP_WARN(this->get_logger(), "Pose not available. Skipping path generation.");
+        // RCLCPP_WARN(this->get_logger(), "Pose not available. Skipping path generation.");
         return;
     }
 
@@ -57,7 +57,7 @@ void PathPublisherNode::process_pointcloud(const sensor_msgs::msg::PointCloud2::
     }
 
     if (points.empty()) {
-        RCLCPP_WARN(this->get_logger(), "No points received in PointCloud2.");
+        // RCLCPP_WARN(this->get_logger(), "No points received in PointCloud2.");
         return;
     }
 
@@ -81,7 +81,7 @@ void PathPublisherNode::process_pointcloud(const sensor_msgs::msg::PointCloud2::
     }
 
     if (waypoints.size() < 2) {
-        RCLCPP_WARN(this->get_logger(), "Insufficient path points for interpolation. Skipping path update.");
+        // RCLCPP_WARN(this->get_logger(), "Insufficient path points for interpolation. Skipping path update.");
         return;
     }
 
