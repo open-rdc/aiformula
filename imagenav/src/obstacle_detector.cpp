@@ -12,9 +12,6 @@ std::vector<cv::Point> ObstacleDetector::detectObstacle(const cv::Mat& img, cons
     cv::Mat img_copy = img.clone();
     cv::Mat mask_img = ObstacleMaskImage(img_copy);
 
-    cv::imshow("mask img", mask_img);
-    cv::waitKey(1);
-
     return EstimatePosition(mask_img, depth_img);;
 }
 

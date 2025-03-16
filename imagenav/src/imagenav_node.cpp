@@ -39,10 +39,11 @@ void ImageNav::ImageCallback(const sensor_msgs::msg::Image::SharedPtr img)
 {
     cv_img = cv_bridge::toCvCopy(img, img->encoding);
 
-    if(visualize_flag_)
+    static bool log_flag=false;
+    if(!log_flag)
     {
-        cv::imshow("img", cv_img->image);
-        cv::waitKey(1);
+        RCLCPP_INFO(this->get_logger(), "image callback");
+        log_flag=true;
     }
 }
 
@@ -50,10 +51,11 @@ void ImageNav::DepthImageCallback(const sensor_msgs::msg::Image::SharedPtr img)
 {
     cv_depth_img = cv_bridge::toCvCopy(img, img->encoding);
 
-    if(visualize_flag_)
+    static bool log_flag=false;
+    if(!log_flag)
     {
-        cv::imshow("depth", cv_depth_img->image);
-        cv::waitKey(1);
+        RCLCPP_INFO(this->get_logger(), "depth image callback");
+        log_flag=true;
     }
 }
 
@@ -98,24 +100,23 @@ std::vector<geometry_msgs::msg::Point> ImageNav::screenToCamera(const std::vecto
 
     std::vector<geometry_msgs::msg::Point> points;
     geometry_msgs::msg::Point point;
+
     for(const cv::Point& cv_point : cv_points)
     {
-        // depth = depth_img.at<float>(cv_point.y,cv_point.x);
-        // cv::Mat mask_inf = (depth_img == INFINITY);
-        // int num_inf = cv::countNonZero(mask_inf);
-        // std::cout << "Number of inf values in depth_img: " << num_inf << std::endl;
+        if(cv_point.x <= 0 || cv_point.x >= depth_img.cols || cv_point.y <= 0 || cv_point.y >= depth_img.rows)
+            continue;
+
         const float depth_raw = depth_img.at<float>(cv_point.y,cv_point.x);
-        if(std::isfinite(depth_raw)){
+        if(std::isfinite(depth_raw))
+        {
             depth = static_cast<double>(depth_raw);
-            std::cout << "depth:" << depth << std::endl;
         }
 
-        // if(depth <= 0 || depth >= 20)
-        //     depth = 0;
         // カメラ座標系をロボット座標系に変換
         point.y = -1.0*depth*(cv_point.x - cx)/f;
         point.z = depth*(cv_point.y - cy)/f;
         point.x = depth;
+
         points.push_back(point);
     }
 
@@ -180,7 +181,6 @@ nav_msgs::msg::Path ImageNav::generatePath(const cv::Mat& cv_img, const cv::Mat&
 {
     // 障害物（赤）のスクリーン座標を取得
     std::vector<cv::Point> obstacle_points = obstacle.detectObstacle(cv_img, cv_depth_img);
-
     cv::Mat detect_img = line.detectLine(cv_img);
 
     // 白線の開始位置（x座標）を検出
@@ -225,7 +225,7 @@ nav_msgs::msg::Path ImageNav::generatePath(const cv::Mat& cv_img, const cv::Mat&
         bev_img = line.WindowVisualizar(bev_img, right_points_2f, 0, cv::Scalar(0, 255, 0));
         bev_img = line.PointVisualizar(bev_img, center_points, cv::Scalar(0, 0, 255));
 
-        cv::imshow("bev img", bev_img);
+        cv::imshow("bev img", detect_img);
         cv::waitKey(1);
 
         publishPoints(obstacle_pos);
@@ -262,12 +262,15 @@ void ImageNav::ImageNavigation(void)
     double dy = path.poses[5].pose.position.y;
 
     double angle = std::atan2(dy, dx);
-    // RCLCPP_INFO(this->get_logger(), "angle:%lf", angle);
+    RCLCPP_INFO(this->get_logger(), "angle:%lf", angle);
 
     geometry_msgs::msg::Twist cmd_vel;
     cmd_vel.linear.x = linear_max_;
     cmd_vel.angular.z = pid.cycle(angle);
 
+    if(std::isnan(cmd_vel.angular.z)){
+    	cmd_vel.angular.z = 0.0;
+    }
     cmd_pub_->publish(cmd_vel);
 }
 

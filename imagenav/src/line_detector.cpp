@@ -115,6 +115,8 @@ std::vector<cv::Point> LineDetector::SlideWindowMethod(const cv::Mat& img, const
             const uchar *pLine = img.ptr<uchar>(y);
             for(int x = estimate_x-(window_width/2); x < estimate_x+(window_width/2); ++x)
             {
+                x = std::max(0,x);
+                x = std::min(img.cols-1,x);
                 if(pLine[x] > white_th)
                 {
                     int relative_x = x - (estimate_x - (window_width/2));
@@ -184,8 +186,8 @@ std::vector<cv::Point> LineDetector::SlideWindowMethod(const cv::Mat& img, const
         // スライドウィンドウの中心座標<-window_position
         window_position.push_back(cv::Point{estimate_x, height - window_height/2});
     }
-    
-    for(int i=0; i<window_position.size(); i++)
+
+    for(size_t i=0; i<window_position.size(); i++)
     {
         prev_window_position[line][i] = window_position[i];
     }
@@ -234,7 +236,7 @@ cv::Mat LineDetector::toBEV(const cv::Mat& img)
 {
     // 俯瞰画像の変換座標 480x300
     cv::Point2f src_points[4] = { {-400, 300}, {100, 185}, {380, 185}, {880, 300} };
-    cv::Point2f dst_points[4] = { {0, 480}, {0, 0}, {480, 0}, {480, 480} };
+    cv::Point2f dst_points[4] = { {0, 300}, {0, 0}, {480, 0}, {480, 300} };
 
     // シミュレータ用俯瞰座標
     // cv::Point2f src_points[4] = { {-100, 300}, {100, 180}, {380, 180}, {580, 300} };
