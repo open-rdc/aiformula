@@ -37,7 +37,7 @@ class ImageSaver(Node):
     def save_image(self):
         if self.cv_image is not None:
             while True:
-                image_path = os.path.join(self.save_directory, f'image_{self.image_counter:04d}.png')
+                image_path = os.path.join(self.save_directory, f'image_{self.image_counter:04d}.jpg')
                 if not os.path.exists(image_path):
                     break
                 self.image_counter += 1

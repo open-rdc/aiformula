@@ -166,6 +166,38 @@ double Follower::findLookaheadDistance(){
     }
 }
 
+// double Follower::ObstaclePotential()
+// {
+//     Force force;
+
+//     double dx = point_[idx_].pose.position.x - obstacle.x;
+//     double dy = point_[idx_].pose.position.y - obstacle.y;
+
+//     obstacle.distance = std::hypot(dx, dy);
+//     obstacle.theta = std::atan2(dy, dx);
+//         // k, ld_ ,th のパラメータ設定
+//         // distanceはlookaheadのdistance
+//         // obstacleのthetaとdistanceがほしい lookaheadとの角度がtheta
+//     // double force_r.x = -k_r*(ld_ - distance_)*std::cos(theta);
+//     // double force_r.y = -k_r*(ld_ - distance_)*std::sin(theta);
+
+//     force.x = -k_o*(th - obstacle.distance)*std::cos(obstacle.theta);
+//     force.y = -k_o*(th - obstacle.distance)*std::sin(obstacle.theta);
+
+//     dx = point_[idx_].pose.position.x - current_position_x_ + force.x;
+//     dy = point_[idx_].pose.position.y - current_position_y_ + force.y;
+
+//     double target_angle = std::atan2(dy, dx);
+
+//     double angle = current_yaw_;
+//     angle = std::atan2(std::sin(angle), std::cos(angle));
+
+//     double theta = target_angle - angle;
+//     theta = std::atan2(std::sin(theta), std::cos(theta));
+
+//     return theta;
+// }
+
 double Follower::calculateCrossError(){
     double dx = point_[idx_].pose.position.x - current_position_x_;
     double dy = point_[idx_].pose.position.y - current_position_y_;
@@ -189,6 +221,7 @@ void Follower::followPath(){
     publishLookahead();
 
     // 目標地点との角度のズレ
+    // double theta = calculateCrossError();
     double theta = calculateCrossError();
 
     v_ = v_max_;

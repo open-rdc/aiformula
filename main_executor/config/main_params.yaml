@@ -2,14 +2,14 @@ launch: #起動パラメータ
   ros__parameters:
     can: true
     joy: true
-    vectornav : true
+    vectornav : false
     log_level : 10
 
 /**:  #ワイルドカード(ここのパラメータは全ノードから読める: <名前に注意>)
   ros__parameters:
     # 並進  速度[m/s],加速度[m/s^2],加減速度[-m/s^2],躍度[m/s^3]
     linear_max:
-      vel : 2.5
+      vel : 3.0
       acc: 3.5
       jer: 0.0
     # 回転  速度[deg/s],加速度[deg/s^2],加減速度[-deg/s^2],躍度[deg/s^3]
@@ -72,4 +72,14 @@ gnssnav_follower_node:
     min_lookahead_distance : 3.0
     max_linear_vel : 5.0
     max_angular_vel : 3.14
-    laps : 3
+    laps : 0
+
+imagenav_node:
+  ros__parameters:
+    interval_ms : 50
+    max_linear_vel : 3.0
+    max_angular_vel : 15.5
+    visualize_flag : true
+    p_gain : 5.0
+    i_gain : 0.0
+    d_gain : 0.0

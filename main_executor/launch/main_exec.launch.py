@@ -68,6 +68,7 @@ def generate_launch_description():
             'vectornav.launch.py'])
     )
 
+
     # 起動エンティティクラスの作成
     launch_discription = LaunchDescription()
 
