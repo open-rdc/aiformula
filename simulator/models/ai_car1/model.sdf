@@ -1,0 +1,364 @@
+<?xml version="1.0" ?>
+<sdf version="1.5">
+  <model name="ai_car1">
+  <pose>0 0 0 0 0 0</pose>
+
+    <link name="base_footprint"/>
+
+    <joint name="base_joint" type="fixed">
+      <parent>base_footprint</parent>
+      <child>base_link</child>
+      <pose>0 0 0.15 0 0 0</pose>
+    </joint>
+
+    <link name="base_link">
+      <inertial>
+        <pose>0 0 0 0 0 3.14</pose>
+        <inertia>
+          <ixx>1.73333</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>4.56667</iyy>
+          <iyz>0</iyz>
+          <izz>4.56667</izz>
+        </inertia>
+        <mass>30.0</mass>
+      </inertial>
+
+      <collision name="base_collision">
+        <pose>0 0 0 0 0 3.14</pose>
+        <geometry>
+          <mesh>
+             <uri>package://simulator/models/ai_car1/meshes/AIF_body.dae</uri>
+          </mesh>
+        </geometry>
+      </collision>
+
+      <visual name="base_visual">
+        <pose>0 0 0 0 0 3.14</pose>
+        <geometry>
+          <mesh>
+            <uri>package://simulator/models/ai_car1/meshes/AIF_body.dae</uri>
+          </mesh>
+        </geometry>
+      </visual>
+    </link>
+
+<!-- Left Wheel -->
+    <joint name="wheel_left_joint" type="revolute">
+      <parent>base_link</parent>
+      <child>wheel_left_link</child>
+      <pose> 0 0.3 0.0 1.57 0 1.57</pose>
+      <axis>
+        <xyz>1 0 0</xyz>
+      </axis>
+    </joint>
+
+    <link name="wheel_left_link">
+      <inertial>
+        <pose> 0 0.3 0.0 1.57 0 1.57</pose>
+        <inertia>
+          <ixx>0.04778</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>0.04778</iyy>
+          <iyz>0</iyz>
+          <izz>0.07875</izz>
+        </inertia>
+        <mass>7.0</mass>
+      </inertial>
+      <collision name="wheel_left_collision">
+        <pose> 0 0.3 0.0 1.57 0 1.57</pose>
+        <geometry>
+         <mesh>
+            <uri>package://simulator/models/ai_car1/meshes/tire.dae</uri>
+            <scale>0.05 0.12 0.12</scale>
+          </mesh>
+        </geometry>
+        <surface>
+          <friction>
+            <ode>
+              <mu>0.7</mu>
+              <mu2>0.7</mu2>
+              <fdir1>0 0 0</fdir1>
+              <slip1>0.0</slip1>
+              <slip2>0.0</slip2>
+            </ode>
+          </friction>
+          <contact>
+            <ode>
+              <soft_cfm>0</soft_cfm>
+              <soft_erp>0.2</soft_erp>
+              <kp>1e+5</kp>
+              <kd>1</kd>
+              <max_vel>0.01</max_vel>
+              <min_depth>0.001</min_depth>
+            </ode>
+          </contact>
+        </surface>
+      </collision>
+      <visual name="wheel_left_visual">
+        <pose> 0 0.3 0.0 1.57 0 1.57</pose>
+        <geometry>
+          <mesh>
+            <uri>package://simulator/models/ai_car1/meshes/tire.dae</uri>
+            <scale>0.05 0.12 0.12</scale>
+          </mesh>
+        </geometry>
+      </visual>
+    </link>
+
+<!-- Right Wheel -->
+
+    <joint name="wheel_right_joint" type="revolute">
+      <parent>base_link</parent>
+      <child>wheel_right_link</child>
+      <pose>0 -0.3 0.0 1.57 0 1.57</pose>
+      <axis>
+        <xyz>1 0 0</xyz>
+      </axis>
+    </joint>
+
+    <link name="wheel_right_link">
+      <inertial>
+        <pose>0 -0.3 0 1.57 0 1.57</pose>
+        <inertia>
+          <ixx>0.04778</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>0.04778</iyy>
+          <iyz>0</iyz>
+          <izz>0.07875</izz>
+        </inertia>
+        <mass>7.0</mass>
+      </inertial>
+      <collision name="wheel_right_collision">
+        <pose>0 -0.3 0 1.57 0 1.57</pose>
+        <geometry>
+          <mesh>
+            <uri>package://simulator/models/ai_car1/meshes/tire.dae</uri>
+            <scale>0.05 0.12 0.12</scale>
+          </mesh>
+        </geometry>
+        <surface>
+          <friction>
+            <ode>
+              <mu>0.7</mu>
+              <mu2>0.7</mu2>
+              <fdir1>0 0 0</fdir1>
+              <slip1>0.0</slip1>
+              <slip2>0.0</slip2>
+            </ode>
+          </friction>
+          <contact>
+            <ode>
+              <soft_cfm>0</soft_cfm>
+              <soft_erp>0.2</soft_erp>
+              <kp>1e+5</kp>
+              <kd>1</kd>
+              <max_vel>0.01</max_vel>
+              <min_depth>0.001</min_depth>
+            </ode>
+          </contact>
+        </surface>
+      </collision>
+      <visual name="wheel_right_visual">
+        <pose>0 -0.3 0 1.57 0 1.57</pose>
+        <geometry>
+          <mesh>
+            <uri>package://simulator/models/ai_car1/meshes/tire.dae</uri>
+            <scale>0.05 0.12 0.12</scale>
+          </mesh>
+        </geometry>
+      </visual>
+    </link>
+
+<!-- wheel caster -->
+
+   <joint name='wheel_caster_joint' type="revolute">
+      <parent>base_link</parent>
+      <child>wheel_caster_link</child>
+      <pose>-0.8 0 -0.02 1.57 0 1.57</pose>
+      <axis>
+        <xyz>1 0 0</xyz>
+      </axis>
+   </joint>
+
+   <link name="wheel_caster_link">
+      <inertial>
+        <pose>-0.8 0 -0.02 1.57 0 1.57</pose>
+        <inertia>
+          <ixx>0.04778</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>0.04778</iyy>
+          <iyz>0</iyz>
+          <izz>0.07875</izz>
+        </inertia>
+        <mass>10.0</mass>
+      </inertial>
+
+      <collision name="wheel_caster_collision">
+        <pose>-0.8 0 -0.02 1.57 0 1.57</pose>
+        <geometry>
+          <mesh>
+            <uri>package://simulator/models/ai_car1/meshes/tire.dae</uri>
+            <scale>0.1 0.1 0.1</scale>
+          </mesh>
+        </geometry>
+        <surface>
+          <friction>
+            <ode>
+              <mu>0.001</mu>
+              <mu2>0.001</mu2>
+              <fdir1>0 0 0</fdir1>
+              <slip1>0.0</slip1>
+              <slip2>0.0</slip2>
+            </ode>
+          </friction>
+          <contact>
+            <ode>
+              <soft_cfm>0</soft_cfm>
+              <soft_erp>0.2</soft_erp>
+              <kp>1e+5</kp>
+              <kd>1</kd>
+              <max_vel>0.01</max_vel>
+              <min_depth>0.001</min_depth>
+            </ode>
+          </contact>
+        </surface>
+      </collision>
+
+      <visual name="wheel_caster_visual">
+        <pose>-0.8 0 -0.02 1.57 0 1.57</pose>
+        <geometry>
+          <mesh>
+            <uri>package://simulator/models/ai_car1/meshes/tire.dae</uri>
+            <scale>0.1 0.1 0.1</scale>
+          </mesh>
+        </geometry>
+      </visual>
+    </link>
+
+<!-- ignition plugin -->
+
+    <gazebo>
+      <plugin filename="gz_ros2_control-system" name="gz_ros2_control::GazeboSimROS2ControlPlugin">
+      </plugin>
+      <plugin filename="ignition-gazebo-sensors-system" name="ignition::gazebo::systems::Sensors">
+        <render_engine>ogre2</render_engine>
+      </plugin>
+    </gazebo>
+
+<!-- camera image -->
+
+    <gazebo reference="camera_link" >
+      <sensor name="camera_link" type="camera">
+        <update_rate>10.0</update_rate>
+        <always_on>true</always_on>
+        <ignition_frame_id>camera_link</ignition_frame_id>
+        <pose>0.35 0 0.55 0 0 0</pose>
+        <topic>/image_raw</topic>
+        <camera name="diff_bot_camera">
+          <!--
+          <triggered>true</triggered>
+          <trigger_topic>/trigger</trigger_topic>
+          -->
+          <horizontal_fov>1.3962634</horizontal_fov>
+          <image>
+             <width>600</width>
+             <height>600</height>
+             <format>R8G8B8</format>
+          </image>
+          <clip>
+            <near>0.02</near>
+            <far>300</far>
+          </clip>
+        </camera>
+      </sensor>
+    </gazebo>
+
+    <!-- imu -->
+
+    <!-- <joint name="imu_joint" type="fixed">
+      <parent>base_link</parent>
+      <child>imu_link</child>
+      <pose>-0.032 0 0.068 0 0 0</pose>
+      <axis>
+        <xyz>0 0 1</xyz>
+      </axis>
+    </joint>
+
+    <link name="imu_link">
+      <sensor name="tb3_imu" type="imu">
+        <always_on>true</always_on>
+        <update_rate>200</update_rate>
+        <imu>
+          <angular_velocity>
+            <x>
+              <noise type="gaussian">
+                <mean>0.0</mean>
+                <stddev>2e-4</stddev>
+              </noise>
+            </x>
+            <y>
+              <noise type="gaussian">
+                <mean>0.0</mean>
+                <stddev>2e-4</stddev>
+              </noise>
+            </y>
+            <z>
+              <noise type="gaussian">
+                <mean>0.0</mean>
+                <stddev>2e-4</stddev>
+              </noise>
+            </z>
+          </angular_velocity>
+          <linear_acceleration>
+            <x>
+              <noise type="gaussian">
+                <mean>0.0</mean>
+                <stddev>1.7e-2</stddev>
+              </noise>
+            </x>
+            <y>
+              <noise type="gaussian">
+                <mean>0.0</mean>
+                <stddev>1.7e-2</stddev>
+              </noise>
+            </y>
+            <z>
+              <noise type="gaussian">
+                <mean>0.0</mean>
+                <stddev>1.7e-2</stddev>
+              </noise>
+            </z>
+          </linear_acceleration>
+        </imu>
+      </sensor>
+    </link> -->
+
+    <!-- GPS -->
+    <!-- <joint name="gps_joint" type="fixed">
+      <parent>base_link</parent>
+      <child>gps_link</child>
+      <pose>0 0 0 0 0 0</pose>
+      <axis>
+        <xyz>0 0 1</xyz>
+      </axis>
+    </joint>
+    <link name="gps_link">
+        <sensor name="gps_sensor" type="gps">
+        <always_on>true</always_on>
+        <update_rate>1.0</update_rate>
+
+        <plugin name="gps_controller" filename="libgz-sim-ros-gps-system.so">
+            <ros>
+                <remapping>~/out:=gps</remapping>
+            </ros>
+        </plugin>
+        </sensor>
+    </link> -->
+
+  </model>
+</sdf>
