@@ -16,9 +16,9 @@
       <plugin filename="libignition-gazebo-diff-drive-system.so" name="ignition::gazebo::systems::DiffDrive">
         <left_joint>wheel_left_joint</left_joint>
         <right_joint>wheel_right_joint</right_joint>
-        <wheel_separation>1.2</wheel_separation>
-        <wheel_radius>0.4</wheel_radius>
-        <odom_publish_frequency>1</odom_publish_frequency>
+        <wheel_separation>0.6</wheel_separation>
+        <wheel_radius>0.2</wheel_radius>
+        <odom_publish_frequency>0.01</odom_publish_frequency>
         <topic>cmd_vel</topic>
       </plugin>
     </gazebo>
@@ -52,7 +52,7 @@
              <uri>package://simulator/models/ai_car1/meshes/AIF_body.dae</uri>
           </mesh> -->
           <box>
-            <size>2.0 1.0 0.5</size>
+            <size>1.2 0.6 0.1</size>
           </box>
         </geometry>
       </collision>
@@ -98,8 +98,8 @@
             <scale>0.05 0.12 0.12</scale>
           </mesh> -->
           <cylinder>
-            <radius>0.4</radius>
-            <length>0.2</length>
+            <radius>0.2</radius>
+            <length>0.1</length>
           </cylinder>
         </geometry>
         <surface>
@@ -167,8 +167,8 @@
             <scale>0.05 0.12 0.12</scale>
           </mesh> -->
           <cylinder>
-            <radius>0.4</radius>
-            <length>0.2</length>
+            <radius>0.2</radius>
+            <length>0.1</length>
           </cylinder>
         </geometry>
         <surface>
@@ -236,7 +236,7 @@
             <scale>0.1 0.1 0.1</scale>
           </mesh> -->
           <sphere>
-            <radius>0.4</radius>
+            <radius>0.2</radius>
           </sphere>
         </geometry>
         <surface>
