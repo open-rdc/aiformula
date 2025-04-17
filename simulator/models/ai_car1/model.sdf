@@ -3,6 +3,26 @@
   <model name="ai_car1">
   <pose>0 0 0 0 0 0</pose>
 
+    <!-- ignition plugin -->
+
+    <gazebo>
+      <plugin filename="gz_ros2_control-system" name="gz_ros2_control::GazeboSimROS2ControlPlugin">
+      </plugin>
+      <plugin filename="ignition-gazebo-sensors-system" name="ignition::gazebo::systems::Sensors">
+        <render_engine>ogre2</render_engine>
+      </plugin>
+      <plugin filename="libignition-gazebo-imu-system.so" name="ignition::gazebo::systems::Imu">
+      </plugin>
+      <plugin filename="libignition-gazebo-diff-drive-system.so" name="ignition::gazebo::systems::DiffDrive">
+        <left_joint>wheel_left_joint</left_joint>
+        <right_joint>wheel_right_joint</right_joint>
+        <wheel_separation>1.2</wheel_separation>
+        <wheel_radius>0.4</wheel_radius>
+        <odom_publish_frequency>1</odom_publish_frequency>
+        <topic>cmd_vel</topic>
+      </plugin>
+    </gazebo>
+
     <link name="base_footprint"/>
 
     <joint name="base_joint" type="fixed">
@@ -28,9 +48,12 @@
       <collision name="base_collision">
         <pose>0 0 0 0 0 3.14</pose>
         <geometry>
-          <mesh>
+          <!-- <mesh>
              <uri>package://simulator/models/ai_car1/meshes/AIF_body.dae</uri>
-          </mesh>
+          </mesh> -->
+          <box>
+            <size>2.0 1.0 0.5</size>
+          </box>
         </geometry>
       </collision>
 
@@ -70,10 +93,14 @@
       <collision name="wheel_left_collision">
         <pose> 0 0.3 0.0 1.57 0 1.57</pose>
         <geometry>
-         <mesh>
+          <!-- <mesh>
             <uri>package://simulator/models/ai_car1/meshes/tire.dae</uri>
             <scale>0.05 0.12 0.12</scale>
-          </mesh>
+          </mesh> -->
+          <cylinder>
+            <radius>0.4</radius>
+            <length>0.2</length>
+          </cylinder>
         </geometry>
         <surface>
           <friction>
@@ -135,10 +162,14 @@
       <collision name="wheel_right_collision">
         <pose>0 -0.3 0 1.57 0 1.57</pose>
         <geometry>
-          <mesh>
+          <!-- <mesh>
             <uri>package://simulator/models/ai_car1/meshes/tire.dae</uri>
             <scale>0.05 0.12 0.12</scale>
-          </mesh>
+          </mesh> -->
+          <cylinder>
+            <radius>0.4</radius>
+            <length>0.2</length>
+          </cylinder>
         </geometry>
         <surface>
           <friction>
@@ -197,14 +228,16 @@
         </inertia>
         <mass>10.0</mass>
       </inertial>
-
       <collision name="wheel_caster_collision">
         <pose>-0.8 0 -0.02 1.57 0 1.57</pose>
         <geometry>
-          <mesh>
+          <!-- <mesh>
             <uri>package://simulator/models/ai_car1/meshes/tire.dae</uri>
             <scale>0.1 0.1 0.1</scale>
-          </mesh>
+          </mesh> -->
+          <sphere>
+            <radius>0.4</radius>
+          </sphere>
         </geometry>
         <surface>
           <friction>
@@ -240,16 +273,6 @@
       </visual>
     </link>
 
-<!-- ignition plugin -->
-
-    <gazebo>
-      <plugin filename="gz_ros2_control-system" name="gz_ros2_control::GazeboSimROS2ControlPlugin">
-      </plugin>
-      <plugin filename="ignition-gazebo-sensors-system" name="ignition::gazebo::systems::Sensors">
-        <render_engine>ogre2</render_engine>
-      </plugin>
-    </gazebo>
-
 <!-- camera image -->
 
     <gazebo reference="camera_link" >
@@ -280,7 +303,7 @@
 
     <!-- imu -->
 
-    <!-- <joint name="imu_joint" type="fixed">
+    <joint name="imu_joint" type="fixed">
       <parent>base_link</parent>
       <child>imu_link</child>
       <pose>-0.032 0 0.068 0 0 0</pose>
@@ -290,53 +313,13 @@
     </joint>
 
     <link name="imu_link">
-      <sensor name="tb3_imu" type="imu">
+      <sensor name="imu_sensor" type="imu">
         <always_on>true</always_on>
         <update_rate>200</update_rate>
-        <imu>
-          <angular_velocity>
-            <x>
-              <noise type="gaussian">
-                <mean>0.0</mean>
-                <stddev>2e-4</stddev>
-              </noise>
-            </x>
-            <y>
-              <noise type="gaussian">
-                <mean>0.0</mean>
-                <stddev>2e-4</stddev>
-              </noise>
-            </y>
-            <z>
-              <noise type="gaussian">
-                <mean>0.0</mean>
-                <stddev>2e-4</stddev>
-              </noise>
-            </z>
-          </angular_velocity>
-          <linear_acceleration>
-            <x>
-              <noise type="gaussian">
-                <mean>0.0</mean>
-                <stddev>1.7e-2</stddev>
-              </noise>
-            </x>
-            <y>
-              <noise type="gaussian">
-                <mean>0.0</mean>
-                <stddev>1.7e-2</stddev>
-              </noise>
-            </y>
-            <z>
-              <noise type="gaussian">
-                <mean>0.0</mean>
-                <stddev>1.7e-2</stddev>
-              </noise>
-            </z>
-          </linear_acceleration>
-        </imu>
+        <visualize>true</visualize>
+        <topic>imu</topic>
       </sensor>
-    </link> -->
+    </link>
 
     <!-- GPS -->
     <!-- <joint name="gps_joint" type="fixed">
