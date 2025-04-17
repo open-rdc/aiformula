@@ -21,7 +21,9 @@ def generate_launch_description():
         executable='parameter_bridge',
         arguments=[
             '/camera_info@sensor_msgs/msg/CameraInfo@ignition.msgs.CameraInfo',
-            '/image_raw@sensor_msgs/msg/Image@ignition.msgs.Image'],
+            '/image_raw@sensor_msgs/msg/Image@ignition.msgs.Image',
+            '/imu@sensor_msgs/msg/Imu@ignition.msgs.Imu',
+            '/cmd_vel@geometry_msgs/msg/Twist@ignition.msgs.Twist'],
         output='screen'
     )
 
