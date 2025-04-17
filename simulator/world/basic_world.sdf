@@ -4,6 +4,7 @@
         <physics name="1ms" type="ignored">
             <max_step_size>0.001</max_step_size>
             <real_time_factor>1.0</real_time_factor>
+            <gravity>0 0 -9.8</gravity>
         </physics>
         <plugin
             filename="libignition-gazebo-physics-system.so"
