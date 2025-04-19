@@ -320,19 +320,22 @@
 
     <!-- GNSS sensor -->
 
-    <!-- <joint name="gps_joint" type="fixed">
+    <joint name="gps_joint" type="fixed">
       <parent>chassis</parent>
       <child>gps_link</child>
       <pose>0 0 0 0 0 0</pose>
       <axis>
         <xyz>0 0 1</xyz>
       </axis>
-    </joint> -->
+    </joint>
 
-    <!-- <link name="gps_link">
-    </link> -->
-
-    
+    <link name="gps_link">
+      <sensor name="gps_sensor" type="navsat">
+        <always_on>true</always_on>
+        <update_rate>1.0</update_rate>
+        <topic>navsat</topic>
+      </sensor>
+    </link>
 
   </model>
 </sdf>
