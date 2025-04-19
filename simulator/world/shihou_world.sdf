@@ -18,6 +18,9 @@
             <property key="resizable" type="bool">true</property>
             </ignition-gui>
         </plugin>
+        <plugin filename="ImageDisplay" name="ignition::gui::plugins::ImageDisplay">
+            <topic>/image_raw</topic>
+        </plugin>
         </gui>
 
         <physics name="1ms" type="ignored">
