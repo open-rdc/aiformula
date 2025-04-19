@@ -25,7 +25,7 @@ def generate_launch_description():
             '/depth_image_raw@sensor_msgs/msg/Image@ignition.msgs.Image',
             '/depth_points@sensor_msgs/msg/PointCloud2@ignition.msgs.PointCloudPacked',
             '/navsat@sensor_msgs/msg/NavSatFix@ignition.msgs.NavSat',
-            '/imu@sensor_msgs/msg/Imu@ignition.msgs.Imu',
+            '/imu_raw@sensor_msgs/msg/Imu@ignition.msgs.IMU',
             '/cmd_vel@geometry_msgs/msg/Twist@ignition.msgs.Twist'],
         output='screen'
     )
