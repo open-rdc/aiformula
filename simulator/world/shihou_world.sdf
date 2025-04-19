@@ -18,6 +18,11 @@
             filename="libignition-gazebo-scene-broadcaster-system.so"
             name="ignition::gazebo::systems::SceneBroadcaster">
         </plugin>
+        <plugin 
+            filename="ignition-gazebo-navsat-system"
+            name="ignition::gazebo::systems::NavSat">
+        </plugin>
+
 
         <light type="directional" name="sun">
             <cast_shadows>true</cast_shadows>
@@ -56,8 +61,19 @@
 
       <include>
         <uri>package://simulator/models/ai_car1</uri>
-      <pose>-51.5 10.0 0 0 0 -1.50</pose>
+        <pose>-51.5 10.0 0 0 0 -1.50</pose>
       </include>
+
+    <!-- 用調整 -->
+
+      <spherical_coordinates>
+        <surface_model>EARTH_WGS84</surface_model>
+        <world_frame_orientation>ENU</world_frame_orientation>
+        <latitude_deg>36.11339585571819</latitude_deg>
+        <longitude_deg>139.9815010597697</longitude_deg>
+        <elevation>0</elevation>
+        <heading_deg>0</heading_deg>
+      </spherical_coordinates>
 
     </world>
 </sdf>
