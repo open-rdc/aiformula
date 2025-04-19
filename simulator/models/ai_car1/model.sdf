@@ -54,9 +54,10 @@
       <collision name='collision'>
         <pose>0 0 0 0 0 3.14</pose>
         <geometry>
-          <box>
-            <size>1.2 0.6 0.1</size>
-          </box>
+        <pose>0 0 0 0 0 3.14</pose>
+          <mesh>
+            <uri>package://simulator/models/ai_car1/meshes/AIF_body.dae</uri>
+          </mesh>
         </geometry>
       </collision>
     </link>
@@ -89,10 +90,11 @@
       </visual>
       <collision name='collision'>
           <geometry>
-              <cylinder>
-                  <radius>0.1</radius>
-                  <length>0.1</length>
-              </cylinder>
+          <pose>0 -0.3 0 1.57 0 1.57</pose>
+            <mesh>
+              <uri>package://simulator/models/ai_car1/meshes/tire.dae</uri>
+              <scale>0.05 0.12 0.12</scale>
+            </mesh>
           </geometry>
       </collision>
     </link>
@@ -126,10 +128,11 @@
 
       <collision name='collision'>
         <geometry>
-          <cylinder>
-            <radius>0.1</radius>
-            <length>0.1</length>
-          </cylinder>
+        <pose>0 0.3 0 1.57 0 1.57</pose>
+          <mesh>
+            <uri>package://simulator/models/ai_car1/meshes/tire.dae</uri>
+            <scale>0.05 0.12 0.12</scale>
+          </mesh>
         </geometry>
       </collision>
     </link>
@@ -164,9 +167,10 @@
 
       <collision name='collision'>
         <geometry>
-          <sphere>
-            <radius>0.1</radius>
-          </sphere>
+          <mesh>
+            <uri>package://simulator/models/ai_car1/meshes/tire.dae</uri>
+            <scale>0.1 0.1 0.1</scale>
+          </mesh>
         </geometry>
       </collision>
     </link>
