@@ -22,6 +22,8 @@ def generate_launch_description():
         arguments=[
             '/camera_info@sensor_msgs/msg/CameraInfo@ignition.msgs.CameraInfo',
             '/image_raw@sensor_msgs/msg/Image@ignition.msgs.Image',
+            '/depth_image_raw@sensor_msgs/msg/Image@ignition.msgs.Image',
+            '/navsat@sensor_msgs/msg/NavSatFix@ignition.msgs.NavSat',
             '/imu@sensor_msgs/msg/Imu@ignition.msgs.Imu',
             '/cmd_vel@geometry_msgs/msg/Twist@ignition.msgs.Twist'],
         output='screen'
