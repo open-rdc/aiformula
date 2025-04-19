@@ -13,7 +13,7 @@ def generate_launch_description():
     world_file_path = PathJoinSubstitution([
         get_package_share_directory('simulator'),
         'world',
-        'basic_world.sdf'
+        'shihou_world.sdf'
     ])
 
     bridge = Node(
