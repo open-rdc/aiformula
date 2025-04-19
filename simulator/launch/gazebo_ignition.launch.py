@@ -23,6 +23,7 @@ def generate_launch_description():
             '/camera_info@sensor_msgs/msg/CameraInfo@ignition.msgs.CameraInfo',
             '/image_raw@sensor_msgs/msg/Image@ignition.msgs.Image',
             '/depth_image_raw@sensor_msgs/msg/Image@ignition.msgs.Image',
+            '/depth_points@sensor_msgs/msg/PointCloud2@ignition.msgs.PointCloudPacked',
             '/navsat@sensor_msgs/msg/NavSatFix@ignition.msgs.NavSat',
             '/imu@sensor_msgs/msg/Imu@ignition.msgs.Imu',
             '/cmd_vel@geometry_msgs/msg/Twist@ignition.msgs.Twist'],
@@ -34,7 +35,7 @@ def generate_launch_description():
             PythonLaunchDescriptionSource([os.path.join(
                 get_package_share_directory('ros_gz_sim'), 'launch'), '/gz_sim.launch.py']),
             launch_arguments=[
-                ('gz_args', world_file_path)]
+                ('gz_args', [world_file_path, ' -r'])]
         ),
         bridge
     ])
