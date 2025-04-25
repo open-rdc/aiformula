@@ -1,6 +1,28 @@
 <?xml version="1.0" ?>
 <sdf version="1.8">
     <world name="car_world">
+        <gui fullscreen="0">
+        <plugin filename="GzScene3D" name="3D View">
+            <camera_pose>-51.96 14.33 4.24 0 0.63 -1.41</camera_pose>
+            <ignition-gui>
+            <title>3D View</title>
+            <property type="bool" key="showTitleBar">true</property>
+            <property type="string" key="state">docked</property>
+            </ignition-gui>
+        </plugin>
+        <plugin filename="Teleop" name="ignition::gui::plugins::Teleop">
+            <topic>/cmd_vel</topic>
+            <ignition-gui>
+            <property type="bool" key="showTitleBar">true</property>
+            <property type="string" key="state">docked</property>
+            <property key="resizable" type="bool">true</property>
+            </ignition-gui>
+        </plugin>
+        <plugin filename="ImageDisplay" name="ignition::gui::plugins::ImageDisplay">
+            <topic>/image_raw</topic>
+        </plugin>
+        </gui>
+
         <physics name="1ms" type="ignored">
             <max_step_size>0.001</max_step_size>
             <real_time_factor>1.0</real_time_factor>
@@ -22,7 +44,6 @@
             filename="ignition-gazebo-navsat-system"
             name="ignition::gazebo::systems::NavSat">
         </plugin>
-
 
         <light type="directional" name="sun">
             <cast_shadows>true</cast_shadows>
@@ -51,7 +72,7 @@
             <visual name="visual">
                 <geometry>
                     <mesh>
-                    <uri>package://simulator/world/meshes/shihou_world.dae</uri>
+                      <uri>package://simulator/world/meshes/shihou_world.dae</uri>
                     <scale>1 1 1</scale>
                     </mesh>
                 </geometry>
@@ -59,21 +80,21 @@
         </link>
         </model>
 
-      <include>
-        <uri>package://simulator/models/ai_car1</uri>
-        <pose>-51.5 10.0 0 0 0 -1.50</pose>
-      </include>
+        <include>
+            <uri>package://simulator/models/ai_car1</uri>
+            <pose>-51.5 10.0 0 0 0 -1.50</pose>
+        </include>
 
     <!-- 用調整 -->
 
-      <spherical_coordinates>
-        <surface_model>EARTH_WGS84</surface_model>
-        <world_frame_orientation>ENU</world_frame_orientation>
-        <latitude_deg>36.11339585571819</latitude_deg>
-        <longitude_deg>139.9815010597697</longitude_deg>
-        <elevation>0</elevation>
-        <heading_deg>0</heading_deg>
-      </spherical_coordinates>
+        <spherical_coordinates>
+            <surface_model>EARTH_WGS84</surface_model>
+            <world_frame_orientation>ENU</world_frame_orientation>
+            <latitude_deg>36.11339585571819</latitude_deg>
+            <longitude_deg>139.9815010597697</longitude_deg>
+            <elevation>0</elevation>
+            <heading_deg>0</heading_deg>
+        </spherical_coordinates>
 
     </world>
 </sdf>

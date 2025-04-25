@@ -54,9 +54,10 @@
       <collision name='collision'>
         <pose>0 0 0 0 0 3.14</pose>
         <geometry>
-          <box>
-            <size>1.2 0.6 0.1</size>
-          </box>
+        <pose>0 0 0 0 0 3.14</pose>
+          <mesh>
+            <uri>package://simulator/models/ai_car1/meshes/AIF_body.dae</uri>
+          </mesh>
         </geometry>
       </collision>
     </link>
@@ -89,10 +90,11 @@
       </visual>
       <collision name='collision'>
           <geometry>
-              <cylinder>
-                  <radius>0.1</radius>
-                  <length>0.1</length>
-              </cylinder>
+          <pose>0 -0.3 0 1.57 0 1.57</pose>
+            <mesh>
+              <uri>package://simulator/models/ai_car1/meshes/tire.dae</uri>
+              <scale>0.05 0.12 0.12</scale>
+            </mesh>
           </geometry>
       </collision>
     </link>
@@ -126,13 +128,16 @@
 
       <collision name='collision'>
         <geometry>
-          <cylinder>
-            <radius>0.1</radius>
-            <length>0.1</length>
-          </cylinder>
+        <pose>0 0.3 0 1.57 0 1.57</pose>
+          <mesh>
+            <uri>package://simulator/models/ai_car1/meshes/tire.dae</uri>
+            <scale>0.05 0.12 0.12</scale>
+          </mesh>
         </geometry>
       </collision>
     </link>
+
+    <!-- caster wheel -->
 
     <frame name="caster_frame" attached_to='chassis'>
         <pose>0.8 0 0 0 0 1.57</pose>
@@ -164,9 +169,10 @@
 
       <collision name='collision'>
         <geometry>
-          <sphere>
-            <radius>0.1</radius>
-          </sphere>
+          <mesh>
+            <uri>package://simulator/models/ai_car1/meshes/tire.dae</uri>
+            <scale>0.1 0.1 0.1</scale>
+          </mesh>
         </geometry>
       </collision>
     </link>
@@ -199,14 +205,14 @@
       </axis>
     </joint>
 
-    <joint name='caster_wheel' type='ball'>
+    <joint name='caster_wheel' type='revolute'>
       <parent>chassis</parent>
       <child>caster</child>
       <axis>
-        <xyz expressed_in='__model__'>1 0 0</xyz>
+        <xyz expressed_in='__model__'>0 1 0</xyz>
         <limit>
-          <lower>-1.79769e+308</lower>    <!--negative infinity-->
-          <upper>1.79769e+308</upper>     <!--positive infinity-->
+          <lower>-0.523599</lower>   <!--可動域制限<-30[deg]-->
+          <upper>0.523599</upper>
         </limit>
       </axis>
     </joint>
