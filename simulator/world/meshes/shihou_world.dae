@@ -5,22 +5,22 @@
       <author>Blender User</author>
       <authoring_tool>Blender 4.4.1 commit date:2025-04-14, commit time:14:20, hash:d8845b3bb572</authoring_tool>
     </contributor>
-    <created>2025-04-19T14:59:54</created>
-    <modified>2025-04-19T14:59:54</modified>
+    <created>2025-04-25T16:59:13</created>
+    <modified>2025-04-25T16:59:13</modified>
     <unit name="meter" meter="1"/>
     <up_axis>Z_UP</up_axis>
   </asset>
   <library_effects>
-    <effect id="rastMat_002-effect">
+    <effect id="エンプティ_001-effect">
       <profile_COMMON>
-        <newparam sid="EXPORT_GOOGLE_SAT_WM_002-surface">
+        <newparam sid="DJI_20240829195420_0001_D_png-surface">
           <surface type="2D">
-            <init_from>EXPORT_GOOGLE_SAT_WM_002</init_from>
+            <init_from>DJI_20240829195420_0001_D_png</init_from>
           </surface>
         </newparam>
-        <newparam sid="EXPORT_GOOGLE_SAT_WM_002-sampler">
+        <newparam sid="DJI_20240829195420_0001_D_png-sampler">
           <sampler2D>
-            <source>EXPORT_GOOGLE_SAT_WM_002-surface</source>
+            <source>DJI_20240829195420_0001_D_png-surface</source>
           </sampler2D>
         </newparam>
         <technique sid="common">
@@ -29,7 +29,7 @@
               <color sid="emission">0 0 0 1</color>
             </emission>
             <diffuse>
-              <texture texture="EXPORT_GOOGLE_SAT_WM_002-sampler" texcoord="rastUVmap"/>
+              <texture texture="DJI_20240829195420_0001_D_png-sampler" texcoord="UVMap"/>
             </diffuse>
             <index_of_refraction>
               <float sid="ior">1.5</float>
@@ -40,75 +40,72 @@
     </effect>
   </library_effects>
   <library_images>
-    <image id="EXPORT_GOOGLE_SAT_WM_002" name="EXPORT_GOOGLE_SAT_WM_002">
-      <init_from>EXPORT_GOOGLE_SAT_WM.002.png</init_from>
+    <image id="DJI_20240829195420_0001_D_png" name="DJI_20240829195420_0001_D_png">
+      <init_from>DJI_20240829195420_0001_D.png</init_from>
     </image>
   </library_images>
   <library_materials>
-    <material id="rastMat_002-material" name="rastMat.002">
-      <instance_effect url="#rastMat_002-effect"/>
+    <material id="エンプティ_001-material" name="エンプティ.001">
+      <instance_effect url="#エンプティ_001-effect"/>
     </material>
   </library_materials>
   <library_geometries>
-    <geometry id="EXPORT_GOOGLE_SAT_WM_002-mesh" name="EXPORT_GOOGLE_SAT_WM.002">
+    <geometry id="エンプティ_001-mesh" name="エンプティ.001">
       <mesh>
-        <source id="EXPORT_GOOGLE_SAT_WM_002-mesh-positions">
-          <float_array id="EXPORT_GOOGLE_SAT_WM_002-mesh-positions-array" count="12">-183.118 94.03539 0 160.8486 94.03539 0 160.8486 -97.05718 0 -183.118 -97.05718 0</float_array>
+        <source id="エンプティ_001-mesh-positions">
+          <float_array id="エンプティ_001-mesh-positions-array" count="12">-74.16023 -72.15618 0 129.8582 -72.15618 0 -74.16023 42.60419 0 129.8582 42.60419 0</float_array>
           <technique_common>
-            <accessor source="#EXPORT_GOOGLE_SAT_WM_002-mesh-positions-array" count="4" stride="3">
+            <accessor source="#エンプティ_001-mesh-positions-array" count="4" stride="3">
               <param name="X" type="float"/>
               <param name="Y" type="float"/>
               <param name="Z" type="float"/>
             </accessor>
           </technique_common>
         </source>
-        <source id="EXPORT_GOOGLE_SAT_WM_002-mesh-normals">
-          <float_array id="EXPORT_GOOGLE_SAT_WM_002-mesh-normals-array" count="6">0 0 1 0 0 1</float_array>
+        <source id="エンプティ_001-mesh-normals">
+          <float_array id="エンプティ_001-mesh-normals-array" count="6">0 0 1 0 0 1</float_array>
           <technique_common>
-            <accessor source="#EXPORT_GOOGLE_SAT_WM_002-mesh-normals-array" count="2" stride="3">
+            <accessor source="#エンプティ_001-mesh-normals-array" count="2" stride="3">
               <param name="X" type="float"/>
               <param name="Y" type="float"/>
               <param name="Z" type="float"/>
             </accessor>
           </technique_common>
         </source>
-        <source id="EXPORT_GOOGLE_SAT_WM_002-mesh-map-0">
-          <float_array id="EXPORT_GOOGLE_SAT_WM_002-mesh-map-0-array" count="12">1 0 0 1 0 0 1 0 1 1 0 1</float_array>
+        <source id="エンプティ_001-mesh-map-0">
+          <float_array id="エンプティ_001-mesh-map-0-array" count="12">1 0 0 1 0 0 1 0 1 1 0 1</float_array>
           <technique_common>
-            <accessor source="#EXPORT_GOOGLE_SAT_WM_002-mesh-map-0-array" count="6" stride="2">
+            <accessor source="#エンプティ_001-mesh-map-0-array" count="6" stride="2">
               <param name="S" type="float"/>
               <param name="T" type="float"/>
             </accessor>
           </technique_common>
         </source>
-        <vertices id="EXPORT_GOOGLE_SAT_WM_002-mesh-vertices">
-          <input semantic="POSITION" source="#EXPORT_GOOGLE_SAT_WM_002-mesh-positions"/>
+        <vertices id="エンプティ_001-mesh-vertices">
+          <input semantic="POSITION" source="#エンプティ_001-mesh-positions"/>
         </vertices>
-        <triangles material="rastMat_002-material" count="2">
-          <input semantic="VERTEX" source="#EXPORT_GOOGLE_SAT_WM_002-mesh-vertices" offset="0"/>
-          <input semantic="NORMAL" source="#EXPORT_GOOGLE_SAT_WM_002-mesh-normals" offset="1"/>
-          <input semantic="TEXCOORD" source="#EXPORT_GOOGLE_SAT_WM_002-mesh-map-0" offset="2" set="0"/>
-          <p>2 0 0 0 0 1 3 0 2 2 1 3 1 1 4 0 1 5</p>
+        <triangles material="エンプティ_001-material" count="2">
+          <input semantic="VERTEX" source="#エンプティ_001-mesh-vertices" offset="0"/>
+          <input semantic="NORMAL" source="#エンプティ_001-mesh-normals" offset="1"/>
+          <input semantic="TEXCOORD" source="#エンプティ_001-mesh-map-0" offset="2" set="0"/>
+          <p>1 0 0 2 0 1 0 0 2 1 1 3 3 1 4 2 1 5</p>
         </triangles>
       </mesh>
     </geometry>
   </library_geometries>
   <library_visual_scenes>
     <visual_scene id="Scene" name="Scene">
-      <node id="EXPORT_GOOGLE_SAT_WM" name="EXPORT_GOOGLE_SAT_WM" type="NODE">
-        <matrix sid="transform">1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1</matrix>
-        <instance_geometry url="#EXPORT_GOOGLE_SAT_WM_002-mesh" name="EXPORT_GOOGLE_SAT_WM">
+      <node id="エンプティ_002" name="エンプティ.002" type="NODE">
+        <matrix sid="transform">0.9636387 -0.08854394 0 28.12589 0.08854394 0.9636387 0 0.4758618 0 0 0.9676982 0 0 0 0 1</matrix>
+        <instance_geometry url="#エンプティ_001-mesh" name="エンプティ.002">
           <bind_material>
             <technique_common>
-              <instance_material symbol="rastMat_002-material" target="#rastMat_002-material">
-                <bind_vertex_input semantic="rastUVmap" input_semantic="TEXCOORD" input_set="0"/>
+              <instance_material symbol="エンプティ_001-material" target="#エンプティ_001-material">
+                <bind_vertex_input semantic="UVMap" input_semantic="TEXCOORD" input_set="0"/>
               </instance_material>
             </technique_common>
           </bind_material>
         </instance_geometry>
-      </node>
-      <node id="GOOGLE_SAT_WM" name="GOOGLE_SAT_WM" type="NODE">
-        <matrix sid="transform">343.9666 0 0 -11.13467 0 343.9666 0 -1.510898 0 0 1 0 0 0 0 1</matrix>
       </node>
     </visual_scene>
   </library_visual_scenes>
