@@ -3,7 +3,7 @@
     <world name="car_world">
         <gui fullscreen="0">
         <plugin filename="GzScene3D" name="3D View">
-            <camera_pose>-51.96 14.33 4.24 0 0.63 -1.41</camera_pose>
+            <camera_pose>0.4845 5.5579 3.3651 0.0 0.308 -1.548</camera_pose>
             <ignition-gui>
             <title>3D View</title>
             <property type="bool" key="showTitleBar">true</property>
@@ -82,7 +82,7 @@
 
         <include>
             <uri>package://simulator/models/ai_car1</uri>
-            <pose>-51.5 10.0 0 0 0 -1.50</pose>
+            <pose>0.6 0.0 0 0 0 -1.5</pose>
         </include>
 
     <!-- 用調整 -->
