@@ -9,7 +9,7 @@ from ament_index_python.packages import get_package_share_directory
 
 
 def generate_launch_description():
-    VEHICLE_NAME = "ai_car_caster_trail"
+    VEHICLE_NAME = "ai_car_extended_trail"
     launch_args = (
         DeclareLaunchArgument(
             "world_name",
@@ -18,7 +18,7 @@ def generate_launch_description():
         ),
         DeclareLaunchArgument(
             "vehicle_name",
-            default_value="ai_car_caster_trail",
+            default_value="ai_car_extended_trail",
             description="Vehicle Name",
         ),
         DeclareLaunchArgument(

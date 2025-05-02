@@ -1,6 +1,6 @@
 <?xml version="1.0" ?>
 <sdf version="1.5">
-  <model name="ai_car_caster_trail">
+  <model name="ai_car_caster">
   <pose>0 0 0 0 0 0</pose>
 
     <link name="base_footprint"/>
@@ -198,7 +198,7 @@
    <joint name='wheel_caster_joint' type="revolute">
       <parent>wheel_caster_steering_link</parent>
       <child>wheel_caster_link</child>
-      <pose>-1.0 0 -0.02 1.57 0 1.57</pose>
+      <pose>-0.85 0 -0.02 1.57 0 1.57</pose>
       <axis>
         <xyz>1 0 0</xyz>
       </axis>
@@ -206,7 +206,7 @@
 
    <link name="wheel_caster_link">
       <inertial>
-        <pose>-1.0 0 -0.02 1.57 0 1.57</pose>
+        <pose>-0.85 0 -0.02 1.57 0 1.57</pose>
         <inertia>
           <ixx>0.04778</ixx>
           <ixy>0</ixy>
@@ -219,7 +219,7 @@
       </inertial>
 
       <collision name="wheel_caster_collision">
-        <pose>-1.0 0 -0.02 1.57 0 1.57</pose>
+        <pose>-0.85 0 -0.02 1.57 0 1.57</pose>
         <geometry>
           <mesh>
             <uri>model://ai_car1/meshes/tire.dae</uri>
@@ -250,7 +250,7 @@
       </collision>
 
       <visual name="wheel_caster_visual">
-        <pose>-1.0 0 -0.02 1.57 0 1.57</pose>
+        <pose>-0.85 0 -0.02 1.57 0 1.57</pose>
         <geometry>
           <mesh>
             <uri>model://ai_car1/meshes/tire.dae</uri>
