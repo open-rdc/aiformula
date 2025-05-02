@@ -463,6 +463,7 @@
       <update_rate>30</update_rate>
       <joint_name>wheel_left_joint</joint_name>
       <joint_name>wheel_right_joint</joint_name>
+      <joint_name>wheel_caster_steering_joint</joint_name>
     </plugin>
 
     <plugin name="ground_truth" filename="libgazebo_ros_p3d.so">
