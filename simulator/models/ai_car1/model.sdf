@@ -1,0 +1,350 @@
+<?xml version="1.0" ?>
+<sdf version="1.5">
+  <model name="ai_car1">
+  <pose>0 0 0 0 0 0</pose>
+
+  <!-- ignition plugin -->
+
+    <plugin
+      filename="libignition-gazebo-diff-drive-system.so"
+      name="ignition::gazebo::systems::DiffDrive">
+      <left_joint>left_wheel_joint</left_joint>
+      <right_joint>right_wheel_joint</right_joint>
+      <wheel_separation>0.6</wheel_separation>
+      <wheel_radius>0.1</wheel_radius>
+      <odom_publish_frequency>0.1</odom_publish_frequency>
+      <topic>cmd_vel</topic>
+    </plugin>
+    <plugin
+        filename="libignition-gazebo-imu-system.so"
+        name="ignition::gazebo::systems::Imu">
+    </plugin>
+    <plugin
+        filename="ignition-gazebo-sensors-system"
+        name="ignition::gazebo::systems::Sensors">
+    </plugin>
+
+    <!-- chassis -->
+
+    <link name='chassis'>
+      <pose relative_to='__model__'>0 0 0.15 0 0 3.14</pose>
+
+      <inertial> <!--inertial properties of the link mass, inertia matix-->
+        <inertia>
+          <ixx>1.73333</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>4.56667</iyy>
+          <iyz>0</iyz>
+          <izz>4.56667</izz>
+        </inertia>
+        <mass>30.0</mass>
+      </inertial>
+
+      <visual name='visual'>
+        <geometry>
+        <!--let's add color to our link-->
+        <pose>0 0 0 0 0 3.14</pose>
+          <mesh>
+            <uri>package://simulator/models/ai_car1/meshes/AIF_body.dae</uri>
+          </mesh>
+        </geometry>
+      </visual>
+
+      <collision name='collision'>
+        <pose>0 0 0 0 0 3.14</pose>
+        <geometry>
+        <pose>0 0 0 0 0 3.14</pose>
+          <mesh>
+            <uri>package://simulator/models/ai_car1/meshes/AIF_body.dae</uri>
+          </mesh>
+        </geometry>
+      </collision>
+    </link>
+
+    <!-- left wheel -->
+
+    <link name='left_wheel'>
+      <pose relative_to="chassis">0 -0.3 0 1.57 0 1.57</pose>
+      <inertial>
+        <mass>7.0</mass>
+        <inertia>
+          <ixx>0.04778</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>0.04778</iyy>
+          <iyz>0</iyz>
+          <izz>0.07875</izz>
+        </inertia>
+      </inertial>
+
+      <visual name='visual'>
+        <geometry>
+        <!--let's add color to our link-->
+        <pose>0 -0.3 0 1.57 0 1.57</pose>
+          <mesh>
+            <uri>package://simulator/models/ai_car1/meshes/tire.dae</uri>
+            <scale>0.05 0.12 0.12</scale>
+          </mesh>
+        </geometry>
+      </visual>
+      <collision name='collision'>
+          <geometry>
+          <pose>0 -0.3 0 1.57 0 1.57</pose>
+            <mesh>
+              <uri>package://simulator/models/ai_car1/meshes/tire.dae</uri>
+              <scale>0.05 0.12 0.12</scale>
+            </mesh>
+          </geometry>
+      </collision>
+    </link>
+
+    <!-- right wheel -->
+
+    <link name='right_wheel'>
+      <pose relative_to="chassis">0 0.3 0 1.57 0 1.57</pose> <!--angles are in radian-->
+      <inertial>
+        <mass>7.0</mass>
+        <inertia>
+          <ixx>0.04778</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>0.04778</iyy>
+          <iyz>0</iyz>
+          <izz>0.07875</izz>
+        </inertia>
+      </inertial>
+
+      <visual name='visual'>
+        <geometry>
+        <!--let's add color to our link-->
+        <pose>0 0.3 0 1.57 0 1.57</pose>
+          <mesh>
+            <uri>package://simulator/models/ai_car1/meshes/tire.dae</uri>
+            <scale>0.05 0.12 0.12</scale>
+          </mesh>
+        </geometry>
+      </visual>
+
+      <collision name='collision'>
+        <geometry>
+        <pose>0 0.3 0 1.57 0 1.57</pose>
+          <mesh>
+            <uri>package://simulator/models/ai_car1/meshes/tire.dae</uri>
+            <scale>0.05 0.12 0.12</scale>
+          </mesh>
+        </geometry>
+      </collision>
+    </link>
+
+    <!-- caster wheel -->
+
+    <frame name="caster_frame" attached_to='chassis'>
+        <pose>0.8 0 0 0 0 1.57</pose>
+    </frame>
+
+    <link name='caster'>
+      <pose relative_to='caster_frame'/>
+      <inertial>
+        <mass>10.0</mass>
+        <inertia>
+          <ixx>0.04778</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>0.04778</iyy>
+          <iyz>0</iyz>
+          <izz>0.07875</izz>
+        </inertia>
+      </inertial>
+
+      <visual name='visual'>
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <mesh>
+            <uri>package://simulator/models/ai_car1/meshes/tire.dae</uri>
+            <scale>0.1 0.1 0.1</scale>
+          </mesh>
+        </geometry>
+      </visual>
+
+      <collision name='collision'>
+        <geometry>
+          <mesh>
+            <uri>package://simulator/models/ai_car1/meshes/tire.dae</uri>
+            <scale>0.1 0.1 0.1</scale>
+          </mesh>
+        </geometry>
+      </collision>
+    </link>
+
+    <!-- joint config -->
+
+    <joint name='left_wheel_joint' type='revolute'>
+      <pose relative_to='left_wheel'/>
+      <parent>chassis</parent>
+      <child>left_wheel</child>
+      <axis>
+        <xyz expressed_in='__model__'>0 1 0</xyz> <!--can be defined as any frame or even arbitrary frames-->
+        <limit>
+          <lower>-1.79769e+308</lower>    <!--negative infinity-->
+          <upper>1.79769e+308</upper>     <!--positive infinity-->
+        </limit>
+      </axis>
+    </joint>
+
+    <joint name='right_wheel_joint' type='revolute'>
+      <pose relative_to='right_wheel'/>
+      <parent>chassis</parent>
+      <child>right_wheel</child>
+      <axis>
+        <xyz expressed_in='__model__'>0 1 0</xyz>
+        <limit>
+          <lower>-1.79769e+308</lower>    <!--negative infinity-->
+          <upper>1.79769e+308</upper>     <!--positive infinity-->
+        </limit>
+      </axis>
+    </joint>
+
+    <joint name='caster_wheel' type='revolute'>
+      <parent>chassis</parent>
+      <child>caster</child>
+      <axis>
+        <xyz expressed_in='__model__'>0 1 0</xyz>
+        <limit>
+          <lower>-0.523599</lower>   <!--可動域制限<-30[deg]-->
+          <upper>0.523599</upper>
+        </limit>
+      </axis>
+    </joint>
+
+    <!-- imu sensor -->
+
+    <joint name="imu_joint" type="fixed">
+      <parent>chassis</parent>
+      <child>imu_link</child>
+      <pose>-0.032 0 0.068 0 0 0</pose>
+      <axis>
+        <xyz>0 0 1</xyz>
+      </axis>
+    </joint>
+
+    <link name="imu_link">
+      <sensor name="imu_sensor" type="imu">
+        <always_on>1</always_on>
+        <update_rate>20.0</update_rate> <!--Hz-->
+        <visualize>true</visualize>
+        <topic>imu_raw</topic>
+      </sensor>
+    </link>
+
+    <!-- camera image -->
+
+    <joint name="camera_joint" type="fixed">
+      <parent>chassis</parent>
+      <child>camera_link</child>
+      <pose>0.35 0 0.55 0 0 0</pose>
+      <axis>
+        <xyz>0 0 1</xyz>
+      </axis>
+    </joint>
+
+    <joint name="camera_rgb_joint" type="fixed">
+      <parent>camera_link</parent>
+      <child>camera_rgb_link</child>
+      <pose>0.35 0 0.55 0 0 0</pose>
+      <axis>
+        <xyz>0 0 1</xyz>
+      </axis>
+    </joint>
+
+    <joint name="camera_depth_joint" type="fixed">
+      <parent>camera_link</parent>
+      <child>camera_depth_link</child>
+      <pose>0.35 0 0.55 0 0 0</pose>
+      <axis>
+        <xyz>0 0 1</xyz>
+      </axis>
+    </joint>
+
+    <link name="camera_link">
+      <pose>0 0 0 0 0 0</pose>
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>1e-6</ixx>
+          <iyy>1e-6</iyy>
+          <izz>1e-6</izz>
+        </inertia>
+      </inertial>
+    </link>
+
+    <link name="camera_rgb_link">
+      <sensor name="camera_rgb_link" type="camera">
+        <update_rate>60.0</update_rate>
+        <always_on>true</always_on>
+        <ignition_frame_id>camera_rgb_link</ignition_frame_id>
+        <pose>0.35 0 0.55 0 0 0</pose>
+        <topic>image_raw</topic>
+        <camera name="camera">
+          <horizontal_fov>1.91986</horizontal_fov>
+          <vertical_fov>1.39626</vertical_fov>
+          <image>
+             <width>480</width>
+             <height>300</height>
+             <format>R8G8B8</format>
+          </image>
+          <clip>
+            <near>0.02</near>
+            <far>300</far>
+          </clip>
+        </camera>
+      </sensor>
+    </link>
+
+    <link name="camera_depth_link">
+      <sensor name="camera_depth_link" type="depth">
+        <update_rate>60.0</update_rate>
+        <always_on>true</always_on>
+        <ignition_frame_id>camera_depth_link</ignition_frame_id>
+        <pose>0.35 0 0.55 0 0 0</pose>
+        <topic>depth_image_raw</topic>
+        <pointcloud>
+          <topic>depth_points</topic>
+        </pointcloud>
+        <camera name="camera">
+          <horizontal_fov>1.91986</horizontal_fov>
+          <vertical_fov>1.39626</vertical_fov>
+          <image>
+             <width>480</width>
+             <height>300</height>
+             <format>R8G8B8</format>
+          </image>
+          <clip>
+            <near>0.02</near>
+            <far>20</far>
+          </clip>
+        </camera>
+      </sensor>
+    </link>
+
+    <!-- GNSS sensor -->
+
+    <joint name="gps_joint" type="fixed">
+      <parent>chassis</parent>
+      <child>gps_link</child>
+      <pose>0 0 0 0 0 0</pose>
+      <axis>
+        <xyz>0 0 1</xyz>
+      </axis>
+    </joint>
+
+    <link name="gps_link">
+      <sensor name="gps_sensor" type="navsat">
+        <always_on>true</always_on>
+        <update_rate>1.0</update_rate>
+        <topic>navsat</topic>
+      </sensor>
+    </link>
+
+  </model>
+</sdf>
