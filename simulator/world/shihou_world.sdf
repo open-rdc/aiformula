@@ -1,0 +1,100 @@
+<?xml version="1.0" ?>
+<sdf version="1.8">
+    <world name="car_world">
+        <gui fullscreen="0">
+        <plugin filename="GzScene3D" name="3D View">
+            <camera_pose>0.4845 5.5579 3.3651 0.0 0.308 -1.548</camera_pose>
+            <ignition-gui>
+            <title>3D View</title>
+            <property type="bool" key="showTitleBar">true</property>
+            <property type="string" key="state">docked</property>
+            </ignition-gui>
+        </plugin>
+        <plugin filename="Teleop" name="ignition::gui::plugins::Teleop">
+            <topic>/cmd_vel</topic>
+            <ignition-gui>
+            <property type="bool" key="showTitleBar">true</property>
+            <property type="string" key="state">docked</property>
+            <property key="resizable" type="bool">true</property>
+            </ignition-gui>
+        </plugin>
+        <plugin filename="ImageDisplay" name="ignition::gui::plugins::ImageDisplay">
+            <topic>/image_raw</topic>
+        </plugin>
+        </gui>
+
+        <physics name="1ms" type="ignored">
+            <max_step_size>0.001</max_step_size>
+            <real_time_factor>1.0</real_time_factor>
+            <gravity>0 0 -9.8</gravity>
+        </physics>
+        <plugin
+            filename="libignition-gazebo-physics-system.so"
+            name="ignition::gazebo::systems::Physics">
+        </plugin>
+        <plugin
+            filename="libignition-gazebo-user-commands-system.so"
+            name="ignition::gazebo::systems::UserCommands">
+        </plugin>
+        <plugin
+            filename="libignition-gazebo-scene-broadcaster-system.so"
+            name="ignition::gazebo::systems::SceneBroadcaster">
+        </plugin>
+        <plugin 
+            filename="ignition-gazebo-navsat-system"
+            name="ignition::gazebo::systems::NavSat">
+        </plugin>
+
+        <light type="directional" name="sun">
+            <cast_shadows>true</cast_shadows>
+            <pose>0 0 10 0 0 0</pose>
+            <diffuse>0.8 0.8 0.8 1</diffuse>
+            <specular>0.2 0.2 0.2 1</specular>
+            <attenuation>
+                <range>1000</range>
+                <constant>0.9</constant>
+                <linear>0.01</linear>
+                <quadratic>0.001</quadratic>
+            </attenuation>
+            <direction>-0.5 0.1 -0.9</direction>
+        </light>
+
+        <model name="ground_plane">
+        <static>true</static>
+        <link name="link">
+            <collision name="collision">
+                <geometry>
+                <plane>
+                <normal>0 0 1</normal>
+                </plane>
+                </geometry>
+            </collision>
+            <visual name="visual">
+                <geometry>
+                    <mesh>
+                      <uri>package://simulator/world/meshes/shihou_world.dae</uri>
+                    <scale>1 1 1</scale>
+                    </mesh>
+                </geometry>
+            </visual>
+        </link>
+        </model>
+
+        <include>
+            <uri>package://simulator/models/ai_car1</uri>
+            <pose>0.6 0.0 0 0 0 -1.5</pose>
+        </include>
+
+    <!-- 用調整 -->
+
+        <spherical_coordinates>
+            <surface_model>EARTH_WGS84</surface_model>
+            <world_frame_orientation>ENU</world_frame_orientation>
+            <latitude_deg>36.11339585571819</latitude_deg>
+            <longitude_deg>139.9815010597697</longitude_deg>
+            <elevation>0</elevation>
+            <heading_deg>0</heading_deg>
+        </spherical_coordinates>
+
+    </world>
+</sdf>
