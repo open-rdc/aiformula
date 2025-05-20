@@ -17,6 +17,7 @@ include_directories(include)
 
 add_library(utilities
   src/utils.cpp
+  src/velplanner.cpp
 )
 target_compile_features(utilities PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
 target_include_directories(utilities PUBLIC

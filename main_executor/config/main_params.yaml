@@ -2,31 +2,25 @@ launch: #起動パラメータ
   ros__parameters:
     can: true
     joy: true
+    vectornav : true
+    log_level : 10
 
 /**:  #ワイルドカード(ここのパラメータは全ノードから読める: <名前に注意>)
   ros__parameters:
-    initial_pose: [0.0, 0.0, 0.0]  #初期位置[x,y,yaw]
-    tf_laser2robot: [0.0,0.0,0.0,  0.0,0.0,0.0]  #ロボット->lidarのTF[x,y,z,r,p,y]
-
     # 並進  速度[m/s],加速度[m/s^2],加減速度[-m/s^2],躍度[m/s^3]
     linear_max:
-      vel : 1.5
-      acc: 2.0
-      dec: 2.0
+      vel : 2.5
+      acc: 3.5
       jer: 0.0
     # 回転  速度[deg/s],加速度[deg/s^2],加減速度[-deg/s^2],躍度[deg/s^3]
     angular_max :
-      vel: 30.0
-      acc: 40.0
-      dec: 40.0
+      vel: 60.0
+      acc: 90.0
       jer: 0.0
-    follower_freq : 100 #milliseconds
-    path_publisher_freq : 100 #milliseconds
-    lookahead_gain : 1.0
-    cte_gain : 1.0
-    min_lookahead_distance : 3.0
-    max_linear_vel : 1.0
-    max_angular_vel : 1.0
+
+    tread : 0.6
+    wheelbase : 0.65
+
     autonomous_flag : false
 
 socketcan_interface_node:
@@ -40,13 +34,11 @@ cybergear:
 # controller_node:
 #   ros__parameters:
 
-roboteq_driver_node:
+chassis_driver_node:
   ros__parameters:
-    interval_ms : 10
+    interval_ms : 2
     wheel_radius : 0.124
     reduction_ratio : 1.0
-    tread : 0.6
-    wheelbase : 0.65
     reverse_left_flag : false
     reverse_right_flag : false
 
@@ -63,3 +55,21 @@ cybergear_interface_node:
     pos_limit_max : 30.0
     # 制御対象の最大速度[deg/s] <-サイバーギアの限界速度以下に設定する
     limit_speed : 60.0
+
+path_publisher_node:
+  ros__parameters:
+    interval_ms : 1000
+    path_file_name : "shihou_241030_dynamic"
+
+gnssnav_follower_node:
+  ros__parameters:
+    debug_flag : false
+    interval_ms : 50
+    lookahead_gain : 1.0
+    p_gain : 1.0
+    i_gain : 0.0
+    d_gain : 0.2
+    min_lookahead_distance : 3.0
+    max_linear_vel : 5.0
+    max_angular_vel : 3.14
+    laps : 3
