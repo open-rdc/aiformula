@@ -55,21 +55,3 @@ cybergear_interface_node:
     pos_limit_max : 30.0
     # 制御対象の最大速度[deg/s] <-サイバーギアの限界速度以下に設定する
     limit_speed : 60.0
-
-path_publisher_node:
-  ros__parameters:
-    interval_ms : 1000
-    path_file_name : "shihou_241030_dynamic"
-
-gnssnav_follower_node:
-  ros__parameters:
-    debug_flag : false
-    interval_ms : 50
-    lookahead_gain : 1.0
-    p_gain : 1.0
-    i_gain : 0.0
-    d_gain : 0.2
-    min_lookahead_distance : 3.0
-    max_linear_vel : 5.0
-    max_angular_vel : 3.14
-    laps : 3
