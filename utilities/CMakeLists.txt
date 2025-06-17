@@ -11,8 +11,18 @@ find_package(ament_cmake_ros REQUIRED)
 find_package(rclcpp REQUIRED)
 
 # PyTorch dependencies (required) - using local libtorch
-set(Torch_DIR "${CMAKE_CURRENT_SOURCE_DIR}/libtorch/share/cmake/Torch")
-find_package(Torch REQUIRED)
+set(TORCH_INCLUDE_DIRS 
+    "${CMAKE_CURRENT_SOURCE_DIR}/libtorch/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}/libtorch/include/torch/csrc/api/include"
+)
+set(TORCH_LIB_DIR "${CMAKE_CURRENT_SOURCE_DIR}/libtorch/lib")
+
+# Manually set torch libraries without problematic targets
+set(TORCH_LIBRARIES 
+    "${TORCH_LIB_DIR}/libtorch.so"
+    "${TORCH_LIB_DIR}/libtorch_cpu.so"
+    "${TORCH_LIB_DIR}/libc10.so"
+)
 
 include_directories(include)
 
@@ -32,8 +42,12 @@ ament_target_dependencies(
         "rclcpp"
 )
 
-# Link PyTorch libraries
+# Link PyTorch libraries directly
 target_link_libraries(utilities ${TORCH_LIBRARIES})
+
+# Set torch compile definitions to exclude problematic CUDA components
+set_property(TARGET utilities PROPERTY CXX_STANDARD 17)
+target_compile_definitions(utilities PRIVATE TORCH_DISABLE_NVTX=1)
 
 # Causes the visibility macros to use dllexport rather than dllimport,
 # which is appropriate when building the dll but not consuming it.
@@ -42,6 +56,8 @@ ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_dependencies(
         rclcpp
 )
+# Standard library exports only
+ament_export_libraries(utilities)
 
 install(
   DIRECTORY include/

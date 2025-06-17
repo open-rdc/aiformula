@@ -15,9 +15,19 @@ find_package(sensor_msgs REQUIRED)
 find_package(socketcan_interface_msg REQUIRED)
 find_package(ament_index_cpp REQUIRED)
 
-# PyTorch dependencies (required for utilities)
-set(Torch_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../utilities/libtorch/share/cmake/Torch")
-find_package(Torch REQUIRED)
+# PyTorch dependencies (required for utilities) - using manual setup to avoid nvtoolsext issues
+set(TORCH_INCLUDE_DIRS 
+    "${CMAKE_CURRENT_SOURCE_DIR}/../utilities/libtorch/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../utilities/libtorch/include/torch/csrc/api/include"
+)
+set(TORCH_LIB_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../utilities/libtorch/lib")
+
+# Manually set torch libraries without problematic targets
+set(TORCH_LIBRARIES 
+    "${TORCH_LIB_DIR}/libtorch.so"
+    "${TORCH_LIB_DIR}/libtorch_cpu.so"
+    "${TORCH_LIB_DIR}/libc10.so"
+)
 
 find_package(utilities REQUIRED)
 
@@ -26,6 +36,8 @@ target_compile_features(chassis_driver_node PUBLIC c_std_99 cxx_std_17)  # Requi
 target_include_directories(chassis_driver_node PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
+target_include_directories(chassis_driver_node PRIVATE
+  ${TORCH_INCLUDE_DIRS})
 ament_target_dependencies(chassis_driver_node
   rclcpp
   std_msgs
@@ -48,6 +60,8 @@ target_include_directories(debug_printer PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
 )
+target_include_directories(debug_printer PRIVATE
+  ${TORCH_INCLUDE_DIRS})
 ament_target_dependencies(debug_printer
   rclcpp
   socketcan_interface_msg
