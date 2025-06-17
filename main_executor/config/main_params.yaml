@@ -36,11 +36,22 @@ cybergear:
 
 chassis_driver_node:
   ros__parameters:
+    # Chassis parameter
     interval_ms : 2
     wheel_radius : 0.124
     reduction_ratio : 1.0
     reverse_left_flag : false
     reverse_right_flag : false
+
+    # MPPI parameter
+    num_samples: 100
+    horizon: 20
+    lambda: 1.0
+    noise_sigma_linear: 0.3
+    noise_sigma_angular: 0.5
+    weight_vel_error: 1.0
+    weight_control_error: 0.1
+    weight_smoothness: 0.05
 
 cybergear_interface_node:
   ros__parameters:
