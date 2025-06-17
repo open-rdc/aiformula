@@ -11,7 +11,14 @@ find_package(ament_cmake_ros REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
 find_package(socketcan_interface_msg REQUIRED)
+find_package(ament_index_cpp REQUIRED)
+
+# PyTorch dependencies (required for utilities)
+set(Torch_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../utilities/libtorch/share/cmake/Torch")
+find_package(Torch REQUIRED)
+
 find_package(utilities REQUIRED)
 
 add_library(chassis_driver_node src/chassis_driver_node.cpp)
@@ -23,8 +30,14 @@ ament_target_dependencies(chassis_driver_node
   rclcpp
   std_msgs
   geometry_msgs
+  sensor_msgs
   socketcan_interface_msg
+  ament_index_cpp
   utilities
+)
+
+target_link_libraries(chassis_driver_node
+  ${TORCH_LIBRARIES}
 )
 
 # 実行可能ノード
@@ -39,6 +52,10 @@ ament_target_dependencies(debug_printer
   rclcpp
   socketcan_interface_msg
   utilities
+)
+
+target_link_libraries(debug_printer
+  ${TORCH_LIBRARIES}
 )
 
 # Causes the visibility macros to use dllexport rather than dllimport,
@@ -88,6 +105,7 @@ ament_export_dependencies(
   std_msgs
   geometry_msgs
   socketcan_interface_msg
+  ament_index_cpp
   utilities
 )
 

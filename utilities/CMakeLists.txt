@@ -9,9 +9,10 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(ament_cmake_ros REQUIRED)
 find_package(rclcpp REQUIRED)
-# uncomment the following section in order to fill in
-# further dependencies manually.
-# find_package(<dependency> REQUIRED)
+
+# PyTorch dependencies (required) - using local libtorch
+set(Torch_DIR "${CMAKE_CURRENT_SOURCE_DIR}/libtorch/share/cmake/Torch")
+find_package(Torch REQUIRED)
 
 include_directories(include)
 
@@ -23,10 +24,16 @@ target_compile_features(utilities PUBLIC c_std_99 cxx_std_17)  # Require C99 and
 target_include_directories(utilities PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
+
+target_include_directories(utilities PRIVATE
+  ${TORCH_INCLUDE_DIRS})
 ament_target_dependencies(
         utilities
         "rclcpp"
 )
+
+# Link PyTorch libraries
+target_link_libraries(utilities ${TORCH_LIBRARIES})
 
 # Causes the visibility macros to use dllexport rather than dllimport,
 # which is appropriate when building the dll but not consuming it.
