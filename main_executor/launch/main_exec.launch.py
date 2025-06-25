@@ -16,12 +16,6 @@ def generate_launch_description():
         'config',
         'main_params.yaml'
     )
-    # CANインタフェース起動ファイルのパス設定
-    can_launch_path = os.path.join(
-        get_package_share_directory('socketcan_interface'),
-        'config',
-        'can_up.sh'
-    )
 
     # 起動パラメータファイルのロード
     with open(config_file_path, 'r') as file:
@@ -72,8 +66,6 @@ def generate_launch_description():
     launch_discription = LaunchDescription()
 
     # 起動の追加
-    if(launch_params['can'] is True):
-        subprocess.run(['sudo', 'sh', can_launch_path])
     if(launch_params['joy'] is True):
         launch_discription.add_entity(joy_node)
     if(launch_params['vectornav'] is True):
