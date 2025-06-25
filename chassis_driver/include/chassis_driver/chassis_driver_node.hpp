@@ -7,6 +7,7 @@
 #include <std_msgs/msg/float64.hpp>
 #include "socketcan_interface_msg/msg/socketcan_if.hpp"
 #include "utilities/velplanner.hpp"
+#include "utilities/position_pid.hpp"
 
 #include "chassis_driver/visibility_control.h"
 
@@ -24,20 +25,19 @@ private:
     rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr _subscription_vel;
     rclcpp::Subscription<std_msgs::msg::Empty>::SharedPtr _subscription_stop;
     rclcpp::Subscription<std_msgs::msg::Empty>::SharedPtr _subscription_restart;
-    rclcpp::Subscription<socketcan_interface_msg::msg::SocketcanIF>::SharedPtr _subscription_rpm;
+    rclcpp::Subscription<socketcan_interface_msg::msg::SocketcanIF>::SharedPtr _subscription_caster;
     rclcpp::Subscription<socketcan_interface_msg::msg::SocketcanIF>::SharedPtr _subscription_emergency;
     rclcpp::TimerBase::SharedPtr _pub_timer;
 
     void _subscriber_callback_vel(const geometry_msgs::msg::Twist::SharedPtr msg);
     void _subscriber_callback_stop(const std_msgs::msg::Empty::SharedPtr msg);
     void _subscriber_callback_restart(const std_msgs::msg::Empty::SharedPtr msg);
-    void _subscriber_callback_rpm(const socketcan_interface_msg::msg::SocketcanIF::SharedPtr msg);
+    void _subscriber_callback_caster(const socketcan_interface_msg::msg::SocketcanIF::SharedPtr msg);
     void _subscriber_callback_emergency(const socketcan_interface_msg::msg::SocketcanIF::SharedPtr msg);
     void _publisher_callback();
-    void send_rpm(const double linear_vel, const double angular_vel);
+    void send_rpm(const double linear_vel, const double u_delta);
 
     rclcpp::Publisher<socketcan_interface_msg::msg::SocketcanIF>::SharedPtr publisher_can;
-    rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr publisher_steer;
     rclcpp::Publisher<geometry_msgs::msg::TwistStamped>::SharedPtr publisher_ref_vel;
 
     rclcpp::QoS _qos = rclcpp::QoS(10);
@@ -49,6 +49,9 @@ private:
     velplanner::VelPlanner angular_planner;
     const velplanner::Limit angular_limit;
 
+    // 従動輪のPID
+    controller::PositionPid caster_pid;
+
     // 定数
     const int interval_ms;
     const double wheel_radius;
@@ -57,6 +60,9 @@ private:
     const double rotate_ratio;
     const bool is_reverse_left;
     const bool is_reverse_right;
+
+    // 変数
+    double caster_orientation = 0.0;
 
     // 動作モード
     enum class Mode{
