@@ -1,8 +1,8 @@
 launch: #起動パラメータ
   ros__parameters:
-    can: true
-    joy: true
-    vectornav : true
+    can: false
+    joy: false
+    vectornav : false
     log_level : 10
 
 /**:  #ワイルドカード(ここのパラメータは全ノードから読める: <名前に注意>)
@@ -25,11 +25,7 @@ launch: #起動パラメータ
 
 socketcan_interface_node:
   ros__parameters:
-    if_name : "_kvaser"
-cybergear:
-  socketcan_interface_node:
-    ros__parameters:
-      if_name : "_candleLight"
+    if_name : "can0"
 
 # controller_node:
 #   ros__parameters:
@@ -41,6 +37,9 @@ chassis_driver_node:
     reduction_ratio : 1.0
     reverse_left_flag : false
     reverse_right_flag : false
+    p_gain : 1.0
+    i_gain : 0.0
+    d_gain : 0.0
 
 cybergear_interface_node:
   ros__parameters:
