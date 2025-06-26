@@ -30,7 +30,7 @@ class PlotPotentioNode(Node):
         qos = rclpy.qos.QoSProfile(depth=10)
 
         # CANデータを受信し、/potentio に変換・発行
-        self.create_subscription(SocketcanIF, '/can_rx_11', self._can_callback, qos)
+        self.create_subscription(SocketcanIF, '/can_rx_011', self._can_callback, qos)
         self.potentio_pub = self.create_publisher(Int64, '/potentio', qos)
 
         # /potentio と /cmd_vel を購読してプロット用に記録
