@@ -1,21 +1,20 @@
 launch: #起動パラメータ
   ros__parameters:
-    can: false
-    joy: false
-    vectornav : false
+    joy: true
+    vectornav : true
     log_level : 10
 
 /**:  #ワイルドカード(ここのパラメータは全ノードから読める: <名前に注意>)
   ros__parameters:
     # 並進  速度[m/s],加速度[m/s^2],加減速度[-m/s^2],躍度[m/s^3]
     linear_max:
-      vel : 2.5
-      acc: 3.5
+      vel : 5.0
+      acc: 5.0
       jer: 0.0
     # 回転  速度[deg/s],加速度[deg/s^2],加減速度[-deg/s^2],躍度[deg/s^3]
     angular_max :
-      vel: 60.0
-      acc: 90.0
+      vel: 90.0
+      acc: 240.0
       jer: 0.0
 
     tread : 0.6
@@ -37,38 +36,24 @@ chassis_driver_node:
     reduction_ratio : 1.0
     reverse_left_flag : false
     reverse_right_flag : false
-    p_gain : 1.0
+    p_gain : 10.0
     i_gain : 0.0
     d_gain : 0.0
-
-cybergear_interface_node:
-  ros__parameters:
-    interval_ms : 10
-    master_id : 0x00
-    target_id : 0x7F
-
-    gear_rate : 3.33333
-    reverse_flag : false
-    # 制御対象の最小・最大位置[deg]
-    pos_limit_min : -30.0
-    pos_limit_max : 30.0
-    # 制御対象の最大速度[deg/s] <-サイバーギアの限界速度以下に設定する
-    limit_speed : 60.0
 
 path_publisher_node:
   ros__parameters:
     interval_ms : 1000
-    path_file_name : "shihou_241030_dynamic"
+    path_file_name : "precourse"
 
 gnssnav_follower_node:
   ros__parameters:
     debug_flag : false
     interval_ms : 50
     lookahead_gain : 1.0
-    p_gain : 1.0
-    i_gain : 0.0
+    p_gain : 1.5
+    i_gain : 0.5
     d_gain : 0.2
     min_lookahead_distance : 3.0
-    max_linear_vel : 5.0
-    max_angular_vel : 3.14
+    max_linear_vel : 2.0
+    max_angular_vel : 1.57
     laps : 3
