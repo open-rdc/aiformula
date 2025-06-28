@@ -13,11 +13,12 @@ find_package(chassis_driver REQUIRED)
 find_package(cybergear_interface REQUIRED)
 find_package(gnssnav REQUIRED)
 
-# PyTorch dependencies (required for transitive deps) - using manual setup to avoid nvtoolsext issues
+# PyTorch dependencies (required for transitive deps through chassis_driver) - using manual setup to avoid nvtoolsext issues
 set(TORCH_INCLUDE_DIRS 
-    "${CMAKE_CURRENT_SOURCE_DIR}/../utilities/libtorch/include"
-    "${CMAKE_CURRENT_SOURCE_DIR}/../utilities/libtorch/include/torch/csrc/api/include"
+    "$ENV{HOME}/libtorch/include"
+    "$ENV{HOME}/libtorch/include/torch/csrc/api/include"
 )
+
 
 add_executable(main_exec
         src/main.cpp

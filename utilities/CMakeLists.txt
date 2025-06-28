@@ -12,10 +12,10 @@ find_package(rclcpp REQUIRED)
 
 # PyTorch dependencies (required) - using local libtorch
 set(TORCH_INCLUDE_DIRS 
-    "${CMAKE_CURRENT_SOURCE_DIR}/libtorch/include"
-    "${CMAKE_CURRENT_SOURCE_DIR}/libtorch/include/torch/csrc/api/include"
+    "$ENV{HOME}/libtorch/include"
+    "$ENV{HOME}/libtorch/include/torch/csrc/api/include"
 )
-set(TORCH_LIB_DIR "${CMAKE_CURRENT_SOURCE_DIR}/libtorch/lib")
+set(TORCH_LIB_DIR "$ENV{HOME}/libtorch/lib")
 
 # Manually set torch libraries without problematic targets
 set(TORCH_LIBRARIES 
