@@ -46,7 +46,7 @@ get_parameter("angular_max.acc").as_double())
         std::bind(&ChassisDriver::_subscriber_callback_restart, this, std::placeholders::_1)
     );
     _subscription_caster = this->create_subscription<socketcan_interface_msg::msg::SocketcanIF>(
-        "can_rx_11",
+        "can_rx_011",
         _qos,
         std::bind(&ChassisDriver::_subscriber_callback_caster, this, std::placeholders::_1)
     );
@@ -131,8 +131,8 @@ void ChassisDriver::_subscriber_callback_caster(const socketcan_interface_msg::m
     for(int i=0; i<msg->candlc; i++) _candata[i] = msg->candata[i];
 
     const int value = static_cast<int64_t>(bytes_to_short(_candata));
-    // caster_orientation =
-    RCLCPP_INFO(this->get_logger(), "CASTER:%d", value);
+    caster_orientation = dtor(30.0)* (value-13) / 120.0;
+    // RCLCPP_INFO(this->get_logger(), "CAS:%f POT:%d", rtod(caster_orientation), value);
 }
 void ChassisDriver::_subscriber_callback_emergency(const socketcan_interface_msg::msg::SocketcanIF::SharedPtr msg){
     uint8_t _candata[8];
