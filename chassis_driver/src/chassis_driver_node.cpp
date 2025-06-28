@@ -54,7 +54,7 @@ weight_smoothness(this->declare_parameter("weight_smoothness", 0.05))
         std::bind(&ChassisDriver::_subscriber_callback_emergency, this, std::placeholders::_1)
     );
     _subscription_potentio = this->create_subscription<socketcan_interface_msg::msg::SocketcanIF>(
-        "can_rx_11", _qos,
+        "can_rx_011", _qos,
         std::bind(&ChassisDriver::_subscriber_callback_potentio, this, std::placeholders::_1)
     );
 
@@ -93,7 +93,7 @@ void ChassisDriver::initializeMPPI() {
     params.dt = interval_ms;
     
     mppi_planner_.setMPPIParams(params);
-    std::string model_path = ament_index_cpp::get_package_share_directory("main_executor") + "/weights/predict.pt",
+    std::string model_path = ament_index_cpp::get_package_share_directory("main_executor") + "/weights/predict.pt";
     
     loadMPPIModel(model_path);
 }
