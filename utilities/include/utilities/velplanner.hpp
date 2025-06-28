@@ -57,17 +57,26 @@ public:
     
     // MPPI制御で最適制御入力を計算
     void cycle(const State_t current_state);
-    void setTargetVelocity(double target_linear, double target_angular);
+    inline void setTargetVelocity(double target_linear, double target_angular) noexcept {
+        target_linear_ = target_linear;
+        target_angular_ = target_angular;
+    }
     
-    // MPPI制御結果の取得
-    std::pair<double, double> getOptimalControl() const { return {optimal_linear_, optimal_angular_}; }
+    // MPPI制御結果の取得（高速インライン）
+    inline std::pair<double, double> getOptimalControl() const noexcept { 
+        return {optimal_linear_, optimal_angular_}; 
+    }
     
     // 状態推定モデルによる次状態予測
     State_t predictNextState(const State_t& current_state, double control_linear, double control_angular) const;
     
     // MPPI パラメータの設定
     void setMPPIParams(const MPPIParams& params) { mppi_params_ = params; initializeTensors(); }
-    const MPPIParams& getMPPIParams() const { return mppi_params_; }
+    inline const MPPIParams& getMPPIParams() const noexcept { return mppi_params_; }
+    
+    // GPU/CPU デバイス管理（高速インライン）
+    inline bool isGPUAvailable() const noexcept { return gpu_available_; }
+    inline const torch::Device& getDevice() const noexcept { return device_; }
 
 private:
     // 基本パラメータ
@@ -95,6 +104,11 @@ private:
     mutable torch::Tensor samples_tensor_;
     mutable torch::Tensor states_tensor_;
     mutable torch::Tensor costs_tensor_;
+    
+    // GPU/CPU デバイス管理
+    torch::Device device_;
+    bool gpu_available_;
+    void initializeDevice();
     
     // MPPI制御用プライベート関数
     void initializeTensors();
