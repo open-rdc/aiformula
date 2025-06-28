@@ -107,9 +107,14 @@ def train_model(csv_path, model_name, num_epochs=100, batch_size=32, lr=1e-3, se
         print(f"[Epoch {epoch+1:03d}] Train MSE: {train_loss:.6f}, Test MSE: {test_loss:.6f}")
 
     writer.close()
-    traced_model = torch.jit.trace(model, torch.randn(1, seq_len, input_dim).to(device))
+    
+    # モデルをCPUに移動してからTorchScript化（推論時のデバイス互換性を確保）
+    print("モデルをCPU形式で保存中...")
+    model.cpu()
+    dummy_input = torch.randn(1, seq_len, input_dim)  # CPUで作成
+    traced_model = torch.jit.trace(model, dummy_input)
     traced_model.save(model_name + ".pt")
-    print(f"✅ TorchScript形式（{model_name}.pt）で保存しました")
+    print(f"✅ TorchScript形式（{model_name}.pt）で保存しました（CPU互換）")
     print(f"✅ TensorBoard ログを '{log_dir}' に保存しました")
 
 
