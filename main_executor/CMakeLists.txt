@@ -10,7 +10,6 @@ find_package(rclcpp REQUIRED)
 find_package(socketcan_interface REQUIRED)
 find_package(controller REQUIRED)
 find_package(chassis_driver REQUIRED)
-find_package(cybergear_interface REQUIRED)
 find_package(gnssnav REQUIRED)
 
 add_executable(main_exec
@@ -22,7 +21,6 @@ ament_target_dependencies(main_exec
         socketcan_interface
         controller
         chassis_driver
-        cybergear_interface
         gnssnav
         )
 

@@ -14,7 +14,6 @@
   <depend>socketcan_interface</depend>
   <depend>controller</depend>
   <depend>chassis_driver</depend>
-  <depend>cybergear_interface</depend>
   <depend>gnssnav</depend>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
