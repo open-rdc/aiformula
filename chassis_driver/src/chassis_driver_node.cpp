@@ -14,24 +14,24 @@ ChassisDriver::ChassisDriver(const rclcpp::NodeOptions& options) : ChassisDriver
 
 ChassisDriver::ChassisDriver(const std::string& name_space, const rclcpp::NodeOptions& options)
 : rclcpp::Node("chassis_driver_node", name_space, options),
-interval_ms(this->declare_parameter("interval_ms", 50)),
-wheel_radius(this->declare_parameter("wheel_radius", 0.095)),
-tread(this->declare_parameter("tread", 0.35)),
-wheelbase(this->declare_parameter("wheelbase", 0.28)),
-rotate_ratio(1.0 / this->declare_parameter("reduction_ratio", 4.0)),
-is_reverse_left(this->declare_parameter("reverse_left_flag", false)),
-is_reverse_right(this->declare_parameter("reverse_right_flag", true)),
-max_linear_vel(this->declare_parameter("max_linear_vel", 2.0)),
-max_angular_vel(this->declare_parameter("max_angular_vel", 2.0)),
+interval_ms(get_parameter("interval_ms").as_int()),
+wheel_radius(get_parameter("wheel_radius").as_double()),
+tread(get_parameter("tread").as_double()),
+wheelbase(get_parameter("wheelbase").as_double()),
+rotate_ratio(get_parameter("reduction_ratio").as_double()),
+is_reverse_left(get_parameter("reverse_left_flag").as_bool()),
+is_reverse_right(get_parameter("reverse_right_flag").as_bool()),
+max_linear_vel(get_parameter("max_linear_vel").as_double()),
+max_angular_vel(get_parameter("max_angular_vel").as_double()),
 
-num_samples(this->declare_parameter("num_samples", 100)),
-horizon(this->declare_parameter("horizon", 20)),
-lambda(this->declare_parameter("lambda", 1.0)),
-noise_sigma_linear(this->declare_parameter("noise_sigma_linear", 0.3)),
-noise_sigma_angular(this->declare_parameter("noise_sigma_angular", 0.5)),
-weight_vel_error(this->declare_parameter("weight_vel_error", 1.0)),
-weight_control_error(this->declare_parameter("weight_control_error", 0.1)),
-weight_smoothness(this->declare_parameter("weight_smoothness", 0.05))
+num_samples(get_parameter("num_samples").as_int()),
+horizon(get_parameter("horizon").as_int()),
+lambda(get_parameter("lambda").as_double()),
+noise_sigma_linear(get_parameter("noise_sigma_linear").as_double()),
+noise_sigma_angular(get_parameter("noise_sigma_angular").as_double()),
+weight_vel_error(get_parameter("weight_vel_error").as_double()),
+weight_control_error(get_parameter("weight_control_error").as_double()),
+weight_smoothness(get_parameter("weight_smoothness").as_double())
 {
     _subscription_vel = this->create_subscription<geometry_msgs::msg::Twist>(
         "cmd_vel", _qos,
