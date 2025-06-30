@@ -12,6 +12,9 @@ find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(socketcan_interface_msg REQUIRED)
+# PyTorch dependencies required for utilities
+set(Torch_DIR "/home/nvidia/.local/lib/python3.8/site-packages/torch/share/cmake/Torch")
+find_package(Torch REQUIRED)
 find_package(utilities REQUIRED)
 
 add_library(cybergear_interface_node

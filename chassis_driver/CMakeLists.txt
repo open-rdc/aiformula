@@ -15,20 +15,13 @@ find_package(sensor_msgs REQUIRED)
 find_package(socketcan_interface_msg REQUIRED)
 find_package(ament_index_cpp REQUIRED)
 
-# PyTorch dependencies (required for utilities) - using manual setup to avoid nvtoolsext issues
-set(TORCH_INCLUDE_DIRS 
-    "$ENV{HOME}/libtorch/include"
-    "$ENV{HOME}/libtorch/include/torch/csrc/api/include"
-)
-set(TORCH_LIB_DIR "$ENV{HOME}/libtorch/lib")
+# PyTorch dependencies (required for utilities) - using Jetson PyTorch
+set(Torch_DIR "/home/nvidia/.local/lib/python3.8/site-packages/torch/share/cmake/Torch")
+find_package(Torch REQUIRED)
 
-# Manually set torch libraries without problematic targets
-set(TORCH_LIBRARIES 
-    "${TORCH_LIB_DIR}/libtorch.so"
-    "${TORCH_LIB_DIR}/libtorch_cpu.so"
-    "${TORCH_LIB_DIR}/libc10.so"
-)
-
+# PyTorch dependencies required for utilities
+set(Torch_DIR "/home/nvidia/.local/lib/python3.8/site-packages/torch/share/cmake/Torch")
+find_package(Torch REQUIRED)
 find_package(utilities REQUIRED)
 
 add_library(chassis_driver_node src/chassis_driver_node.cpp)
@@ -36,8 +29,6 @@ target_compile_features(chassis_driver_node PUBLIC c_std_99 cxx_std_17)  # Requi
 target_include_directories(chassis_driver_node PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
-target_include_directories(chassis_driver_node PRIVATE
-  ${TORCH_INCLUDE_DIRS})
 ament_target_dependencies(chassis_driver_node
   rclcpp
   std_msgs
@@ -60,8 +51,6 @@ target_include_directories(debug_printer PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
 )
-target_include_directories(debug_printer PRIVATE
-  ${TORCH_INCLUDE_DIRS})
 ament_target_dependencies(debug_printer
   rclcpp
   socketcan_interface_msg
@@ -79,6 +68,10 @@ target_compile_definitions(chassis_driver_node PRIVATE "CHASSIS_DRIVER_BUILDING_
 install(
   DIRECTORY include/
   DESTINATION include
+)
+install(
+  DIRECTORY weights
+  DESTINATION share/${PROJECT_NAME}
 )
 install(
   TARGETS chassis_driver_node

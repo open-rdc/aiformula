@@ -26,6 +26,9 @@ find_package(Eigen3 REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
+# PyTorch dependencies required for utilities
+set(Torch_DIR "/home/nvidia/.local/lib/python3.8/site-packages/torch/share/cmake/Torch")
+find_package(Torch REQUIRED)
 find_package(utilities REQUIRED)
 
 find_path(PROJ_INCLUDE_DIR NAMES proj.h PATHS /usr/include)

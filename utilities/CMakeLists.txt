@@ -10,19 +10,9 @@ find_package(ament_cmake REQUIRED)
 find_package(ament_cmake_ros REQUIRED)
 find_package(rclcpp REQUIRED)
 
-# PyTorch dependencies (required) - using local libtorch
-set(TORCH_INCLUDE_DIRS 
-    "$ENV{HOME}/libtorch/include"
-    "$ENV{HOME}/libtorch/include/torch/csrc/api/include"
-)
-set(TORCH_LIB_DIR "$ENV{HOME}/libtorch/lib")
-
-# Manually set torch libraries without problematic targets
-set(TORCH_LIBRARIES 
-    "${TORCH_LIB_DIR}/libtorch.so"
-    "${TORCH_LIB_DIR}/libtorch_cpu.so"
-    "${TORCH_LIB_DIR}/libc10.so"
-)
+# PyTorch dependencies (required) - using Jetson PyTorch
+set(Torch_DIR "/home/nvidia/.local/lib/python3.8/site-packages/torch/share/cmake/Torch")
+find_package(Torch REQUIRED)
 
 include_directories(include)
 
@@ -35,14 +25,12 @@ target_include_directories(utilities PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
 
-target_include_directories(utilities PRIVATE
-  ${TORCH_INCLUDE_DIRS})
 ament_target_dependencies(
         utilities
         "rclcpp"
 )
 
-# Link PyTorch libraries directly
+# Link PyTorch libraries using find_package
 target_link_libraries(utilities ${TORCH_LIBRARIES})
 
 # Set torch compile definitions to exclude problematic CUDA components
@@ -55,6 +43,7 @@ target_compile_definitions(utilities PRIVATE "UTILITIES_BUILDING_LIBRARY")
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_dependencies(
         rclcpp
+        Torch
 )
 # Standard library exports only
 ament_export_libraries(utilities)
