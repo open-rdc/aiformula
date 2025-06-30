@@ -93,7 +93,7 @@ void ChassisDriver::initializeMPPI() {
     params.dt = interval_ms;
     
     mppi_planner_.setMPPIParams(params);
-    std::string model_path = ament_index_cpp::get_package_share_directory("main_executor") + "/weights/predict.pt";
+    std::string model_path = ament_index_cpp::get_package_share_directory("chassis_driver") + "/weights/predict.pt";
     
     loadMPPIModel(model_path);
 }
