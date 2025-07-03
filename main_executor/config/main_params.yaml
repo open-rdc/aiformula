@@ -1,8 +1,8 @@
 launch: #起動パラメータ
   ros__parameters:
-    can: true
+    can: false
     joy: true
-    vectornav : true
+    vectornav : false
     log_level : 10
 
 /**:  #ワイルドカード(ここのパラメータは全ノードから読める: <名前に注意>)
@@ -43,15 +43,7 @@ chassis_driver_node:
     reverse_left_flag : false
     reverse_right_flag : false
 
-    # MPPI parameter
-    num_samples: 100
-    horizon: 20
-    lambda: 1.0
-    noise_sigma_linear: 0.3
-    noise_sigma_angular: 0.5
-    weight_vel_error: 1.0
-    weight_control_error: 0.1
-    weight_smoothness: 0.05
+    rl_model_file: "rl_model.pt"
 
 cybergear_interface_node:
   ros__parameters:
