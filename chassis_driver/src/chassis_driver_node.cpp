@@ -1,12 +1,27 @@
 #include "chassis_driver/chassis_driver_node.hpp"
-#include "utilities/data_utils.hpp"
-#include "utilities/utils.hpp"
 #include <float.h>
 #include <cmath>
-
+#include <chrono>
 #include <ament_index_cpp/get_package_share_directory.hpp>
 
-using namespace utils;
+// Utility functions
+template<typename T>
+T constrain(T value, T min_val, T max_val) {
+    return std::max(min_val, std::min(value, max_val));
+}
+
+void int_to_bytes(uint8_t* bytes, int value) {
+    bytes[0] = (value >> 24) & 0xFF;
+    bytes[1] = (value >> 16) & 0xFF;
+    bytes[2] = (value >> 8) & 0xFF;
+    bytes[3] = value & 0xFF;
+}
+
+int bytes_to_int(const uint8_t* bytes) {
+    return (bytes[0] << 24) | (bytes[1] << 16) | (bytes[2] << 8) | bytes[3];
+}
+
+const double d_pi = M_PI;
 
 namespace chassis_driver{
 
@@ -21,17 +36,9 @@ wheelbase(get_parameter("wheelbase").as_double()),
 rotate_ratio(get_parameter("reduction_ratio").as_double()),
 is_reverse_left(get_parameter("reverse_left_flag").as_bool()),
 is_reverse_right(get_parameter("reverse_right_flag").as_bool()),
+rl_model_file(get_parameter("rl_model_file").as_string()),
 max_linear_vel(get_parameter("linear_max.vel").as_double()),
-max_angular_vel(get_parameter("angular_max.vel").as_double()),
-
-num_samples(get_parameter("num_samples").as_int()),
-horizon(get_parameter("horizon").as_int()),
-lambda(get_parameter("lambda").as_double()),
-noise_sigma_linear(get_parameter("noise_sigma_linear").as_double()),
-noise_sigma_angular(get_parameter("noise_sigma_angular").as_double()),
-weight_vel_error(get_parameter("weight_vel_error").as_double()),
-weight_control_error(get_parameter("weight_control_error").as_double()),
-weight_smoothness(get_parameter("weight_smoothness").as_double())
+max_angular_vel(get_parameter("angular_max.vel").as_double())
 {
     _subscription_vel = this->create_subscription<geometry_msgs::msg::Twist>(
         "cmd_vel", _qos,
@@ -48,6 +55,10 @@ weight_smoothness(get_parameter("weight_smoothness").as_double())
     _subscription_rpm = this->create_subscription<socketcan_interface_msg::msg::SocketcanIF>(
         "can_rx_711", _qos,
         std::bind(&ChassisDriver::_subscriber_callback_rpm, this, std::placeholders::_1)
+    );
+    _subscription_velocity = this->create_subscription<geometry_msgs::msg::TwistStamped>(
+        "/vectornav/velocity", _qos,
+        std::bind(&ChassisDriver::_subscriber_callback_velocity, this, std::placeholders::_1)
     );
     _subscription_emergency = this->create_subscription<socketcan_interface_msg::msg::SocketcanIF>(
         "can_rx_712", _qos,
@@ -67,101 +78,88 @@ weight_smoothness(get_parameter("weight_smoothness").as_double())
         [this] { _publisher_callback(); }
     );
 
-    // MPPI制御初期化
-    initializeMPPI();
+    // RL制御初期化
+    initializeRL();
     
     // 時刻初期化
     last_update_time_ = this->now();
 
-    RCLCPP_INFO(this->get_logger(), "ChassisDriver initialized with MPPI control");
+    RCLCPP_INFO(this->get_logger(), "ChassisDriver initialized with RL control");
 }
 
-void ChassisDriver::initializeMPPI() {
+void ChassisDriver::initializeRL() {
+    // デバイス自動選択
+    device_ = torch::cuda::is_available() ? torch::kCUDA : torch::kCPU;
+    
     // 状態を初期値にリセット
     resetState();
     
-    // MPPIパラメータの設定
-    velplanner::MPPIParams params;
-    params.num_samples = num_samples;
-    params.horizon = horizon;
-    params.lambda = lambda;
-    params.noise_sigma_linear = noise_sigma_linear;
-    params.noise_sigma_angular = noise_sigma_angular;
-    params.weight_vel_error = weight_vel_error;
-    params.weight_control_effort = weight_control_error;
-    params.weight_smoothness = weight_smoothness;
-    params.dt = interval_ms;
+    std::string rl_model_path = ament_index_cpp::get_package_share_directory("chassis_driver") + "/weights/" + rl_model_file;
+    if (!loadRLModel(rl_model_path)) {
+        throw std::runtime_error("RLモデルの読み込みに失敗しました: " + rl_model_path);
+    }
     
-    mppi_planner_.setMPPIParams(params);
-    std::string model_path = ament_index_cpp::get_package_share_directory("chassis_driver") + "/weights/predict.pt";
-    
-    loadMPPIModel(model_path);
+    RCLCPP_INFO(this->get_logger(), "RL制御初期化完了 - デバイス: %s", 
+                device_.is_cuda() ? "CUDA" : "CPU");
 }
 
-bool ChassisDriver::loadMPPIModel(const std::string& model_path) {
-    if (mppi_planner_.loadModel(model_path)) {
-        model_loaded_ = true;
-        RCLCPP_INFO(this->get_logger(), "MPPI model loaded successfully: %s", model_path.c_str());
+bool ChassisDriver::loadRLModel(const std::string& model_path) {
+    try {
+        rl_model_ = torch::jit::load(model_path, device_);
+        rl_model_.eval();
+        
+        rl_model_loaded_ = true;
+        RCLCPP_INFO(this->get_logger(), "RLモデル読み込み成功: %s", model_path.c_str());
         return true;
-    } else {
-        model_loaded_ = false;
-        RCLCPP_ERROR(this->get_logger(), "Failed to load MPPI model: %s", model_path.c_str());
+        
+    } catch (const std::exception& e) {
+        rl_model_loaded_ = false;
+        RCLCPP_WARN(this->get_logger(), "RLモデル読み込み失敗: %s - Error: %s", 
+                     model_path.c_str(), e.what());
         return false;
     }
 }
 
 void ChassisDriver::resetState() {
-    // 状態を全て0で初期化
-    current_state_.linear_vel = 0.0;
-    current_state_.angular_vel = 0.0;
-    current_state_.acc_linear_vel = 0.0;
-    current_state_.acc_angular_vel = 0.0;
-    current_state_.potentio = 0;
-    
-    target_linear_vel_ = 0.0;
-    target_angular_vel_ = 0.0;
+    cmd_linear_vel_ = 0.0;
+    cmd_angular_vel_ = 0.0;
+    observed_linear_vel_ = 0.0;
+    observed_angular_vel_ = 0.0;
     current_potentio_ = 0.0;
+    input_history_.clear();
 }
 
 void ChassisDriver::_subscriber_callback_vel(const geometry_msgs::msg::Twist::SharedPtr msg) {
     if (mode == Mode::stop) return;
     
-    // 目標速度の設定（制約適用）
-    target_linear_vel_ = constrain(msg->linear.x, -max_linear_vel, max_linear_vel);
-    target_angular_vel_ = constrain(msg->angular.z, -max_angular_vel, max_angular_vel);
+    cmd_linear_vel_ = constrain(msg->linear.x, -max_linear_vel, max_linear_vel);
+    cmd_angular_vel_ = constrain(msg->angular.z, -max_angular_vel, max_angular_vel);
     
-    // MPPIプランナーに目標速度を設定
-    mppi_planner_.setTargetVelocity(target_linear_vel_, target_angular_vel_);
+    mode = Mode::rl_control;
     
-    // 制御モードに遷移
-    mode = Mode::mppi_control;
-    
-    RCLCPP_DEBUG(this->get_logger(), "目標速度設定: linear=%f, angular=%f", 
-                 target_linear_vel_, target_angular_vel_);
+    RCLCPP_DEBUG(this->get_logger(), "速度指令受信: linear=%f, angular=%f", 
+                 cmd_linear_vel_, cmd_angular_vel_);
 }
 
-void ChassisDriver::_subscriber_callback_stop(const std_msgs::msg::Empty::SharedPtr msg) {
-    (void)msg;  // 未使用パラメータ警告抑制
+void ChassisDriver::_subscriber_callback_velocity(const geometry_msgs::msg::TwistStamped::SharedPtr msg) {
+    observed_linear_vel_ = msg->twist.linear.x;
+    observed_angular_vel_ = msg->twist.angular.z;
+    
+    RCLCPP_DEBUG(this->get_logger(), "観測値更新: linear=%f, angular=%f", 
+                 observed_linear_vel_, observed_angular_vel_);
+}
+
+void ChassisDriver::_subscriber_callback_stop(const std_msgs::msg::Empty::SharedPtr /* msg */) {
     mode = Mode::stop;
-    target_linear_vel_ = 0.0;
-    target_angular_vel_ = 0.0;
-    mppi_planner_.setTargetVelocity(0.0, 0.0);
+    cmd_linear_vel_ = 0.0;
+    cmd_angular_vel_ = 0.0;
     RCLCPP_INFO(this->get_logger(), "停止モード");
 }
 
-void ChassisDriver::_subscriber_callback_restart(const std_msgs::msg::Empty::SharedPtr msg) {
-    (void)msg;  // 未使用パラメータ警告抑制
+void ChassisDriver::_subscriber_callback_restart(const std_msgs::msg::Empty::SharedPtr /* msg */) {
     mode = Mode::stay;
     resetState();
-    target_linear_vel_ = 0.0;
-    target_angular_vel_ = 0.0;
-    mppi_planner_.setTargetVelocity(0.0, 0.0);
     RCLCPP_INFO(this->get_logger(), "再稼働 - 待機モード");
-}
-
-void ChassisDriver::_subscriber_callback_rpm(const socketcan_interface_msg::msg::SocketcanIF::SharedPtr msg) {
-    // RPMフィードバック処理（将来の拡張用）
-    (void)msg;  // 未使用パラメータ警告抑制
 }
 
 void ChassisDriver::_subscriber_callback_emergency(const socketcan_interface_msg::msg::SocketcanIF::SharedPtr msg) {
@@ -169,9 +167,8 @@ void ChassisDriver::_subscriber_callback_emergency(const socketcan_interface_msg
         uint8_t emergency_flag = msg->candata[6];
         if (emergency_flag && mode != Mode::stop) {
             mode = Mode::stop;
-            target_linear_vel_ = 0.0;
-            target_angular_vel_ = 0.0;
-            mppi_planner_.setTargetVelocity(0.0, 0.0);
+            cmd_linear_vel_ = 0.0;
+            cmd_angular_vel_ = 0.0;
             RCLCPP_WARN(this->get_logger(), "緊急停止信号受信!");
         }
     }
@@ -179,7 +176,6 @@ void ChassisDriver::_subscriber_callback_emergency(const socketcan_interface_msg
 
 void ChassisDriver::_subscriber_callback_potentio(const socketcan_interface_msg::msg::SocketcanIF::SharedPtr msg) {
     if (msg->candlc >= 4) {
-        // ポテンショメータ値をCANデータから取得
         uint8_t candata_array[4];
         for (int i = 0; i < 4; ++i) {
             candata_array[i] = msg->candata[i];
@@ -187,121 +183,115 @@ void ChassisDriver::_subscriber_callback_potentio(const socketcan_interface_msg:
         int32_t potentio_raw = bytes_to_int(candata_array);
         current_potentio_ = static_cast<double>(potentio_raw);
         
-        // 現在状態のポテンショメータ値を更新
-        current_state_.potentio = static_cast<int>(current_potentio_);
+        RCLCPP_DEBUG(this->get_logger(), "ポテンショメータ値更新: %d", static_cast<int>(current_potentio_));
     }
 }
 
 void ChassisDriver::_publisher_callback() {
     if (mode == Mode::stop || mode == Mode::stay) {
-        // 停止または待機時は速度0で送信
         send_rpm(0.0, 0.0);
         
-        // 現在状態をパブリッシュ
         auto state_msg = std::make_shared<geometry_msgs::msg::TwistStamped>();
         state_msg->header.stamp = this->now();
         state_msg->header.frame_id = "base_link";
-        state_msg->twist.linear.x = current_state_.linear_vel;
-        state_msg->twist.angular.z = current_state_.angular_vel;
+        state_msg->twist.linear.x = 0.0;
+        state_msg->twist.angular.z = 0.0;
         publisher_current_state->publish(*state_msg);
         return;
     }
     
-    if (model_loaded_ && mode == Mode::mppi_control) {
-        // MPPI制御実行
-        mppi_planner_.cycle(current_state_);
-        
-        // 最適制御入力を取得
-        auto [optimal_linear, optimal_angular] = mppi_planner_.getOptimalControl();
-        
-        // 参照速度として出力（デバッグ用）
-        auto ref_vel_msg = std::make_shared<geometry_msgs::msg::TwistStamped>();
-        ref_vel_msg->header.stamp = this->now();
-        ref_vel_msg->header.frame_id = "base_link";
-        ref_vel_msg->twist.linear.x = optimal_linear;
-        ref_vel_msg->twist.angular.z = optimal_angular;
-        publisher_ref_vel->publish(*ref_vel_msg);
-        
-        // モータ制御実行
-        send_rpm(optimal_linear, optimal_angular);
-        
-        // 状態を更新（モデル予測による次状態を使用）
-        updateStateFromModel(optimal_linear, optimal_angular);
-        
-        // 現在状態をパブリッシュ
-        auto state_msg = std::make_shared<geometry_msgs::msg::TwistStamped>();
-        state_msg->header.stamp = this->now();
-        state_msg->header.frame_id = "base_link";
-        state_msg->twist.linear.x = current_state_.linear_vel;
-        state_msg->twist.angular.z = current_state_.angular_vel;
-        publisher_current_state->publish(*state_msg);
-        
-        RCLCPP_DEBUG(this->get_logger(), "MPPI制御 - 出力: [%f, %f], 状態: [%f, %f, %d]", 
-                     optimal_linear, optimal_angular, 
-                     current_state_.linear_vel, current_state_.angular_vel, current_state_.potentio);
-    } else {
-        // モデル未読み込み時は停止
-        send_rpm(0.0, 0.0);
-        RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
-                             "MPPIモデルが読み込まれていません。制御を停止します。");
-    }
-}
-
-void ChassisDriver::updateStateFromModel(double control_linear, double control_angular) {
-    if (model_loaded_) {
-        // MPPI プランナーの状態推定モデルを使用して次状態を予測
-        velplanner::State_t predicted_state = mppi_planner_.predictNextState(current_state_, control_linear, control_angular);
-        
-        // 予測された状態を現在状態として更新
-        current_state_.linear_vel = predicted_state.linear_vel;
-        current_state_.angular_vel = predicted_state.angular_vel;
-        current_state_.acc_linear_vel = predicted_state.acc_linear_vel;
-        current_state_.acc_angular_vel = predicted_state.acc_angular_vel;
-        
-        // ポテンショメータ値の更新
-        // センサーフィードバックが利用可能な場合はそれを優先、
-        // そうでなければモデル予測値を使用
-        if (current_potentio_ != 0.0) {
-            // センサーフィードバック優先
-            current_state_.potentio = static_cast<int>(current_potentio_);
-        } else {
-            // モデル予測値を使用
-            current_state_.potentio = predicted_state.potentio;
-        }
-        
-        RCLCPP_DEBUG(this->get_logger(), "モデル予測による状態更新: [%f, %f, %f, %f, %d]", 
-                     current_state_.linear_vel, current_state_.angular_vel,
-                     current_state_.acc_linear_vel, current_state_.acc_angular_vel, 
-                     current_state_.potentio);
+    if (mode == Mode::rl_control) {
+        executeRLControl();
     }
     
-    last_update_time_ = this->now();
+    // 現在状態をパブリッシュ
+    auto state_msg = std::make_shared<geometry_msgs::msg::TwistStamped>();
+    state_msg->header.stamp = this->now();
+    state_msg->header.frame_id = "base_link";
+    state_msg->twist.linear.x = observed_linear_vel_;
+    state_msg->twist.angular.z = observed_angular_vel_;
+    publisher_current_state->publish(*state_msg);
 }
 
-void ChassisDriver::send_rpm(const double linear_vel, const double angular_vel) {
-    // 差動二輪の運動学変換
-    const double left_vel = (-tread * angular_vel + 2.0 * linear_vel) / (2.0 * wheel_radius);
-    const double right_vel = (tread * angular_vel + 2.0 * linear_vel) / (2.0 * wheel_radius);
+void ChassisDriver::executeRLControl() {
+    // ステアリング角度を計算（度からラジアンに変換）
+    double steering_angle = static_cast<double>(current_potentio_);
+    
+    auto [left_rpm, right_rpm] = predictMotorRPM(cmd_linear_vel_, cmd_angular_vel_, 
+                                                 observed_linear_vel_, observed_angular_vel_, 
+                                                 steering_angle);
+    
+    // モーター制御実行
+    send_rpm(left_rpm, right_rpm);
+    
+    auto ref_vel_msg = std::make_shared<geometry_msgs::msg::TwistStamped>();
+    ref_vel_msg->header.stamp = this->now();
+    ref_vel_msg->header.frame_id = "base_link";
+    ref_vel_msg->twist.linear.x = cmd_linear_vel_;
+    ref_vel_msg->twist.angular.z = cmd_angular_vel_;
+    publisher_ref_vel->publish(*ref_vel_msg);
+    
+    RCLCPP_DEBUG(this->get_logger(), "RL制御 - 推定RPM: [%.2f, %.2f]", left_rpm, right_rpm);
+}
 
-    // rad/s -> rpm & 回転方向制御
-    const double left_rpm = (is_reverse_left ? -1 : 1) * (left_vel * 30.0 / d_pi) * rotate_ratio;
-    const double right_rpm = (is_reverse_right ? -1 : 1) * (right_vel * 30.0 / d_pi) * rotate_ratio;
+std::pair<double, double> ChassisDriver::predictMotorRPM(double cmd_linear, double cmd_angular, 
+                                                       double obs_linear, double obs_angular, 
+                                                       double steering_angle) {
+    // RLモデル用の入力形式: [target_linear, target_angular, current_v, current_w, current_th]
+    torch::Tensor input_tensor = torch::zeros({1, 5}, 
+                                             torch::TensorOptions().dtype(torch::kFloat32).device(device_));
+    
+    input_tensor[0][0] = cmd_linear;      // target_linear
+    input_tensor[0][1] = cmd_angular;     // target_angular
+    input_tensor[0][2] = obs_linear;      // current_v
+    input_tensor[0][3] = obs_angular;     // current_w
+    input_tensor[0][4] = steering_angle;  // current_th (ポテンショメータ値)
+    
+    // 推論実行
+    torch::NoGradGuard no_grad;
+    std::vector<torch::jit::IValue> inputs{input_tensor};
+    torch::Tensor output = rl_model_.forward(inputs).toTensor();
+    
+    // RLモデルの出力処理（2次元出力: left_rpm, right_rpm）
+    auto output_cpu = output.to(torch::kCPU);
+    auto output_data = output_cpu.accessor<float, 2>();
+    
+    double left_rpm = static_cast<double>(output_data[0][0]);
+    double right_rpm = static_cast<double>(output_data[0][1]);
+    
+    // RPM制限
+    const double max_rpm = 700.0;
+    left_rpm = constrain(left_rpm, -max_rpm, max_rpm);
+    right_rpm = constrain(right_rpm, -max_rpm, max_rpm);
+    
+    RCLCPP_DEBUG(this->get_logger(), "RLモデル推論完了: 入力[%.3f,%.3f,%.3f,%.3f,%.1f] → 出力[%.1f,%.1f]", 
+                 cmd_linear, cmd_angular, obs_linear, obs_angular, steering_angle, left_rpm, right_rpm);
+    
+    return {left_rpm, right_rpm};
+}
 
+void ChassisDriver::send_rpm(const double left_rpm, const double right_rpm) {
+    // 回転方向制御
+    const double corrected_left_rpm = (is_reverse_left ? -1 : 1) * left_rpm;
+    const double corrected_right_rpm = (is_reverse_right ? -1 : 1) * right_rpm;
+    
     // CAN送信
     auto msg_can = std::make_shared<socketcan_interface_msg::msg::SocketcanIF>();
     msg_can->canid = 0x210;
     msg_can->candlc = 8;
 
     uint8_t _candata[8];
-    int_to_bytes(_candata, static_cast<int>(right_rpm));
-    int_to_bytes(_candata + 4, static_cast<int>(left_rpm));
+    int_to_bytes(_candata, static_cast<int>(corrected_right_rpm));
+    int_to_bytes(_candata + 4, static_cast<int>(corrected_left_rpm));
 
     for (int i = 0; i < msg_can->candlc; i++) {
         msg_can->candata[i] = _candata[i];
     }
     publisher_can->publish(*msg_can);
 
-    RCLCPP_DEBUG(this->get_logger(), "RPM送信: left=%f, right=%f", left_rpm, right_rpm);
+    RCLCPP_DEBUG(this->get_logger(), "直接RPM送信: left=%f, right=%f", 
+                 corrected_left_rpm, corrected_right_rpm);
 }
+
 
 }  // namespace chassis_driver
