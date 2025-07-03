@@ -22,15 +22,16 @@ def calculate_p_control_angular(linear_x, angular_z, potentio_th, wheel_base=0.6
     error = arcsin(wheel_base * angular_z / linear_x) - potentio_th
     出力 = p_gain * error
     """
-    if abs(linear_x) < 0.001:  # ゼロ除算回避
+    if abs(linear_x) == 0:  # ゼロ除算回避
         return 0.0
     
-    # asinの引数を-1から1に制限
     sin_value = wheel_base * angular_z / linear_x
-    sin_value = max(-1.0, min(1.0, sin_value))
+    sin_value = min(max(-1.0, sin_value), 1.0)
     
     # 目標ステアリング角度計算
     target_angle = math.asin(sin_value)
+
+    potentio_th =  math.radians(30.0)* (potentio_th-13) / 120.0
     
     # 誤差計算
     error = target_angle - potentio_th
@@ -39,6 +40,21 @@ def calculate_p_control_angular(linear_x, angular_z, potentio_th, wheel_base=0.6
     control_output = p_gain * error
     
     return control_output
+
+def calculate_differential_wheel_rpm(linear_vel, u_delta, tread=0.6, wheel_radius=0.124, rotate_ratio=1.0):
+    """
+    差動駆動運動学を使用してRPM指令値を計算
+    入力: linear_x (m/s), angular_z (rad/s)
+    出力: left_rpm, right_rpm
+    """
+    
+    left_vel = (-tread*u_delta + 2.0*linear_vel) / (2.0*wheel_radius)
+    right_vel = (tread*u_delta + 2.0*linear_vel) / (2.0*wheel_radius)
+    
+    left_rpm = (left_vel*30.0 / math.pi) * rotate_ratio
+    right_rpm = (right_vel*30.0 / math.pi) * rotate_ratio
+
+    return left_rpm, right_rpm
 
 def read_bag_and_export_csv(bag_path, output_csv, append_to_existing=False):
     reader = SequentialReader()
@@ -50,6 +66,7 @@ def read_bag_and_export_csv(bag_path, output_csv, append_to_existing=False):
         '/vectornav/imu': Imu,
         '/vectornav/velocity_body': TwistWithCovarianceStamped,
         '/can_rx_011': SocketcanIF,
+        '/can_rx_11': SocketcanIF,
         '/cmd_vel': Twist
     }
 
@@ -87,9 +104,8 @@ def read_bag_and_export_csv(bag_path, output_csv, append_to_existing=False):
         if file_mode == 'w':
             writer.writerow([
                 'step',
-                'v0', 'w0', 'acc_v0', 'acc_w0', 'potentio_th0',
-                'linear_x', 'angular_z',
-                'v1', 'w1', 'potentio_th1'
+                'v0', 'w0', 'th0', 'rpm_l', 'rpm_r',
+                'v1', 'w1', 'th1'
             ])
 
         while reader.has_next():
@@ -111,7 +127,7 @@ def read_bag_and_export_csv(bag_path, output_csv, append_to_existing=False):
                     'w': msg.twist.twist.angular.z
                 }
 
-            elif topic == '/can_rx_011':
+            elif topic in ['/can_rx_011', '/can_rx_11']:
                 latest_potentio = {
                     'potentio_th': bytes_to_short(msg.candata[:2])
                 }
@@ -139,17 +155,15 @@ def read_bag_and_export_csv(bag_path, output_csv, append_to_existing=False):
                         x = history[0]
                         y = history[1]
                         
-                        # P制御でangular_zを補正
-                        corrected_angular_z = calculate_p_control_angular(
+                        # 差動駆動運動学でRPM指令値を計算
+                        rpm_l, rpm_r = calculate_differential_wheel_rpm(
                             x['linear_x'], 
-                            x['angular_z'], 
-                            x['potentio_th']
+                            calculate_p_control_angular(x['linear_x'], x['angular_z'], x['potentio_th'])
                         )
                         
                         row = [
                             step,
-                            x['v'], x['w'], x['acc_v'], x['acc_w'], x['potentio_th'],
-                            x['linear_x'], corrected_angular_z,
+                            x['v'], x['w'], x['potentio_th'], rpm_l, rpm_r,
                             y['v'], y['w'], y['potentio_th']
                         ]
                         writer.writerow(row)

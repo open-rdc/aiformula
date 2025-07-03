@@ -20,10 +20,9 @@ class MotionSequenceDataset(Dataset):
         df = pd.read_csv(csv_path)
         self.seq_len = seq_len
 
-        cols = ['v0', 'w0', 'acc_v0', 'acc_w0', 'potentio_th0',
-                'linear_x', 'angular_z']
+        cols = ['v0', 'w0', 'th0', 'rpm_l', 'rpm_r']
         self.features = df[cols].values.astype(np.float32)
-        self.targets = df[['v1', 'w1', 'potentio_th1']].values.astype(np.float32)
+        self.targets = df[['v1', 'w1', 'th1']].values.astype(np.float32)
 
         self.inputs_seq = []
         self.targets_seq = []
@@ -39,8 +38,10 @@ class MotionSequenceDataset(Dataset):
 
 
 class LSTMModel(nn.Module):
-    def __init__(self, input_dim=7, hidden_dim=64, output_dim=3, num_layers=1):
+    def __init__(self, input_dim=5, hidden_dim=64, output_dim=3, num_layers=1):
         super().__init__()
+        self.hidden_dim = hidden_dim
+        self.num_layers = num_layers
         self.lstm = nn.LSTM(input_dim, hidden_dim, num_layers, batch_first=True)
         self.fc = nn.Sequential(
             nn.Linear(hidden_dim, hidden_dim),
@@ -50,7 +51,14 @@ class LSTMModel(nn.Module):
 
     def forward(self, x):
         # x: [batch_size, seq_len, input_dim]
-        out, _ = self.lstm(x)
+        batch_size = x.size(0)
+        device = x.device
+        
+        # 隠れ状態を明示的に初期化（同じデバイスで）
+        h0 = torch.zeros(self.num_layers, batch_size, self.hidden_dim, device=device)
+        c0 = torch.zeros(self.num_layers, batch_size, self.hidden_dim, device=device)
+        
+        out, _ = self.lstm(x, (h0, c0))
         last_hidden = out[:, -1, :]
         return self.fc(last_hidden)
 
@@ -67,7 +75,7 @@ def train_model(csv_path, model_name, num_epochs=100, batch_size=32, lr=1e-3, se
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    input_dim = 7
+    input_dim = 5
     model = LSTMModel(input_dim=input_dim).to(device)
     criterion = nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=lr)
@@ -108,13 +116,12 @@ def train_model(csv_path, model_name, num_epochs=100, batch_size=32, lr=1e-3, se
 
     writer.close()
     
-    # モデルをCPUに移動してからTorchScript化（推論時のデバイス互換性を確保）
-    print("モデルをCPU形式で保存中...")
-    model.cpu()
-    dummy_input = torch.randn(1, seq_len, input_dim)  # CPUで作成
+    # TorchScript化（訓練時のデバイスで保存）
+    print(f"モデルを{device}形式で保存中...")
+    dummy_input = torch.randn(1, seq_len, input_dim).to(device)
     traced_model = torch.jit.trace(model, dummy_input)
     traced_model.save(model_name + ".pt")
-    print(f"✅ TorchScript形式（{model_name}.pt）で保存しました（CPU互換）")
+    print(f"✅ TorchScript形式（{model_name}.pt）で保存しました（{device}互換）")
     print(f"✅ TensorBoard ログを '{log_dir}' に保存しました")
 
 
@@ -124,12 +131,11 @@ if __name__ == '__main__':
     parser.add_argument('--batch-size', type=int, default=32, help='Batch size (default: 32)')
     parser.add_argument('--epochs', type=int, default=100, help='Number of epochs (default: 100)')
     parser.add_argument('--seq-len', type=int, default=10, help='Sequence length for LSTM (default: 10)')
+    parser.add_argument('--model-name', type=str, default='state_predict', help='Output model name (default: state_predict)')
     args = parser.parse_args()
 
     if not os.path.isfile(args.csv_path):
         print(f"CSVファイルが見つかりません: {args.csv_path}")
         sys.exit(1)
 
-    model_name = input("Output model name is :")
-
-    train_model(csv_path=args.csv_path, num_epochs=args.epochs, batch_size=args.batch_size, model_name=model_name, seq_len=args.seq_len)
+    train_model(csv_path=args.csv_path, num_epochs=args.epochs, batch_size=args.batch_size, model_name=args.model_name, seq_len=args.seq_len)

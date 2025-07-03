@@ -7,6 +7,7 @@ import matplotlib
 matplotlib.use('TkAgg')  # GUI表示用のバックエンドを設定
 import matplotlib.pyplot as plt
 import seaborn as sns
+import math
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 import argparse
 import os
@@ -25,6 +26,32 @@ from socketcan_interface_msg.msg import SocketcanIF
 
 def bytes_to_short(byte_list):
     return struct.unpack('<h', bytearray(byte_list[:2]))[0]
+
+def calculate_p_control_angular(linear_x, angular_z, potentio_th, wheel_base=0.65, p_gain=10.0):
+    """P制御でangular_zを計算"""
+    if abs(linear_x) == 0:
+        return 0.0
+    
+    # asinの引数を-1から1に制限
+    sin_value = wheel_base * angular_z / linear_x
+    sin_value = min(max(-1.0, sin_value), 1.0)
+    
+    # 目標ステアリング角度計算
+    target_angle = math.asin(sin_value)
+    potentio_th = math.radians(30.0) * (potentio_th - 13) / 120.0
+    
+    # 誤差計算
+    error = target_angle - potentio_th
+    control_output = p_gain * error
+    return control_output
+
+def calculate_differential_wheel_rpm(linear_vel, u_delta, tread=0.6, wheel_radius=0.124, rotate_ratio=1.0):
+    """差動駆動運動学を使用してRPM指令値を計算"""
+    left_vel = (-tread * u_delta + 2.0 * linear_vel) / (2.0 * wheel_radius)
+    right_vel = (tread * u_delta + 2.0 * linear_vel) / (2.0 * wheel_radius)
+    left_rpm = (left_vel * 30.0 / math.pi) * rotate_ratio
+    right_rpm = (right_vel * 30.0 / math.pi) * rotate_ratio
+    return left_rpm, right_rpm
 
 class ModelEvaluator:
     def __init__(self, model_path):
@@ -49,7 +76,8 @@ class ModelEvaluator:
         valid_topics = {
             '/vectornav/imu': Imu,
             '/vectornav/velocity_body': TwistWithCovarianceStamped,
-            '/can_rx_011': SocketcanIF,
+            '/can_rx_011': SocketcanIF,  # 元の名前
+            '/can_rx_11': SocketcanIF,   # 新しい名前
             '/cmd_vel': Twist
         }
 
@@ -88,7 +116,7 @@ class ModelEvaluator:
                     'w': msg.twist.twist.angular.z
                 }
 
-            elif topic == '/can_rx_011':
+            elif topic in ['/can_rx_011', '/can_rx_11']:
                 latest_potentio = {
                     'potentio_th': bytes_to_short(msg.candata[:2])
                 }
@@ -116,13 +144,16 @@ class ModelEvaluator:
                         x = history[0]
                         y = history[1]
                         
-                        # 入力データ (v0, w0, acc_v0, acc_w0, potentio_th0, linear_x, angular_z)
+                        # RPM指令値を計算
+                        u_delta = calculate_p_control_angular(x['linear_x'], x['angular_z'], x['potentio_th'])
+                        rpm_l, rpm_r = calculate_differential_wheel_rpm(x['linear_x'], u_delta)
+                        
+                        # 現在のモデル仕様に合わせた入力データ (v0, w0, th0, rpm_l, rpm_r)
                         input_data = [
-                            x['v'], x['w'], x['acc_v'], x['acc_w'], x['potentio_th'],
-                            x['linear_x'], x['angular_z']
+                            x['v'], x['w'], x['potentio_th'], rpm_l, rpm_r
                         ]
                         
-                        # 真値 (v1, w1, potentio_th1)
+                        # 真値 (v1, w1, th1)
                         target_data = [y['v'], y['w'], y['potentio_th']]
                         
                         all_samples.append({
@@ -160,7 +191,7 @@ class ModelEvaluator:
     def calculate_metrics(self, y_true, y_pred):
         """評価指標計算"""
         metrics = {}
-        columns = ['v', 'w', 'potentio_th']
+        columns = ['v', 'w', 'th']
         
         for i, column in enumerate(columns):
             mae = mean_absolute_error(y_true[:, i], y_pred[:, i])
@@ -183,8 +214,8 @@ class ModelEvaluator:
 
     def visualize_results(self, y_true, y_pred, metrics):
         """結果可視化 - plt.show()を使用"""
-        columns = ['v (Linear Velocity)', 'w (Angular Velocity)', 'potentio_th (Steering Angle)']
-        column_keys = ['v', 'w', 'potentio_th']
+        columns = ['v (Linear Velocity)', 'w (Angular Velocity)', 'th (Steering Angle)']
+        column_keys = ['v', 'w', 'th']
         
         # 1. 散布図 (真値 vs 推定値)
         fig, axes = plt.subplots(1, 3, figsize=(15, 5))
