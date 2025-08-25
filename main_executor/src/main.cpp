@@ -5,6 +5,7 @@
 #include "chassis_driver/chassis_driver_node.hpp"
 #include "gnssnav/path_publisher_node.hpp"
 #include "gnssnav/follower_node.hpp"
+#include "lane_line_publisher/lane_line_publisher_node.hpp"
 
 int main(int argc, char * argv[]){
     rclcpp::init(argc,argv);
@@ -27,6 +28,7 @@ int main(int argc, char * argv[]){
     auto chassis_driver_node = std::make_shared<chassis_driver::ChassisDriver>(nodes_option);
     auto path_publisher_node = std::make_shared<gnssnav::Publisher>(nodes_option);
     auto follower_node = std::make_shared<gnssnav::Follower>(nodes_option);
+    auto lane_line_node = std::make_shared<lane_line_publisher::LaneLinePublisher>(nodes_option);
 
     if(sim_flag){}
     if(not sim_flag){
@@ -36,6 +38,7 @@ int main(int argc, char * argv[]){
     exec.add_node(chassis_driver_node);
     exec.add_node(path_publisher_node);
     exec.add_node(follower_node);
+    exec.add_node(lane_line_node);
 
     exec.spin();
     rclcpp::shutdown();
