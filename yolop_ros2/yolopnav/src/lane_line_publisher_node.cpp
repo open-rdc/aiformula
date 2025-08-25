@@ -18,6 +18,11 @@ LaneLinePublisher::LaneLinePublisher(const std::string& name_space, const rclcpp
         std::bind(&LaneLinePublisher::maskImageCallback, this, std::placeholders::_1)
     );
     
+    autonomous_flag_subscriber_ = this->create_subscription<std_msgs::msg::Bool>(
+        "/autonomous", 10,
+        std::bind(&LaneLinePublisher::autonomousFlagCallback, this, std::placeholders::_1)
+    );
+    
     cmd_vel_publisher_ = this->create_publisher<geometry_msgs::msg::Twist>(
         "/cmd_vel", qos_
     );
@@ -43,7 +48,17 @@ void LaneLinePublisher::maskImageCallback(const sensor_msgs::msg::Image::SharedP
     latest_mask_image_ = msg;
 }
 
+void LaneLinePublisher::autonomousFlagCallback(const std_msgs::msg::Bool::SharedPtr msg) {
+    autonomous_flag_ = msg->data;
+    RCLCPP_INFO(this->get_logger(), "Autonomous flag updated to: %s", autonomous_flag_ ? "true" : "false");
+}
+
 void LaneLinePublisher::controlTimerCallback() {
+    // 自律走行フラグが無効の場合は制御を行わない
+    if (!autonomous_flag_) {
+        return;
+    }
+    
     sensor_msgs::msg::Image::SharedPtr current_image;
     {
         std::lock_guard<std::mutex> lock(image_mutex_);

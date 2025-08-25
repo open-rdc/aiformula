@@ -3,6 +3,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/image.hpp>
 #include <geometry_msgs/msg/twist.hpp>
+#include <std_msgs/msg/bool.hpp>
 #include <cv_bridge/cv_bridge.h>
 #include <opencv2/opencv.hpp>
 #include <memory>
@@ -28,6 +29,7 @@ public:
 private:
     // ROS2 通信
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr subscription_mask_;
+    rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr autonomous_flag_subscriber_;
     rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmd_vel_publisher_;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr debug_image_publisher_;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr skeleton_debug_publisher_;
@@ -46,6 +48,9 @@ private:
     // 制御パラメータ
     double max_angular_velocity_; // 最大角速度
     
+    // 自律走行フラグ
+    bool autonomous_flag_ = false;
+    
     // 最新の画像データ
     sensor_msgs::msg::Image::SharedPtr latest_mask_image_;
     std::mutex image_mutex_;
@@ -58,6 +63,7 @@ private:
     // コールバック関数
     void maskImageCallback(const sensor_msgs::msg::Image::SharedPtr msg);
     void controlTimerCallback();
+    void autonomousFlagCallback(const std_msgs::msg::Bool::SharedPtr msg);
     
     // 画像処理関数
     cv::Mat skeletonizeMask(const cv::Mat& mask);
