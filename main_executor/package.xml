@@ -15,7 +15,7 @@
   <depend>controller</depend>
   <depend>chassis_driver</depend>
   <depend>gnssnav</depend>
-  <depend>lane_line_publisher</depend>
+  <depend>yolopnav</depend>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 

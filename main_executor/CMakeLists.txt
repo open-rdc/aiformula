@@ -11,7 +11,7 @@ find_package(socketcan_interface REQUIRED)
 find_package(controller REQUIRED)
 find_package(chassis_driver REQUIRED)
 find_package(gnssnav REQUIRED)
-find_package(lane_line_publisher REQUIRED)
+find_package(yolopnav REQUIRED)
 
 add_executable(main_exec
         src/main.cpp
@@ -23,7 +23,7 @@ ament_target_dependencies(main_exec
         controller
         chassis_driver
         gnssnav
-        lane_line_publisher
+        yolopnav
         )
 
 target_include_directories(main_exec

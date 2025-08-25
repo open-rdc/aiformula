@@ -58,7 +58,7 @@ gnssnav_follower_node:
     max_angular_vel : 1.57
     laps : 3
 
-lane_line_publisher:
+yolopnav_node:
   ros__parameters:
     pid:
       kp: 5.0
