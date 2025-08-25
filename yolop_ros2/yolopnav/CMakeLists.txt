@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(lane_line_publisher)
+project(yolopnav)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
@@ -15,15 +15,15 @@ find_package(OpenCV REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(utilities REQUIRED)
 
-add_library(lane_line_publisher_node
+add_library(yolopnav_node
   src/lane_line_publisher_node.cpp
   src/lane_pixel_finder.cpp
 )
-target_compile_features(lane_line_publisher_node PUBLIC c_std_99 cxx_std_17)
-target_include_directories(lane_line_publisher_node PUBLIC
+target_compile_features(yolopnav_node PUBLIC c_std_99 cxx_std_17)
+target_include_directories(yolopnav_node PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
-ament_target_dependencies(lane_line_publisher_node
+ament_target_dependencies(yolopnav_node
   rclcpp
   sensor_msgs
   geometry_msgs
@@ -33,7 +33,7 @@ ament_target_dependencies(lane_line_publisher_node
 )
 
 
-target_compile_definitions(lane_line_publisher_node PRIVATE "LANE_LINE_PUBLISHER_BUILDING_LIBRARY")
+target_compile_definitions(yolopnav_node PRIVATE "YOLOPNAV_BUILDING_LIBRARY")
 
 install(
   DIRECTORY include/
@@ -41,7 +41,7 @@ install(
 )
 
 install(
-  TARGETS lane_line_publisher_node
+  TARGETS yolopnav_node
   EXPORT export_${PROJECT_NAME}
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
@@ -60,7 +60,7 @@ ament_export_include_directories(
   include
 )
 ament_export_libraries(
-  lane_line_publisher_node
+  yolopnav_node
 )
 ament_export_targets(
   export_${PROJECT_NAME}

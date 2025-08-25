@@ -1,7 +1,7 @@
-#include "lane_line_publisher/lane_pixel_finder.hpp"
+#include "yolopnav/lane_pixel_finder.hpp"
 #include <algorithm>
 
-namespace lane_line_publisher {
+namespace yolopnav {
 
 void LanePixelFinder::searchMask(const cv::Mat& binary_mask, LaneLines& lane_lines) const {
     const auto cols = binary_mask.cols;
@@ -89,4 +89,4 @@ cv::Mat LanePixelFinder::visualizeLanePixels(const cv::Mat& input_image, const L
     return visualization;
 }
 
-}  // namespace lane_line_publisher
+}  // namespace yolopnav

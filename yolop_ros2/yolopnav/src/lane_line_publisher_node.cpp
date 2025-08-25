@@ -1,12 +1,12 @@
-#include "lane_line_publisher/lane_line_publisher_node.hpp"
+#include "yolopnav/lane_line_publisher_node.hpp"
 
-namespace lane_line_publisher {
+namespace yolopnav {
 
 LaneLinePublisher::LaneLinePublisher(const rclcpp::NodeOptions& options) 
     : LaneLinePublisher("", options) {}
 
 LaneLinePublisher::LaneLinePublisher(const std::string& name_space, const rclcpp::NodeOptions& options) 
-    : Node("lane_line_publisher", name_space, options),
+    : Node("yolopnav_node", name_space, options),
       interval_ms_(get_parameter("interval_ms").as_int()),
       pid(get_parameter("interval_ms").as_int()),
       max_angular_velocity_(get_parameter("angular_max.vel").as_double() * M_PI / 180.0) {
@@ -352,4 +352,4 @@ void LaneLinePublisher::visualizeLines(cv::Mat& image, const cv::Vec4i& line, co
     cv::line(image, cv::Point(line[0], line[1]), cv::Point(line[2], line[3]), color, thickness);
 }
 
-}  // namespace lane_line_publisher
+}  // namespace yolopnav

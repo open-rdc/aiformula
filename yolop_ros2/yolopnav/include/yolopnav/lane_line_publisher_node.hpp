@@ -10,18 +10,18 @@
 #include <cmath>
 #include <mutex>
 
-#include "lane_line_publisher/visibility_control.h"
-#include "lane_line_publisher/lane_pixel_finder.hpp"
+#include "yolopnav/visibility_control.h"
+#include "yolopnav/lane_pixel_finder.hpp"
 #include "utilities/position_pid.hpp"
 
-namespace lane_line_publisher {
+namespace yolopnav {
 
 class LaneLinePublisher : public rclcpp::Node {
 public:
-    LANE_LINE_PUBLISHER_PUBLIC
+    YOLOPNAV_PUBLIC
     explicit LaneLinePublisher(const rclcpp::NodeOptions& options = rclcpp::NodeOptions());
 
-    LANE_LINE_PUBLISHER_PUBLIC
+    YOLOPNAV_PUBLIC
     explicit LaneLinePublisher(const std::string& name_space, 
                               const rclcpp::NodeOptions& options = rclcpp::NodeOptions());
 
@@ -76,4 +76,4 @@ private:
     void visualizeLines(cv::Mat& image, const cv::Vec4i& line, const cv::Scalar& color, int thickness = 2);
 };
 
-}  // namespace lane_line_publisher
+}  // namespace yolopnav

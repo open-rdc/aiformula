@@ -3,7 +3,7 @@
 #include <opencv2/opencv.hpp>
 #include <vector>
 
-namespace lane_line_publisher {
+namespace yolopnav {
 
 struct LaneLine {
     std::vector<cv::Point> pixels;
@@ -43,4 +43,4 @@ private:
     int tolerance_=10;  // 探索許容範囲
 };
 
-}  // namespace lane_line_publisher
+}  // namespace yolopnav

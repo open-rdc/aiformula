@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>lane_line_publisher</name>
+  <name>yolopnav</name>
   <version>0.0.0</version>
   <description>Lane line detection with Hough transform and PID control for vehicle steering</description>
   <maintainer email="s21c1135sc@s.chibakoudai.jp">kyo yamashita</maintainer>
