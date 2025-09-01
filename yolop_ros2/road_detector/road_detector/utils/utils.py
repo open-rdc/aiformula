@@ -514,8 +514,7 @@ def driving_area_mask(seg = None):
     return da_seg_mask
 
 def lane_line_mask(ll = None):
-    ll_predict = ll[:, :, 12:372,:]
-    ll_seg_mask = torch.nn.functional.interpolate(ll_predict, scale_factor=2, mode='bilinear')
+    ll_seg_mask = torch.nn.functional.interpolate(ll, scale_factor=2, mode='bilinear')
     ll_seg_mask = torch.round(ll_seg_mask).squeeze(1)
     ll_seg_mask = ll_seg_mask.int().squeeze().cpu().numpy()
     return ll_seg_mask
