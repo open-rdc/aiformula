@@ -20,8 +20,6 @@ from .utils.utils import (
 # パラメータ設定
 INPUT_SHAPE = (640, 640)
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-CONF_THRES = 0.3
-IOU_THRES = 0.45
 
 class RoadDetectorNode(Node):
     def __init__(self, context=None, sim_flag=False):
@@ -31,13 +29,13 @@ class RoadDetectorNode(Node):
         self.logger.info(f"Using device: {DEVICE}")
 
 
-        image_topic = '/zed/zed_node/left/image_rect_color'
+        image_topic = '/zed/zed_node/rgb/image_rect_color'
 
         self.subscription = self.create_subscription(
             Image, image_topic, self.image_callback, 10
         )
         self.ll_seg_publisher = self.create_publisher(Image, '/yolopv2/image/ll_seg_mask', 10)
-        self.ll_mask_publisher = self.create_publisher(Image, '/yolopv2/image/ll_mask_raw', 10)
+        self.result_publisher = self.create_publisher(Image, '/yolopv2/image/result_image', 10)
         self.bridge = CvBridge()
 
         # モデルパス
@@ -70,12 +68,10 @@ class RoadDetectorNode(Node):
         ll_seg_mask = ll_seg_mask.astype(np.uint8)
         
         ll_seg_resize_mask = cv2.resize(ll_seg_mask, (origin_shape[1], origin_shape[0]), interpolation=cv2.INTER_NEAREST)
-        ll_seg_image = self.show_seg_result(img0, ll_seg_resize_mask)
+        result_image = self.show_seg_result(img0, ll_seg_resize_mask)
 
-        # Publish the segmented result
-        ll_seg_msg = self.bridge.cv2_to_imgmsg(ll_seg_image, encoding="bgr8")
-        ll_seg_msg.header.stamp = self.get_clock().now().to_msg()
-        self.ll_seg_publisher.publish(ll_seg_msg)
+        self.ll_seg_publish(ll_seg_resize_mask)
+        self.result_publish(result_image)
 
 
     def letterbox(self, img, new_shape, color=(114,114,114), stride=32):
@@ -108,7 +104,21 @@ class RoadDetectorNode(Node):
         img[color_mask != 0] = img[color_mask != 0] * 0.5 + color_seg[color_mask != 0] * 0.5
 
         return img
-    
+
+
+    def ll_seg_publish(self, ll_seg_mask):
+        ll_seg_mask_bgr = cv2.cvtColor(ll_seg_mask * 255, cv2.COLOR_GRAY2BGR)
+        ll_seg_mask_bgr[ll_seg_mask == 1] = [0, 0, 255]
+        ll_seg_msg = self.bridge.cv2_to_imgmsg(ll_seg_mask_bgr, encoding="bgr8")
+        ll_seg_msg.header.stamp = self.get_clock().now().to_msg()
+        self.ll_seg_publisher.publish(ll_seg_msg)
+
+
+    def result_publish(self, result_image):
+        result_msg = self.bridge.cv2_to_imgmsg(result_image, encoding="bgr8")
+        result_msg.header.stamp = self.get_clock().now().to_msg()
+        self.result_publisher.publish(result_msg)
+
 
 def main(args=None):
     rclpy.init(args=args)
