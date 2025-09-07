@@ -25,9 +25,7 @@ class RoadDetectorNode(Node):
     def __init__(self, context=None, sim_flag=False):
         super().__init__('road_detector_node', context=context)
         self.logger = self.get_logger()
-
         self.logger.info(f"Using device: {DEVICE}")
-
 
         image_topic = '/zed/zed_node/rgb/image_rect_color'
 
@@ -107,9 +105,8 @@ class RoadDetectorNode(Node):
 
 
     def ll_seg_publish(self, ll_seg_mask):
-        ll_seg_mask_bgr = cv2.cvtColor(ll_seg_mask * 255, cv2.COLOR_GRAY2BGR)
-        ll_seg_mask_bgr[ll_seg_mask == 1] = [0, 0, 255]
-        ll_seg_msg = self.bridge.cv2_to_imgmsg(ll_seg_mask_bgr, encoding="bgr8")
+        ll_seg_mask = (ll_seg_mask * 255).astype(np.uint8)
+        ll_seg_msg = self.bridge.cv2_to_imgmsg(ll_seg_mask, encoding="mono8")
         ll_seg_msg.header.stamp = self.get_clock().now().to_msg()
         self.ll_seg_publisher.publish(ll_seg_msg)
 

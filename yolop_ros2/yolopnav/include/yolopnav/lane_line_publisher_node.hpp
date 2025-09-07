@@ -2,10 +2,12 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/image.hpp>
+#include <sensor_msgs/msg/point_cloud2.hpp>
 #include <geometry_msgs/msg/twist.hpp>
 #include <std_msgs/msg/bool.hpp>
 #include <cv_bridge/cv_bridge.h>
 #include <opencv2/opencv.hpp>
+#include <opencv2/ximgproc.hpp>
 #include <memory>
 #include <vector>
 #include <cmath>
@@ -13,6 +15,7 @@
 
 #include "yolopnav/visibility_control.h"
 #include "yolopnav/lane_pixel_finder.hpp"
+#include "yolopnav/lane_pixel_to_point.hpp"
 #include "utilities/position_pid.hpp"
 
 namespace yolopnav {
@@ -33,11 +36,17 @@ private:
     rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmd_vel_publisher_;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr debug_image_publisher_;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr skeleton_debug_publisher_;
+    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr left_points_publisher_;
+    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr right_points_publisher_;
+    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr center_points_publisher_;
     rclcpp::TimerBase::SharedPtr timer_;
     rclcpp::QoS qos_ = rclcpp::QoS(10);
     
     // 車線検出
     std::unique_ptr<LanePixelFinder> lane_pixel_finder_;
+    
+    // 3. 座標変換
+    std::unique_ptr<LanePixelToPoint> pixel_to_point_converter_;
     
     // 制御周期パラメータ
     const int interval_ms_;
@@ -67,6 +76,7 @@ private:
     
     // 画像処理関数
     cv::Mat skeletonizeMask(const cv::Mat& mask);
+    cv::Mat interpolateMask(const cv::Mat& skeleton_mask);
     cv::Mat filterHorizontalLines(const cv::Mat& mask);
     cv::Mat denoiseMask(const cv::Mat& mask);
     
@@ -77,9 +87,12 @@ private:
     double calculateControlCommand(const cv::Point2f& intersection_point, int image_width);
     void publishControlCommand(double angular_velocity);
     void publishDebugImage(const cv::Mat& debug_image);
-    void publishSkeletonDebugImage(const cv::Mat& skeleton_image);
     void visualizeLines(cv::Mat& image, const std::vector<cv::Vec4i>& lines, const cv::Scalar& color, int thickness = 2);
     void visualizeLines(cv::Mat& image, const cv::Vec4i& line, const cv::Scalar& color, int thickness = 2);
+    
+    // Point cloud publishing functions
+    void publishLanePointClouds(const LaneLines& lane_lines);
+    sensor_msgs::msg::PointCloud2 createPointCloud2(const std::vector<Eigen::Vector3d>& points, const std::string& frame_id);
 };
 
 }  // namespace yolopnav

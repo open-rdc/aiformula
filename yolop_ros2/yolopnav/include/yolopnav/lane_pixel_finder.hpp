@@ -2,14 +2,17 @@
 
 #include <opencv2/opencv.hpp>
 #include <vector>
+#include <Eigen/Dense>
 
 namespace yolopnav {
 
 struct LaneLine {
-    std::vector<cv::Point> pixels;
+    std::vector<cv::Point> pixels;                    // Screen pixel coordinates 
+    std::vector<Eigen::Vector3d> points;              // Robot coordinate system points (matching aiformula)
     
     void clear() {
         pixels.clear();
+        points.clear();
     }
 };
 

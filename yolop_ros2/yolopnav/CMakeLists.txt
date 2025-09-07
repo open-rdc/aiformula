@@ -14,10 +14,12 @@ find_package(cv_bridge REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(utilities REQUIRED)
+find_package(Eigen3 REQUIRED)
 
 add_library(yolopnav_node
   src/lane_line_publisher_node.cpp
   src/lane_pixel_finder.cpp
+  src/lane_pixel_to_point.cpp
 )
 target_compile_features(yolopnav_node PUBLIC c_std_99 cxx_std_17)
 target_include_directories(yolopnav_node PUBLIC
@@ -31,7 +33,7 @@ ament_target_dependencies(yolopnav_node
   OpenCV
   utilities
 )
-
+target_link_libraries(yolopnav_node Eigen3::Eigen)
 
 target_compile_definitions(yolopnav_node PRIVATE "YOLOPNAV_BUILDING_LIBRARY")
 
