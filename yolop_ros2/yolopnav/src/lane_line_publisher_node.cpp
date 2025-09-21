@@ -12,8 +12,6 @@ LaneLinePublisher::LaneLinePublisher(const std::string& name_space, const rclcpp
       max_angular_velocity_(get_parameter("angular_max.vel").as_double() * M_PI / 180.0) {
     
     lane_pixel_finder_ = std::make_unique<LanePixelFinder>(50);
-    
-    // 3. 座標変換の初期化
     pixel_to_point_converter_ = std::make_unique<LanePixelToPoint>();
     
     subscription_mask_ = this->create_subscription<sensor_msgs::msg::Image>(
@@ -93,22 +91,28 @@ void LaneLinePublisher::controlTimerCallback() {
 void LaneLinePublisher::processLaneDetectionAndControl(const cv::Mat& mask_image) {
     // 1. 細線化処理
     cv::Mat skelton_mask = skeletonizeMask(mask_image);
-
-    // 2. 白線ピクセル抽出
-    LaneLines lane_lines;
-    lane_pixel_finder_->searchMask(skelton_mask, lane_lines);
     
-    // 2.5. 白線ピクセル抽出処理の可視化
-    cv::Mat debug_image = lane_pixel_finder_->visualizeLanePixels(skelton_mask, lane_lines);
+    // 2. 横線フィルタリング処理（停止線除去）
+    cv::Mat filtered_mask = removeHorizontalLines(skelton_mask);
+
+    // 3. 白線ピクセル抽出
+    LaneLines lane_lines;
+    lane_pixel_finder_->searchMask(filtered_mask, lane_lines);
+    
+    // 3.5. 白線ピクセル抽出処理の可視化
+    cv::Mat debug_image = lane_pixel_finder_->visualizeLanePixels(filtered_mask, lane_lines);
     publishDebugImage(debug_image);
     
-    // 3. 座標変換：ピクセル座標をロボット座標系に変換
+    // 4. 座標変換：ピクセル座標をロボット座標系に変換
     lane_lines.left.points = pixel_to_point_converter_->pixelsToRobotPoints(lane_lines.left.pixels); 
     lane_lines.right.points = pixel_to_point_converter_->pixelsToRobotPoints(lane_lines.right.pixels);
     lane_lines.center.points = pixel_to_point_converter_->pixelsToRobotPoints(lane_lines.center.pixels);        
 
-    // 4. 座標変換結果をpoint cloudとして配信
+    // 4.5 座標変換後点群の可視化
     publishLanePointClouds(lane_lines);
+
+    // 5. 座標変換後の点群を基にポテンシャル場による経路生成
+    
 }
 
 
@@ -121,6 +125,39 @@ void LaneLinePublisher::publishDebugImage(const cv::Mat& debug_image) {
     debug_image_publisher_->publish(*debug_msg);
 }
 
+
+cv::Mat LaneLinePublisher::removeHorizontalLines(const cv::Mat& skeleton_mask, int min_horizontal_length) {
+    cv::Mat filtered_mask = skeleton_mask.clone();
+    
+    // 各行について横方向の連続白ピクセル長を計算
+    for (int y = 0; y < skeleton_mask.rows; y++) {
+        const uchar* row_ptr = skeleton_mask.ptr<uchar>(y);
+        uchar* filtered_row_ptr = filtered_mask.ptr<uchar>(y);
+        
+        int consecutive_count = 0;
+        int start_x = -1;
+        
+        for (int x = 0; x <= skeleton_mask.cols; x++) {
+            bool is_white = (x < skeleton_mask.cols && row_ptr[x] > 0);
+            
+            if (is_white) {
+                if (consecutive_count == 0) {
+                    start_x = x;
+                }
+                consecutive_count++;
+            } else {
+                if (consecutive_count >= min_horizontal_length) {
+                    for (int remove_x = start_x; remove_x < start_x + consecutive_count; remove_x++) {
+                        filtered_row_ptr[remove_x] = 0;
+                    }
+                }
+                consecutive_count = 0;
+            }
+        }
+    }
+    
+    return filtered_mask;
+}
 
 cv::Mat LaneLinePublisher::skeletonizeMask(const cv::Mat& mask) {
     cv::Mat skeleton_mask;

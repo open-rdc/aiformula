@@ -76,6 +76,7 @@ private:
     
     // 画像処理関数
     cv::Mat skeletonizeMask(const cv::Mat& mask);
+    cv::Mat removeHorizontalLines(const cv::Mat& skeleton_mask, int min_horizontal_length = 30);
     cv::Mat interpolateMask(const cv::Mat& skeleton_mask);
     cv::Mat filterHorizontalLines(const cv::Mat& mask);
     cv::Mat denoiseMask(const cv::Mat& mask);
