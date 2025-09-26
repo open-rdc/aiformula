@@ -5,6 +5,7 @@
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <geometry_msgs/msg/twist.hpp>
 #include <std_msgs/msg/bool.hpp>
+#include <nav_msgs/msg/path.hpp>
 #include <cv_bridge/cv_bridge.h>
 #include <opencv2/opencv.hpp>
 #include <opencv2/ximgproc.hpp>
@@ -16,6 +17,9 @@
 #include "yolopnav/visibility_control.h"
 #include "yolopnav/lane_pixel_finder.hpp"
 #include "yolopnav/lane_pixel_to_point.hpp"
+#include "yolopnav/potential_field_generator.hpp"
+#include "yolopnav/mpc_controller.hpp"
+#include "yolopnav/extremum_seeking_mpc.hpp"
 #include "utilities/position_pid.hpp"
 
 namespace yolopnav {
@@ -39,6 +43,7 @@ private:
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr left_points_publisher_;
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr right_points_publisher_;
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr center_points_publisher_;
+    rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr path_publisher_;
     rclcpp::TimerBase::SharedPtr timer_;
     rclcpp::QoS qos_ = rclcpp::QoS(10);
     
@@ -47,6 +52,19 @@ private:
     
     // 3. 座標変換
     std::unique_ptr<LanePixelToPoint> pixel_to_point_converter_;
+    
+    // 5. ポテンシャル場による経路生成
+    std::unique_ptr<PotentialFieldGenerator> potential_field_generator_;
+    
+    // 6. MPC制御
+    std::unique_ptr<MPCController> mpc_controller_;
+    VehicleState current_vehicle_state_;
+    
+    // 7. Extremum Seeking MPC制御（aiformula準拠）
+    std::unique_ptr<ExtremumSeekingMPC> extremum_seeking_mpc_;
+    
+    // 8. ポテンシャル場可視化
+    std::unique_ptr<PotentialFieldVisualizer> potential_field_visualizer_;
     
     // 制御周期パラメータ
     const int interval_ms_;
@@ -64,10 +82,6 @@ private:
     sensor_msgs::msg::Image::SharedPtr latest_mask_image_;
     std::mutex image_mutex_;
     
-    // 前回の検出結果を保存（pixel数が不足した場合の代替用）
-    std::vector<cv::Point> prev_left_pixels_;
-    std::vector<cv::Point> prev_right_pixels_;
-    static constexpr int MIN_PIXEL_THRESHOLD = 30;
     
     // コールバック関数
     void maskImageCallback(const sensor_msgs::msg::Image::SharedPtr msg);
@@ -77,16 +91,9 @@ private:
     // 画像処理関数
     cv::Mat skeletonizeMask(const cv::Mat& mask);
     cv::Mat removeHorizontalLines(const cv::Mat& skeleton_mask, int min_horizontal_length = 30);
-    cv::Mat interpolateMask(const cv::Mat& skeleton_mask);
-    cv::Mat filterHorizontalLines(const cv::Mat& mask);
-    cv::Mat denoiseMask(const cv::Mat& mask);
     
     // 車線検出・制御関数
     void processLaneDetectionAndControl(const cv::Mat& mask_image);
-    std::vector<cv::Vec4i> approximateLineFromPixels(const std::vector<cv::Point>& pixels, const cv::Mat& image_for_debug);
-    cv::Point2f calculateIntersection(const cv::Vec4i& left_line, const cv::Vec4i& right_line);
-    double calculateControlCommand(const cv::Point2f& intersection_point, int image_width);
-    void publishControlCommand(double angular_velocity);
     void publishDebugImage(const cv::Mat& debug_image);
     void visualizeLines(cv::Mat& image, const std::vector<cv::Vec4i>& lines, const cv::Scalar& color, int thickness = 2);
     void visualizeLines(cv::Mat& image, const cv::Vec4i& line, const cv::Scalar& color, int thickness = 2);
@@ -94,6 +101,18 @@ private:
     // Point cloud publishing functions
     void publishLanePointClouds(const LaneLines& lane_lines);
     sensor_msgs::msg::PointCloud2 createPointCloud2(const std::vector<Eigen::Vector3d>& points, const std::string& frame_id);
+    
+    // Potential field path generation
+    void generateAndPublishPath(const LaneLines& lane_lines);
+    
+    // MPC control
+    void updateVehicleState(const ControlInput& control_input);
+    
+    // Extremum Seeking MPC control (aiformula準拠)
+    void calculateAndPublishExtremumSeekingControl(const LaneLines& lane_lines);
+    
+    // Potential field visualization
+    void generateAndPublishPotentialFieldVisualization(const LaneLines& lane_lines);
 };
 
 }  // namespace yolopnav

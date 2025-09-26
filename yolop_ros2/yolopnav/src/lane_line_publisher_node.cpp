@@ -13,6 +13,13 @@ LaneLinePublisher::LaneLinePublisher(const std::string& name_space, const rclcpp
     
     lane_pixel_finder_ = std::make_unique<LanePixelFinder>(50);
     pixel_to_point_converter_ = std::make_unique<LanePixelToPoint>();
+    potential_field_generator_ = std::make_unique<PotentialFieldGenerator>();
+    mpc_controller_ = std::make_unique<MPCController>();
+    extremum_seeking_mpc_ = std::make_unique<ExtremumSeekingMPC>();
+    potential_field_visualizer_ = std::make_unique<PotentialFieldVisualizer>();
+    
+    // 車両状態を初期化
+    current_vehicle_state_ = VehicleState{0.0, 0.0, 0.0, 0.0, 0.0};
     
     subscription_mask_ = this->create_subscription<sensor_msgs::msg::Image>(
         "/yolopv2/image/ll_seg_mask", qos_,
@@ -46,6 +53,10 @@ LaneLinePublisher::LaneLinePublisher(const std::string& name_space, const rclcpp
     
     center_points_publisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
         "/lane_points/center", qos_
+    );
+    
+    path_publisher_ = this->create_publisher<nav_msgs::msg::Path>(
+        "/potential_field_path", qos_
     );
     
     timer_ = this->create_wall_timer(
@@ -108,11 +119,18 @@ void LaneLinePublisher::processLaneDetectionAndControl(const cv::Mat& mask_image
     lane_lines.right.points = pixel_to_point_converter_->pixelsToRobotPoints(lane_lines.right.pixels);
     lane_lines.center.points = pixel_to_point_converter_->pixelsToRobotPoints(lane_lines.center.pixels);        
 
-    // 4.5 座標変換後点群の可視化
+    // 4.5 座標変換後点群のpublish
     publishLanePointClouds(lane_lines);
 
-    // 5. 座標変換後の点群を基にポテンシャル場による経路生成
+    // // 5. 座標変換後の点群を基にポテンシャル場による経路生成
+    // generateAndPublishPath(lane_lines);
     
+    // // 6. ポテンシャル場の可視化
+    // generateAndPublishPotentialFieldVisualization(lane_lines);
+    
+    // // 7. Extremum Seeking MPCによる制御指令値計算とpublish
+    // calculateAndPublishExtremumSeekingControl(lane_lines);
+
 }
 
 
@@ -209,7 +227,7 @@ sensor_msgs::msg::PointCloud2 LaneLinePublisher::createPointCloud2(const std::ve
     cloud_msg.height = 1;
     cloud_msg.width = points.size();
     cloud_msg.is_bigendian = false;
-    cloud_msg.point_step = 12; // 3 floats × 4 bytes = 12 bytes per point
+    cloud_msg.point_step = 12;
     cloud_msg.row_step = cloud_msg.point_step * cloud_msg.width;
     
     // Set field descriptions
@@ -240,6 +258,63 @@ sensor_msgs::msg::PointCloud2 LaneLinePublisher::createPointCloud2(const std::ve
     }
     
     return cloud_msg;
+}
+
+void LaneLinePublisher::generateAndPublishPath(const LaneLines& lane_lines) {
+    LaneData lane_data;
+    lane_data.left_points = lane_lines.left.points;
+    lane_data.right_points = lane_lines.right.points;
+    lane_data.center_points = lane_lines.center.points;
+    
+    // ポテンシャル場による経路生成（ロボット座標系では原点から開始）
+    nav_msgs::msg::Path path = potential_field_generator_->generatePath(lane_data);
+    
+    // タイムスタンプを設定
+    path.header.stamp = this->get_clock()->now();
+    // 経路をパブリッシュ
+    path_publisher_->publish(path);
+    
+    RCLCPP_DEBUG(this->get_logger(), "Generated and published potential field path with %zu points", path.poses.size());
+}
+
+
+void LaneLinePublisher::updateVehicleState(const ControlInput& control_input) {
+    double dt = interval_ms_ / 1000.0;
+    
+    current_vehicle_state_.x += current_vehicle_state_.velocity * std::cos(current_vehicle_state_.yaw) * dt;
+    current_vehicle_state_.y += current_vehicle_state_.velocity * std::sin(current_vehicle_state_.yaw) * dt;
+    current_vehicle_state_.yaw += current_vehicle_state_.yaw_rate * dt;
+    current_vehicle_state_.velocity = control_input.linear_velocity;
+    current_vehicle_state_.yaw_rate = control_input.angular_velocity;
+}
+
+void LaneLinePublisher::calculateAndPublishExtremumSeekingControl(const LaneLines& lane_lines) {
+    LaneData lane_data;
+    lane_data.left_points = lane_lines.left.points;
+    lane_data.right_points = lane_lines.right.points;
+    lane_data.center_points = lane_lines.center.points;
+    
+    // Extremum Seeking MPCによる最適制御計算
+    geometry_msgs::msg::Twist optimal_control = extremum_seeking_mpc_->calculateOptimalControl(lane_data);
+    
+    // 制御指令をパブリッシュ
+    cmd_vel_publisher_->publish(optimal_control);
+    
+    RCLCPP_DEBUG(this->get_logger(), "Published Extremum Seeking MPC control: linear_vel=%.3f, angular_vel=%.3f", 
+                optimal_control.linear.x, optimal_control.angular.z);
+}
+
+void LaneLinePublisher::generateAndPublishPotentialFieldVisualization(const LaneLines& lane_lines) {
+    // 座標変換後の点群からLaneDataを構築
+    LaneData lane_data;
+    lane_data.left_points = lane_lines.left.points;
+    lane_data.right_points = lane_lines.right.points;
+    lane_data.center_points = lane_lines.center.points;
+    
+    // OpenCVのimshowでリアルタイム表示
+    potential_field_visualizer_->showPotentialFieldRealtime(lane_data, *potential_field_generator_);
+    
+    RCLCPP_DEBUG(this->get_logger(), "Displayed potential field visualization with imshow");
 }
 
 }  // namespace yolopnav

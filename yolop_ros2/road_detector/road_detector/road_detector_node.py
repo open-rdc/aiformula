@@ -1,6 +1,3 @@
-import argparse
-import sys
-
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Image
@@ -12,10 +9,7 @@ import os
 from ament_index_python.packages import get_package_share_directory
 
 # Utility functions
-from .utils.utils import (
-    select_device, non_max_suppression,
-    split_for_trace_model, lane_line_mask
-)
+from .utils.utils import lane_line_mask
 
 # パラメータ設定
 INPUT_SHAPE = (640, 640)
@@ -27,7 +21,8 @@ class RoadDetectorNode(Node):
         self.logger = self.get_logger()
         self.logger.info(f"Using device: {DEVICE}")
 
-        image_topic = '/zed/zed_node/rgb/image_rect_color'
+        # image_topic = '/zed/zed_node/rgb/image_rect_color'
+        image_topic = '/image_raw'
 
         self.subscription = self.create_subscription(
             Image, image_topic, self.image_callback, 10
