@@ -7,40 +7,14 @@ LaneLinePublisher::LaneLinePublisher(const rclcpp::NodeOptions& options)
 
 LaneLinePublisher::LaneLinePublisher(const std::string& name_space, const rclcpp::NodeOptions& options) 
     : Node("yolopnav_node", name_space, options),
-      interval_ms_(get_parameter("interval_ms").as_int()),
-      pid(get_parameter("interval_ms").as_int()),
-      max_angular_velocity_(get_parameter("angular_max.vel").as_double() * M_PI / 180.0) {
+      interval_ms_(get_parameter("interval_ms").as_int()) {
     
     lane_pixel_finder_ = std::make_unique<LanePixelFinder>(50);
     pixel_to_point_converter_ = std::make_unique<LanePixelToPoint>();
-    potential_field_generator_ = std::make_unique<PotentialFieldGenerator>();
-    mpc_controller_ = std::make_unique<MPCController>();
-    extremum_seeking_mpc_ = std::make_unique<ExtremumSeekingMPC>();
-    potential_field_visualizer_ = std::make_unique<PotentialFieldVisualizer>();
-    
-    // 車両状態を初期化
-    current_vehicle_state_ = VehicleState{0.0, 0.0, 0.0, 0.0, 0.0};
     
     subscription_mask_ = this->create_subscription<sensor_msgs::msg::Image>(
         "/yolopv2/image/ll_seg_mask", qos_,
         std::bind(&LaneLinePublisher::maskImageCallback, this, std::placeholders::_1)
-    );
-    
-    autonomous_flag_subscriber_ = this->create_subscription<std_msgs::msg::Bool>(
-        "/autonomous", 10,
-        std::bind(&LaneLinePublisher::autonomousFlagCallback, this, std::placeholders::_1)
-    );
-    
-    cmd_vel_publisher_ = this->create_publisher<geometry_msgs::msg::Twist>(
-        "/cmd_vel", qos_
-    );
-    
-    debug_image_publisher_ = this->create_publisher<sensor_msgs::msg::Image>(
-        "/debug_image", qos_
-    );
-    
-    skeleton_debug_publisher_ = this->create_publisher<sensor_msgs::msg::Image>(
-        "/skeleton_debug_image", qos_
     );
     
     left_points_publisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
@@ -55,16 +29,11 @@ LaneLinePublisher::LaneLinePublisher(const std::string& name_space, const rclcpp
         "/lane_points/center", qos_
     );
     
-    path_publisher_ = this->create_publisher<nav_msgs::msg::Path>(
-        "/potential_field_path", qos_
-    );
     
     timer_ = this->create_wall_timer(
         std::chrono::milliseconds(interval_ms_),
         std::bind(&LaneLinePublisher::controlTimerCallback, this)
     );
-    
-    pid.gain(get_parameter("pid.kp").as_double(), get_parameter("pid.ki").as_double(), get_parameter("pid.kd").as_double());
 }
 
 void LaneLinePublisher::maskImageCallback(const sensor_msgs::msg::Image::SharedPtr msg) {
@@ -72,24 +41,16 @@ void LaneLinePublisher::maskImageCallback(const sensor_msgs::msg::Image::SharedP
     latest_mask_image_ = msg;
 }
 
-void LaneLinePublisher::autonomousFlagCallback(const std_msgs::msg::Bool::SharedPtr msg) {
-    autonomous_flag_ = msg->data;
-    RCLCPP_INFO(this->get_logger(), "Autonomous flag updated to: %s", autonomous_flag_ ? "true" : "false");
-}
 
 void LaneLinePublisher::controlTimerCallback() {
-    if (!autonomous_flag_)  return;
-    
+
     sensor_msgs::msg::Image::SharedPtr current_image;
     {
         std::lock_guard<std::mutex> lock(image_mutex_);
         current_image = latest_mask_image_;
     }
     
-    if (!current_image) {
-        RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 1000, "No mask image received yet");
-        return;
-    }
+    if (!current_image)  return;
     
     try {
         cv_bridge::CvImagePtr cv_ptr = cv_bridge::toCvCopy(current_image, sensor_msgs::image_encodings::MONO8);
@@ -112,35 +73,12 @@ void LaneLinePublisher::processLaneDetectionAndControl(const cv::Mat& mask_image
     
     // 3.5. 白線ピクセル抽出処理の可視化
     cv::Mat debug_image = lane_pixel_finder_->visualizeLanePixels(filtered_mask, lane_lines);
-    publishDebugImage(debug_image);
     
     // 4. 座標変換：ピクセル座標をロボット座標系に変換
     lane_lines.left.points = pixel_to_point_converter_->pixelsToRobotPoints(lane_lines.left.pixels); 
     lane_lines.right.points = pixel_to_point_converter_->pixelsToRobotPoints(lane_lines.right.pixels);
     lane_lines.center.points = pixel_to_point_converter_->pixelsToRobotPoints(lane_lines.center.pixels);        
-
-    // 4.5 座標変換後点群のpublish
     publishLanePointClouds(lane_lines);
-
-    // // 5. 座標変換後の点群を基にポテンシャル場による経路生成
-    // generateAndPublishPath(lane_lines);
-    
-    // // 6. ポテンシャル場の可視化
-    // generateAndPublishPotentialFieldVisualization(lane_lines);
-    
-    // // 7. Extremum Seeking MPCによる制御指令値計算とpublish
-    // calculateAndPublishExtremumSeekingControl(lane_lines);
-
-}
-
-
-void LaneLinePublisher::publishDebugImage(const cv::Mat& debug_image) {
-    std_msgs::msg::Header header;
-    header.stamp = this->get_clock()->now();
-    header.frame_id = "camera_link";
-    
-    sensor_msgs::msg::Image::SharedPtr debug_msg = cv_bridge::CvImage(header, "bgr8", debug_image).toImageMsg();
-    debug_image_publisher_->publish(*debug_msg);
 }
 
 
@@ -260,61 +198,5 @@ sensor_msgs::msg::PointCloud2 LaneLinePublisher::createPointCloud2(const std::ve
     return cloud_msg;
 }
 
-void LaneLinePublisher::generateAndPublishPath(const LaneLines& lane_lines) {
-    LaneData lane_data;
-    lane_data.left_points = lane_lines.left.points;
-    lane_data.right_points = lane_lines.right.points;
-    lane_data.center_points = lane_lines.center.points;
-    
-    // ポテンシャル場による経路生成（ロボット座標系では原点から開始）
-    nav_msgs::msg::Path path = potential_field_generator_->generatePath(lane_data);
-    
-    // タイムスタンプを設定
-    path.header.stamp = this->get_clock()->now();
-    // 経路をパブリッシュ
-    path_publisher_->publish(path);
-    
-    RCLCPP_DEBUG(this->get_logger(), "Generated and published potential field path with %zu points", path.poses.size());
-}
-
-
-void LaneLinePublisher::updateVehicleState(const ControlInput& control_input) {
-    double dt = interval_ms_ / 1000.0;
-    
-    current_vehicle_state_.x += current_vehicle_state_.velocity * std::cos(current_vehicle_state_.yaw) * dt;
-    current_vehicle_state_.y += current_vehicle_state_.velocity * std::sin(current_vehicle_state_.yaw) * dt;
-    current_vehicle_state_.yaw += current_vehicle_state_.yaw_rate * dt;
-    current_vehicle_state_.velocity = control_input.linear_velocity;
-    current_vehicle_state_.yaw_rate = control_input.angular_velocity;
-}
-
-void LaneLinePublisher::calculateAndPublishExtremumSeekingControl(const LaneLines& lane_lines) {
-    LaneData lane_data;
-    lane_data.left_points = lane_lines.left.points;
-    lane_data.right_points = lane_lines.right.points;
-    lane_data.center_points = lane_lines.center.points;
-    
-    // Extremum Seeking MPCによる最適制御計算
-    geometry_msgs::msg::Twist optimal_control = extremum_seeking_mpc_->calculateOptimalControl(lane_data);
-    
-    // 制御指令をパブリッシュ
-    cmd_vel_publisher_->publish(optimal_control);
-    
-    RCLCPP_DEBUG(this->get_logger(), "Published Extremum Seeking MPC control: linear_vel=%.3f, angular_vel=%.3f", 
-                optimal_control.linear.x, optimal_control.angular.z);
-}
-
-void LaneLinePublisher::generateAndPublishPotentialFieldVisualization(const LaneLines& lane_lines) {
-    // 座標変換後の点群からLaneDataを構築
-    LaneData lane_data;
-    lane_data.left_points = lane_lines.left.points;
-    lane_data.right_points = lane_lines.right.points;
-    lane_data.center_points = lane_lines.center.points;
-    
-    // OpenCVのimshowでリアルタイム表示
-    potential_field_visualizer_->showPotentialFieldRealtime(lane_data, *potential_field_generator_);
-    
-    RCLCPP_DEBUG(this->get_logger(), "Displayed potential field visualization with imshow");
-}
 
 }  // namespace yolopnav

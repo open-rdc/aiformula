@@ -12,8 +12,6 @@ find_package(rclcpp REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(cv_bridge REQUIRED)
 find_package(OpenCV REQUIRED)
-find_package(geometry_msgs REQUIRED)
-find_package(nav_msgs REQUIRED)
 find_package(utilities REQUIRED)
 find_package(Eigen3 REQUIRED)
 
@@ -21,11 +19,6 @@ add_library(yolopnav_node
   src/lane_line_publisher_node.cpp
   src/lane_pixel_finder.cpp
   src/lane_pixel_to_point.cpp
-  src/potential_field_generator.cpp
-  src/mpc_controller.cpp
-  src/pose_predictor.cpp
-  src/object_risk_calculator.cpp
-  src/extremum_seeking_mpc.cpp
 )
 target_compile_features(yolopnav_node PUBLIC c_std_99 cxx_std_17)
 target_include_directories(yolopnav_node PUBLIC
@@ -34,8 +27,6 @@ target_include_directories(yolopnav_node PUBLIC
 ament_target_dependencies(yolopnav_node
   rclcpp
   sensor_msgs
-  geometry_msgs
-  nav_msgs
   cv_bridge
   OpenCV
   utilities
@@ -78,8 +69,6 @@ ament_export_targets(
 ament_export_dependencies(
   rclcpp
   sensor_msgs
-  geometry_msgs
-  nav_msgs
   cv_bridge
   OpenCV
   utilities
