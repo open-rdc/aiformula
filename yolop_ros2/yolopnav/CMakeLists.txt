@@ -19,6 +19,8 @@ add_library(yolopnav_node
   src/lane_line_publisher_node.cpp
   src/lane_pixel_finder.cpp
   src/lane_pixel_to_point.cpp
+  src/cubic_curve_fitter.cpp
+  src/lane_kalman_filter.cpp
 )
 target_compile_features(yolopnav_node PUBLIC c_std_99 cxx_std_17)
 target_include_directories(yolopnav_node PUBLIC

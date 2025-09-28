@@ -21,8 +21,8 @@ class RoadDetectorNode(Node):
         self.logger = self.get_logger()
         self.logger.info(f"Using device: {DEVICE}")
 
-        # image_topic = '/zed/zed_node/rgb/image_rect_color'
-        image_topic = '/image_raw'
+        image_topic = '/zed/zed_node/rgb/image_rect_color'
+        # image_topic = '/image_raw'
 
         self.subscription = self.create_subscription(
             Image, image_topic, self.image_callback, 10

@@ -15,6 +15,8 @@
 #include "yolopnav/visibility_control.h"
 #include "yolopnav/lane_pixel_finder.hpp"
 #include "yolopnav/lane_pixel_to_point.hpp"
+#include "yolopnav/cubic_curve_fitter.hpp"
+#include "yolopnav/lane_kalman_filter.hpp"
 
 namespace yolopnav {
 
@@ -40,6 +42,8 @@ private:
     
     std::unique_ptr<LanePixelFinder> lane_pixel_finder_;
     std::unique_ptr<LanePixelToPoint> pixel_to_point_converter_;
+    std::unique_ptr<CubicCurveFitter> cubic_curve_fitter_;
+    std::unique_ptr<LaneKalmanManager> kalman_manager_;
     
     const int interval_ms_;
     
@@ -56,8 +60,15 @@ private:
     void visualizeLines(cv::Mat& image, const cv::Vec4i& line, const cv::Scalar& color, int thickness = 2);
     
     // Point cloud publishing functions
-    void publishLanePointClouds(const LaneLines& lane_lines);
     sensor_msgs::msg::PointCloud2 createPointCloud2(const std::vector<Eigen::Vector3d>& points, const std::string& frame_id);
+
+    // RANSAC cubic curve fitting and uniform point extraction
+    std::vector<Eigen::Vector3d> fitCurveAndExtractUniformPoints(const std::vector<Eigen::Vector3d>& points);
+
+    // Kalman filter integration
+    std::vector<LaneObservation> createLaneObservations(const LaneLines& lane_lines);
+    LaneObservation createObservationFromCurve(const FittedCurve& curve);
+    void publishKalmanFilteredLanes();
     
 };
 

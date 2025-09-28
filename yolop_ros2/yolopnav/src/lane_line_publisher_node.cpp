@@ -1,4 +1,5 @@
 #include "yolopnav/lane_line_publisher_node.hpp"
+#include <limits>
 
 namespace yolopnav {
 
@@ -11,6 +12,8 @@ LaneLinePublisher::LaneLinePublisher(const std::string& name_space, const rclcpp
     
     lane_pixel_finder_ = std::make_unique<LanePixelFinder>(50);
     pixel_to_point_converter_ = std::make_unique<LanePixelToPoint>();
+    cubic_curve_fitter_ = std::make_unique<CubicCurveFitter>(0.1, 100, 4);
+    kalman_manager_ = std::make_unique<LaneKalmanManager>();
     
     subscription_mask_ = this->create_subscription<sensor_msgs::msg::Image>(
         "/yolopv2/image/ll_seg_mask", qos_,
@@ -64,7 +67,7 @@ void LaneLinePublisher::processLaneDetectionAndControl(const cv::Mat& mask_image
     // 1. 細線化処理
     cv::Mat skelton_mask = skeletonizeMask(mask_image);
     
-    // 2. 横線フィルタリング処理（停止線除去）
+    // 2. 横線フィルタリング処理
     cv::Mat filtered_mask = removeHorizontalLines(skelton_mask);
 
     // 3. 白線ピクセル抽出
@@ -77,15 +80,18 @@ void LaneLinePublisher::processLaneDetectionAndControl(const cv::Mat& mask_image
     // 4. 座標変換：ピクセル座標をロボット座標系に変換
     lane_lines.left.points = pixel_to_point_converter_->pixelsToRobotPoints(lane_lines.left.pixels); 
     lane_lines.right.points = pixel_to_point_converter_->pixelsToRobotPoints(lane_lines.right.pixels);
-    lane_lines.center.points = pixel_to_point_converter_->pixelsToRobotPoints(lane_lines.center.pixels);        
-    publishLanePointClouds(lane_lines);
+    lane_lines.center.points = pixel_to_point_converter_->pixelsToRobotPoints(lane_lines.center.pixels);
+
+    // 5. カルマンフィルタによるフィルタリング
+    std::vector<LaneObservation> observations = createLaneObservations(lane_lines);
+    kalman_manager_->updateLanes(observations);
+    publishKalmanFilteredLanes();
 }
 
 
 cv::Mat LaneLinePublisher::removeHorizontalLines(const cv::Mat& skeleton_mask, int min_horizontal_length) {
     cv::Mat filtered_mask = skeleton_mask.clone();
     
-    // 各行について横方向の連続白ピクセル長を計算
     for (int y = 0; y < skeleton_mask.rows; y++) {
         const uchar* row_ptr = skeleton_mask.ptr<uchar>(y);
         uchar* filtered_row_ptr = filtered_mask.ptr<uchar>(y);
@@ -131,31 +137,6 @@ void LaneLinePublisher::visualizeLines(cv::Mat& image, const cv::Vec4i& line, co
     cv::line(image, cv::Point(line[0], line[1]), cv::Point(line[2], line[3]), color, thickness);
 }
 
-void LaneLinePublisher::publishLanePointClouds(const LaneLines& lane_lines) {
-    auto timestamp = this->get_clock()->now();
-    
-    if (!lane_lines.left.points.empty()) {
-        auto left_cloud = createPointCloud2(lane_lines.left.points, "base_link");
-        left_cloud.header.stamp = timestamp;
-        left_points_publisher_->publish(left_cloud);
-    }
-    
-    if (!lane_lines.right.points.empty()) {
-        auto right_cloud = createPointCloud2(lane_lines.right.points, "base_link");
-        right_cloud.header.stamp = timestamp;
-        right_points_publisher_->publish(right_cloud);
-    }
-    
-    if (!lane_lines.center.points.empty()) {
-        auto center_cloud = createPointCloud2(lane_lines.center.points, "base_link");
-        center_cloud.header.stamp = timestamp;
-        center_points_publisher_->publish(center_cloud);
-    }
-    
-    RCLCPP_DEBUG(this->get_logger(),
-                "Published point clouds - Left: %zu points, Right: %zu points, Center: %zu points",
-                lane_lines.left.points.size(), lane_lines.right.points.size(), lane_lines.center.points.size());
-}
 
 sensor_msgs::msg::PointCloud2 LaneLinePublisher::createPointCloud2(const std::vector<Eigen::Vector3d>& points, const std::string& frame_id) {
     sensor_msgs::msg::PointCloud2 cloud_msg;
@@ -196,6 +177,118 @@ sensor_msgs::msg::PointCloud2 LaneLinePublisher::createPointCloud2(const std::ve
     }
     
     return cloud_msg;
+}
+
+
+std::vector<Eigen::Vector3d> LaneLinePublisher::fitCurveAndExtractUniformPoints(const std::vector<Eigen::Vector3d>& points) {
+    if (points.size() < 4) {
+        return {};
+    }
+
+    // Perform RANSAC-based cubic curve fitting
+    FittedCurve fitted_curve = cubic_curve_fitter_->fitCubicCurve(points);
+
+    if (fitted_curve.num_inliers < 4) {
+        return {};
+    }
+
+    // Fixed x-range for uniform point extraction: 0m to 10m
+    const double MIN_X = 0.0;  // Start from x=0[m]
+    const double MAX_X = 10.0; // End at x=10[m]
+    const double UNIFORM_INTERVAL = 0.5; // 0.5m intervals (magic number)
+
+    std::vector<Eigen::Vector3d> uniform_points = cubic_curve_fitter_->generateUniformPoints(
+        fitted_curve, MIN_X, MAX_X, UNIFORM_INTERVAL);
+
+    return uniform_points;
+}
+
+std::vector<LaneObservation> LaneLinePublisher::createLaneObservations(const LaneLines& lane_lines) {
+    std::vector<LaneObservation> observations;
+    auto current_time = std::chrono::steady_clock::now();
+
+    // 左レーンの観測を作成
+    if (!lane_lines.left.points.empty()) {
+        FittedCurve left_curve = cubic_curve_fitter_->fitCubicCurve(lane_lines.left.points);
+        if (left_curve.num_inliers >= 4) {
+            LaneObservation obs = createObservationFromCurve(left_curve);
+            obs.timestamp = current_time;
+            observations.push_back(obs);
+        }
+    }
+
+    // 右レーンの観測を作成
+    if (!lane_lines.right.points.empty()) {
+        FittedCurve right_curve = cubic_curve_fitter_->fitCubicCurve(lane_lines.right.points);
+        if (right_curve.num_inliers >= 4) {
+            LaneObservation obs = createObservationFromCurve(right_curve);
+            obs.timestamp = current_time;
+            observations.push_back(obs);
+        }
+    }
+
+    return observations;
+}
+
+LaneObservation LaneLinePublisher::createObservationFromCurve(const FittedCurve& curve) {
+    LaneObservation observation;
+
+    // y=1m～10mの範囲でサンプリング
+    for (double y = 1.0; y <= 10.0; y += 1.0) {
+        double x = curve.coefficients.evaluate(y);
+
+        observation.y_positions.push_back(y);
+        observation.x_positions.push_back(x);
+
+        // 距離依存の分散を計算
+        double base_variance = 0.06; // 基本観測ノイズ [m]
+        double distance_factor = 0.02; // 距離係数
+        double variance = std::pow(base_variance + distance_factor * y, 2);
+        observation.variances.push_back(variance);
+    }
+
+    // 信頼度を設定（インライア数とスコアから）
+    observation.confidence = std::min(1.0, static_cast<double>(curve.num_inliers) / 20.0);
+    if (curve.score > 0) {
+        observation.confidence *= std::exp(-curve.score * 10.0); // スコアが小さいほど信頼度高
+    }
+
+    return observation;
+}
+
+void LaneLinePublisher::publishKalmanFilteredLanes() {
+    auto timestamp = this->get_clock()->now();
+
+    // カルマンフィルタの結果を取得して出版
+    if (kalman_manager_->hasLeftLane()) {
+        auto left_points = kalman_manager_->getLeftLanePoints(0.5);
+        if (!left_points.empty()) {
+            auto left_cloud = createPointCloud2(left_points, "base_link");
+            left_cloud.header.stamp = timestamp;
+            left_points_publisher_->publish(left_cloud);
+        }
+    }
+
+    if (kalman_manager_->hasRightLane()) {
+        auto right_points = kalman_manager_->getRightLanePoints(0.5);
+        if (!right_points.empty()) {
+            auto right_cloud = createPointCloud2(right_points, "base_link");
+            right_cloud.header.stamp = timestamp;
+            right_points_publisher_->publish(right_cloud);
+        }
+    }
+
+    auto center_points = kalman_manager_->getCenterLanePoints(0.5);
+    if (!center_points.empty()) {
+        auto center_cloud = createPointCloud2(center_points, "base_link");
+        center_cloud.header.stamp = timestamp;
+        center_points_publisher_->publish(center_cloud);
+    }
+
+    RCLCPP_DEBUG(this->get_logger(),
+                "Published Kalman filtered lanes - Left: %s, Right: %s",
+                kalman_manager_->hasLeftLane() ? "Yes" : "No",
+                kalman_manager_->hasRightLane() ? "Yes" : "No");
 }
 
 
