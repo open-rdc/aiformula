@@ -6,6 +6,7 @@
 #include "gnssnav/path_publisher_node.hpp"
 #include "gnssnav/follower_node.hpp"
 #include "yolopnav/lane_line_publisher_node.hpp"
+#include "obstacle_detector_ros2/obstacle_detector_node.hpp"
 
 int main(int argc, char * argv[]){
     rclcpp::init(argc,argv);
@@ -29,6 +30,7 @@ int main(int argc, char * argv[]){
     auto path_publisher_node = std::make_shared<gnssnav::Publisher>(nodes_option);
     auto follower_node = std::make_shared<gnssnav::Follower>(nodes_option);
     auto lane_line_node = std::make_shared<yolopnav::LaneLinePublisher>(nodes_option);
+    auto obstacle_detector_node = std::make_shared<obstacle_detector_ros2::ObstacleDetectorNode>(nodes_option);
 
     if(sim_flag){}
     if(not sim_flag){
@@ -39,6 +41,7 @@ int main(int argc, char * argv[]){
     exec.add_node(path_publisher_node);
     exec.add_node(follower_node);
     exec.add_node(lane_line_node);
+    exec.add_node(obstacle_detector_node);
 
     exec.spin();
     rclcpp::shutdown();

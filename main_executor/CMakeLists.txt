@@ -12,6 +12,7 @@ find_package(controller REQUIRED)
 find_package(chassis_driver REQUIRED)
 find_package(gnssnav REQUIRED)
 find_package(yolopnav REQUIRED)
+find_package(obstacle_detector_ros2 REQUIRED)
 
 add_executable(main_exec
         src/main.cpp
@@ -24,6 +25,7 @@ ament_target_dependencies(main_exec
         chassis_driver
         gnssnav
         yolopnav
+        obstacle_detector_ros2
         )
 
 target_include_directories(main_exec

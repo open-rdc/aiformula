@@ -16,6 +16,7 @@
   <depend>chassis_driver</depend>
   <depend>gnssnav</depend>
   <depend>yolopnav</depend>
+  <depend>obstacle_detector_ros2</depend>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
