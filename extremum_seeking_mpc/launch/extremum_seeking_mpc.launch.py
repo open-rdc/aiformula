@@ -20,7 +20,7 @@ def generate_launch_description():
                 "right": "/lane_points/right"
             },
             "objects": {
-                "info": "/aiformula_perception/objects/info"
+                "info": "/obstacle_detector/obstacle_info"
             }
         },
         "sensing": {

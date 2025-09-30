@@ -4,6 +4,7 @@ from typing import List
 from nav_msgs.msg import Odometry
 from rclpy.node import Node
 
+from scipy.spatial.transform import Rotation as R
 from .util import Position2d, Pose, Velocity
 
 
@@ -16,6 +17,9 @@ class PosePredictor:
         self.horizon_durations = np.diff(horizon_times, prepend=0)
         self.horizon_length = len(horizon_times)
         self.seek_y_positions = seek_y_positions
+        self.prev_time = None
+        self.prev_position = None
+        self.prev_yaw = None
 
     def init_parameters(self, node: Node):
         node.declare_parameter("curvature_radius_maximum")
@@ -26,9 +30,33 @@ class PosePredictor:
             Odometry, 'sub_odom', self.odometry_callback, buffer_size)
 
     def odometry_callback(self, odom_msg: Odometry) -> None:
-        linear_velocity = np.linalg.norm([odom_msg.twist.twist.linear.x, odom_msg.twist.twist.linear.y])
-        self.ego_current_velocity = Velocity(linear=linear_velocity,
-                                             angular=odom_msg.twist.twist.angular.z)
+        curr_time = odom_msg.header.stamp.sec + odom_msg.header.stamp.nanosec * 1e-9
+        pos = odom_msg.pose.pose.position
+        curr_position = np.array([pos.x, pos.y])
+        
+        ori = odom_msg.pose.pose.orientation
+        quat = [ori.x, ori.y, ori.z, ori.w]
+        r = R.from_quat(quat)
+        _, _, curr_yaw = r.as_euler('xyz', degrees=False)  # roll, pitch, yaw
+
+        if self.prev_time is not None:
+            dt = curr_time - self.prev_time
+            if dt > 1e-6:
+                delta_pos = curr_position - self.prev_position
+                linear_velocity = np.linalg.norm(delta_pos) / dt
+
+                # 角速度 (yaw差分)
+                delta_yaw = np.arctan2(np.sin(curr_yaw - self.prev_yaw),
+                                       np.cos(curr_yaw - self.prev_yaw))  # wrap
+                angular_velocity = delta_yaw / dt
+
+                self.ego_current_velocity = Velocity(linear=linear_velocity,
+                                                     angular=angular_velocity)
+
+        # 状態を更新
+        self.prev_time = curr_time
+        self.prev_position = curr_position
+        self.prev_yaw = curr_yaw
 
     def predict_relative_ego_positions(self, curvatures: np.ndarray) -> np.ndarray:
         # ego_v: lin_x, ang.z, curvature(curvature): 3 horizon
