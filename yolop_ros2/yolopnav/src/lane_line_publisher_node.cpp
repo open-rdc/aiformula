@@ -82,10 +82,36 @@ void LaneLinePublisher::processLaneDetectionAndControl(const cv::Mat& mask_image
     lane_lines.right.points = pixel_to_point_converter_->pixelsToRobotPoints(lane_lines.right.pixels);
     lane_lines.center.points = pixel_to_point_converter_->pixelsToRobotPoints(lane_lines.center.pixels);
 
-    // 5. カルマンフィルタによるフィルタリング
-    std::vector<LaneObservation> observations = createLaneObservations(lane_lines);
-    kalman_manager_->updateLanes(observations);
-    publishKalmanFilteredLanes();
+    // 5. cubicでフィッティング後の点群publish
+    auto timestamp = this->get_clock()->now();
+
+    if (!lane_lines.left.points.empty()) {
+        auto left_uniform_points = fitCurveAndExtractUniformPoints(lane_lines.left.points);
+        if (!left_uniform_points.empty()) {
+            auto left_cloud = createPointCloud2(left_uniform_points, "base_link");
+            left_cloud.header.stamp = timestamp;
+            left_points_publisher_->publish(left_cloud);
+        }
+    }
+
+    if (!lane_lines.right.points.empty()) {
+        auto right_uniform_points = fitCurveAndExtractUniformPoints(lane_lines.right.points);
+        if (!right_uniform_points.empty()) {
+            auto right_cloud = createPointCloud2(right_uniform_points, "base_link");
+            right_cloud.header.stamp = timestamp;
+            right_points_publisher_->publish(right_cloud);
+        }
+    }
+
+    if (!lane_lines.center.points.empty()) {
+        auto center_uniform_points = fitCurveAndExtractUniformPoints(lane_lines.center.points);
+        if (!center_uniform_points.empty()) {
+            auto center_cloud = createPointCloud2(center_uniform_points, "base_link");
+            center_cloud.header.stamp = timestamp;
+            center_points_publisher_->publish(center_cloud);
+        }
+    }
+
 }
 
 
@@ -241,17 +267,17 @@ LaneObservation LaneLinePublisher::createObservationFromCurve(const FittedCurve&
         observation.x_positions.push_back(x);
 
         // 距離依存の分散を計算
-        double base_variance = 0.06; // 基本観測ノイズ [m]
-        double distance_factor = 0.02; // 距離係数
-        double variance = std::pow(base_variance + distance_factor * y, 2);
-        observation.variances.push_back(variance);
+        // double base_variance = 0.06; // 基本観測ノイズ [m]
+        // double distance_factor = 0.02; // 距離係数
+        // double variance = std::pow(base_variance + distance_factor * y, 2);
+        // observation.variances.push_back(variance);
     }
 
-    // 信頼度を設定（インライア数とスコアから）
-    observation.confidence = std::min(1.0, static_cast<double>(curve.num_inliers) / 20.0);
-    if (curve.score > 0) {
-        observation.confidence *= std::exp(-curve.score * 10.0); // スコアが小さいほど信頼度高
-    }
+    // // 信頼度を設定（インライア数とスコアから）
+    // observation.confidence = std::min(1.0, static_cast<double>(curve.num_inliers) / 20.0);
+    // if (curve.score > 0) {
+    //     observation.confidence *= std::exp(-curve.score * 10.0); // スコアが小さいほど信頼度高
+    // }
 
     return observation;
 }

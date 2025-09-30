@@ -34,7 +34,7 @@ struct FittedCurve {
 class CubicCurveFitter {
 public:
     explicit CubicCurveFitter(double inlier_threshold = 0.1,
-                             int max_iterations = 100,
+                             int max_iterations = 20,
                              int min_points_for_model = 4)
         : inlier_threshold_(inlier_threshold),
           max_iterations_(max_iterations),
