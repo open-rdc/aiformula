@@ -13,7 +13,7 @@ def generate_launch_description():
     world_file_path = PathJoinSubstitution([
         get_package_share_directory('simulator'),
         'world',
-        'shihou_world.sdf'
+        'gnss_path_visualizer.sdf'
     ])
 
     bridge = Node(
@@ -30,6 +30,23 @@ def generate_launch_description():
             '/gnss_path@nav_msgs/msg/Path@ignition.msgs.Path'],
         output='screen'
     )
+    
+    csv_file_path = PathJoinSubstitution([
+        get_package_share_directory('simulator'),
+        'scripts',
+        'csv_data',
+        'shihou_gnssnav.csv'
+    ])
+    
+    gnss_path_visualizer = Node(
+        package='simulator',
+        executable='gnss_path_visualizer.py',
+        name='gnss_path_visualizer',
+        parameters=[{
+            'csv_file': csv_file_path
+        }],
+        output='screen'
+    )
 
     return LaunchDescription([
         IncludeLaunchDescription(
@@ -38,6 +55,6 @@ def generate_launch_description():
             launch_arguments=[
                 ('gz_args', [world_file_path, ' -r'])]
         ),
-        bridge
+        bridge,
+        gnss_path_visualizer
     ])
-

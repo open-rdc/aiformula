@@ -1,0 +1,6871 @@
+<?xml version="1.0" ?>
+<sdf version="1.8">
+  <model name="gnss_path">
+    <static>true</static>
+
+    <link name="waypoint_0">
+      <pose>0.0 0.0 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_1">
+      <pose>-0.02638041074079619 -0.01543962947435134 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_2">
+      <pose>-0.03079152026336126 -0.00825669221207063 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_3">
+      <pose>-0.02995014495361553 0.008281979751757287 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_4">
+      <pose>-0.021332271218882697 0.016315286581921183 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_5">
+      <pose>0.008368236365482899 0.011672180314688916 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_6">
+      <pose>0.026037018299100545 0.004772534446753909 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_7">
+      <pose>0.0680171144964233 -0.11590312082723046 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_8">
+      <pose>0.11814204793624894 -0.5378830911208335 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_9">
+      <pose>0.1837147929085364 -1.153558943125511 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_10">
+      <pose>0.22252232080393242 -1.858777893361805 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_11">
+      <pose>0.181379650265 -2.5988197111897993 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_12">
+      <pose>0.09618487140727887 -3.3459517155412613 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_13">
+      <pose>0.029531277661649206 -4.075391106211302 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_14">
+      <pose>-0.05181472041299229 -4.809697550282674 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_15">
+      <pose>-0.11800213530281128 -5.543998869846693 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_16">
+      <pose>-0.17644505492196774 -6.29192456526093 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_17">
+      <pose>-0.17708851108321766 -7.021195292007499 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_18">
+      <pose>-0.16932985374657678 -7.7442470253439435 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_19">
+      <pose>-0.15092622475324874 -8.519234751085932 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_20">
+      <pose>-0.058320278731949844 -9.26333183350881 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_21">
+      <pose>0.1015857758144082 -10.016124733231088 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_22">
+      <pose>0.35661920368073824 -10.745056446084046 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_23">
+      <pose>0.6797439264702088 -11.455695360046631 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_24">
+      <pose>0.9570703635672798 -11.948569812207472 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_25">
+      <pose>1.0285370044970998 -12.046024998098584 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_26">
+      <pose>1.0341423971884312 -12.07178495320828 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_27">
+      <pose>1.0360563262377414 -12.067466959245555 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_28">
+      <pose>1.0395380600737552 -12.079846979718114 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_29">
+      <pose>1.0442801207639016 -12.069307139339399 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_30">
+      <pose>1.0378914716144436 -12.077106899472657 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_31">
+      <pose>1.0526495877253463 -12.073660100203451 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_32">
+      <pose>1.0516879663396232 -12.075002848334572 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_33">
+      <pose>1.0645035637464788 -12.075258805072586 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_34">
+      <pose>1.0723199263319465 -12.081687817164738 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_35">
+      <pose>1.096426846776285 -12.058093106258058 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_36">
+      <pose>1.0928689461989098 -12.062006214364217 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_37">
+      <pose>1.1158227548240343 -12.063953154237872 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_38">
+      <pose>1.108482295866202 -12.077188389094704 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_39">
+      <pose>1.1042848428230665 -12.067939891385802 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_40">
+      <pose>1.1140550062776362 -12.067495192231345 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_41">
+      <pose>1.1349375278627327 -12.084704707716995 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_42">
+      <pose>1.1351368971741052 -12.083465665677597 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_43">
+      <pose>1.1412493898666414 -12.068294213224219 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_44">
+      <pose>1.1537193378881696 -12.04790795352826 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_45">
+      <pose>1.1722959090169296 -12.010581968726244 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_46">
+      <pose>1.1849934764417807 -12.007733715234483 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_47">
+      <pose>1.1955797062895568 -12.005889020580813 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_48">
+      <pose>1.1812668514562132 -12.014562355941147 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_49">
+      <pose>1.194940248288632 -12.001647917931042 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_50">
+      <pose>1.2036896604768115 -11.99666242251651 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_51">
+      <pose>1.2053899764494542 -11.984893105687442 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_52">
+      <pose>1.2109512923592731 -11.985541176518007 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_53">
+      <pose>1.244796094815558 -11.980533201534671 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_54">
+      <pose>1.2215773174337312 -11.961867827414974 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_55">
+      <pose>1.215340846027673 -11.952670570039096 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_56">
+      <pose>1.2018448541558762 -11.936301955713043 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_57">
+      <pose>1.1784513704439914 -11.932495075657826 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_58">
+      <pose>1.1580898249784684 -11.931936251528127 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_59">
+      <pose>1.1563356334124824 -11.906080689513402 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_60">
+      <pose>1.1393470519079276 -11.910946088471565 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_61">
+      <pose>1.1309375241970208 -11.887578614623228 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_62">
+      <pose>1.1168730327342027 -11.879342475746702 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_63">
+      <pose>1.0599614289443018 -11.878102053424486 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_64">
+      <pose>1.0536255447880967 -11.8555455482718 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_65">
+      <pose>1.0639786303162388 -11.812839304009318 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_66">
+      <pose>1.0636272619787228 -11.806812524659994 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_67">
+      <pose>1.059347992175836 -11.806902873532886 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_68">
+      <pose>1.0572808539292486 -11.776735169733357 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_69">
+      <pose>1.0502072274937877 -11.755513897399744 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_70">
+      <pose>1.0544818276700882 -11.753584950978219 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_71">
+      <pose>1.0543922826655707 -11.751301994802828 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_72">
+      <pose>1.0555915392802584 -11.746884618107037 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_73">
+      <pose>1.0661718382682424 -11.742633139238473 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_74">
+      <pose>1.0669746821376158 -11.74799243214765 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_75">
+      <pose>1.0173298036719696 -11.762403073028477 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_76">
+      <pose>0.9976926196694429 -11.751012301329682 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_77">
+      <pose>0.971003398275968 -11.77081626813762 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_78">
+      <pose>0.9647828224932703 -11.761196304482208 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_79">
+      <pose>0.9638578841008725 -11.752284549955517 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_80">
+      <pose>0.9655784359730908 -11.756763121296418 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_81">
+      <pose>0.9618461073539561 -11.76048478251671 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_82">
+      <pose>0.9474783837699472 -11.77428894672203 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_83">
+      <pose>0.9521744834880831 -11.791116755147335 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_84">
+      <pose>0.9607796044700556 -11.796377197052314 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_85">
+      <pose>0.9513130790801582 -11.812451034482415 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_86">
+      <pose>0.9301989986527978 -11.830131198755511 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_87">
+      <pose>0.9365264422483169 -11.8732177208101 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_88">
+      <pose>0.9518084628886866 -11.878835414987936 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_89">
+      <pose>0.9165201534971779 -11.90387216747892 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_90">
+      <pose>0.9098456512031133 -11.928427068532166 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_91">
+      <pose>0.8818919924586198 -11.939413156636787 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_92">
+      <pose>0.8706222380408207 -11.947432572148987 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_93">
+      <pose>0.8702094905383172 -11.993124161141163 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_94">
+      <pose>0.8580633118037867 -11.994800171329086 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_95">
+      <pose>0.8423432296381669 -12.035700821576892 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_96">
+      <pose>0.8338007592668023 -12.062680621970634 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_97">
+      <pose>0.8306883140028642 -12.07221426935962 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_98">
+      <pose>0.8266529370860021 -12.103158630726078 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_99">
+      <pose>0.8363812398530324 -12.121653373604495 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_100">
+      <pose>0.8213500386689051 -12.127111174619905 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_101">
+      <pose>0.8177245089287936 -12.142309211146516 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_102">
+      <pose>0.7958214020290445 -12.152734305541237 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_103">
+      <pose>0.7883751296902005 -12.16607869888345 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_104">
+      <pose>0.7864629801541381 -12.182531783041505 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_105">
+      <pose>0.7941889756357112 -12.190227630080118 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_106">
+      <pose>0.7721552851432825 -12.199743447565082 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_107">
+      <pose>0.7685664332902891 -12.227221514253918 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_108">
+      <pose>0.755279716772049 -12.225756835873401 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_109">
+      <pose>0.7549203980697489 -12.24304222029881 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_110">
+      <pose>0.7528005995071586 -12.257086443101999 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_111">
+      <pose>0.7619842665430376 -12.275949668556622 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_112">
+      <pose>0.7654779106076053 -12.277767233976704 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_113">
+      <pose>0.7521638171588648 -12.310884116251811 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_114">
+      <pose>0.7547374503210902 -12.31028408036939 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_115">
+      <pose>0.7511011413773441 -12.331509111149119 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_116">
+      <pose>0.7353174971431112 -12.341892131805684 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_117">
+      <pose>0.7521181166034272 -12.365305730170654 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_118">
+      <pose>0.7380187574039829 -12.36063701242787 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_119">
+      <pose>0.7428254269352411 -12.376323016459352 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_120">
+      <pose>0.7512665467507842 -12.387406964008393 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_121">
+      <pose>0.7612480765508044 -12.406345897224934 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_122">
+      <pose>0.7666687879360948 -12.40761706343093 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_123">
+      <pose>0.7885372109226808 -12.397207779476647 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_124">
+      <pose>0.7613710110449315 -12.40831341571693 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_125">
+      <pose>0.7732724135195727 -12.415289127256408 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_126">
+      <pose>0.7473115415370042 -12.416834056401814 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_127">
+      <pose>0.7367880005963909 -12.427413686375798 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_128">
+      <pose>0.7351089621896149 -12.451192745232389 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_129">
+      <pose>0.7253541428880161 -12.480006348923975 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_130">
+      <pose>0.7193193794362788 -12.49158009619074 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_131">
+      <pose>0.7183330771975156 -12.505859878833718 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_132">
+      <pose>0.7250687518551714 -12.523618504323577 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_133">
+      <pose>0.715337349620303 -12.53155402755772 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_134">
+      <pose>0.7078739868055874 -12.535214401692668 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_135">
+      <pose>0.6904432000885495 -12.544441948652029 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_136">
+      <pose>0.717840815834758 -12.542186597342887 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_137">
+      <pose>0.6970058892080114 -12.528927993278755 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_138">
+      <pose>0.7089974800692913 -12.52911687238033 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_139">
+      <pose>0.6962875071137768 -12.525304438010169 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_140">
+      <pose>0.6961465579202549 -12.512418242466905 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_141">
+      <pose>0.6710253864114342 -12.5085985321812 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_142">
+      <pose>0.6781829129392298 -12.511781886263314 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_143">
+      <pose>0.6650073100451906 -12.518767307977843 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_144">
+      <pose>0.6468841114043044 -12.52430368714296 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_145">
+      <pose>0.6592138531854747 -12.514957664986728 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_146">
+      <pose>0.6433009708441887 -12.510925068791558 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_147">
+      <pose>0.6366661539933489 -12.535385557552033 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_148">
+      <pose>0.6414662084330351 -12.532500074348416 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_149">
+      <pose>0.6448075317803982 -12.528890632412379 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_150">
+      <pose>0.6324667937817827 -12.531441357133517 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_151">
+      <pose>0.6289392623723926 -12.54153700006332 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_152">
+      <pose>0.6251315150712677 -12.538990324540489 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_153">
+      <pose>0.6227304257603039 -12.528304971381457 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_154">
+      <pose>0.6333524348027115 -12.532073386818102 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_155">
+      <pose>0.633177524224361 -12.51674153317605 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_156">
+      <pose>0.6233404362636638 -12.505466830857774 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_157">
+      <pose>0.6542249329028558 -12.49833605912095 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_158">
+      <pose>0.6479639414892878 -12.475631106803073 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_159">
+      <pose>0.6478103212423225 -12.456093879846993 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_160">
+      <pose>0.6472262451658976 -12.445184625378937 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_161">
+      <pose>0.6622434170454365 -12.427302413616339 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_162">
+      <pose>0.6429259990633753 -12.427984589362795 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_163">
+      <pose>0.6308847528890952 -12.42221003516835 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_164">
+      <pose>0.6335173321085241 -12.411192453386933 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_165">
+      <pose>0.636934099668914 -12.403402521941851 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_166">
+      <pose>0.6439085763239049 -12.39066634583785 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_167">
+      <pose>0.6407659661402745 -12.380115273575605 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_168">
+      <pose>0.6424844474454279 -12.379029562232075 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_169">
+      <pose>0.6557431793944974 -12.367633407667322 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_170">
+      <pose>0.666370521870442 -12.366704839981805 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_171">
+      <pose>0.6658257967806628 -12.349738492878322 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_172">
+      <pose>0.6485027204006528 -12.344945661874451 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_173">
+      <pose>0.626799508751629 -12.328083762754826 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_174">
+      <pose>0.6016792895504719 -12.3268810094331 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_175">
+      <pose>0.6054426460383345 -12.307415374673283 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_176">
+      <pose>0.571985769810812 -12.320274403848853 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_177">
+      <pose>0.5606949037788838 -12.299607498761496 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_178">
+      <pose>0.5842712152435555 -12.343278521208509 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_179">
+      <pose>0.5920828954369185 -12.350862313301063 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_180">
+      <pose>0.6127732500160556 -12.342719329688133 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_181">
+      <pose>0.5776407233503085 -12.34237651705395 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_182">
+      <pose>0.5598138430259133 -12.342233177014188 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_183">
+      <pose>0.5745640981306603 -12.332369243827914 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_184">
+      <pose>0.5823021723456288 -12.34532974867827 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_185">
+      <pose>0.5746154895541465 -12.353903222512523 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_186">
+      <pose>0.5626304601692619 -12.340247661909714 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_187">
+      <pose>0.5603330294198243 -12.330050126138936 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_188">
+      <pose>0.5664042358731435 -12.294699816691999 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_189">
+      <pose>0.5368857543670168 -12.276540226549708 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_190">
+      <pose>0.5224047317020776 -12.279516749162665 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_191">
+      <pose>0.512714689746432 -12.285013850709198 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_192">
+      <pose>0.5007093121254111 -12.260101219380175 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_193">
+      <pose>0.4829981231400718 -12.246207381036665 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_194">
+      <pose>0.4716453622162176 -12.246579381082308 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_195">
+      <pose>0.4708209650457825 -12.257620294146824 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_196">
+      <pose>0.44627632519208393 -12.265897300297933 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_197">
+      <pose>0.4280702553596362 -12.3037183373192 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_198">
+      <pose>0.42616704423947255 -12.295933833775061 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_199">
+      <pose>0.42824432086067654 -12.281813738081679 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_200">
+      <pose>0.4159146148229575 -12.26175360279228 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_201">
+      <pose>0.4134349205566409 -12.268481788617176 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_202">
+      <pose>0.39124415036179355 -12.25371052178998 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_203">
+      <pose>0.4128565379013683 -12.234840837370255 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_204">
+      <pose>0.4269296001331586 -12.22532543310104 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_205">
+      <pose>0.4168568096429643 -12.231199821168502 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_206">
+      <pose>0.42569188611810466 -12.206243087946778 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_207">
+      <pose>0.4359854102910624 -12.19783143587847 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_208">
+      <pose>0.43885728425683185 -12.185658588192855 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_209">
+      <pose>0.4520318403783722 -12.20108339483611 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_210">
+      <pose>0.4661400588475018 -12.21891787267389 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_211">
+      <pose>0.4544268584088427 -12.22754160239218 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_212">
+      <pose>0.4572788462502378 -12.226241461308259 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_213">
+      <pose>0.4667386186809657 -12.23088460233934 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="waypoint_214">
+      <pose>0.4507626465952431 -12.231445478326208 0.5 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <sphere>
+            <radius>0.1</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_0">
+      <pose>-0.013190205370398096 -0.00771981473717567 0.5 0 0 -2.612075395460529</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.03056645594697517 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_1">
+      <pose>-0.028585965502078724 -0.011848160843210984 0.5 0 0 2.1215258644554256</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.008429263012501444 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_2">
+      <pose>-0.030370832608488392 1.2643769843328524e-05 0.5 0 0 1.51996693814579</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.016560059865198474 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_3">
+      <pose>-0.02564120808624911 0.012298633166839235 0.5 0 0 0.7503059412646563</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.011781416143034585 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_4">
+      <pose>-0.006482017426699899 0.01399373344830505 0.5 0 0 -0.1550756861731886</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.030061247255856995 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_5">
+      <pose>0.01720262733229172 0.008222357380721412 0.5 0 0 -0.37228932864170394</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.018968156687476145 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_6">
+      <pose>0.04702706639776192 -0.05556529319023828 0.5 0 0 -1.23601546711198</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.12776909740834042 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_7">
+      <pose>0.09307958121633611 -0.326893105974032 0.5 0 0 -1.452565225039389</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.42494658991611767 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_8">
+      <pose>0.15092842042239268 -0.8457210171231724 0.5 0 0 -1.4646910120802075</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.619157927854345 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_9">
+      <pose>0.20311855685623442 -1.506168418243658 0.5 0 0 -1.5158227237284687</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.7062859137726962 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_10">
+      <pose>0.20195098553446622 -2.228798802275802 0.5 0 0 -1.6263342165633252</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.7411846001322728 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_11">
+      <pose>0.13878226083613943 -2.9723857133655303 0.5 0 0 -1.6843350060376459</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.751973657963395 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_12">
+      <pose>0.06285807453446404 -3.7106714108762815 0.5 0 0 -1.6619197386652664</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.73247834522277 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_13">
+      <pose>-0.011141721375671541 -4.4425443282469885 0.5 0 0 -1.6811258308925194</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.7387984334089397 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_14">
+      <pose>-0.08490842785790179 -5.1768482100646835 0.5 0 0 -1.6606899890216131</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.7372782390680301 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_15">
+      <pose>-0.14722359511238953 -5.917961717553812 0.5 0 0 -1.6487778772922015</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.7502055856326866 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_16">
+      <pose>-0.1767667830025927 -6.6565599286342145 0.5 0 0 -1.5716786548120145</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.7292710106162861 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_17">
+      <pose>-0.17320918241489722 -7.3827211586757215 0.5 0 0 -1.5600663067747</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.7230933590100967 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_18">
+      <pose>-0.16012803924991276 -8.131740888214939 0.5 0 0 -1.5470537949297738</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.7752062103794473 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_19">
+      <pose>-0.10462325174259929 -8.89128329229737 0.5 0 0 -1.4469788522285287</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.7498375352759677 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_20">
+      <pose>0.021632748541229176 -9.639728283369948 0.5 0 0 -1.361490291736943</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.7695889137408745 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_21">
+      <pose>0.22910248974757322 -10.380590589657567 0.5 0 0 -1.23423477113088</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.7722586945654922 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_22">
+      <pose>0.5181815650754735 -11.100375903065338 0.5 0 0 -1.1440440139559571</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.7806518126000186 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_23">
+      <pose>0.8184071450187442 -11.702132586127052 0.5 0 0 -1.0582765511953567</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.5655397230131626 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_24">
+      <pose>0.9928036840321899 -11.997297405153027 0.5 0 0 -0.9380507973907506</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.1208511233827104 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_25">
+      <pose>1.0313397008427656 -12.058904975653432 0.5 0 0 -1.3565353931701496</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.026362771373236584 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_26">
+      <pose>1.0350993617130864 -12.069625956226918 0.5 0 0 1.1535740766331584</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.004723155329640837 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_27">
+      <pose>1.0377971931557481 -12.073656969481835 0.5 0 0 -1.296639873433659</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.012860302383918673 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_28">
+      <pose>1.0419090904188284 -12.074577059528757 0.5 0 0 1.1480108475749369</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.011557481334522501 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_29">
+      <pose>1.0410857961891726 -12.073207019406027 0.5 0 0 -2.2570652796026733</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.01008221682425208 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_30">
+      <pose>1.045270529669895 -12.075383499838054 0.5 0 0 0.22944005346902646</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.015155276848183402 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_31">
+      <pose>1.0521687770324848 -12.074331474269012 0.5 0 0 -2.192285244696241</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.0016515714435374434 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_32">
+      <pose>1.058095765043051 -12.075130826703578 0.5 0 0 -0.019969628023829768</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.012818153172213924 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_33">
+      <pose>1.0684117450392128 -12.078473311118662 0.5 0 0 -0.6883147867630371</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.010120658108469795 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_34">
+      <pose>1.0843733865541156 -12.069890461711399 0.5 0 0 0.7746607978480111</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.03373209148688358 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_35">
+      <pose>1.0946478964875974 -12.060049660311137 0.5 0 0 -2.3086854781492043</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.00528876843593827 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_36">
+      <pose>1.104345850511472 -12.062979684301045 0.5 0 0 -0.08461736894939792</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.023036230274731638 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_37">
+      <pose>1.112152525345118 -12.070570771666288 0.5 0 0 -2.077175770285647</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.015134522768397274 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_38">
+      <pose>1.1063835693446342 -12.072564140240253 0.5 0 0 1.9968493036479995</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.010156442385053407 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_39">
+      <pose>1.1091699245503515 -12.067717541808573 0.5 0 0 0.04548464739635783</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.009780278690660317 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_40">
+      <pose>1.1244962670701844 -12.07609994997417 0.5 0 0 -0.6892708365372056</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.02706006524387641 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_41">
+      <pose>1.135037212518419 -12.084085186697296 0.5 0 0 1.4112577941319528</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.0012549794013098406 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_42">
+      <pose>1.1381931435203732 -12.075879939450907 0.5 0 0 1.1877973009701128</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.016356513579043337 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_43">
+      <pose>1.1474843638774055 -12.05810108337624 0.5 0 0 1.0218299465554133</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.02389768164594018 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_44">
+      <pose>1.1630076234525495 -12.029244961127251 0.5 0 0 1.1090026816672358</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.041693142557765316 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_45">
+      <pose>1.178644692729355 -12.009157841980365 0.5 0 0 0.2206622530564134</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.013013099802198098 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_46">
+      <pose>1.1902865913656688 -12.006811367907648 0.5 0 0 0.17252190340331686</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.010745750823242852 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_47">
+      <pose>1.188423278872885 -12.01022568826098 0.5 0 0 -2.5967860783313004</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.016735727045849313 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_48">
+      <pose>1.1881035498724226 -12.008105136936095 0.5 0 0 0.7568605714845035</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.018808096396330024 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_49">
+      <pose>1.1993149543827217 -11.999155170223776 0.5 0 0 0.5179244932660672</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.010070123046268309 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_50">
+      <pose>1.2045398184631328 -11.990777764101976 0.5 0 0 1.4273187997502117</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.011891505078407302 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_51">
+      <pose>1.2081706344043637 -11.985217141102725 0.5 0 0 -0.1160086893262994</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.0055989490487263205 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_52">
+      <pose>1.2278736935874157 -11.983037189026339 0.5 0 0 0.14690285958770946</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.034213308327881276 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_53">
+      <pose>1.2331867061246446 -11.971200514474823 0.5 0 0 2.4644834414985293</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.029791069368773987 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_54">
+      <pose>1.218459081730702 -11.957269198727035 0.5 0 0 2.166658539046157</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.011112295840046478 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_55">
+      <pose>1.2085928500917746 -11.944486262876069 0.5 0 0 2.2603013126722016</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.02121493180659965 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_56">
+      <pose>1.1901481122999338 -11.934398515685434 0.5 0 0 2.980274240269014</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.023701211275650613 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_57">
+      <pose>1.16827059771123 -11.932215663592977 0.5 0 0 3.114154466938895</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.02036921250693056 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_58">
+      <pose>1.1572127291954755 -11.919008470520765 0.5 0 0 1.6385383247467828</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.025915000967536947 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_59">
+      <pose>1.147841342660205 -11.908513388992484 0.5 0 0 -2.862666262029763</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.01767155931317306 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_60">
+      <pose>1.1351422880524742 -11.899262351547396 0.5 0 0 1.9162472328340252</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.024834632881788703 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_61">
+      <pose>1.1239052784656116 -11.883460545184965 0.5 0 0 2.6118301284963397</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.016298585941765385 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_62">
+      <pose>1.0884172308392523 -11.878722264585594 0.5 0 0 3.119800507954412</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.056925120056756255 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_63">
+      <pose>1.0567934868661992 -11.866823800848143 0.5 0 0 1.8446296189955398</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.02342945481107035 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_64">
+      <pose>1.0588020875521678 -11.834192426140559 0.5 0 0 1.3329591472160522</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.04394325521578815 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_65">
+      <pose>1.0638029461474807 -11.809825914334656 0.5 0 0 1.6290315837325169</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.006037013254419517 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_66">
+      <pose>1.0614876270772795 -11.80685769909644 0.5 0 0 -3.1204826381319473</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.004280223471354268 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_67">
+      <pose>1.0583144230525423 -11.79181902163312 0.5 0 0 1.6392109509708852</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.030238442636264243 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_68">
+      <pose>1.0537440407115182 -11.76612453356655 0.5 0 0 1.89254132505026</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.022369143711948144 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_69">
+      <pose>1.0523445275819379 -11.754549424188982 0.5 0 0 0.42389937259600946</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.004689673865456402 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_70">
+      <pose>1.0544370551678295 -11.752443472890523 0.5 0 0 1.609999499948353</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.00228471162438235 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_71">
+      <pose>1.0549919109729147 -11.749093306454933 0.5 0 0 1.3056998353079279</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.004577273566260881 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_72">
+      <pose>1.0608816887742503 -11.744758878672755 0.5 0 0 0.38208274954882193</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.011402534772803095 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_73">
+      <pose>1.066573260202929 -11.745312785693061 0.5 0 0 -1.4220980070583475</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.005419093906266856 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_74">
+      <pose>1.0421522429047927 -11.755197752588064 0.5 0 0 -2.859082070666504</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.051694105355107545 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_75">
+      <pose>1.0075112116707063 -11.75670768717908 0.5 0 0 2.615962945350617</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.02270173287313417 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_76">
+      <pose>0.9843480089727055 -11.760914284733651 0.5 0 0 -2.5032175946910717</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.033234193835864775 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_77">
+      <pose>0.9678931103846191 -11.766006286309914 0.5 0 0 2.1448001991261587</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.011455970661612962 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_78">
+      <pose>0.9643203532970714 -11.756740427218862 0.5 0 0 1.6742146294647502</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.008959624979525274 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_79">
+      <pose>0.9647181600369816 -11.754523835625967 0.5 0 0 -1.2040068203532297</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.00479769736441659 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_80">
+      <pose>0.9637122716635235 -11.758623951906564 0.5 0 0 -2.357625588408269</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.005270772159734574 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_81">
+      <pose>0.9546622455619517 -11.76738686461937 0.5 0 0 -2.3761961396114937</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.01992451832275933 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_82">
+      <pose>0.9498264336290152 -11.782702850934683 0.5 0 0 -1.298652248207678</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.017470789591813796 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_83">
+      <pose>0.9564770439790693 -11.793746976099825 0.5 0 0 -0.5486980390732253</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.010085651002787799 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_84">
+      <pose>0.9560463417751068 -11.804414115767365 0.5 0 0 -2.1030437606907624</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.018654311906014742 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_85">
+      <pose>0.940756038866478 -11.821291116618962 0.5 0 0 -2.444480516727728</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.02753892882841911 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_86">
+      <pose>0.9333627204505573 -11.851674459782807 0.5 0 0 -1.4249842108921924</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.04354865009635808 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_87">
+      <pose>0.9441674525685018 -11.876026567899018 0.5 0 0 -0.3522686169054801</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.016281850101520327 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_88">
+      <pose>0.9341643081929323 -11.891353791233428 0.5 0 0 -2.524524976819745</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.04326781430816219 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_89">
+      <pose>0.9131829023501457 -11.916149618005543 0.5 0 0 -1.836203306327927</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.025445866984801186 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_90">
+      <pose>0.8958688218308666 -11.933920112584477 0.5 0 0 -2.7671259837199673</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.030034999068521723 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_91">
+      <pose>0.8762571152497203 -11.943422864392886 0.5 0 0 -2.5231321547497454</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.013831789103178673 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_92">
+      <pose>0.870415864289569 -11.970278366645076 0.5 0 0 -1.5798294176823864</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.045693453197703585 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_93">
+      <pose>0.864136401171052 -11.993962166235125 0.5 0 0 -3.0044719288373107</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.01226126698188989 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_94">
+      <pose>0.8502032707209768 -12.015250496452989 0.5 0 0 -1.93773719155142</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.04381762401120383 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_95">
+      <pose>0.8380719944524846 -12.049190721773762 0.5 0 0 -1.8774344757448744</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.02829988391021717 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_96">
+      <pose>0.8322445366348332 -12.067447445665128 0.5 0 0 -1.8863567796070635</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.010028845798920933 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_97">
+      <pose>0.8286706255444332 -12.087686450042849 0.5 0 0 -1.700472041206558</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.0312063738239339 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_98">
+      <pose>0.8315170884695172 -12.112406002165287 0.5 0 0 -1.0865628379831807</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.020897257926956975 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_99">
+      <pose>0.8288656392609688 -12.1243822741122 0.5 0 0 -2.793297107932643</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.015991391464207305 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_100">
+      <pose>0.8195372737988493 -12.134710192883212 0.5 0 0 -1.8049722019359686</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.015624492956913262 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_101">
+      <pose>0.806772955478919 -12.147521758343878 0.5 0 0 -2.697357923874173</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.024257549031191903 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_102">
+      <pose>0.7920982658596225 -12.159406502212343 0.5 0 0 -2.079766580419654</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.015281354829199838 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_103">
+      <pose>0.7874190549221693 -12.174305240962477 0.5 0 0 -1.6864955889515834</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.016563824865057735 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_104">
+      <pose>0.7903259778949246 -12.18637970656081 0.5 0 0 -0.7834432475361209</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.010904910262034469 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_105">
+      <pose>0.7831721303894968 -12.1949855388226 0.5 0 0 -2.733912594874931</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.024000714554431198 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_106">
+      <pose>0.7703608592167858 -12.2134824809095 0.5 0 0 -1.7006690553063466</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.02771144179899089 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_107">
+      <pose>0.761923075031169 -12.226489175063659 0.5 0 0 3.031799664377155</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.013367203095428257 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_108">
+      <pose>0.7551000574208989 -12.234399528086104 0.5 0 0 -1.5915807624164362</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.017289118678057765 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_109">
+      <pose>0.7538604987884537 -12.250064331700404 0.5 0 0 -1.7206029268127379</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.014203300323924183 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_110">
+      <pose>0.7573924330250981 -12.26651805582931 0.5 0 0 -1.1177194205377312</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.020980014651516492 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_111">
+      <pose>0.7637310885753215 -12.276858451266662 0.5 0 0 -0.47971540598585366</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.003938158567930492 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_112">
+      <pose>0.758820863883235 -12.294325675114258 0.5 0 0 -1.9530544223280057</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.035693038200539075 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_113">
+      <pose>0.7534506337399776 -12.310584098310601 0.5 0 0 0.22905559381314636</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.0026426559961332152 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_114">
+      <pose>0.7529192958492171 -12.320896595759255 0.5 0 0 -1.7404708054488505</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.02153426744365326 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_115">
+      <pose>0.7432093192602276 -12.336700621477402 0.5 0 0 -2.5597298008102</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.018892605518231066 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_116">
+      <pose>0.7437178068732693 -12.35359893098817 0.5 0 0 -0.9483832778062509</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.028817657827215234 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_117">
+      <pose>0.7450684370037051 -12.362971371299263 0.5 0 0 2.8218266043751954</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.014852234013667155 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_118">
+      <pose>0.7404220921696121 -12.368480014443612 0.5 0 0 -1.2734505127611937</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.016405937780522586 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_119">
+      <pose>0.7470459868430126 -12.381864990233872 0.5 0 0 -0.9199361364808923</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.013932207183725414 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_120">
+      <pose>0.7562573116507942 -12.396876430616665 0.5 0 0 -1.0857533348500839</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.02140827243215307 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_121">
+      <pose>0.7639584322434496 -12.406981480327932 0.5 0 0 -0.2303397163545619</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.00556776215780476 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_122">
+      <pose>0.7776029994293878 -12.40241242145379 0.5 0 0 0.44426074706550633</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.02421943674739654 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_123">
+      <pose>0.7749541109838062 -12.402760597596789 0.5 0 0 -2.753520208146257</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.02934855315172005 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_124">
+      <pose>0.7673217122822521 -12.41180127148667 0.5 0 0 -0.5301549452265328</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.01379506913159133 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_125">
+      <pose>0.7602919775282884 -12.416061591829111 0.5 0 0 -3.0821528451191127</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.026006800652130124 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_126">
+      <pose>0.7420497710666976 -12.422123871388806 0.5 0 0 -2.3535366478460773</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.014922247964538842 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_127">
+      <pose>0.7359484813930028 -12.439303215804093 0.5 0 0 -1.6412892888408719</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.02383826357091897 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_128">
+      <pose>0.7302315525388154 -12.465599547078181 0.5 0 0 -1.8972336939943004</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.030420063400701094 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_129">
+      <pose>0.7223367611621474 -12.485793222557358 0.5 0 0 -2.0514313788670204</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.013052585786477682 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_130">
+      <pose>0.7188262283168971 -12.498719987512228 0.5 0 0 -1.6397566398409282</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.01431380398206182 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_131">
+      <pose>0.7217009145263436 -12.514739191578649 0.5 0 0 -1.208269600049329</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.018993106443730538 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_132">
+      <pose>0.7202030507377373 -12.527586265940649 0.5 0 0 -2.4574985561226024</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.012556779780517327 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_133">
+      <pose>0.7116056682129452 -12.533384214625194 0.5 0 0 -2.685617664206102</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.008312648393375107 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_134">
+      <pose>0.6991585934470685 -12.53982817517235 0.5 0 0 -2.6547165709842853</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.019722574590100288 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_135">
+      <pose>0.7041420079616538 -12.543314272997458 0.5 0 0 0.08213406272890346</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.027490288432545362 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_136">
+      <pose>0.7074233525213847 -12.53555729531082 0.5 0 0 2.5748629443862425</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.02469584477743865 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_137">
+      <pose>0.7030016846386513 -12.529022432829542 0.5 0 0 -0.015749660427413603</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.011993078282882295 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_138">
+      <pose>0.7026424935915341 -12.52721065519525 0.5 0 0 2.8501761022499674</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.013269441147112964 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_139">
+      <pose>0.6962170325170158 -12.518861340238537 0.5 0 0 1.5817338895849962</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.012886966371275038 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_140">
+      <pose>0.6835859721658446 -12.510508387324052 0.5 0 0 2.990697014634216</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.025409908395000458 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_141">
+      <pose>0.674604149675332 -12.510190209222257 0.5 0 0 -0.4184846060115846</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.007833513209806622 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_142">
+      <pose>0.6715951114922103 -12.515274597120579 0.5 0 0 -2.654094709355516</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.014912834343317135 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_143">
+      <pose>0.6559457107247475 -12.5215354975604 0.5 0 0 -2.8451106786021856</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.01894998214344694 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_144">
+      <pose>0.6530489822948895 -12.519630676064843 0.5 0 0 0.6486054908218661</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.01547160827241642 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_145">
+      <pose>0.6512574120148317 -12.512941366889143 0.5 0 0 2.8934005088833628</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.016415896456816223 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_146">
+      <pose>0.6399835624187689 -12.523155313171795 0.5 0 0 -1.8356694061279002</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.025344354500470467 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_147">
+      <pose>0.639066181213192 -12.533942815950224 0.5 0 0 0.5412540204302467</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.005600583535874238 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_148">
+      <pose>0.6431368701067166 -12.530695353380398 0.5 0 0 0.8239530151169154</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.004918588496840975 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_149">
+      <pose>0.6386371627810905 -12.530165994772947 0.5 0 0 -2.937771388576242</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.012601587636226395 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_150">
+      <pose>0.6307030280770877 -12.53648917859842 0.5 0 0 -1.9069465681428814</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.010694179912939672 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_151">
+      <pose>0.6270353887218302 -12.540263662301903 0.5 0 0 2.5521047589607337</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.004580883727820556 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_152">
+      <pose>0.6239309704157858 -12.533647647960972 0.5 0 0 1.7918332650250646</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.010951803596323632 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_153">
+      <pose>0.6280414302815077 -12.530189179099779 0.5 0 0 -0.34092171331382</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.011270671275488763 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_154">
+      <pose>0.6332649795135363 -12.524407459997075 0.5 0 0 1.5822041444564854</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.015332851326863257 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_155">
+      <pose>0.6282589802440124 -12.511104182016911 0.5 0 0 2.288204118927016</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.014962861087113255 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_156">
+      <pose>0.6387826845832598 -12.501901444989361 0.5 0 0 0.22690890640483763</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.031697003615782815 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_157">
+      <pose>0.6510944371960719 -12.486983582962011 0.5 0 0 1.839863799264696</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.023552385722848596 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_158">
+      <pose>0.6478871313658052 -12.465862493325034 0.5 0 0 1.5786591151793563</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.019537830900938517 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_159">
+      <pose>0.64751828320411 -12.450639252612966 0.5 0 0 1.6242847622786603</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.010924878851128632 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_160">
+      <pose>0.6547348311056671 -12.436243519497637 0.5 0 0 0.8722639259966786</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.023351422842774305 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_161">
+      <pose>0.6525847080544059 -12.427643501489566 0.5 0 0 -3.106293299239054</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.01932945941413561 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_162">
+      <pose>0.6369053759762353 -12.425097312265573 0.5 0 0 2.6944266889365753</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.013354290904956571 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_163">
+      <pose>0.6322010424988096 -12.416701244277641 0.5 0 0 1.336250573797645</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.011327735062967055 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_164">
+      <pose>0.6352257158887191 -12.407297487664392 0.5 0 0 1.1574518229417374</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.008506311332228943 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_165">
+      <pose>0.6404213379964094 -12.39703443388985 0.5 0 0 1.0697887370498693</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.014520795651862154 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_166">
+      <pose>0.6423372712320896 -12.385390809706728 0.5 0 0 1.86027715543209</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.011009138233730361 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_167">
+      <pose>0.6416252067928512 -12.37957241790384 0.5 0 0 0.5634638077321712</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.002032719143814672 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_168">
+      <pose>0.6491138134199627 -12.373331484949698 0.5 0 0 0.709995419031204</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.01748331523942264 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_169">
+      <pose>0.6610568506324697 -12.367169123824564 0.5 0 0 0.08715400097092922</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.01066783230312515 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_170">
+      <pose>0.6660981593255524 -12.358221666430063 0.5 0 0 1.6028915110451578</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.016975089380009963 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_171">
+      <pose>0.6571642585906579 -12.347342077376386 0.5 0 0 2.87167154686872</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.017973875605982126 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_172">
+      <pose>0.637651114576141 -12.336514712314639 0.5 0 0 2.48107727479125</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.02748368675783412 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_173">
+      <pose>0.6142393991510504 -12.327482386093962 0.5 0 0 3.093749301717235</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.02514899656580968 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_174">
+      <pose>0.6035609677944032 -12.317148192053192 0.5 0 0 1.3798191425368729</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.019826088586943118 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_175">
+      <pose>0.5887142079245733 -12.313844889261068 0.5 0 0 -2.7746531822694336</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.035842951862840575 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_176">
+      <pose>0.5663403367948479 -12.309940951305174 0.5 0 0 2.0708143749757775</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.0235500450454081 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_177">
+      <pose>0.5724830595112196 -12.321443009985003 0.5 0 0 -1.0757701629327279</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.04962862746285374 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_178">
+      <pose>0.588177055340237 -12.347070417254786 0.5 0 0 -0.770596963748164</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.010887435416408171 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_179">
+      <pose>0.602428072726487 -12.346790821494597 0.5 0 0 0.374946023030202</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.022235083870560397 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_180">
+      <pose>0.5952069866831821 -12.342547923371042 0.5 0 0 3.13183526386294</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.03513419915725407 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_181">
+      <pose>0.5687272831881109 -12.342304847034068 0.5 0 0 3.133552158103066</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.017827456589971164 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_182">
+      <pose>0.5671889705782869 -12.337301210421051 0.5 0 0 0.589429475066508</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.017744497839003434 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_183">
+      <pose>0.5784331352381445 -12.338849496253092 0.5 0 0 -1.0325484947860395</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.015094783156191179 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_184">
+      <pose>0.5784588309498877 -12.349616485595396 0.5 0 0 -2.301710796231992</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.011514753402635374 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_185">
+      <pose>0.5686229748617042 -12.347075442211118 0.5 0 0 2.2911346162855435</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.018169074404975255 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_186">
+      <pose>0.561481744794543 -12.335148894024325 0.5 0 0 1.7923893834245914</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.01045312985879211 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_187">
+      <pose>0.563368632646484 -12.312374971415467 0.5 0 0 1.4007115655619626</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.03586786759472897 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_188">
+      <pose>0.5516449951200801 -12.285620021620854 0.5 0 0 2.590076003480483</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.0346570550474726 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_189">
+      <pose>0.5296452430345472 -12.278028487856187 0.5 0 0 -2.938869713991901</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.014783764888820841 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_190">
+      <pose>0.5175597107242548 -12.282265299935933 0.5 0 0 -2.625569008113929</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.011140692910006453 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_191">
+      <pose>0.5067120009359216 -12.272557535044687 0.5 0 0 2.0198587377357824</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.027654444336474064 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_192">
+      <pose>0.49185371763274144 -12.25315430020842 0.5 0 0 2.476395248946565</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.022510552174257858 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_193">
+      <pose>0.4773217426781447 -12.246393381059487 0.5 0 0 -3.1088370098296467</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.01135885401914067 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_194">
+      <pose>0.4712331636310001 -12.252099837614566 0.5 0 0 -1.6453255076318432</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.011071648115471337 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_195">
+      <pose>0.45854864511893323 -12.261758797222377 0.5 0 0 -2.8163458936467753</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.02590266736020199 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_196">
+      <pose>0.43717329027586005 -12.284807818808567 0.5 0 0 -2.019432541124365</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.041974895117296185 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_197">
+      <pose>0.4271186497995544 -12.299826085547132 0.5 0 0 1.8105797370961416</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.008013782377668168 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_198">
+      <pose>0.4272056825500745 -12.28887378592837 0.5 0 0 1.4247291693467492</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.014272076952962115 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_199">
+      <pose>0.42207946784181705 -12.27178367043698 0.5 0 0 2.1219090353062264</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.02354635170903402 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_200">
+      <pose>0.41467476768979916 -12.265117695704728 0.5 0 0 -1.923903044198564</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.00717059050209477 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_201">
+      <pose>0.4023395354592172 -12.261096155203578 0.5 0 0 2.5542948308430056</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.02665746810034213 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_202">
+      <pose>0.4020503441315809 -12.244275679580117 0.5 0 0 0.7177504866957501</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.028690770036037275 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_203">
+      <pose>0.4198930690172634 -12.230083135235647 0.5 0 0 0.5945345657525649</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.016988054596876422 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_204">
+      <pose>0.4218932048880615 -12.228262627134772 0.5 0 0 -2.6136223855692635</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.011660597901758761 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_205">
+      <pose>0.42127434788053447 -12.21872145455764 0.5 0 0 1.2305484964143163</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.026474461456692817 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_206">
+      <pose>0.4308386482045835 -12.202037261912624 0.5 0 0 0.6851285337861593</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.013293326536933027 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_207">
+      <pose>0.4374213472739471 -12.191745012035662 0.5 0 0 1.3391083556336318</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.012507033255431127 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_208">
+      <pose>0.445444562317602 -12.193370991514481 0.5 0 0 -0.8639182364489206</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.02028530475446232 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_209">
+      <pose>0.459085949612937 -12.210000633755 0.5 0 0 -0.9015277901321803</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.022740062183709553 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_210">
+      <pose>0.46028345862817227 -12.223229737533035 0.5 0 0 -2.506956096208338</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.014545369667709073 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_211">
+      <pose>0.45585285232954026 -12.22689153185022 0.5 0 0 0.4277262487053981</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.0031343582254685608 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_212">
+      <pose>0.46200873246560176 -12.2285630318238 0.5 0 0 -0.45628481367560875</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.010537839108454553 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name="path_segment_213">
+      <pose>0.45875063263810445 -12.231165040332774 0.5 0 0 -3.1064995950199887</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.015985814522770866 0.05 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 0 0 1</ambient>
+          <diffuse>1 0 0 1</diffuse>
+          <specular>1 0 0 1</specular>
+        </material>
+      </visual>
+    </link>
+
+  </model>
+</sdf>

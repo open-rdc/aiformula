@@ -163,7 +163,12 @@
 
         <include>
             <uri>package://simulator/models/ai_car1</uri>
-            <pose>0.6 0.0 0 0 0 -1.5</pose>
+            <pose>-4.0 -3.0 0 0 0 -1.5</pose>
+        </include>
+
+        <include>
+            <uri>package://simulator/models/gnss_path</uri>
+            <pose>-4.0 -3.0 0 0 0 0.0</pose>
         </include>
 
     <!-- 用調整 -->
