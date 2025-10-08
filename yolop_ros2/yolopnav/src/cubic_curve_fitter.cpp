@@ -4,7 +4,7 @@
 
 namespace yolopnav {
 
-// 最小二乗法のみによる3次曲線フィッティング
+// 最小二乗法による3次曲線フィッティング（外れ値除外付き）
 FittedCurve CubicCurveFitter::fitCubicCurve(const std::vector<Eigen::Vector3d>& points) const {
     FittedCurve result;
 
@@ -12,35 +12,30 @@ FittedCurve CubicCurveFitter::fitCubicCurve(const std::vector<Eigen::Vector3d>& 
         return result;
     }
 
-    // 全ての点を使って最小二乗法で3次曲線をフィッティング
-    CubicCurveCoefficients curve_coeffs = fitCubicToPoints(points);
+    CubicCurveCoefficients initial_curve = fitCubicToPoints(points);
+    std::vector<Eigen::Vector3d> inliers = getInliers(points, initial_curve);
+    if (inliers.size() < static_cast<size_t>(min_points_for_model_)) {
+        return result;
+    }
 
-    // フィッティング結果の評価（オプション）
-    std::vector<Eigen::Vector3d> inliers = getInliers(points, curve_coeffs);
+    // 再フィッティング: 外れ値除外後の点群で再度3次曲線をフィッティング
+    CubicCurveCoefficients refined_curve = fitCubicToPoints(inliers);
 
-    // 結果を格納
-    result.coefficients = curve_coeffs;
+    result.coefficients = refined_curve;
     result.inlier_points = inliers;
     result.num_inliers = inliers.size();
-    
-    // 平均二乗誤差をスコアとして計算
+
     double total_error = 0.0;
-    for (const auto& point : points) {
-        total_error += std::pow(pointToCurveDistance(point, curve_coeffs), 2);
+    for (const auto& point : inliers) {
+        total_error += std::pow(pointToCurveDistance(point, refined_curve), 2);
     }
-    result.score = total_error / points.size();
+    result.score = total_error / inliers.size();
 
     return result;
 }
 
-// 既存の最小二乗法フィッティング関数（変更なし）
 CubicCurveCoefficients CubicCurveFitter::fitCubicToPoints(const std::vector<Eigen::Vector3d>& points) const {
-    if (points.size() < static_cast<size_t>(min_points_for_model_)) {
-        return CubicCurveCoefficients();
-    }
 
-    // 最小二乗法による3次曲線フィッティング
-    // 求める式: y = ax³ + bx² + cx + d
     int n = points.size();
     Eigen::MatrixXd A(n, 4);
     Eigen::VectorXd b(n);
@@ -95,7 +90,6 @@ std::vector<Eigen::Vector3d> CubicCurveFitter::generateUniformPoints(const Fitte
         return uniform_points;
     }
 
-    // 等間隔でサンプリング
     for (double x = min_x; x <= max_x; x += interval) {
         double y = curve.coefficients.evaluate(x);
         uniform_points.emplace_back(x, y, 0.0);  // z=0 (地面上のレーン)

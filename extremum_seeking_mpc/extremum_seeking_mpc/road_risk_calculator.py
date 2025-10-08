@@ -95,10 +95,16 @@ class RoadRiskCalculator:
             PointCloud2, 'sub_road_r', partial(self.lane_line_callback, side=Side.RIGHT), buffer_size)
 
     def lane_line_callback(self, msg_pointcloud2: PointCloud2, side: Side) -> None:
-        pc_iter = pc2.read_points(msg_pointcloud2, field_names=['x', 'y'], skip_nans=True)
-        lane_points = np.array(list(pc_iter))
-        if len(lane_points) < 2:
+        # Read points as structured array
+        structured_points = pc2.read_points(msg_pointcloud2, field_names=['x', 'y'], skip_nans=True)
+        points_list = list(structured_points)
+
+        if len(points_list) < 2:
             return
+
+        # Convert structured array to regular 2D numpy array
+        lane_points = np.array([(point['x'], point['y']) for point in points_list])
+
         self.point_length[side], self.road_offset[side], self.road_thetas[side] = self.line_identification(lane_points)
 
     def line_identification(self, lane_points: np.ndarray) -> Tuple[float, float, np.ndarray]:

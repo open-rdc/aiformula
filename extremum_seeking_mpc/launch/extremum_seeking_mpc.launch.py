@@ -20,12 +20,12 @@ def generate_launch_description():
                 "right": "/lane_points/right"
             },
             "objects": {
-                "info": "/obstacle_detector/obstacle_info"
+                "info": "/aiformula_perception/objects/info"
             }
         },
         "sensing": {
             "odometry": {
-                "gyro": "/zed/zed_node/odom"
+                "gyro": "/odom"
             }
         }
     }

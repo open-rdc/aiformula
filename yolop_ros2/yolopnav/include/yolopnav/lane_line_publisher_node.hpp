@@ -37,6 +37,8 @@ private:
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr left_points_publisher_;
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr right_points_publisher_;
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr center_points_publisher_;
+    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr left_raw_points_publisher_;
+    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr right_raw_points_publisher_;
     rclcpp::TimerBase::SharedPtr timer_;
     rclcpp::QoS qos_ = rclcpp::QoS(10);
     
@@ -61,14 +63,10 @@ private:
     
     // Point cloud publishing functions
     sensor_msgs::msg::PointCloud2 createPointCloud2(const std::vector<Eigen::Vector3d>& points, const std::string& frame_id);
+    sensor_msgs::msg::PointCloud2 createPointCloud2FromPixels(const std::vector<cv::Point>& pixels, const std::string& frame_id);
 
     // RANSAC cubic curve fitting and uniform point extraction
     std::vector<Eigen::Vector3d> fitCurveAndExtractUniformPoints(const std::vector<Eigen::Vector3d>& points);
-
-    // Kalman filter integration
-    std::vector<LaneObservation> createLaneObservations(const LaneLines& lane_lines);
-    LaneObservation createObservationFromCurve(const FittedCurve& curve);
-    void publishKalmanFilteredLanes();
     
 };
 
