@@ -1,6 +1,6 @@
 from launch import LaunchDescription
-from launch.actions import IncludeLaunchDescription
-from launch.substitutions import PathJoinSubstitution
+from launch.actions import IncludeLaunchDescription, DeclareLaunchArgument
+from launch.substitutions import EnvironmentVariable, LaunchConfiguration, PathJoinSubstitution
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from ament_index_python.packages import get_package_share_directory
 
@@ -30,13 +30,37 @@ def generate_launch_description():
         output='screen'
     )
 
+    gemini_api_key = LaunchConfiguration('gemini_api_key')
+    gemini_model = LaunchConfiguration('gemini_model')
+
+    gemini_controller = Node(
+        package='gemini_cmd_vel',
+        executable='gemini_controller',
+        name='gemini_controller',
+        output='screen',
+        parameters=[
+            {'api_key': gemini_api_key},
+            {'model': gemini_model},
+        ]
+    )
+
     return LaunchDescription([
+        DeclareLaunchArgument(
+            'gemini_api_key',
+            default_value=EnvironmentVariable('GEMINI_API_KEY', default_value=''),
+            description='API key for Google Gemini. Leave blank to disable Gemini requests.'
+        ),
+        DeclareLaunchArgument(
+            'gemini_model',
+            default_value=EnvironmentVariable('GEMINI_MODEL', default_value='gemini-flash-latest'),
+            description='Model name to use with Gemini generateContent. Either short name (recommended) or full models/... form.'
+        ),
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource([os.path.join(
                 get_package_share_directory('ros_gz_sim'), 'launch'), '/gz_sim.launch.py']),
             launch_arguments=[
                 ('gz_args', [world_file_path, ' -r'])]
         ),
-        bridge
+        bridge,
+        gemini_controller
     ])
-
