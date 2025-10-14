@@ -50,7 +50,7 @@ class GeminiControllerNode(Node):
             'on the current heading, adjust steering to stay between the lines and prevent crossing them. Respond ONLY '
             'with a JSON object containing "linear_x" (m/s) and "angular_z" (rad/s). Positive angular_z turns left. '
             'Keep absolute values within the supplied speed limits, maintain smooth forward motion, and avoid reversing '
-            'or oscillating. No narration or markdown.'
+            'or oscillating. No narration or markdown. '
         )
 
         self.api_key = self.get_parameter('api_key').value
