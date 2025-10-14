@@ -20,3 +20,4 @@ simulator_old/
 
 #例外ファイルを指定
 yolop_ros2/road_detector/data/weights/yolopv2.pt
+yolop_ros2/road_detector/data/weights/yolopv2.pt
