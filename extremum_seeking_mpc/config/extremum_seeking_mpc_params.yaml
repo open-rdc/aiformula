@@ -3,7 +3,7 @@
     control_period: 0.01 #[s]
     buffer_size: 10
 
-    horizon_times: [2.0, 3.0, 4.0] #[s]
+    horizon_times: [0.5, 1.0, 2.0] #[s]
     planned_speed: [1.6, 0.0] # linear_velocity[m/s], angular_velocity[rad/s]
     curvature_gain: 25.
     benefit_gain: 2.
