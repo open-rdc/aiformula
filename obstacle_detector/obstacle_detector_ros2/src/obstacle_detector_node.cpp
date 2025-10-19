@@ -6,8 +6,9 @@ namespace obstacle_detector_ros2
 
 ObstacleDetectorNode::ObstacleDetectorNode(const rclcpp::NodeOptions& options)
 : Node("obstacle_detector_node", options),
-  image_topic_("/zed/zed_node/rgb/image_rect_color"),
+  image_topic_("/image_raw"),
   obstacle_info_topic_("/obstacle_detector/obstacle_info"),
+  obstacle_pos_topic_("/obstacle_detector/obstacle_pos"),
   result_image_topic_("/obstacle_detector/result_image")
 {
   RCLCPP_INFO(this->get_logger(), "Initializing ObstacleDetectorNode");
@@ -29,11 +30,15 @@ ObstacleDetectorNode::ObstacleDetectorNode(const rclcpp::NodeOptions& options)
   obstacle_info_publisher_ = this->create_publisher<obstacle_detector_msgs::msg::ObjectInfoArray>(
     obstacle_info_topic_, 10);
 
+  obstacle_pos_publisher_ = this->create_publisher<geometry_msgs::msg::PoseArray>(
+    obstacle_pos_topic_, 10);
+
   result_image_publisher_ = this->create_publisher<sensor_msgs::msg::Image>(
     result_image_topic_, 10);
 
   RCLCPP_INFO(this->get_logger(), "Subscribed to: %s", image_topic_.c_str());
   RCLCPP_INFO(this->get_logger(), "Publishing obstacle_info to: %s", obstacle_info_topic_.c_str());
+  RCLCPP_INFO(this->get_logger(), "Publishing obstacle_pos to: %s", obstacle_pos_topic_.c_str());
   RCLCPP_INFO(this->get_logger(), "Publishing result_image to: %s", result_image_topic_.c_str());
 }
 
@@ -115,6 +120,31 @@ void ObstacleDetectorNode::image_callback(const sensor_msgs::msg::Image::SharedP
 
     // Publish obstacle info
     obstacle_info_publisher_->publish(obstacle_info_array);
+
+    // Create and publish pose array
+    geometry_msgs::msg::PoseArray pose_array;
+    pose_array.header = msg->header;
+    pose_array.header.frame_id = "base_link";
+
+    // Add poses for each obstacle
+    for (const auto& obj : obstacle_info_array.objects) {
+      geometry_msgs::msg::Pose pose;
+
+      // Set position
+      pose.position.x = obj.x;
+      pose.position.y = obj.y;
+      pose.position.z = 0.0;
+
+      // Set orientation (identity quaternion)
+      pose.orientation.x = 0.0;
+      pose.orientation.y = 0.0;
+      pose.orientation.z = 0.0;
+      pose.orientation.w = 1.0;
+
+      pose_array.poses.push_back(pose);
+    }
+
+    obstacle_pos_publisher_->publish(pose_array);
 
     // Publish result image with bounding boxes
     publish_result_image(image, red_bboxes, msg->header);
@@ -225,6 +255,14 @@ void ObstacleDetectorNode::publish_result_image(const cv::Mat& image, const std:
       std::string id_text = "ID: " + std::to_string(i);
       cv::putText(result_image, id_text, cv::Point(bbox.x, bbox.y - 10),
                   cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(0, 255, 0), 2);
+
+      // Draw markers for points used in coordinate transformation
+      cv::Point bottom_left(bbox.x, bbox.y + bbox.height);
+      cv::Point bottom_right(bbox.x + bbox.width, bbox.y + bbox.height);
+
+      // Draw filled circles at the transformation points
+      cv::circle(result_image, bottom_left, 5, cv::Scalar(0, 0, 255), -1);  // Red: left point
+      cv::circle(result_image, bottom_right, 5, cv::Scalar(255, 0, 0), -1); // Blue: right point
     }
 
     // Convert back to ROS message

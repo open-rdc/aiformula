@@ -11,6 +11,7 @@ find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
+find_package(visualization_msgs REQUIRED)
 find_package(cv_bridge REQUIRED)
 find_package(OpenCV REQUIRED)
 # Removed TF2 dependencies - using simple ground plane projection instead
@@ -31,6 +32,7 @@ ament_target_dependencies(${PROJECT_NAME}
   std_msgs
   sensor_msgs
   geometry_msgs
+  visualization_msgs
   cv_bridge
   OpenCV
   obstacle_detector_msgs
@@ -53,6 +55,7 @@ ament_export_dependencies(
   std_msgs
   sensor_msgs
   geometry_msgs
+  visualization_msgs
   cv_bridge
   OpenCV
   obstacle_detector_msgs
