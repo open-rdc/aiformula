@@ -40,12 +40,12 @@ public:
 
   struct CameraParams {
     // Camera matrix parameters (matching yolopnav CameraIntrinsics)
-    double focal_length_x{184.919};  // fx - scaled from 246.558 × (480/640)
-    double focal_length_y{205.324};  // fy - scaled from 246.389 × (300/360)
-    double center_point_x{238.759};  // cx - scaled from 318.345 × (480/640)
-    double center_point_y{155.492};  // cy - scaled from 186.590 × (300/360)
+    double focal_length_x{183.09494018554688};  // fx - scaled from 246.558 × (480/640)
+    double focal_length_y{245.82803344726562};  // fy - scaled from 246.389 × (300/360)
+    double center_point_x{240};  // cx - scaled from 318.345 × (480/640)
+    double center_point_y{150};  // cy - scaled from 186.590 × (300/360)
     // Camera position parameters for ground plane projection
-    double camera_height{0.54}; // Height above ground in meters (matching yolopnav)
+    double camera_height{0.56}; // Height above ground in meters (matching yolopnav)
   };
 
 private:

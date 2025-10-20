@@ -25,7 +25,7 @@ def generate_launch_description():
         },
         "sensing": {
             "odometry": {
-                "gyro": "/odom"
+                "gyro": "/vectornav/velocity_body"
             }
         }
     }

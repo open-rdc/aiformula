@@ -103,7 +103,7 @@ class RoadRiskCalculator:
             return
 
         # Convert structured array to regular 2D numpy array
-        lane_points = np.array([(point['x'], point['y']) for point in points_list])
+        lane_points = np.array([(point[0], point[1]) for point in points_list])
 
         self.point_length[side], self.road_offset[side], self.road_thetas[side] = self.line_identification(lane_points)
 

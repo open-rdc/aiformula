@@ -6,7 +6,7 @@ namespace obstacle_detector_ros2
 
 ObstacleDetectorNode::ObstacleDetectorNode(const rclcpp::NodeOptions& options)
 : Node("obstacle_detector_node", options),
-  image_topic_("/image_raw"),
+  image_topic_("/zed/zed_node/left/image_rect_color"),
   obstacle_info_topic_("/obstacle_detector/obstacle_info"),
   obstacle_pos_topic_("/obstacle_detector/obstacle_pos"),
   result_image_topic_("/obstacle_detector/result_image")

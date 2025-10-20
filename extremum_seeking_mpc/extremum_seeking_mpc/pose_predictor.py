@@ -2,7 +2,9 @@ import numpy as np
 from typing import List
 
 from nav_msgs.msg import Odometry
+from geometry_msgs.msg import TwistWithCovarianceStamped
 from rclpy.node import Node
+from scipy.spatial.transform import Rotation as R
 
 from .util import Position2d, Pose, Velocity
 
@@ -16,6 +18,7 @@ class PosePredictor:
         self.horizon_durations = np.diff(horizon_times, prepend=0)
         self.horizon_length = len(horizon_times)
         self.seek_y_positions = seek_y_positions
+        self.prev_time = None
 
     def init_parameters(self, node: Node):
         node.declare_parameter("curvature_radius_maximum")
@@ -23,12 +26,13 @@ class PosePredictor:
 
     def init_connections(self, node: Node, buffer_size: int):
         self.actucal_speed_sub = node.create_subscription(
-            Odometry, 'sub_odom', self.odometry_callback, buffer_size)
+            TwistWithCovarianceStamped, 'sub_odom', self.velocity_callback, buffer_size)
 
-    def odometry_callback(self, odom_msg: Odometry) -> None:
-        linear_velocity = np.linalg.norm([odom_msg.twist.twist.linear.x, odom_msg.twist.twist.linear.y])
-        self.ego_current_velocity = Velocity(linear=linear_velocity,
-                                             angular=odom_msg.twist.twist.angular.z)
+    def velocity_callback(self, vel_msg: TwistWithCovarianceStamped) -> None:
+        linear_vel = vel_msg.twist.twist.linear.x
+        angular_vel = vel_msg.twist.twist.angular.z
+        self.ego_current_velocity = Velocity(linear=linear_vel, angular=angular_vel)
+        print(f"{self.ego_current_velocity}")
 
     def predict_relative_ego_positions(self, curvatures: np.ndarray) -> np.ndarray:
         # ego_v: lin_x, ang.z, curvature(curvature): 3 horizon
