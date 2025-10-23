@@ -45,7 +45,7 @@ class GeminiLiveControllerNode(Node):
         self.declare_parameter('history_lookback_sec', 3.0)
         self.declare_parameter('history_second_lookback_sec', 6.0)
         self.declare_parameter(
-            'base_prompt',
+            'base_prompt',                  #script 
             'You control a simulated race car. Using the provided forward-facing camera image, '
             'decide speed and steering to stay at the center between the white and dashed lane lines, '
             'and avoid going outside these lines while keeping the car moving without stopping. '
