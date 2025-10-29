@@ -1,7 +1,8 @@
 launch: #起動パラメータ
   ros__parameters:
-    joy: true
-    vectornav : true
+    joy: false
+    vectornav : false
+    odrive : true
     log_level : 10
 
 /**:  #ワイルドカード(ここのパラメータは全ノードから読める: <名前に注意>)
