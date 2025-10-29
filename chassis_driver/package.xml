@@ -4,7 +4,7 @@
   <name>chassis_driver</name>
   <version>0.0.0</version>
   <description>TODO: Package description</description>
-  <maintainer email="c1000702@planet.kanazawa-it.ac.jp">kazuma</maintainer>
+  <maintainer email="hogehoge@gmail.com">cmos</maintainer>
   <license>TODO: License declaration</license>
 
   <buildtool_depend>ament_cmake_ros</buildtool_depend>
@@ -14,6 +14,7 @@
   <depend>geometry_msgs</depend>
   <depend>socketcan_interface_msg</depend>
   <depend>utilities</depend>
+  <depend>odrive_can</depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>

@@ -2,6 +2,7 @@
 
 #include "utilities/data_utils.hpp"
 #include "utilities/utils.hpp"
+
 #include <float.h>
 #include <cmath>
 
@@ -46,7 +47,7 @@ get_parameter("angular_max.acc").as_double())
         std::bind(&ChassisDriver::_subscriber_callback_restart, this, std::placeholders::_1)
     );
     _subscription_caster = this->create_subscription<socketcan_interface_msg::msg::SocketcanIF>(
-        "can_rx_011",
+        "can_rx_012",
         _qos,
         std::bind(&ChassisDriver::_subscriber_callback_caster, this, std::placeholders::_1)
     );
@@ -58,6 +59,9 @@ get_parameter("angular_max.acc").as_double())
     publisher_can = this->create_publisher<socketcan_interface_msg::msg::SocketcanIF>("can_tx", _qos);
     publisher_ref_vel = this->create_publisher<geometry_msgs::msg::TwistStamped>("ref_vel", _qos);
 
+    // ODriveのAxis Stateサービスクライアント作成
+    axis_state_client_ = this->create_client<odrive_can::srv::AxisState>("/odrive_axis0/request_axis_state");
+
     _pub_timer = this->create_wall_timer(
         std::chrono::milliseconds(interval_ms),
         [this] { _publisher_callback(); }
@@ -66,6 +70,11 @@ get_parameter("angular_max.acc").as_double())
     linear_planner.limit(linear_limit);
     angular_planner.limit(angular_limit);
     caster_pid.gain(get_parameter("p_gain").as_double(), get_parameter("i_gain").as_double(), get_parameter("d_gain").as_double());
+
+    // ODriveのAxis Stateをクローズドループに設定（axis_requested_state: 8）
+    auto request = std::make_shared<odrive_can::srv::AxisState::Request>();
+    request->axis_requested_state = 8;
+    auto future = axis_state_client_->async_send_request(request);
 }
 
 void ChassisDriver::_subscriber_callback_vel(const geometry_msgs::msg::Twist::SharedPtr msg){
@@ -168,6 +177,43 @@ void ChassisDriver::send_rpm(const double linear_vel, const double u_delta){
     publisher_can->publish(*msg_can);
 
 }
+
+// void ChassisDriver::call_axis_state_service(uint32_t axis_requested_state) {
+//     // サービスが利用可能になるまで待機
+//     while (!axis_state_client_->wait_for_service(std::chrono::seconds(1))) {
+//         if (!rclcpp::ok()) {
+//             RCLCPP_ERROR(this->get_logger(), "サービス待機中に中断されました");
+//             return;
+//         }
+//         RCLCPP_INFO(this->get_logger(), "ODrive axis state サービスを待機中...");
+//     }
+
+//     // サービスリクエストを作成
+//     auto request = std::make_shared<odrive_can::srv::AxisState::Request>();
+//     request->axis_requested_state = axis_requested_state;
+
+//     // サービスを非同期で呼び出し
+//     auto future = axis_state_client_->async_send_request(request);
+
+//     // コールバック関数を使ってレスポンスを処理
+//     std::future_status status = future.wait_for(std::chrono::seconds(5));
+//     if (status == std::future_status::ready) {
+//         auto response = future.get();
+//         RCLCPP_INFO(this->get_logger(),
+//                    "ODrive axis state サービス呼び出し成功: "
+//                    "axis_requested_state = %u, "
+//                    "active_errors = %u, "
+//                    "axis_state = %u, "
+//                    "procedure_result = %u",
+//                    axis_requested_state,
+//                    response->active_errors,
+//                    response->axis_state,
+//                    response->procedure_result);
+//     } else {
+//         RCLCPP_WARN(this->get_logger(),
+//                    "ODrive axis state サービス呼び出しがタイムアウトしました");
+//     }
+// }
 
 
 }  // namespace chassis_driver

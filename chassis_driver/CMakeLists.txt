@@ -6,60 +6,22 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 endif()
 
 # find dependencies
-find_package(ament_cmake REQUIRED)
-find_package(ament_cmake_ros REQUIRED)
-find_package(rclcpp REQUIRED)
-find_package(std_msgs REQUIRED)
-find_package(geometry_msgs REQUIRED)
-find_package(socketcan_interface_msg REQUIRED)
-find_package(utilities REQUIRED)
+find_package(ament_cmake_auto REQUIRED)
+ament_auto_find_build_dependencies()
 
-add_library(chassis_driver_node src/chassis_driver_node.cpp)
+ament_auto_add_library(chassis_driver_node
+  src/chassis_driver_node.cpp
+  src/velplanner.cpp)
 target_compile_features(chassis_driver_node PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
-target_include_directories(chassis_driver_node PUBLIC
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  $<INSTALL_INTERFACE:include>)
-ament_target_dependencies(chassis_driver_node
-  rclcpp
-  std_msgs
-  geometry_msgs
-  socketcan_interface_msg
-  utilities
-)
 
 # 実行可能ノード
-add_executable(debug_printer
+ament_auto_add_executable(debug_printer
   src/debug_printer.cpp
-)
-target_include_directories(debug_printer PUBLIC
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  $<INSTALL_INTERFACE:include>
-)
-ament_target_dependencies(debug_printer
-  rclcpp
-  socketcan_interface_msg
-  utilities
 )
 
 # Causes the visibility macros to use dllexport rather than dllimport,
 # which is appropriate when building the dll but not consuming it.
 target_compile_definitions(chassis_driver_node PRIVATE "CHASSIS_DRIVER_BUILDING_LIBRARY")
-
-install(
-  DIRECTORY include/
-  DESTINATION include
-)
-install(
-  TARGETS chassis_driver_node
-  EXPORT export_${PROJECT_NAME}
-  ARCHIVE DESTINATION lib
-  LIBRARY DESTINATION lib
-  RUNTIME DESTINATION bin
-)
-install(
-  TARGETS debug_printer
-  DESTINATION lib/${PROJECT_NAME}
-)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
@@ -73,22 +35,4 @@ if(BUILD_TESTING)
   ament_lint_auto_find_test_dependencies()
 endif()
 
-ament_export_include_directories(
-  include
-)
-ament_export_libraries(
-  chassis_driver_node
-)
-ament_export_targets(
-  export_${PROJECT_NAME}
-)
-
-ament_export_dependencies(
-  rclcpp
-  std_msgs
-  geometry_msgs
-  socketcan_interface_msg
-  utilities
-)
-
-ament_package()
+ament_auto_package()

@@ -6,8 +6,10 @@
 #include <std_msgs/msg/empty.hpp>
 #include <std_msgs/msg/float64.hpp>
 #include "socketcan_interface_msg/msg/socketcan_if.hpp"
-#include "utilities/velplanner.hpp"
-#include "utilities/position_pid.hpp"
+#include "base/velplanner.hpp"
+#include "base/position_pid.hpp"
+#include "odrive_can/msg/control_message.hpp"
+#include "odrive_can/srv/axis_state.hpp"
 
 #include "chassis_driver/visibility_control.h"
 
@@ -36,9 +38,12 @@ private:
     void _subscriber_callback_emergency(const socketcan_interface_msg::msg::SocketcanIF::SharedPtr msg);
     void _publisher_callback();
     void send_rpm(const double linear_vel, const double u_delta);
+    // void call_axis_state_service(uint32_t axis_requested_state);
 
     rclcpp::Publisher<socketcan_interface_msg::msg::SocketcanIF>::SharedPtr publisher_can;
     rclcpp::Publisher<geometry_msgs::msg::TwistStamped>::SharedPtr publisher_ref_vel;
+
+    rclcpp::Client<odrive_can::srv::AxisState>::SharedPtr axis_state_client_;
 
     rclcpp::QoS _qos = rclcpp::QoS(10);
 
