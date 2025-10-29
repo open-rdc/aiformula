@@ -3,7 +3,6 @@
 #include <opencv2/opencv.hpp>
 #include <vector>
 #include <Eigen/Dense>
-#include <random>
 #include <algorithm>
 #include <numeric>
 #include <limits>
@@ -33,17 +32,12 @@ struct FittedCurve {
 
 class CubicCurveFitter {
 public:
-    explicit CubicCurveFitter(double inlier_threshold = 0.1,
-                             int max_iterations = 20,
-                             int min_points_for_model = 4)
-        : inlier_threshold_(inlier_threshold),
-          max_iterations_(max_iterations),
-          min_points_for_model_(min_points_for_model),
-          rng_(std::random_device{}()) {}
+    explicit CubicCurveFitter(int min_points_for_model = 4)
+        : min_points_for_model_(min_points_for_model) {}
 
     ~CubicCurveFitter() = default;
 
-    // RANSAC-based cubic curve fitting for 3D points
+    // Least squares cubic curve fitting for 3D points
     FittedCurve fitCubicCurve(const std::vector<Eigen::Vector3d>& points) const;
 
     // Generate uniformly spaced points along the fitted curve
@@ -52,20 +46,13 @@ public:
                                                        double interval = 0.5) const;
 
 private:
-    double inlier_threshold_;
-    int max_iterations_;
     int min_points_for_model_;
-    mutable std::mt19937 rng_;
 
-    // Fit cubic curve to exactly 4 points using least squares
+    // Fit cubic curve using least squares
     CubicCurveCoefficients fitCubicToPoints(const std::vector<Eigen::Vector3d>& points) const;
 
-    // Calculate distance from point to curve
+    // Calculate distance from point to curve (for score calculation)
     double pointToCurveDistance(const Eigen::Vector3d& point, const CubicCurveCoefficients& curve) const;
-
-    // Count inliers for given curve
-    std::vector<Eigen::Vector3d> getInliers(const std::vector<Eigen::Vector3d>& points,
-                                           const CubicCurveCoefficients& curve) const;
 };
 
 }  // namespace yolopnav

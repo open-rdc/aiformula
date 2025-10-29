@@ -4,7 +4,7 @@
 
 namespace yolopnav {
 
-// 最小二乗法による3次曲線フィッティング（外れ値除外付き）
+// 最小二乗法による3次曲線フィッティング
 FittedCurve CubicCurveFitter::fitCubicCurve(const std::vector<Eigen::Vector3d>& points) const {
     FittedCurve result;
 
@@ -12,24 +12,18 @@ FittedCurve CubicCurveFitter::fitCubicCurve(const std::vector<Eigen::Vector3d>& 
         return result;
     }
 
-    CubicCurveCoefficients initial_curve = fitCubicToPoints(points);
-    std::vector<Eigen::Vector3d> inliers = getInliers(points, initial_curve);
-    if (inliers.size() < static_cast<size_t>(min_points_for_model_)) {
-        return result;
-    }
+    CubicCurveCoefficients curve = fitCubicToPoints(points);
 
-    // 再フィッティング: 外れ値除外後の点群で再度3次曲線をフィッティング
-    CubicCurveCoefficients refined_curve = fitCubicToPoints(inliers);
+    result.coefficients = curve;
+    result.inlier_points = points;
+    result.num_inliers = points.size();
 
-    result.coefficients = refined_curve;
-    result.inlier_points = inliers;
-    result.num_inliers = inliers.size();
-
+    // スコア計算
     double total_error = 0.0;
-    for (const auto& point : inliers) {
-        total_error += std::pow(pointToCurveDistance(point, refined_curve), 2);
+    for (const auto& point : points) {
+        total_error += std::pow(pointToCurveDistance(point, curve), 2);
     }
-    result.score = total_error / inliers.size();
+    result.score = total_error / points.size();
 
     return result;
 }
@@ -66,19 +60,6 @@ double CubicCurveFitter::pointToCurveDistance(const Eigen::Vector3d& point,
 
     // 垂直方向の距離（y方向の差）
     return std::abs(y - curve_y);
-}
-
-std::vector<Eigen::Vector3d> CubicCurveFitter::getInliers(const std::vector<Eigen::Vector3d>& points,
-                                                          const CubicCurveCoefficients& curve) const {
-    std::vector<Eigen::Vector3d> inliers;
-
-    for (const auto& point : points) {
-        if (pointToCurveDistance(point, curve) < inlier_threshold_) {
-            inliers.push_back(point);
-        }
-    }
-
-    return inliers;
 }
 
 std::vector<Eigen::Vector3d> CubicCurveFitter::generateUniformPoints(const FittedCurve& curve,

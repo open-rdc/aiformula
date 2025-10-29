@@ -3,13 +3,21 @@
 
 namespace yolopnav {
 
+LanePixelToPoint::LanePixelToPoint() {
+    // Pre-compute camera matrix and its inverse once in constructor
+    cv::Mat camera_matrix = cv::Mat::eye(3, 3, CV_32F);
+    camera_matrix.at<float>(0, 0) = CameraIntrinsics::fx;
+    camera_matrix.at<float>(1, 1) = CameraIntrinsics::fy;
+    camera_matrix.at<float>(0, 2) = CameraIntrinsics::cx;
+    camera_matrix.at<float>(1, 2) = CameraIntrinsics::cy;
+
+    inv_camera_matrix_ = camera_matrix.inv();
+}
+
 Eigen::Vector3d LanePixelToPoint::pixelToRobotPoint(const cv::Point& pixel) const {
-    cv::Mat camera_matrix = createCameraMatrix();
-    cv::Mat invert_camera_matrix = camera_matrix.inv();
-    
-    // Transform pixel to camera vector using inverse camera matrix
+    // Transform pixel to camera vector using pre-computed inverse camera matrix
     cv::Mat pixel_matrix = (cv::Mat_<float>(3, 1) << pixel.x, pixel.y, 1.0);
-    cv::Mat camera_vec_matrix = invert_camera_matrix * pixel_matrix;
+    cv::Mat camera_vec_matrix = inv_camera_matrix_ * pixel_matrix;
     
     double x_cam = camera_vec_matrix.at<float>(0, 0);
     double y_cam = camera_vec_matrix.at<float>(1, 0);
@@ -47,15 +55,6 @@ std::vector<Eigen::Vector3d> LanePixelToPoint::pixelsToRobotPoints(const std::ve
     }
     
     return robot_points;
-}
-
-cv::Mat LanePixelToPoint::createCameraMatrix() const {
-    cv::Mat camera_matrix = cv::Mat::eye(3, 3, CV_32F);
-    camera_matrix.at<float>(0, 0) = CameraIntrinsics::fx;
-    camera_matrix.at<float>(1, 1) = CameraIntrinsics::fy;
-    camera_matrix.at<float>(0, 2) = CameraIntrinsics::cx;
-    camera_matrix.at<float>(1, 2) = CameraIntrinsics::cy;
-    return camera_matrix;
 }
 
 }  // namespace yolopnav

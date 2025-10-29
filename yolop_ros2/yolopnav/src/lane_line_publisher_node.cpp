@@ -6,13 +6,13 @@ namespace yolopnav {
 LaneLinePublisher::LaneLinePublisher(const rclcpp::NodeOptions& options) 
     : LaneLinePublisher("", options) {}
 
-LaneLinePublisher::LaneLinePublisher(const std::string& name_space, const rclcpp::NodeOptions& options) 
+LaneLinePublisher::LaneLinePublisher(const std::string& name_space, const rclcpp::NodeOptions& options)
     : Node("yolopnav_node", name_space, options),
       interval_ms_(get_parameter("interval_ms").as_int()) {
-    
-    lane_pixel_finder_ = std::make_unique<LanePixelFinder>(50);
+
+    lane_pixel_finder_ = std::make_unique<LanePixelFinder>(10, 50);
     pixel_to_point_converter_ = std::make_unique<LanePixelToPoint>();
-    cubic_curve_fitter_ = std::make_unique<CubicCurveFitter>(0.1, 100, 4);
+    cubic_curve_fitter_ = std::make_unique<CubicCurveFitter>(4);  // min_points_for_model = 4
     kalman_manager_ = std::make_unique<LaneKalmanManager>();
     
     subscription_mask_ = this->create_subscription<sensor_msgs::msg::Image>(
@@ -80,9 +80,8 @@ void LaneLinePublisher::processLaneDetectionAndControl(const cv::Mat& mask_image
 
     // 3. 白線ピクセル抽出
     LaneLines lane_lines;
-    lane_pixel_finder_->searchMask(filtered_mask, lane_lines);    
-    cv::Mat debug_image = lane_pixel_finder_->visualizeLanePixels(filtered_mask, lane_lines);
-    
+    lane_pixel_finder_->searchMask(filtered_mask, lane_lines);
+
     // 4. 座標変換：ピクセル座標をロボット座標系に変換
     lane_lines.left.points = pixel_to_point_converter_->pixelsToRobotPoints(lane_lines.left.pixels);
     lane_lines.right.points = pixel_to_point_converter_->pixelsToRobotPoints(lane_lines.right.pixels);

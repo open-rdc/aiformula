@@ -3,9 +3,26 @@
 
 namespace yolopnav {
 
+void LanePixelFinder::denoiseMask(const cv::Mat& binary_mask, cv::Mat& denoised) const {
+    cv::Mat labels, stats, centroids;
+    static const int connectivity = 8;
+    const int num_labels = cv::connectedComponentsWithStats(
+        binary_mask, labels, stats, centroids, connectivity, CV_16U);
+
+    denoised = cv::Mat::zeros(binary_mask.size(), CV_8U);
+    for (int label = 1; label < num_labels; ++label) {
+        if (stats.at<int>(label, cv::CC_STAT_AREA) > min_area_) {
+            cv::bitwise_or(denoised, labels == label, denoised);
+        }
+    }
+}
+
 void LanePixelFinder::searchMask(const cv::Mat& binary_mask, LaneLines& lane_lines) const {
-    const auto cols = binary_mask.cols;
-    const auto rows = binary_mask.rows;
+    // Apply denoising to remove small isolated noise pixels
+    cv::Mat denoised;
+    denoiseMask(binary_mask, denoised);
+    const auto cols = denoised.cols;
+    const auto rows = denoised.rows;
 
     // Initializations.
     const int top = 0;
@@ -15,7 +32,7 @@ void LanePixelFinder::searchMask(const cv::Mat& binary_mask, LaneLines& lane_lin
     int center = (left + right) / 2;
 
     for (int row = bottom; row >= top; --row) {
-        const auto row_ptr = binary_mask.ptr<uchar>(row);
+        const auto row_ptr = denoised.ptr<uchar>(row);
         if (row_ptr[center]) break;
 
         bool found_left = false;

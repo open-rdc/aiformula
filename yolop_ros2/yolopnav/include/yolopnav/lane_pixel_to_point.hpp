@@ -21,14 +21,14 @@ struct CameraIntrinsics {
 
 class LanePixelToPoint {
 public:
-    LanePixelToPoint() = default;
+    LanePixelToPoint();
     ~LanePixelToPoint() = default;
-    
+
     Eigen::Vector3d pixelToRobotPoint(const cv::Point& pixel) const;
     std::vector<Eigen::Vector3d> pixelsToRobotPoints(const std::vector<cv::Point>& pixels) const;
-    
+
 private:
-    cv::Mat createCameraMatrix() const;
+    cv::Mat inv_camera_matrix_;  // Pre-computed inverse camera matrix
 };
 
 }  // namespace yolopnav
