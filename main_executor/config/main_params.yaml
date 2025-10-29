@@ -37,7 +37,9 @@ chassis_driver_node:
     reduction_ratio : 1.0
     reverse_left_flag : false
     reverse_right_flag : false
-    p_gain : 10.0
+    caster_max_count : 4096
+    caster_max_angle : 10.0 # [deg]ff
+    p_gain : 0.1
     i_gain : 0.0
     d_gain : 0.0
 

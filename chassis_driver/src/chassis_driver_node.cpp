@@ -21,6 +21,8 @@ wheelbase(get_parameter("wheelbase").as_double()),
 rotate_ratio(1.0 / get_parameter("reduction_ratio").as_double()),
 is_reverse_left(get_parameter("reverse_left_flag").as_bool()),
 is_reverse_right(get_parameter("reverse_right_flag").as_bool()),
+caster_max_count(get_parameter("caster_max_count").as_int()),
+caster_max_angle(dtor(get_parameter("caster_max_angle").as_double())),
 caster_pid(get_parameter("interval_ms").as_int()),
 
 linear_limit(DBL_MAX,
@@ -28,8 +30,8 @@ get_parameter("linear_max.vel").as_double(),
 get_parameter("linear_max.acc").as_double()),
 
 angular_limit(DBL_MAX,
-get_parameter("angular_max.vel").as_double(),
-get_parameter("angular_max.acc").as_double())
+dtor(get_parameter("angular_max.vel").as_double()),
+dtor(get_parameter("angular_max.acc").as_double()))
 {
     _subscription_vel = this->create_subscription<geometry_msgs::msg::Twist>(
         "cmd_vel",
@@ -58,9 +60,10 @@ get_parameter("angular_max.acc").as_double())
     );
     publisher_can = this->create_publisher<socketcan_interface_msg::msg::SocketcanIF>("can_tx", _qos);
     publisher_ref_vel = this->create_publisher<geometry_msgs::msg::TwistStamped>("ref_vel", _qos);
+    publisher_odrive = this->create_publisher<odrive_can::msg::ControlMessage>("/odrive_axis0/control_message", _qos);
 
     // ODriveのAxis Stateサービスクライアント作成
-    axis_state_client_ = this->create_client<odrive_can::srv::AxisState>("/odrive_axis0/request_axis_state");
+    odrive_axis_client_ = this->create_client<odrive_can::srv::AxisState>("/odrive_axis0/request_axis_state");
 
     _pub_timer = this->create_wall_timer(
         std::chrono::milliseconds(interval_ms),
@@ -74,7 +77,7 @@ get_parameter("angular_max.acc").as_double())
     // ODriveのAxis Stateをクローズドループに設定（axis_requested_state: 8）
     auto request = std::make_shared<odrive_can::srv::AxisState::Request>();
     request->axis_requested_state = 8;
-    auto future = axis_state_client_->async_send_request(request);
+    auto future = odrive_axis_client_->async_send_request(request);
 }
 
 void ChassisDriver::_subscriber_callback_vel(const geometry_msgs::msg::Twist::SharedPtr msg){
@@ -110,7 +113,18 @@ void ChassisDriver::_publisher_callback(){
         if(std::isnan(delta)) delta = 0.0;
     }
 
-    send_rpm(linear_vel, caster_pid.cycle(caster_orientation, delta));
+    const double motor_torque = caster_pid.cycle(caster_orientation, constrain(delta, -caster_max_angle, caster_max_angle));
+
+    send_rpm(linear_vel, angular_vel);
+
+    // ODriveにトルク指令を送信
+    auto msg_odrive_control = std::make_shared<odrive_can::msg::ControlMessage>();
+    msg_odrive_control->control_mode = 1;
+    msg_odrive_control->input_mode = 1;
+    msg_odrive_control->input_pos = 0.0;
+    msg_odrive_control->input_vel = 0.0;
+    msg_odrive_control->input_torque = motor_torque;
+    publisher_odrive->publish(*msg_odrive_control);
 
     // デバッグ用にロボットの目標速度指令値を出版
     auto msg_ref_vel = std::make_shared<geometry_msgs::msg::TwistStamped>();
@@ -139,9 +153,9 @@ void ChassisDriver::_subscriber_callback_caster(const socketcan_interface_msg::m
     uint8_t _candata[8];
     for(int i=0; i<msg->candlc; i++) _candata[i] = msg->candata[i];
 
-    const int value = static_cast<int64_t>(bytes_to_short(_candata));
-    caster_orientation = dtor(30.0)* (value-13) / 120.0;
-    // RCLCPP_INFO(this->get_logger(), "CAS:%f POT:%d", rtod(caster_orientation), value);
+    const int count = static_cast<int>(bytes_to_int16(_candata));
+    caster_orientation = count / static_cast<double>(caster_max_count) * 2.0 * d_pi;
+    // RCLCPP_INFO(this->get_logger(), "CAS:%f CNT:%d", rtod(caster_orientation), count);
 }
 void ChassisDriver::_subscriber_callback_emergency(const socketcan_interface_msg::msg::SocketcanIF::SharedPtr msg){
     uint8_t _candata[8];
@@ -153,11 +167,11 @@ void ChassisDriver::_subscriber_callback_emergency(const socketcan_interface_msg
     }
 }
 
-void ChassisDriver::send_rpm(const double linear_vel, const double u_delta){
+void ChassisDriver::send_rpm(const double linear_vel, const double angular_vel){
 
     // 駆動輪の目標角速度
-    const double left_vel = (-tread*u_delta + 2.0*linear_vel) / (2.0*wheel_radius);
-    const double right_vel = (tread*u_delta + 2.0*linear_vel) / (2.0*wheel_radius);
+    const double left_vel = (-tread*angular_vel + 2.0*linear_vel) / (2.0*wheel_radius);
+    const double right_vel = (tread*angular_vel + 2.0*linear_vel) / (2.0*wheel_radius);
 
     // rad/s -> rpm  &  回転方向制御
     const double left_rpm = (is_reverse_left ? -1 : 1) * (left_vel*30.0 / d_pi) * rotate_ratio;
@@ -170,50 +184,13 @@ void ChassisDriver::send_rpm(const double linear_vel, const double u_delta){
     msg_can->candlc = 8;
 
     uint8_t _candata[8];
-    int_to_bytes(_candata, static_cast<int>(right_rpm));
-    int_to_bytes(_candata+4, static_cast<int>(left_rpm));
+    int32_to_bytes(_candata, static_cast<int32_t>(right_rpm));
+    int32_to_bytes(_candata+4, static_cast<int32_t>(left_rpm));
 
     for(int i=0; i<msg_can->candlc; i++) msg_can->candata[i]=_candata[i];
     publisher_can->publish(*msg_can);
 
 }
-
-// void ChassisDriver::call_axis_state_service(uint32_t axis_requested_state) {
-//     // サービスが利用可能になるまで待機
-//     while (!axis_state_client_->wait_for_service(std::chrono::seconds(1))) {
-//         if (!rclcpp::ok()) {
-//             RCLCPP_ERROR(this->get_logger(), "サービス待機中に中断されました");
-//             return;
-//         }
-//         RCLCPP_INFO(this->get_logger(), "ODrive axis state サービスを待機中...");
-//     }
-
-//     // サービスリクエストを作成
-//     auto request = std::make_shared<odrive_can::srv::AxisState::Request>();
-//     request->axis_requested_state = axis_requested_state;
-
-//     // サービスを非同期で呼び出し
-//     auto future = axis_state_client_->async_send_request(request);
-
-//     // コールバック関数を使ってレスポンスを処理
-//     std::future_status status = future.wait_for(std::chrono::seconds(5));
-//     if (status == std::future_status::ready) {
-//         auto response = future.get();
-//         RCLCPP_INFO(this->get_logger(),
-//                    "ODrive axis state サービス呼び出し成功: "
-//                    "axis_requested_state = %u, "
-//                    "active_errors = %u, "
-//                    "axis_state = %u, "
-//                    "procedure_result = %u",
-//                    axis_requested_state,
-//                    response->active_errors,
-//                    response->axis_state,
-//                    response->procedure_result);
-//     } else {
-//         RCLCPP_WARN(this->get_logger(),
-//                    "ODrive axis state サービス呼び出しがタイムアウトしました");
-//     }
-// }
 
 
 }  // namespace chassis_driver

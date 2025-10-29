@@ -40,10 +40,10 @@ void DebugPrinter::_subscriber_callback_rpm_rx(const socketcan_interface_msg::ms
 
     auto msg_tx = std::make_shared<std_msgs::msg::Int64>();
 
-    const int left = msg_tx->data = static_cast<int64_t>(bytes_to_int(_candata));
+    const int left = msg_tx->data = static_cast<int>(bytes_to_int32(_candata));
     publisher_left_rpm_rx->publish(*msg_tx);
 
-    const int right = msg_tx->data = static_cast<int64_t>(bytes_to_int(_candata+4));
+    const int right = msg_tx->data = static_cast<int>(bytes_to_int32(_candata+4));
     publisher_right_rpm_rx->publish(*msg_tx);
 
     RCLCPP_DEBUG(this->get_logger(), "RPM RX   L:%d  R:%d", left, right);
@@ -55,10 +55,10 @@ void DebugPrinter::_subscriber_callback_can_tx(const socketcan_interface_msg::ms
 
         auto msg_tx = std::make_shared<std_msgs::msg::Int64>();
 
-        const int left = msg_tx->data = static_cast<int64_t>(bytes_to_int(_candata));
+        const int left = msg_tx->data = static_cast<int>(bytes_to_int32(_candata));
         publisher_left_rpm_tx->publish(*msg_tx);
 
-        const int right = msg_tx->data = static_cast<int64_t>(bytes_to_int(_candata+4));
+        const int right = msg_tx->data = static_cast<int>(bytes_to_int32(_candata+4));
         publisher_right_rpm_tx->publish(*msg_tx);
 
         RCLCPP_DEBUG(this->get_logger(), "RPM TX   L:%d  R:%d", left, right);
@@ -70,7 +70,7 @@ void DebugPrinter::_subscriber_callback_potentio(const socketcan_interface_msg::
     for(int i=0; i<msg->candlc; i++) _candata[i] = msg->candata[i];
 
     auto msg_tx = std::make_shared<std_msgs::msg::Int64>();
-    const int value = msg_tx->data = static_cast<int64_t>(bytes_to_short(_candata));
+    const int value = msg_tx->data = static_cast<int>(bytes_to_int16(_candata));
     publisher_potentio->publish(*msg_tx);
     RCLCPP_DEBUG(this->get_logger(), "POTENTIO:%d", value);
 }
