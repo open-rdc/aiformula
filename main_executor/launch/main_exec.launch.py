@@ -1,10 +1,11 @@
 import os
 import subprocess
 import yaml
+import sys
 import launch
 from launch import LaunchDescription
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.actions import DeclareLaunchArgument
+from launch.actions import DeclareLaunchArgument, ExecuteProcess
 from launch.substitutions import LaunchConfiguration
 from ament_index_python.packages import get_package_share_directory
 from launch_ros.actions import Node
@@ -62,6 +63,33 @@ def generate_launch_description():
             'vectornav.launch.py'])
     )
 
+    # road_detectorノードの作成
+    road_detector_node = Node(
+        package='road_detector',
+        executable='road_detector_node',
+        name='road_detector_node',
+        output='screen'
+    )
+
+    # traffic_cone_detectorノードの作成
+    # weightsのパスを取得
+    traffic_cone_detector_share = get_package_share_directory('traffic_cone_detector')
+    weights_path = os.path.join(traffic_cone_detector_share, 'weights', 'best.pt')
+
+    traffic_cone_detector_node = Node(
+        package='traffic_cone_detector',
+        executable='detect_camera_node',
+        name='detect_camera_node',
+        parameters=[{
+            'weights_path': weights_path,
+            'image_topic': '/zed/zed_node/rgb/image_rect_color',
+            'output_topic': '/obstacle_pixel',
+            'conf_thres': 0.25,
+            'iou_thres': 0.45
+        }],
+        output='screen'
+    )
+
     # 起動エンティティクラスの作成
     launch_discription = LaunchDescription()
 
@@ -70,6 +98,10 @@ def generate_launch_description():
         launch_discription.add_entity(joy_node)
     if(launch_params['vectornav'] is True):
         launch_discription.add_action(vectornav_launch)
+    if(launch_params['road_detector'] is True):
+        launch_discription.add_entity(road_detector_node)
+    if(launch_params['traffic_cone_detector'] is True):
+        launch_discription.add_entity(traffic_cone_detector_node)
 
     launch_discription.add_action(log_level_arg)
     launch_discription.add_action(sim_flag_arg)

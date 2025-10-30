@@ -2,6 +2,8 @@ launch: #起動パラメータ
   ros__parameters:
     joy: true
     vectornav : false
+    road_detector : true
+    traffic_cone_detector : false
     log_level : 10
 
 /**:  #ワイルドカード(ここのパラメータは全ノードから読める: <名前に注意>)
