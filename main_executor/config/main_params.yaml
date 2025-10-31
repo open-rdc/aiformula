@@ -1,6 +1,6 @@
 launch: #起動パラメータ
   ros__parameters:
-    joy: false
+    joy: true
     vectornav : false
     odrive : true
     log_level : 10
@@ -38,8 +38,9 @@ chassis_driver_node:
     reverse_left_flag : false
     reverse_right_flag : false
     caster_max_count : 4096
-    caster_max_angle : 10.0 # [deg]ff
-    p_gain : 0.1
+    caster_max_angle : 15.0 # [deg]ff
+    motor_max_torque : 1.0 # [Nm]
+    p_gain : 6.0
     i_gain : 0.0
     d_gain : 0.0
 
