@@ -3,8 +3,6 @@
 #include "socketcan_interface/socketcan_interface_node.hpp"
 #include "controller/controller_node.hpp"
 #include "chassis_driver/chassis_driver_node.hpp"
-#include "gnssnav/path_publisher_node.hpp"
-#include "gnssnav/follower_node.hpp"
 #include "yolopnav/lane_line_publisher_node.hpp"
 #include "obstacle_detector_ros2/obstacle_detector_node.hpp"
 
@@ -27,8 +25,6 @@ int main(int argc, char * argv[]){
     auto socketcan_node = std::make_shared<socketcan_interface::SocketcanInterface>(nodes_option);
     auto controller_node = std::make_shared<controller::Controller>(nodes_option);
     auto chassis_driver_node = std::make_shared<chassis_driver::ChassisDriver>(nodes_option);
-    auto path_publisher_node = std::make_shared<gnssnav::Publisher>(nodes_option);
-    auto follower_node = std::make_shared<gnssnav::Follower>(nodes_option);
     auto lane_line_node = std::make_shared<yolopnav::LaneLinePublisher>(nodes_option);
     auto obstacle_detector_node = std::make_shared<obstacle_detector_ros2::ObstacleDetectorNode>(nodes_option);
 
@@ -38,8 +34,6 @@ int main(int argc, char * argv[]){
     }
     exec.add_node(controller_node);
     exec.add_node(chassis_driver_node);
-    exec.add_node(path_publisher_node);
-    exec.add_node(follower_node);
     exec.add_node(lane_line_node);
     exec.add_node(obstacle_detector_node);
 

@@ -14,7 +14,6 @@
   <depend>socketcan_interface</depend>
   <depend>controller</depend>
   <depend>chassis_driver</depend>
-  <depend>gnssnav</depend>
   <depend>yolopnav</depend>
   <depend>obstacle_detector_ros2</depend>
 

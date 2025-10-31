@@ -4,8 +4,8 @@ import yaml
 import sys
 import launch
 from launch import LaunchDescription
-from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.actions import DeclareLaunchArgument, ExecuteProcess
+from launch.launch_description_sources import AnyLaunchDescriptionSource
+from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration
 from ament_index_python.packages import get_package_share_directory
 from launch_ros.actions import Node
@@ -58,9 +58,15 @@ def generate_launch_description():
 
     # vectornav起動の作成
     vectornav_launch = launch.actions.IncludeLaunchDescription(
-        PythonLaunchDescriptionSource([os.path.join(
+        AnyLaunchDescriptionSource([os.path.join(
             get_package_share_directory('vectornav'), 'launch/'),
             'vectornav.launch.py'])
+    )
+    # odrive起動の作成
+    odrive_launch = launch.actions.IncludeLaunchDescription(
+        AnyLaunchDescriptionSource([os.path.join(
+            get_package_share_directory('odrive_can'), 'launch/'),
+            'own_launch.yaml'])
     )
 
     # road_detectorノードの作成
@@ -102,6 +108,8 @@ def generate_launch_description():
         launch_discription.add_entity(road_detector_node)
     if(launch_params['traffic_cone_detector'] is True):
         launch_discription.add_entity(traffic_cone_detector_node)
+    if(launch_params['odrive'] is True):
+        launch_discription.add_action(odrive_launch)
 
     launch_discription.add_action(log_level_arg)
     launch_discription.add_action(sim_flag_arg)

@@ -7,3 +7,6 @@
 [submodule "socketcan_interface"]
 	path = socketcan_interface
 	url = https://github.com/hcmos/ros2-socketcan_interface
+[submodule "utilities"]
+	path = utilities
+	url = https://github.com/hcmos/ros2-utilities

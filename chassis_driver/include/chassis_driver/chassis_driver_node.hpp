@@ -6,8 +6,10 @@
 #include <std_msgs/msg/empty.hpp>
 #include <std_msgs/msg/float64.hpp>
 #include "socketcan_interface_msg/msg/socketcan_if.hpp"
-#include "utilities/velplanner.hpp"
-#include "utilities/position_pid.hpp"
+#include "base/velplanner.hpp"
+#include "base/position_pid.hpp"
+#include "odrive_can/msg/control_message.hpp"
+#include "odrive_can/srv/axis_state.hpp"
 
 #include "chassis_driver/visibility_control.h"
 
@@ -35,10 +37,13 @@ private:
     void _subscriber_callback_caster(const socketcan_interface_msg::msg::SocketcanIF::SharedPtr msg);
     void _subscriber_callback_emergency(const socketcan_interface_msg::msg::SocketcanIF::SharedPtr msg);
     void _publisher_callback();
-    void send_rpm(const double linear_vel, const double u_delta);
+    void send_rpm(const double linear_vel, const double angular_vel);
 
     rclcpp::Publisher<socketcan_interface_msg::msg::SocketcanIF>::SharedPtr publisher_can;
     rclcpp::Publisher<geometry_msgs::msg::TwistStamped>::SharedPtr publisher_ref_vel;
+    rclcpp::Publisher<odrive_can::msg::ControlMessage>::SharedPtr publisher_odrive;
+
+    rclcpp::Client<odrive_can::srv::AxisState>::SharedPtr odrive_axis_client_;
 
     rclcpp::QoS _qos = rclcpp::QoS(10);
 
@@ -60,6 +65,9 @@ private:
     const double rotate_ratio;
     const bool is_reverse_left;
     const bool is_reverse_right;
+    const int caster_max_count;
+    const double caster_max_angle;
+    const double motor_max_torque;
 
     // 変数
     double caster_orientation = 0.0;
