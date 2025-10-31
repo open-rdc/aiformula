@@ -23,6 +23,7 @@ is_reverse_left(get_parameter("reverse_left_flag").as_bool()),
 is_reverse_right(get_parameter("reverse_right_flag").as_bool()),
 caster_max_count(get_parameter("caster_max_count").as_int()),
 caster_max_angle(dtor(get_parameter("caster_max_angle").as_double())),
+motor_max_torque(get_parameter("motor_max_torque").as_double()),
 caster_pid(get_parameter("interval_ms").as_int()),
 
 linear_limit(DBL_MAX,
@@ -111,19 +112,28 @@ void ChassisDriver::_publisher_callback(){
     else{
         delta = std::asin((wheelbase*angular_vel) / linear_vel);
         if(std::isnan(delta)) delta = 0.0;
+        delta = constrain(delta, -caster_max_angle, caster_max_angle);
     }
 
-    const double motor_torque = caster_pid.cycle(caster_orientation, constrain(delta, -caster_max_angle, caster_max_angle));
+    // const double motor_torque = -1.0* constrain(caster_pid.cycle(caster_orientation, delta), -motor_max_torque, motor_max_torque);
+    double motor_pos = 0.0;
+    if(delta > dtor(1.0)){
+        motor_pos = -1.0 * (delta + dtor(5.0));
+    }
+    else if(delta < dtor(-1.0)){
+        motor_pos = -1.0 * (delta - dtor(5.0));
+    }
+    // RCLCPP_INFO(this->get_logger(), "DEL:%.2f POS:%.2f ENC:%.2f", rtod(delta), rtod(motor_pos), rtod(caster_orientation));
 
     send_rpm(linear_vel, angular_vel);
 
     // ODriveにトルク指令を送信
     auto msg_odrive_control = std::make_shared<odrive_can::msg::ControlMessage>();
-    msg_odrive_control->control_mode = 1;
+    msg_odrive_control->control_mode = 3;
     msg_odrive_control->input_mode = 1;
-    msg_odrive_control->input_pos = 0.0;
+    msg_odrive_control->input_pos = motor_pos;
     msg_odrive_control->input_vel = 0.0;
-    msg_odrive_control->input_torque = motor_torque;
+    msg_odrive_control->input_torque = 0.0;
     publisher_odrive->publish(*msg_odrive_control);
 
     // デバッグ用にロボットの目標速度指令値を出版

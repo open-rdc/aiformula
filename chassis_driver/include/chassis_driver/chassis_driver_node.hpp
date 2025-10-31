@@ -67,6 +67,7 @@ private:
     const bool is_reverse_right;
     const int caster_max_count;
     const double caster_max_angle;
+    const double motor_max_torque;
 
     // 変数
     double caster_orientation = 0.0;
