@@ -84,7 +84,6 @@
             <uri>package://simulator/models/ai_car1</uri>
             <pose>0.6 0.0 0 0 0 -1.5</pose>
         </include>
-
     <!-- 用調整 -->
 
         <spherical_coordinates>

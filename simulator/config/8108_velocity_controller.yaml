@@ -1,0 +1,27 @@
+controller_manager:
+  ros__parameters:
+    update_rate: 1000  # Hz
+
+    motor_velocity_controller:
+      type: joint_trajectory_controller/JointTrajectoryController
+
+    joint_state_broadcaster:
+      type: joint_state_broadcaster/JointStateBroadcaster
+
+
+motor_velocity_controller:
+  ros__parameters:
+    joints:
+      - motor_spin_joint
+    command_interfaces:
+      - velocity
+    state_interfaces:
+      - position
+      - velocity
+    gains:
+      slider_to_cart:
+        p: 100.0
+        i: 0.0
+        d: 0.0
+        i_clamp: 0.0
+        antiwindup: false

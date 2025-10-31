@@ -1,0 +1,61 @@
+<robot xmlns:xacro="http://ros.org/wiki/xacro">
+<xacro:macro name="wheels">
+
+  <!-- Left Wheel -->
+  <link name="left_wheel">
+    <visual>
+      <geometry>
+        <mesh filename="package://simulator/models/ai_car1/meshes/tire.dae"/>
+      </geometry>
+    </visual>
+    <inertial>
+      <mass value="7.0"/>
+    </inertial>
+  </link>
+
+  <joint name="left_wheel_joint" type="revolute">
+    <parent link="chassis"/>
+    <child link="left_wheel"/>
+    <origin xyz="0 -0.3 0" rpy="1.57 0 1.57"/>
+    <axis xyz="0 1 0"/>
+  </joint>
+
+  <!-- Right Wheel -->
+  <link name="right_wheel">
+    <visual>
+      <geometry>
+        <mesh filename="package://simulator/models/ai_car1/meshes/tire.dae"/>
+      </geometry>
+    </visual>
+    <inertial>
+      <mass value="7.0"/>
+    </inertial>
+  </link>
+
+  <joint name="right_wheel_joint" type="revolute">
+    <parent link="chassis"/>
+    <child link="right_wheel"/>
+    <origin xyz="0 0.3 0" rpy="1.57 0 1.57"/>
+    <axis xyz="0 1 0"/>
+  </joint>
+
+  <!-- Caster -->
+  <link name="caster_yaw"/>
+  <joint name="caster_yaw_wheel" type="revolute">
+    <parent link="chassis"/>
+    <child link="caster_yaw"/>
+    <origin xyz="0.8 0 0.25" rpy="0 0 -1.57"/>
+    <axis xyz="0 0 1"/>
+  </joint>
+
+  <link name="caster"/>
+  <joint name="caster_pitch_joint" type="revolute">
+    <parent link="caster_yaw"/>
+    <child link="caster"/>
+    <origin xyz="0.1 0 -0.25" rpy="0 0 1.57"/>
+    <axis xyz="0 1 0"/>
+  </joint>
+
+</xacro:macro>
+</robot>
+
