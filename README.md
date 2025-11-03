@@ -14,7 +14,7 @@ ros2 action send_goal /motor_effort_controller/follow_joint_trajectory   control
 
 - 動作
 
-[![Demo Video](https://img.youtube.com/vi/beOzV9o6poU/0.jpg)](https://youtu.be/beOzV9o6poU)
+[![Demo Video](https://img.youtube.com/vi/K8Np9CIyZ-Y/0.jpg)](https://youtu.be/K8Np9CIyZ-Y)
 
 ## 問題
 黄色パーツと赤色パーツの接触によって赤色パーツを動かそうとしているが, 貫通してしまう. 
