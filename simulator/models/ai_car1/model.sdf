@@ -17,7 +17,6 @@
       <odom_topic>odom</odom_topic>
     </plugin>
 
-
     <plugin
         filename="libignition-gazebo-imu-system.so"
         name="ignition::gazebo::systems::Imu">
@@ -101,6 +100,7 @@
     </link>
 
     <link name='motor_spin'>
+      <self_collide>true</self_collide>
       <pose relative_to="motor">0 0 0.022 0 0 0</pose>
       <inertial>
         <mass>7.0</mass>
@@ -223,6 +223,7 @@
     </frame>
 
     <link name='caster_yaw'>
+      <self_collide>true</self_collide>
       <pose relative_to='caster_frame'>0 0.1 0.25 0 0 -1.57</pose>
       <inertial>
         <mass>5.0</mass>
@@ -351,21 +352,9 @@
       </axis>
     </joint>
 
-    <joint name='caster_yaw_wheel' type='revolute'>
-      <parent>chassis</parent>
+    <joint name='caster_yaw_wheel' type='fixed'>
+      <parent>motor_spin</parent>
       <child>caster_yaw</child>
-      <axis>
-        <xyz expressed_in='__model__'>0 0 1</xyz>
-        <limit>
-          <lower>-0.26</lower>
-          <upper>0.26</upper>
-        </limit>
-        <dynamics>
-          <damping>10.0</damping>
-          <spring_stiffness>12.0</spring_stiffness>
-          <spring_reference>0.0</spring_reference>
-        </dynamics>
-      </axis>
     </joint>
 
     <joint name='caster_pitch_joint' type='revolute'>
@@ -508,6 +497,24 @@
       </sensor>
     </link>
 
-
+    <plugin
+      filename="libgz-sim-joint-position-controller-system"
+      name="gz::sim::systems::JointPositionController">
+      <joint_name>motor_spin_joint</joint_name>
+      <topic>motor_spin_angle</topic>
+      <p_gain>1</p_gain>
+      <i_gain>0.1</i_gain>
+      <d_gain>0.01</d_gain>
+      <i_max>1</i_max>
+      <i_min>-1</i_min>
+      <cmd_max>10</cmd_max>
+      <cmd_min>-10</cmd_min>
+    </plugin>
+    <plugin
+      filename="gz-sim-joint-state-publisher-system"
+      name="gz::sim::systems::JointStatePublisher">
+      <joint_name>motor_spin_joint</joint_name>
+      <topic>motor_spin_state</topic>
+    </plugin>
   </model>
 </sdf>
