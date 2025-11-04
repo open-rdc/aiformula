@@ -8,16 +8,12 @@ import cv2
 import torch
 import numpy as np
 import os
-from rclpy.qos import qos_profile_sensor_data
+from rclpy.qos import qos_profile_system_default, qos_profile_sensor_data
 from ament_index_python.packages import get_package_share_directory
 
 class InferenceNode(Node):
     def __init__(self) -> None:
         super().__init__('inference_node')
-
-        self.declare_parameter('model_name', 'model.pt')
-        self.declare_parameter('interval_ms', 100)
-
         model_path = self.get_parameter('model_name').value
         interval_ms = self.get_parameter('interval_ms').value
 
@@ -35,7 +31,7 @@ class InferenceNode(Node):
             self.model = None
 
         self.sub = self.create_subscription(Image, '/image_raw', self.image_callback, qos_profile_sensor_data)
-        self.pub = self.create_publisher(Path, 'e2e_planner/path', qos_profile_default=10)
+        self.pub = self.create_publisher(Path, 'e2e_planner/path', qos_profile_system_default)
         self.timer = self.create_timer(interval_ms / 1000.0, self.timer_callback)
 
     def preprocess_image(self, image: np.ndarray) -> torch.Tensor:

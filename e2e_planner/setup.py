@@ -20,7 +20,6 @@ setup(
     maintainer='kyo yamashita',
     maintainer_email='s21c1135sc@s.chibakoudai.jp',
     description='End-to-end learning path planner',
-    license='MIT',
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
