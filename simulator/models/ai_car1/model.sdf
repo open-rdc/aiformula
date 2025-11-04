@@ -1,6 +1,7 @@
 <?xml version="1.0" ?>
 <sdf version="1.5">
   <model name="ai_car1">
+  <self_collide>false</self_collide>	  
   <pose>0 0 0 0 0 0</pose>
 
   <!-- ignition plugin -->
@@ -29,6 +30,7 @@
     <!-- chassis -->
 
     <link name='chassis'>
+      <self_collide>false</self_collide>
       <pose relative_to='__model__'>0 0 0.15 0 0 3.14</pose>
 
       <inertial> <!--inertial properties of the link mass, inertia matix-->
@@ -65,6 +67,7 @@
     </link>
 
     <link name='motor'>
+      <self_collide>false</self_collide>
       <pose relative_to="chassis">0.7 0 0.33 0 0 0</pose>
       <inertial>
         <mass>7.0</mass>
@@ -130,20 +133,89 @@
           <emissive>0 0 0 1</emissive>       <!-- 発光なし -->
         </material>
       </visual>
-      <collision name='collision'>
+      <collision name="fork_left_collision">
+        <pose>-0.037 -0.01509 -0.005 0 0 0.261</pose>
         <geometry>
-        <pose>0 0 0 0 0 0</pose>
-          <mesh>
-            <uri>package://simulator/models/ai_car1/meshes/motor_spin.dae</uri>
-            <scale>0.001 0.001 0.001</scale>
-          </mesh>
+          <box>
+            <size>0.017 0.01 0.01</size>
+          </box>
         </geometry>
+        <surface>
+          <contact>
+            <ode>
+              <soft_cfm>0.002</soft_cfm>       <!-- 柔らかくして解法を安定化 -->
+              <soft_erp>0.7</soft_erp>
+              <max_vel>0.2</max_vel>           <!-- 接触応答をゆるくする -->
+              <min_depth>0.001</min_depth>
+            </ode>
+          </contact>
+          <friction>
+            <ode>
+              <mu>0.6</mu>
+              <mu2>0.6</mu2>
+            </ode>
+          </friction>
+        </surface>
+      </collision>
+
+      <!-- 🔸 右アーム -->
+      <collision name="fork_right_collision">
+        <pose>-0.037 0.01509 -0.005 0 0 -0.261</pose>
+        <geometry>
+          <box>
+            <size>0.017 0.01 0.01</size>
+          </box>
+        </geometry>
+        <surface>
+          <contact>
+            <ode>
+              <soft_cfm>0.002</soft_cfm>       <!-- 柔らかくして解法を安定化 -->
+              <soft_erp>0.7</soft_erp>
+              <max_vel>0.2</max_vel>           <!-- 接触応答をゆるくする -->
+              <min_depth>0.001</min_depth>
+            </ode>
+          </contact>
+          <friction>
+            <ode>
+              <mu>0.6</mu>
+              <mu2>0.6</mu2>
+            </ode>
+          </friction>
+        </surface>
+      </collision>
+
+      <!-- 🔸 背中（Uの底） -->
+      <collision name="fork_base_collision">
+        <pose>-0.0 0.0 -0.005 0 0 -0.261</pose>
+        <geometry>
+          <cylinder>
+            <radius>0.025</radius>
+            <length>0.005</length>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode>
+              <soft_cfm>0.002</soft_cfm>       <!-- 柔らかくして解法を安定化 -->
+              <soft_erp>0.7</soft_erp>
+              <max_vel>0.2</max_vel>           <!-- 接触応答をゆるくする -->
+              <min_depth>0.001</min_depth>
+            </ode>
+          </contact>
+          <friction>
+            <ode>
+              <mu>0.6</mu>
+              <mu2>0.6</mu2>
+            </ode>
+          </friction>
+        </surface>
       </collision>
     </link>
 
     <!-- left wheel -->
 
     <link name='left_wheel'>
+      <self_collide>false</self_collide>
       <pose relative_to="chassis">0 -0.3 0 1.57 0 1.57</pose>
       <inertial>
         <mass>7.0</mass>
@@ -181,6 +253,7 @@
     <!-- right wheel -->
 
     <link name='right_wheel'>
+      <self_collide>false</self_collide>
       <pose relative_to="chassis">0 0.3 0 1.57 0 1.57</pose> <!--angles are in radian-->
       <inertial>
         <mass>7.0</mass>
@@ -253,18 +326,88 @@
         </material>
       </visual>
 
-      <collision name='collision'>
+      <!-- 🔸 左アーム -->
+      <collision name="caster_left_collision">
+        <pose>-0.04 -0.0045 0.097 0 0 0.175</pose>
         <geometry>
-          <mesh>
-            <uri>package://simulator/models/ai_car1/meshes/castor_yaw.dae</uri>
-            <scale>0.001 0.001 0.001</scale>
-          </mesh>
+          <box>
+            <size>0.017 0.005 0.01</size>
+          </box>
         </geometry>
+        <surface>
+          <contact>
+            <ode>
+              <soft_cfm>0.002</soft_cfm>       <!-- 柔らかくして解法を安定化 -->
+              <soft_erp>0.7</soft_erp>
+              <max_vel>0.2</max_vel>           <!-- 接触応答をゆるくする -->
+              <min_depth>0.001</min_depth>
+            </ode>
+          </contact>
+          <friction>
+            <ode>
+              <mu>0.6</mu>
+              <mu2>0.6</mu2>
+            </ode>
+          </friction>
+        </surface>
       </collision>
 
+      <!-- 🔸 右アーム -->
+      <collision name="caster_right_collision">
+        <pose>-0.04 0.0045 0.097 0 0 -0.175</pose>
+        <geometry>
+          <box>
+            <size>0.017 0.005 0.01</size>
+          </box>
+        </geometry>
+        <surface>
+          <contact>
+            <ode>
+              <soft_cfm>0.002</soft_cfm>       <!-- 柔らかくして解法を安定化 -->
+              <soft_erp>0.7</soft_erp>
+              <max_vel>0.2</max_vel>           <!-- 接触応答をゆるくする -->
+              <min_depth>0.001</min_depth>
+            </ode>
+          </contact>
+          <friction>
+            <ode>
+              <mu>0.6</mu>
+              <mu2>0.6</mu2>
+            </ode>
+          </friction>
+        </surface>
+      </collision>
+
+      <!-- 🔸 中心柱 -->
+      <collision name="caster_center_collision">
+        <pose>0 0 0.05 0 0 -0.261</pose>
+        <geometry>
+          <cylinder>
+            <radius>0.01</radius>
+            <length>0.1</length>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode>
+              <soft_cfm>0.002</soft_cfm>       <!-- 柔らかくして解法を安定化 -->
+              <soft_erp>0.7</soft_erp>
+              <max_vel>0.2</max_vel>           <!-- 接触応答をゆるくする -->
+              <min_depth>0.001</min_depth>
+            </ode>
+          </contact>
+          <friction>
+            <ode>
+              <mu>0.6</mu>
+              <mu2>0.6</mu2>
+            </ode>
+          </friction>
+        </surface>
+      </collision>
     </link>
 
     <link name='caster'>
+      <self_collide>false</self_collide>
       <pose relative_to='caster_yaw'>0.1 0 -0.25 0 0 1.57</pose>
       <inertial>
         <mass>1.0</mass>
@@ -352,9 +495,21 @@
       </axis>
     </joint>
 
-    <joint name='caster_yaw_wheel' type='fixed'>
-      <parent>motor_spin</parent>
+    <joint name='caster_yaw_wheel' type='revolute'>
+      <parent>chassis</parent>
       <child>caster_yaw</child>
+      <axis>
+        <xyz expressed_in='__model__'>0 0 1</xyz>
+        <limit>
+          <lower>-0.26</lower>
+          <upper>0.26</upper>
+        </limit>
+        <dynamics>
+          <damping>10.0</damping>
+          <spring_stiffness>12.0</spring_stiffness>
+          <spring_reference>0.0</spring_reference>
+        </dynamics>
+      </axis>
     </joint>
 
     <joint name='caster_pitch_joint' type='revolute'>
