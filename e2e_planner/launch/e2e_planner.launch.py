@@ -10,7 +10,7 @@ def generate_launch_description():
             name='inference_node',
             output='screen',
             parameters=[{
-                'model_name': 'model.pt',
+                'model_name': 'e2e_model.pt',
                 'interval_ms': 100,
             }]
         )

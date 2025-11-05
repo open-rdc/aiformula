@@ -14,6 +14,10 @@ from ament_index_python.packages import get_package_share_directory
 class InferenceNode(Node):
     def __init__(self) -> None:
         super().__init__('inference_node')
+
+        self.declare_parameter('model_name', 'model.pt')
+        self.declare_parameter('interval_ms', 100)
+
         model_path = self.get_parameter('model_name').value
         interval_ms = self.get_parameter('interval_ms').value
 
@@ -23,8 +27,8 @@ class InferenceNode(Node):
 
         package_share_directory = get_package_share_directory('e2e_planner')
         weight_path = os.path.join(package_share_directory, 'weights', model_path)
-        if weight_path.exists():
-            self.model = torch.jit.load(str(weight_path), map_location=self.device)
+        if os.path.exists(weight_path):
+            self.model = torch.jit.load(weight_path, map_location=self.device)
             self.model.eval()
         else:
             self.get_logger().warn(f'Model file not found: {weight_path}')
