@@ -11,6 +11,7 @@ import csv
 from pathlib import Path
 import numpy as np
 from typing import Tuple
+from tqdm import tqdm
 from schedulefree import RAdamScheduleFree
 from network import Network
 
@@ -37,11 +38,9 @@ class E2EDataset(Dataset):
         image = image.astype(np.float32) / 255.0
         image = torch.from_numpy(image).permute(2, 0, 1)
 
-        waypoints = []
         with open(csv_file, 'r') as f:
             reader = csv.DictReader(f)
-            for row in reader:
-                waypoints.append([float(row['x']), float(row['y'])])
+            waypoints = [[float(row['x']), float(row['y'])] for row in reader]
 
         waypoints_tensor = torch.tensor(waypoints, dtype=torch.float32).flatten()
 
@@ -65,7 +64,7 @@ class Config:
 
         self.logs_dir = package_root / 'runs'
 
-        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        self.device = torch.device('cuda')
 
 class Trainer:
     def __init__(self, dataset_path: Path, config: Config):
@@ -92,8 +91,7 @@ class Trainer:
 
         self.model = Network(num_waypoints=NUM_WAYPOINTS).to(self.device)
         self.optimizer = RAdamScheduleFree(self.model.parameters(), lr=config.learning_rate)
-        self.criterion = nn.MSELoss()
-
+        self.mseloss = nn.MSELoss()
         self.writer = SummaryWriter(log_dir=str(config.logs_dir))
 
         self.best_val_loss = float('inf')
@@ -106,17 +104,19 @@ class Trainer:
         self.optimizer.train()
         total_loss = 0.0
 
-        for images, waypoints in self.train_loader:
+        pbar = tqdm(self.train_loader, desc=f'Epoch {epoch} [Train]')
+        for images, waypoints in pbar:
             images = images.to(self.device)
             waypoints = waypoints.to(self.device)
 
             self.optimizer.zero_grad()
             outputs = self.model(images)
-            loss = self.criterion(outputs, waypoints)
+            loss = self.mseloss(outputs, waypoints)
             loss.backward()
             self.optimizer.step()
 
             total_loss += loss.item()
+            pbar.set_postfix({'loss': f'{loss.item():.6f}'})
 
         return total_loss / len(self.train_loader)
 
@@ -126,14 +126,16 @@ class Trainer:
         total_loss = 0.0
 
         with torch.no_grad():
-            for images, waypoints in self.val_loader:
+            pbar = tqdm(self.val_loader, desc='Validation')
+            for images, waypoints in pbar:
                 images = images.to(self.device)
                 waypoints = waypoints.to(self.device)
 
                 outputs = self.model(images)
-                loss = self.criterion(outputs, waypoints)
+                loss = self.mseloss(outputs, waypoints)
 
                 total_loss += loss.item()
+                pbar.set_postfix({'loss': f'{loss.item():.6f}'})
 
         self.optimizer.train()
         return total_loss / len(self.val_loader)
