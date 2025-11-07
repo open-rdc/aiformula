@@ -83,7 +83,19 @@
         <include>
 		<uri>package://simulator/models/ai_car1</uri>
             <pose>0.6 0.0 0 0 0 -1.5</pose>
+	    <name>ai_car1</name>
         </include>
+	<include>
+		<uri>package://simulator/models/ai_car1/motor_spin</uri>
+		<pose>0.6 0 0 0 0 -1.5</pose>
+		<name>motor_control</name>
+        </include>
+
+        <!-- 🔸 モデル間固定ジョイント -->
+        <joint name="joint_ai_car1_motor" type="fixed">
+          <parent>ai_car1::chassis</parent>
+	  <child>motor_control::motor</child>
+        </joint>
     <!-- 用調整 -->
 
         <spherical_coordinates>

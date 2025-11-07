@@ -16,14 +16,15 @@ ros2 topic pub /motor_spin_angle std_msgs/msg/Float64 "data: 司令角度"
 
 [![Demo Video](https://img.youtube.com/vi/o7riwcc6SNo/0.jpg)](https://youtu.be/o7riwcc6SNo)
 
-## 問題
-<self_collide>タグがtrueのときとfalseのときのモデルの走行速度が変化してしまう. 以下がその様子である. 
+- 新従動輪のモータ制御及びモータによる走行中の方向転換
 
+[![Demo_video](https://img.youtube.com/vi/7gYfWRK6dkg/0.jpg)](https://youtu.be/7gYfWRK6dkg) 
+
+- 走行速度の問題は解決した
 - <self_collide>false</self_collide>のとき
 
-[![Demo Video](https://img.youtube.com/vi/FSPZuZA8ILo/0.jpg)](https://youtu.be/FSPZuZA8ILo)
+[![Demo Video](https://img.youtube.com/vi/dlR26O8A4JA/0.jpg)](https://youtu.be/dlR26O8A4JA)
 
-- <self_collide>false</self_collide>のとき
+- <self_collide>true</self_collide>のとき
 
-[![Demo Video](https://img.youtube.com/vi/vYH0yDb1K1o/0.jpg)](https://youtu.be/vYH0yDb1K1o)
-
+[![Demo Video](https://img.youtube.com/vi/I8MrG4bpj240.jpg)](https://youtu.be/I8MrG4bpj24)

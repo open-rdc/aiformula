@@ -1,7 +1,7 @@
 <?xml version="1.0" ?>
 <sdf version="1.5">
   <model name="ai_car1">
-  <self_collide>true</self_collide>	  
+  <self_collide>1</self_collide>
   <pose>0 0 0 0 0 0</pose>
 
   <!-- ignition plugin -->
@@ -17,7 +17,6 @@
       <topic>cmd_vel</topic>
       <odom_topic>odom</odom_topic>
     </plugin>
-
     <plugin
         filename="libignition-gazebo-imu-system.so"
         name="ignition::gazebo::systems::Imu">
@@ -30,7 +29,6 @@
     <!-- chassis -->
 
     <link name='chassis'>
-      <self_collide>false</self_collide>
       <pose relative_to='__model__'>0 0 0.15 0 0 3.14</pose>
 
       <inertial> <!--inertial properties of the link mass, inertia matix-->
@@ -56,7 +54,7 @@
       </visual>
 
       <collision name='collision'>
-        <pose>0 0 0 0 0 3.14</pose>
+        <pose>0 0 0 0 0 0</pose>
         <geometry>
         <pose>0 0 0 0 0 3.14</pose>
           <mesh>
@@ -67,10 +65,9 @@
     </link>
 
     <link name='motor'>
-      <self_collide>false</self_collide>
       <pose relative_to="chassis">0.7 0 0.33 0 0 0</pose>
       <inertial>
-        <mass>7.0</mass>
+        <mass>1.0</mass>
         <inertia>
           <ixx>0.04778</ixx>
           <ixy>0</ixy>
@@ -103,10 +100,9 @@
     </link>
 
     <link name='motor_spin'>
-      <self_collide>true</self_collide>
       <pose relative_to="motor">0 0 0.022 0 0 0</pose>
       <inertial>
-        <mass>7.0</mass>
+        <mass>0.5</mass>
         <inertia>
           <ixx>0.04778</ixx>
           <ixy>0</ixy>
@@ -140,11 +136,6 @@
             <size>0.017 0.01 0.01</size>
           </box>
         </geometry>
-        <surface>
-          <contact>
-            <collide_bitmask>0x01</collide_bitmask>
-          </contact>
-        </surface>
       </collision>
 
       <!-- 🔸 右アーム -->
@@ -155,11 +146,6 @@
             <size>0.017 0.01 0.01</size>
           </box>
         </geometry>
-        <surface>
-          <contact>
-            <collide_bitmask>0x01</collide_bitmask>
-          </contact>
-        </surface>
       </collision>
 
       <!-- 🔸 背中（Uの底） -->
@@ -171,18 +157,12 @@
             <length>0.005</length>
           </cylinder>
         </geometry>
-        <surface>
-          <contact>
-            <collide_bitmask>0x01</collide_bitmask>
-          </contact>
-        </surface>
       </collision>
     </link>
 
     <!-- left wheel -->
 
     <link name='left_wheel'>
-      <self_collide>false</self_collide>
       <pose relative_to="chassis">0 -0.3 0 1.57 0 1.57</pose>
       <inertial>
         <mass>7.0</mass>
@@ -220,7 +200,6 @@
     <!-- right wheel -->
 
     <link name='right_wheel'>
-      <self_collide>false</self_collide>
       <pose relative_to="chassis">0 0.3 0 1.57 0 1.57</pose> <!--angles are in radian-->
       <inertial>
         <mass>7.0</mass>
@@ -263,10 +242,9 @@
     </frame>
 
     <link name='caster_yaw'>
-      <self_collide>true</self_collide>
       <pose relative_to='caster_frame'>0 0.1 0.25 0 0 -1.57</pose>
       <inertial>
-        <mass>5.0</mass>
+        <mass>0.7</mass>
         <inertia>
           <ixx>0.001</ixx>
           <ixy>0</ixy>
@@ -301,11 +279,6 @@
             <size>0.017 0.005 0.01</size>
           </box>
         </geometry>
-        <surface>
-          <contact>
-            <collide_bitmask>0x01</collide_bitmask>
-          </contact>
-        </surface>
       </collision>
 
       <!-- 🔸 右アーム -->
@@ -316,33 +289,22 @@
             <size>0.017 0.005 0.01</size>
           </box>
         </geometry>
-        <surface>
-          <contact>
-            <collide_bitmask>0x01</collide_bitmask>
-          </contact>
-        </surface>
       </collision>
 
       <!-- 🔸 中心柱 -->
       <collision name="caster_center_collision">
-        <pose>0 0 0.05 0 0 -0.261</pose>
+        <pose>0 0 0.0444 0 0 -0.261</pose>
         <geometry>
           <cylinder>
-            <radius>0.01</radius>
-            <length>0.1</length>
+            <radius>0.003</radius>
+            <length>0.09</length>
           </cylinder>
         </geometry>
-        <surface>
-          <contact>
-            <collide_bitmask>0x01</collide_bitmask>
-          </contact>
-        </surface>
       </collision>
     </link>
 
     <link name='caster'>
-      <self_collide>false</self_collide>
-      <pose relative_to='caster_yaw'>0.1 0 -0.25 0 0 1.57</pose>
+      <pose relative_to='caster_yaw'>0.15 0.0 -0.25 0 0 1.57</pose>
       <inertial>
         <mass>1.0</mass>
         <inertia>
@@ -397,7 +359,6 @@
         </dynamics>
       </axis>
     </joint>
-
 
     <joint name='left_wheel_joint' type='revolute'>
       <pose relative_to='left_wheel'/>
@@ -591,7 +552,7 @@
       name="gz::sim::systems::JointPositionController">
       <joint_name>motor_spin_joint</joint_name>
       <topic>motor_spin_angle</topic>
-      <p_gain>1</p_gain>
+      <p_gain>5</p_gain>
       <i_gain>0.1</i_gain>
       <d_gain>0.01</d_gain>
       <i_max>1</i_max>
@@ -605,5 +566,6 @@
       <joint_name>motor_spin_joint</joint_name>
       <topic>motor_spin_state</topic>
     </plugin>
+
   </model>
 </sdf>
