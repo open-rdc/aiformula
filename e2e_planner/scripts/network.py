@@ -20,6 +20,6 @@ class Network(nn.Module):
         x = self.relu(self.conv3(x))
         x = self.flatten(x)
         x = self.relu(self.fc1(x))
-        x = self.relu(self.fc2(x))
+        x = self.fc2(x)
 
         return x
