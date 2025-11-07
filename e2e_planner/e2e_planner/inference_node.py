@@ -10,6 +10,7 @@ import numpy as np
 import os
 from rclpy.qos import qos_profile_system_default, qos_profile_sensor_data
 from ament_index_python.packages import get_package_share_directory
+from scipy.interpolate import splprep, splev
 
 class InferenceNode(Node):
     def __init__(self) -> None:
@@ -34,7 +35,8 @@ class InferenceNode(Node):
             self.get_logger().warn(f'Model file not found: {weight_path}')
             self.model = None
 
-        self.sub = self.create_subscription(Image, '/image_raw', self.image_callback, qos_profile_sensor_data)
+        self.sub = self.create_subscription(Image, '/zed/zed_node/rgb/image_rect_color', self.image_callback, qos_profile_sensor_data)
+        self.pub_raw = self.create_publisher(Path, 'e2e_planner/path_raw', qos_profile_system_default)
         self.pub = self.create_publisher(Path, 'e2e_planner/path', qos_profile_system_default)
         self.timer = self.create_timer(interval_ms / 1000.0, self.timer_callback)
 
@@ -56,17 +58,41 @@ class InferenceNode(Node):
         with torch.no_grad():
             output = self.model(input_tensor)
 
-        path_msg = self.create_path_from_output(output, self.latest_image.header)
-        self.pub.publish(path_msg)
+        path_raw_msg = self.create_path_from_output(output, self.latest_image.header)
+        self.pub_raw.publish(path_raw_msg)
+
+        path_smooth_msg = self.apply_bspline_smoothing(output, self.latest_image.header)
+        self.pub.publish(path_smooth_msg)
+
+    def apply_bspline_smoothing(self, output: torch.Tensor, header) -> Path:
+        waypoints = output.cpu().numpy().reshape(-1, 2)
+        x = waypoints[:, 0]
+        y = waypoints[:, 1]
+
+        # s: smoothing factor（値が大きいほど滑らか、0だと補間）
+        # k: スプラインの次数（3次）
+        tck, u = splprep([x, y], s=0.1, k=3)
+        u_new = np.linspace(0, 1, 30)
+        x_smooth, y_smooth = splev(u_new, tck)
+
+        path_msg = Path()
+        path_msg.header = header
+        path_msg.header.frame_id = 'base_link'
+
+        path_msg.poses = [PoseStamped(header=path_msg.header, pose=Pose(position=Point(x=float(x_smooth[i]), y=float(y_smooth[i])))) for i in range(len(x_smooth))]
+
+        return path_msg
 
     def create_path_from_output(self, output: torch.Tensor, header) -> Path:
         path_msg = Path()
         path_msg.header = header
+        path_msg.header.frame_id = 'base_link'
         waypoints = output.cpu().numpy().reshape(-1, 2)
 
-        path_msg.poses = [PoseStamped(header=header, pose=Pose(position=Point(x=float(x), y=float(y)))) for x, y in waypoints]
+        path_msg.poses = [PoseStamped(header=path_msg.header, pose=Pose(position=Point(x=float(x), y=float(y)))) for x, y in waypoints]
 
         return path_msg
+
 
 def main(args=None) -> None:
     rclpy.init(args=args)

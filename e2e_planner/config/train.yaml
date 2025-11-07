@@ -1,5 +1,5 @@
 epochs: 100
-batch_size: 32
-learning_rate: 0.001
+batch_size: 8
+learning_rate: 0.00001
 num_workers: 4
 weight_file: "e2e_model.pt"
