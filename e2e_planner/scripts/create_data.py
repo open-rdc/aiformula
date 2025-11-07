@@ -2,7 +2,7 @@
 
 import rclpy
 from rclpy.node import Node
-from sensor_msgs.msg import Image
+from sensor_msgs.msg import Image, Joy
 from nav_msgs.msg import Odometry
 from cv_bridge import CvBridge
 import cv2
@@ -41,8 +41,12 @@ class DataCollectionNode(Node):
         self.collected_data: List[Tuple[np.ndarray, List[Tuple[float, float]]]] = []
         self.last_sample_time: Optional[float] = None
 
+        self.is_paused: bool = False
+        self.prev_button_state: int = 0
+
         self.create_subscription(Image, '/zed/zed_node/rgb/image_rect_color', self.image_callback, qos_profile_sensor_data)
         self.create_subscription(Odometry, '/zed/zed_node/odom', self.odom_callback, qos_profile_sensor_data)
+        self.create_subscription(Joy, '/joy', self.joy_callback, 10)
         self.create_timer(0.1, self.timer_callback)
 
         self.get_logger().info('⚪Create data started')
@@ -53,7 +57,24 @@ class DataCollectionNode(Node):
     def odom_callback(self, msg: Odometry) -> None:
         self.latest_odom = msg
 
+    def joy_callback(self, msg: Joy) -> None:
+        if len(msg.buttons) > 2:
+            current_button_state = msg.buttons[2]
+            if current_button_state == 1 and self.prev_button_state == 0:
+                self.is_paused = not self.is_paused
+                if self.is_paused:
+                    self.get_logger().info('⏸️ Data collection paused')
+                else:
+                    self.odom_history.clear()
+                    self.samples.clear()
+                    self.last_sample_time = None
+                    self.get_logger().info('▶️ Data collection resumed')
+            self.prev_button_state = current_button_state
+
     def timer_callback(self) -> None:
+        if self.is_paused:
+            return
+
         current_time = time.time()
 
         if self.latest_odom is not None:
