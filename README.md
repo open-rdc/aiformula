@@ -27,4 +27,4 @@ ros2 topic pub /motor_spin_angle std_msgs/msg/Float64 "data: 司令角度"
 
 - <self_collide>true</self_collide>のとき
 
-[![Demo Video](https://img.youtube.com/vi/I8MrG4bpj240.jpg)](https://youtu.be/I8MrG4bpj24)
+[![Demo Video](https://img.youtube.com/vi/I8MrG4bpj24/0.jpg)](https://youtu.be/I8MrG4bpj24)
