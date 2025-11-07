@@ -12,6 +12,12 @@ from rclpy.qos import qos_profile_system_default, qos_profile_sensor_data
 from ament_index_python.packages import get_package_share_directory
 from scipy.interpolate import splprep, splev
 
+def denormalize_waypoints(normalized: np.ndarray) -> np.ndarray:
+    denormalized = normalized.copy()
+    denormalized[0::2] = (normalized[0::2] + 1.0) * 5.0
+    denormalized[1::2] = (normalized[1::2] + 1.0) * 3.0 - 3.0
+    return denormalized
+
 class InferenceNode(Node):
     def __init__(self) -> None:
         super().__init__('inference_node')
@@ -58,10 +64,14 @@ class InferenceNode(Node):
         with torch.no_grad():
             output = self.model(input_tensor)
 
-        path_raw_msg = self.create_path_from_output(output, self.latest_image.header)
+        output_normalized = output.cpu().numpy().flatten()
+        output_denormalized = denormalize_waypoints(output_normalized)
+        output_denormalized_tensor = torch.from_numpy(output_denormalized).unsqueeze(0)
+
+        path_raw_msg = self.create_path_from_output(output_denormalized_tensor, self.latest_image.header)
         self.pub_raw.publish(path_raw_msg)
 
-        path_smooth_msg = self.apply_bspline_smoothing(output, self.latest_image.header)
+        path_smooth_msg = self.apply_bspline_smoothing(output_denormalized_tensor, self.latest_image.header)
         self.pub.publish(path_smooth_msg)
 
     def apply_bspline_smoothing(self, output: torch.Tensor, header) -> Path:

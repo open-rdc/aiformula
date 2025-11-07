@@ -19,6 +19,7 @@ IMAGE_WIDTH = 64
 IMAGE_HEIGHT = 48
 NUM_WAYPOINTS = 10
 
+
 class E2EDataset(Dataset):
     def __init__(self, dataset_path: Path):
         self.dataset_path = dataset_path
@@ -43,6 +44,8 @@ class E2EDataset(Dataset):
             waypoints = [[float(row['x']), float(row['y'])] for row in reader]
 
         waypoints_tensor = torch.tensor(waypoints, dtype=torch.float32).flatten()
+        waypoints_tensor[0::2] = waypoints_tensor[0::2] / 5.0 - 1.0  # x座標
+        waypoints_tensor[1::2] = (waypoints_tensor[1::2] + 3.0) / 3.0 - 1.0  # y座標
 
         return image, waypoints_tensor
 
@@ -99,27 +102,6 @@ class Trainer:
         print(f'Using device: {self.device}')
         print(f'Train size: {len(train_dataset)}, Val size: {len(val_dataset)}')
 
-    def train_epoch(self, epoch: int) -> float:
-        self.model.train()
-        self.optimizer.train()
-        total_loss = 0.0
-
-        pbar = tqdm(self.train_loader, desc=f'Epoch {epoch} [Train]')
-        for images, waypoints in pbar:
-            images = images.to(self.device)
-            waypoints = waypoints.to(self.device)
-
-            self.optimizer.zero_grad()
-            outputs = self.model(images)
-            loss = self.mseloss(outputs, waypoints)
-            loss.backward()
-            self.optimizer.step()
-
-            total_loss += loss.item()
-            pbar.set_postfix({'loss': f'{loss.item():.6f}'})
-
-        return total_loss / len(self.train_loader)
-
     def validate(self) -> float:
         self.model.eval()
         self.optimizer.eval()
@@ -132,8 +114,8 @@ class Trainer:
                 waypoints = waypoints.to(self.device)
 
                 outputs = self.model(images)
-                loss = self.mseloss(outputs, waypoints)
 
+                loss = self.mseloss(outputs, waypoints)
                 total_loss += loss.item()
                 pbar.set_postfix({'loss': f'{loss.item():.6f}'})
 
@@ -152,7 +134,26 @@ class Trainer:
 
     def train(self, epochs: int) -> None:
         for epoch in range(1, epochs + 1):
-            train_loss = self.train_epoch(epoch)
+            self.model.train()
+            self.optimizer.train()
+            total_train_loss = 0.0
+
+            pbar = tqdm(self.train_loader, desc=f'Epoch {epoch} [Train]')
+            for images, waypoints in pbar:
+                images = images.to(self.device)
+                waypoints = waypoints.to(self.device)
+
+                self.optimizer.zero_grad()
+                outputs = self.model(images)
+
+                loss = self.mseloss(outputs, waypoints)
+                loss.backward()
+                self.optimizer.step()
+
+                total_train_loss += loss.item()
+                pbar.set_postfix({'loss': f'{loss.item():.6f}'})
+
+            train_loss = total_train_loss / len(self.train_loader)
             val_loss = self.validate()
 
             self.writer.add_scalar('Loss/train', train_loss, epoch)
