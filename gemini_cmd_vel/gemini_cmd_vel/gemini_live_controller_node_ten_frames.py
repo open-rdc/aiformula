@@ -3,7 +3,6 @@ import json
 import os
 import threading
 from collections import deque
-from concurrent.futures import TimeoutError as FuturesTimeoutError
 from typing import Optional
 
 import cv2
@@ -18,44 +17,50 @@ from rclpy.node import Node
 from sensor_msgs.msg import Image
 
 
-class GeminiLiveControllerNode(Node):
-    """ROS2 node that uses the Gemini Live API to produce /cmd_vel commands from camera images."""
+class GeminiLiveControllerNodeTenFrames(Node):
+    """ROS2 node that mirrors the original controller but uploads 10 frames per Gemini request."""
+
+    _MAX_FRAME_COUNT = 10
+    _FRAME_INTERVAL_SEC = 0.5
 
     # ノード立ち上げ時にパラメータや通信、内部状態を設定する
     def __init__(self) -> None:
-        super().__init__('gemini_live_controller')
+        super().__init__('gemini_live_controller_ten_frames')
 
         default_api_key = os.environ.get('GEMINI_API_KEY', 'AIzaSyA2b0g4DkQjha7ig2zbmMrgtIl9s-MGFoI')
-        default_model = os.environ.get('GEMINI_MODEL', 'models/gemini-2.0-flash-live-001') #gemini-2.5-flash-live-preview
+        default_model = os.environ.get('GEMINI_MODEL', 'models/gemini-2.0-flash-live-001')
 
         self.declare_parameter('api_key', default_api_key)
         self.declare_parameter('model', default_model)
         self.declare_parameter('subscribe_topic', '/gemini/annotated_image')
         self.declare_parameter('publish_topic', '/cmd_vel')
         self.declare_parameter('request_interval_sec', 0.1)
-        self.declare_parameter('max_linear_speed', 2.4)
-        self.declare_parameter('max_angular_speed', 3.7)
+        self.declare_parameter('max_linear_speed', 1.0)
+        self.declare_parameter('max_angular_speed', 1.3)
         self.declare_parameter('control_period_sec', 0.1)
-        self.declare_parameter('max_linear_slew', 3.0)
-        self.declare_parameter('max_angular_slew', 6.5)
-        self.declare_parameter('min_linear_speed', 1.6)
-        self.declare_parameter('linear_gain', 1.2)
-        self.declare_parameter('angular_gain', 7.1)
+        self.declare_parameter('max_linear_slew', 1.3)
+        self.declare_parameter('max_angular_slew', 2.5)
+        self.declare_parameter('min_linear_speed', 0.5)
         self.declare_parameter('stop_on_failure', True)
         self.declare_parameter('failsafe_timeout_sec', 10.0)
         self.declare_parameter('allow_reverse', False)
-        self.declare_parameter('smoothing_window', 2)
+        self.declare_parameter('smoothing_window', 4)
         self.declare_parameter('response_timeout_sec', 12.0)
-        self.declare_parameter('history_lookback_sec', 2.0)
-        self.declare_parameter('history_second_lookback_sec', 4.0)
-        self.declare_parameter('use_history_frames', True)
         self.declare_parameter(
-            'base_prompt',
-            'Drive the simulated race car using the camera frame. Stay between the left solid white line and the center dashed line,'
-            ' favoring the left lane but never touching red/white boundaries or green runoff. '
-            'When you see a curve ahead, immediately reduce speed and begin turning in the direction of the curve to stay centered.'
-            ' Re-center and accelerate once aligned, then unwind steering. Avoid orange cones while remaining in lane.'
-            ' Respond ONLY with JSON {"linear_x": m/s, "angular_z": rad/s} within limits, forward-only, smooth, no narration.'
+            'base_prompt',                  #script 
+            'You control a simulated race car. Using the provided forward-facing camera image, '
+            'decide speed and steering to stay centered between the left solid white boundary and the center dashed lane line, '
+            'keeping the car within the left lane at all times without stopping. '
+            'Favor the left-hand side of the circuit, but avoid approaching or crossing the red-annotated white boundary lines. '
+            'If the car drifts right, steer smoothly back left to recenter. '
+            'When the lane curves, begin turning early, reduce speed before the turn, and accelerate again once realigned with the lane center. '
+            'After exiting a curve, quickly reduce steering toward zero to maintain a straight trajectory. '
+            'If an orange cone is detected, avoid it smoothly while remaining within the lane boundaries. '
+            'Avoid driving onto green surface areas; remain on the asphalt lane. '
+            'Respond ONLY with a JSON object containing "linear_x" (m/s) and "angular_z" (rad/s). '
+            'Positive angular_z turns left, and negative angular_z turns right.' 
+            'Keep values within the given limits, maintain smooth forward motion, '
+            'and avoid reversing or oscillating. Output only the JSON object, no narration or markdown.'      
         )
 
         self.api_key = self.get_parameter('api_key').value
@@ -69,19 +74,12 @@ class GeminiLiveControllerNode(Node):
         self.max_linear_slew = float(self.get_parameter('max_linear_slew').value)
         self.max_angular_slew = float(self.get_parameter('max_angular_slew').value)
         self.min_linear_speed = float(self.get_parameter('min_linear_speed').value)
-        self.linear_gain = max(0.0, float(self.get_parameter('linear_gain').value))
-        self.angular_gain = max(0.0, float(self.get_parameter('angular_gain').value))
         self.stop_on_failure = bool(self.get_parameter('stop_on_failure').value)
         self.failsafe_timeout = float(self.get_parameter('failsafe_timeout_sec').value)
         self.allow_reverse = bool(self.get_parameter('allow_reverse').value)
         self.smoothing_window = max(1, int(self.get_parameter('smoothing_window').value))
         self.base_prompt = self.get_parameter('base_prompt').value
         self.response_timeout = max(1.0, float(self.get_parameter('response_timeout_sec').value))
-        self.history_lookback = max(0.0, float(self.get_parameter('history_lookback_sec').value))
-        self.history_second_lookback = max(
-            0.0, float(self.get_parameter('history_second_lookback_sec').value)
-        )
-        self.use_history_frames = bool(self.get_parameter('use_history_frames').value)
         self._normalise_failsafe_timeout()
 
         self.bridge = CvBridge()
@@ -102,11 +100,9 @@ class GeminiLiveControllerNode(Node):
         self.add_on_set_parameters_callback(self._on_parameters_set)
 
         self._latest_image_jpeg: Optional[bytes] = None
-        self._frame_history: deque[tuple[float, bytes]] = deque(maxlen=240)
+        self._frame_history: deque[tuple[float, bytes]] = deque(maxlen=600)
         self._lock = threading.Lock()
         self._processing = False
-        self._pending_request_token: Optional[int] = None
-        self._pending_request_counter = 0
         self._key_warning_sent = False
         self._last_publish_time = self.get_clock().now()
         self._last_stop_reason: Optional[str] = None
@@ -117,16 +113,8 @@ class GeminiLiveControllerNode(Node):
         self._have_valid_target = False
         self._reset_target_history(Twist(), valid=False)
 
-        # Gemini Live API を扱うイベントループとセッションを常駐化する
-        self._async_loop = asyncio.new_event_loop()
-        self._async_thread = threading.Thread(
-            target=self._async_loop.run_forever, daemon=True
-        )
-        self._async_thread.start()
-        self._live_client: Optional[genai.Client] = None
-
         self.get_logger().info(
-            f'Started Gemini controller. Model={self.model} '
+            f'Started Gemini controller (10-frame). Model={self.model} '
             f'subscription={self.subscribe_topic} publication={self.publish_topic}'
         )
         self._publish_stop('initialised')
@@ -137,10 +125,8 @@ class GeminiLiveControllerNode(Node):
             if param.name == 'api_key':
                 self.api_key = param.value
                 self._key_warning_sent = False
-                self._schedule_live_client_reset()
             elif param.name == 'model':
                 self.model = param.value
-                self._schedule_live_client_reset()
             elif param.name == 'subscribe_topic':
                 self.subscribe_topic = param.value
             elif param.name == 'publish_topic':
@@ -173,10 +159,6 @@ class GeminiLiveControllerNode(Node):
             elif param.name == 'min_linear_speed':
                 self.min_linear_speed = float(param.value)
                 self._apply_limits_to_state()
-            elif param.name == 'linear_gain':
-                self.linear_gain = max(0.0, float(param.value))
-            elif param.name == 'angular_gain':
-                self.angular_gain = max(0.0, float(param.value))
             elif param.name == 'stop_on_failure':
                 self.stop_on_failure = bool(param.value)
                 if not self.stop_on_failure and self.failsafe_timer:
@@ -205,12 +187,6 @@ class GeminiLiveControllerNode(Node):
                 self._apply_limits_to_state()
             elif param.name == 'response_timeout_sec':
                 self.response_timeout = max(1.0, float(param.value))
-            elif param.name == 'history_lookback_sec':
-                self.history_lookback = max(0.0, float(param.value))
-            elif param.name == 'history_second_lookback_sec':
-                self.history_second_lookback = max(0.0, float(param.value))
-            elif param.name == 'use_history_frames':
-                self.use_history_frames = bool(param.value)
             elif param.name == 'base_prompt':
                 self.base_prompt = param.value
         return SetParametersResult(successful=True)
@@ -228,8 +204,8 @@ class GeminiLiveControllerNode(Node):
                 self._latest_image_jpeg = jpeg_bytes
                 timestamp = self.get_clock().now().nanoseconds * 1e-9
                 self._frame_history.append((timestamp, jpeg_bytes))
-                max_lookback = max(self.history_lookback, self.history_second_lookback)
-                retention = max(5.0, max_lookback * 3.0 + 1.0)
+                required_retention = self._FRAME_INTERVAL_SEC * (self._MAX_FRAME_COUNT - 1) + 1.0
+                retention = max(5.0, required_retention)
                 oldest_allowed = timestamp - retention
                 while self._frame_history and self._frame_history[0][0] < oldest_allowed:
                     self._frame_history.popleft()
@@ -247,8 +223,7 @@ class GeminiLiveControllerNode(Node):
     def _timer_callback(self) -> None:
         if not self._trigger_request():
             with self._lock:
-                self._pending_request_counter += 1
-                self._pending_request_token = self._pending_request_counter
+                self._request_pending = True
 
     # 実行中でない場合に非同期処理スレッドを起動する
     def _trigger_request(self) -> bool:
@@ -280,13 +255,9 @@ class GeminiLiveControllerNode(Node):
             model_id = self._normalize_model_name(self.model)
 
             try:
-                raw_text = self._run_live_interaction(prompt, frame_parts, model_id)
-            except FuturesTimeoutError:
-                self.get_logger().error(
-                    'Gemini live response future exceeded timeout while waiting on loop.'
+                raw_text = asyncio.run(
+                    self._run_live_interaction(prompt, frame_parts, model_id)
                 )
-                self._publish_stop('live timeout')
-                return
             except asyncio.TimeoutError:
                 self.get_logger().error(
                     f'Gemini live response timed out after {self.response_timeout:.1f}s.'
@@ -320,8 +291,8 @@ class GeminiLiveControllerNode(Node):
         finally:
             with self._lock:
                 self._processing = False
-                pending = self._pending_request_token is not None
-                self._pending_request_token = None
+                pending = self._request_pending
+                self._request_pending = False
             if pending:
                 self._trigger_request()
 
@@ -353,83 +324,70 @@ class GeminiLiveControllerNode(Node):
             )
         )
 
-    # 現在フレームと指定した過去フレームを選択しAPI送信用のPartを構築する
+    # 現在フレームに加えて直近のフレームを合計10枚まで選び、API送信用Partを構築する
     def _prepare_frame_parts(self) -> tuple[list[genai_types.Part], list[str]]:
         with self._lock:
             if not self._frame_history:
                 return ([], [])
             history_list = list(self._frame_history)
             current_timestamp, current_bytes = history_list[-1]
-            additional_requests: list[tuple[str, float]] = []
-            if self.use_history_frames:
-                if self.history_lookback > 0.0:
-                    additional_requests.append(('previous', self.history_lookback))
-                if self.history_second_lookback > 0.0:
-                    additional_requests.append(('earlier', self.history_second_lookback))
-
-            selected_frames: list[tuple[int, str, float, float, bytes]] = []
-            for idx, (label, lookback) in enumerate(additional_requests, start=2):
-                if len(history_list) < 2:
-                    break
-                target_time = current_timestamp - lookback
-                fallback_data: Optional[bytes] = None
-                fallback_ts: Optional[float] = None
-                chosen_data: Optional[bytes] = None
-                chosen_ts: Optional[float] = None
-                for ts, data in reversed(history_list[:-1]):
-                    if fallback_data is None:
-                        fallback_data = data
-                        fallback_ts = ts
-                    if ts <= target_time:
-                        chosen_data = data
-                        chosen_ts = ts
-                        break
-                if chosen_data is None:
-                    chosen_data = fallback_data
-                    chosen_ts = fallback_ts
-                if chosen_data is None or chosen_ts is None:
-                    continue
-                actual_delta = max(0.0, current_timestamp - chosen_ts)
-                selected_frames.append((idx, label, lookback, actual_delta, chosen_data))
+            history_candidates = history_list[:-1]
 
         parts: list[genai_types.Part] = [
             genai_types.Part(text='FRAME_1_CURRENT'),
             self._build_live_image_part(current_bytes),
         ]
         descriptors: list[str] = []
-        for idx, label, requested_lookback, actual_delta, data in selected_frames:
+        delta_pairs: list[str] = []
+
+        for idx, lookback in enumerate(
+            [i * self._FRAME_INTERVAL_SEC for i in range(1, self._MAX_FRAME_COUNT)], start=2
+        ):
+            if not history_candidates:
+                break
+
+            target_time = current_timestamp - lookback
+            chosen_ts: Optional[float] = None
+            chosen_data: Optional[bytes] = None
+
+            for ts, data in reversed(history_candidates):
+                if ts <= target_time:
+                    chosen_ts = ts
+                    chosen_data = data
+                    break
+
+            if chosen_data is None:
+                oldest = history_candidates[0]
+                chosen_ts, chosen_data = oldest
+
+            if chosen_data is None or chosen_ts is None or chosen_ts >= current_timestamp:
+                continue
+
+            actual_delta = max(0.0, current_timestamp - chosen_ts)
             label_token = (
-                f'FRAME_{idx}_{label.upper()}_REQUESTED_{requested_lookback:.1f}_S_ACTUAL_{actual_delta:.2f}_S'
+                f'FRAME_{idx}_HISTORY_REQUESTED_{lookback:.2f}_S_ACTUAL_{actual_delta:.2f}_S'
             )
-            parts.extend(
-                [
-                    genai_types.Part(text=label_token),
-                    self._build_live_image_part(data),
-                ]
-            )
+            parts.append(genai_types.Part(text=label_token))
+            parts.append(self._build_live_image_part(chosen_data))
             descriptors.append(
-                f'{idx}) {label} view from ≈{actual_delta:.2f} s earlier (requested {requested_lookback:.1f} s).'
+                f'{idx}) View from ≈{actual_delta:.2f} s earlier (requested {lookback:.2f} s).'
             )
+            delta_pairs.append(f'{lookback:.2f}->{actual_delta:.2f}')
+
+        history_count = len(parts) // 2 - 1
+        summary = ', '.join(delta_pairs) if delta_pairs else 'none'
+        self.get_logger().debug(
+            f'Prepared {len(parts) // 2} frames for Gemini (current + {history_count} history). '
+            f'Requested->actual deltas: {summary}'
+        )
 
         return parts, descriptors
 
     # Gemini Liveセッションを開いて応答テキストを受信する
-    def _run_live_interaction(
+    async def _run_live_interaction(
         self, prompt: str, frame_parts: list[genai_types.Part], model_id: str
     ) -> Optional[str]:
-        if not getattr(self, '_async_loop', None):
-            raise RuntimeError('Async loop is not available.')
-        future = asyncio.run_coroutine_threadsafe(
-            self._async_live_interaction(prompt, frame_parts, model_id),
-            self._async_loop,
-        )
-        timeout = max(0.1, self.response_timeout + 2.0)
-        return future.result(timeout=timeout)
-
-    async def _async_live_interaction(
-        self, prompt: str, frame_parts: list[genai_types.Part], model_id: str
-    ) -> Optional[str]:
-        client = self._ensure_live_client()
+        client = genai.Client(api_key=self.api_key, http_options={'api_version': 'v1beta'})
         config = {
             'responseModalities': ['TEXT'],
             'generationConfig': {
@@ -440,44 +398,25 @@ class GeminiLiveControllerNode(Node):
                 'responseMimeType': 'application/json',
             },
         }
-        session_context = client.aio.live.connect(model=model_id, config=config)
-        async with session_context as session:
-            content = genai_types.Content(role='user', parts=[genai_types.Part(text=prompt), *frame_parts])
-            await session.send_client_content(turns=[content], turn_complete=True)
 
-            async def _consume() -> str:
-                # ストリーミングされたテキスト断片を結合して最終応答に整形する
-                aggregated: list[str] = []
-                turn = session.receive()
-                async for response in turn:
-                    if response.text:
-                        aggregated.append(response.text)
-                return ''.join(aggregated).strip()
-
-            return await asyncio.wait_for(_consume(), timeout=self.response_timeout)
-
-    def _ensure_live_client(self) -> genai.Client:
-        if self._live_client is None:
-            self._live_client = genai.Client(api_key=self.api_key, http_options={'api_version': 'v1beta'})
-        return self._live_client
-
-    async def _close_live_client(self) -> None:
-        if self._live_client:
-            try:
-                await self._live_client.aio.aclose()
-            finally:
-                self._live_client.close()
-                self._live_client = None
-
-    def _schedule_live_client_reset(self) -> None:
-        loop = getattr(self, '_async_loop', None)
-        if not loop:
-            return
-        future = asyncio.run_coroutine_threadsafe(self._close_live_client(), loop)
         try:
-            future.result(timeout=5.0)
-        except Exception as exc:
-            self.get_logger().warn(f'Failed to reset Gemini live session: {exc}')
+            async with client.aio.live.connect(model=model_id, config=config) as session:
+                content = genai_types.Content(role='user', parts=[genai_types.Part(text=prompt), *frame_parts])
+                await session.send_client_content(turns=[content], turn_complete=True)
+
+                async def _consume() -> str:
+                    # ストリーミングされたテキスト断片を結合して最終応答に整形する
+                    aggregated: list[str] = []
+                    turn = session.receive()
+                    async for response in turn:
+                        if response.text:
+                            aggregated.append(response.text)
+                    return ''.join(aggregated).strip()
+
+                return await asyncio.wait_for(_consume(), timeout=self.response_timeout)
+        finally:
+            await client.aio.aclose()
+            client.close()
 
     # Geminiから返されたJSON文字列をTwist型へ変換する
     def _parse_twist(self, raw_text: str) -> Optional[Twist]:
@@ -497,23 +436,12 @@ class GeminiLiveControllerNode(Node):
             self.get_logger().warning(f'JSON parsing failed: {exc}. Raw={json_snippet}')
             return None
 
-        raw_linear = float(data.get('linear_x', 0.0))
-        raw_angular = float(data.get('angular_z', 0.0))
-        scaled_linear = raw_linear * self.linear_gain
-        scaled_angular = raw_angular * self.angular_gain
-        linear_x = scaled_linear
-        angular_z = scaled_angular
+        linear_x = float(data.get('linear_x', 0.0))
+        angular_z = float(data.get('angular_z', 0.0))
         if not self.allow_reverse and linear_x < 0.0:
             linear_x = 0.0
         linear_x = self._limit_linear(linear_x)
         angular_z = self._limit_angular(angular_z)
-
-        if self.linear_gain != 1.0 or self.angular_gain != 1.0:
-            self.get_logger().info(
-                'LLM cmd (raw→scaled→clipped) '
-                f'linear_x: {raw_linear:.3f} → {scaled_linear:.3f} → {linear_x:.3f}, '
-                f'angular_z: {raw_angular:.3f} → {scaled_angular:.3f} → {angular_z:.3f}'
-            )
 
         twist = Twist()
         twist.linear.x = linear_x
@@ -695,31 +623,10 @@ class GeminiLiveControllerNode(Node):
             limited_history.append((self._limit_linear(lin), self._limit_angular(ang)))
         self._target_history = limited_history
 
-    def destroy_node(self) -> None:
-        self._shutdown_async_components()
-        super().destroy_node()
-
-    def _shutdown_async_components(self) -> None:
-        loop = getattr(self, '_async_loop', None)
-        if not loop:
-            return
-        try:
-            future = asyncio.run_coroutine_threadsafe(self._close_live_client(), loop)
-            future.result(timeout=5.0)
-        except Exception as exc:
-            self.get_logger().warn(f'Error while shutting down Gemini client: {exc}')
-        finally:
-            loop.call_soon_threadsafe(loop.stop)
-            thread = getattr(self, '_async_thread', None)
-            if thread and thread.is_alive():
-                thread.join(timeout=5.0)
-            self._async_loop = None
-            self._async_thread = None
-
 # rclpyノードを起動するエントリーポイント
 def main(args=None) -> None:
     rclpy.init(args=args)
-    node = GeminiLiveControllerNode()
+    node = GeminiLiveControllerNodeTenFrames()
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:

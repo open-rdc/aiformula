@@ -7,6 +7,7 @@ from concurrent.futures import TimeoutError as FuturesTimeoutError
 from typing import Optional
 
 import cv2
+import numpy as np
 import rclpy
 from cv_bridge import CvBridge, CvBridgeError
 from geometry_msgs.msg import Twist
@@ -15,6 +16,7 @@ from google.genai import errors as genai_errors
 from google.genai import types as genai_types
 from rcl_interfaces.msg import SetParametersResult
 from rclpy.node import Node
+from rclpy.publisher import Publisher
 from sensor_msgs.msg import Image
 
 
@@ -32,15 +34,15 @@ class GeminiLiveControllerNode(Node):
         self.declare_parameter('model', default_model)
         self.declare_parameter('subscribe_topic', '/gemini/annotated_image')
         self.declare_parameter('publish_topic', '/cmd_vel')
-        self.declare_parameter('request_interval_sec', 0.1)
-        self.declare_parameter('max_linear_speed', 2.4)
-        self.declare_parameter('max_angular_speed', 3.7)
+        self.declare_parameter('request_interval_sec', 0.2)
+        self.declare_parameter('max_linear_speed', 2.7)
+        self.declare_parameter('max_angular_speed', 4.0)
         self.declare_parameter('control_period_sec', 0.1)
         self.declare_parameter('max_linear_slew', 3.0)
-        self.declare_parameter('max_angular_slew', 6.5)
-        self.declare_parameter('min_linear_speed', 1.6)
+        self.declare_parameter('max_angular_slew', 20)
+        self.declare_parameter('min_linear_speed', 1.5)
         self.declare_parameter('linear_gain', 1.2)
-        self.declare_parameter('angular_gain', 7.1)
+        self.declare_parameter('angular_gain', 6.0)
         self.declare_parameter('stop_on_failure', True)
         self.declare_parameter('failsafe_timeout_sec', 10.0)
         self.declare_parameter('allow_reverse', False)
@@ -49,6 +51,18 @@ class GeminiLiveControllerNode(Node):
         self.declare_parameter('history_lookback_sec', 2.0)
         self.declare_parameter('history_second_lookback_sec', 4.0)
         self.declare_parameter('use_history_frames', True)
+        self.declare_parameter('boundary_override_enabled', True)
+        self.declare_parameter('boundary_box_top_ratio', 0.580)
+        self.declare_parameter('boundary_box_bottom_ratio', 0.70)
+        self.declare_parameter('boundary_box_top_width_ratio', 0.12)
+        self.declare_parameter('boundary_box_bottom_width_ratio', 0.76)
+        self.declare_parameter('boundary_box_extension_ratio', 0.5)
+        self.declare_parameter('boundary_box_extension_width_ratio', 1.0)
+        self.declare_parameter('boundary_detection_threshold', 0.0001)
+        self.declare_parameter('boundary_turn_gain', 8)
+        self.declare_parameter('boundary_linear_scale', 0.8)
+        self.declare_parameter('publish_boundary_debug', True)
+        self.declare_parameter('boundary_debug_topic', '/gemini/boundary_debug_image')
         self.declare_parameter(
             'base_prompt',
             'Drive the simulated race car using the camera frame. Stay between the left solid white line and the center dashed line,'
@@ -82,6 +96,19 @@ class GeminiLiveControllerNode(Node):
             0.0, float(self.get_parameter('history_second_lookback_sec').value)
         )
         self.use_history_frames = bool(self.get_parameter('use_history_frames').value)
+        self.boundary_override_enabled = bool(self.get_parameter('boundary_override_enabled').value)
+        self.boundary_box_top_ratio = float(self.get_parameter('boundary_box_top_ratio').value)
+        self.boundary_box_bottom_ratio = float(self.get_parameter('boundary_box_bottom_ratio').value)
+        self.boundary_box_top_width_ratio = float(self.get_parameter('boundary_box_top_width_ratio').value)
+        self.boundary_box_bottom_width_ratio = float(self.get_parameter('boundary_box_bottom_width_ratio').value)
+        self.boundary_box_extension_ratio = float(self.get_parameter('boundary_box_extension_ratio').value)
+        self.boundary_box_extension_ratio = float(self.get_parameter('boundary_box_extension_ratio').value)
+        self.boundary_box_extension_width_ratio = float(self.get_parameter('boundary_box_extension_width_ratio').value)
+        self.boundary_detection_threshold = float(self.get_parameter('boundary_detection_threshold').value)
+        self.boundary_turn_gain = float(self.get_parameter('boundary_turn_gain').value)
+        self.boundary_linear_scale = float(self.get_parameter('boundary_linear_scale').value)
+        self.publish_boundary_debug = bool(self.get_parameter('publish_boundary_debug').value)
+        self.boundary_debug_topic = self.get_parameter('boundary_debug_topic').value
         self._normalise_failsafe_timeout()
 
         self.bridge = CvBridge()
@@ -116,6 +143,10 @@ class GeminiLiveControllerNode(Node):
         self._target_history: deque[tuple[float, float]] = deque(maxlen=self.smoothing_window)
         self._have_valid_target = False
         self._reset_target_history(Twist(), valid=False)
+        self._boundary_override = 0.0
+        self._boundary_slowdown = False
+        self.boundary_debug_publisher: Optional[Publisher] = None
+        self._recreate_boundary_debug_publisher()
 
         # Gemini Live API を扱うイベントループとセッションを常駐化する
         self._async_loop = asyncio.new_event_loop()
@@ -211,6 +242,36 @@ class GeminiLiveControllerNode(Node):
                 self.history_second_lookback = max(0.0, float(param.value))
             elif param.name == 'use_history_frames':
                 self.use_history_frames = bool(param.value)
+            elif param.name == 'boundary_override_enabled':
+                self.boundary_override_enabled = bool(param.value)
+                if not self.boundary_override_enabled:
+                    with self._lock:
+                        self._boundary_override = 0.0
+                        self._boundary_slowdown = False
+            elif param.name == 'boundary_box_top_ratio':
+                self.boundary_box_top_ratio = float(param.value)
+            elif param.name == 'boundary_box_bottom_ratio':
+                self.boundary_box_bottom_ratio = float(param.value)
+            elif param.name == 'boundary_box_top_width_ratio':
+                self.boundary_box_top_width_ratio = float(param.value)
+            elif param.name == 'boundary_box_bottom_width_ratio':
+                self.boundary_box_bottom_width_ratio = float(param.value)
+            elif param.name == 'boundary_box_extension_ratio':
+                self.boundary_box_extension_ratio = float(param.value)
+            elif param.name == 'boundary_box_extension_width_ratio':
+                self.boundary_box_extension_width_ratio = float(param.value)
+            elif param.name == 'boundary_detection_threshold':
+                self.boundary_detection_threshold = float(param.value)
+            elif param.name == 'boundary_turn_gain':
+                self.boundary_turn_gain = float(param.value)
+            elif param.name == 'boundary_linear_scale':
+                self.boundary_linear_scale = float(param.value)
+            elif param.name == 'publish_boundary_debug':
+                self.publish_boundary_debug = bool(param.value)
+                self._recreate_boundary_debug_publisher()
+            elif param.name == 'boundary_debug_topic':
+                self.boundary_debug_topic = param.value
+                self._recreate_boundary_debug_publisher()
             elif param.name == 'base_prompt':
                 self.base_prompt = param.value
         return SetParametersResult(successful=True)
@@ -219,6 +280,7 @@ class GeminiLiveControllerNode(Node):
     def _image_callback(self, msg: Image) -> None:
         try:
             cv_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
+            override_value, override_active, polygon_pts, coverage_ratio = self._evaluate_boundary_box(cv_image)
             success, buffer = cv2.imencode('.jpg', cv_image)
             if not success:
                 self.get_logger().warning('Failed to JPEG-encode incoming frame.')
@@ -226,6 +288,8 @@ class GeminiLiveControllerNode(Node):
             with self._lock:
                 jpeg_bytes = buffer.tobytes()
                 self._latest_image_jpeg = jpeg_bytes
+                self._boundary_override = override_value
+                self._boundary_slowdown = override_active
                 timestamp = self.get_clock().now().nanoseconds * 1e-9
                 self._frame_history.append((timestamp, jpeg_bytes))
                 max_lookback = max(self.history_lookback, self.history_second_lookback)
@@ -233,6 +297,7 @@ class GeminiLiveControllerNode(Node):
                 oldest_allowed = timestamp - retention
                 while self._frame_history and self._frame_history[0][0] < oldest_allowed:
                     self._frame_history.popleft()
+            self._publish_boundary_debug(cv_image, polygon_pts, override_active, coverage_ratio)
         except CvBridgeError as exc:
             self.get_logger().warning(f'CvBridge conversion failed: {exc}')
         except Exception as exc:
@@ -352,6 +417,96 @@ class GeminiLiveControllerNode(Node):
                 data=image_bytes,
             )
         )
+
+    def _evaluate_boundary_box(self, cv_image) -> tuple[float, bool, Optional[np.ndarray], float]:
+        if not self.boundary_override_enabled:
+            return 0.0, False, None, 0.0
+        height, width = cv_image.shape[:2]
+        if height == 0 or width == 0:
+            return 0.0, False, None, 0.0
+
+        top_y = int(np.clip(self.boundary_box_top_ratio, 0.0, 1.0) * height)
+        bottom_y = int(np.clip(self.boundary_box_bottom_ratio, 0.0, 1.0) * height)
+        if bottom_y <= top_y:
+            bottom_y = min(height - 1, top_y + 1)
+        half_top = int(width * np.clip(self.boundary_box_top_width_ratio, 0.0, 1.0) * 0.5)
+        half_bottom = int(width * np.clip(self.boundary_box_bottom_width_ratio, 0.0, 1.0) * 0.5)
+        center_x = width // 2
+        polygon_points: list[list[int]] = [
+            [center_x - half_top, top_y],
+            [center_x + half_top, top_y],
+            [center_x + half_bottom, bottom_y],
+        ]
+
+        extension_ratio = max(0.0, self.boundary_box_extension_ratio)
+        if extension_ratio > 1e-4:
+            extension_y = min(height - 1, bottom_y + int(extension_ratio * height))
+            half_extension = int(
+                width * np.clip(self.boundary_box_extension_width_ratio, 0.0, 1.0) * 0.5
+            )
+            if half_extension < half_bottom:
+                half_extension = half_bottom
+            polygon_points.append([center_x + half_extension, extension_y])
+            polygon_points.append([center_x - half_extension, extension_y])
+
+        polygon_points.append([center_x - half_bottom, bottom_y])
+        pts = np.array(polygon_points, dtype=np.int32)
+        mask = np.zeros((height, width), dtype=np.uint8)
+        cv2.fillPoly(mask, [pts], 255)
+
+        hsv = cv2.cvtColor(cv_image, cv2.COLOR_BGR2HSV)
+        lower_white = np.array([0, 0, 200], dtype=np.uint8)
+        upper_white = np.array([180, 50, 255], dtype=np.uint8)
+        white_mask = cv2.inRange(hsv, lower_white, upper_white)
+        roi = cv2.bitwise_and(white_mask, mask)
+
+        white_pixels = cv2.countNonZero(roi)
+        mask_pixels = cv2.countNonZero(mask)
+        if mask_pixels == 0:
+            return 0.0, False, pts, 0.0
+        ratio = white_pixels / mask_pixels
+        if ratio < max(0.0, self.boundary_detection_threshold):
+            return 0.0, False, pts, ratio
+
+        moments = cv2.moments(roi)
+        if moments['m00'] == 0:
+            return 0.0, False, pts, ratio
+        cx = moments['m10'] / moments['m00']
+        offset = (cx - (width / 2.0)) / (width / 2.0)
+        turn = np.clip(offset * self.boundary_turn_gain, -self.max_angular_speed, self.max_angular_speed)
+        return float(turn), True, pts, ratio
+
+    def _publish_boundary_debug(
+        self, image: np.ndarray, polygon: Optional[np.ndarray], active: bool, ratio: float
+    ) -> None:
+        if not self.publish_boundary_debug or self.boundary_debug_publisher is None:
+            return
+        if polygon is None or image is None:
+            return
+        try:
+            debug = image.copy()
+            overlay = debug.copy()
+            color = (0, 0, 255) if active else (0, 200, 0)
+            cv2.fillPoly(overlay, [polygon], color)
+            cv2.addWeighted(overlay, 0.25, debug, 0.75, 0, debug)
+            cv2.polylines(debug, [polygon], True, color, 2)
+            text = f'ROI {"ACTIVE" if active else "idle"} ratio={ratio:.5f}'
+            cv2.putText(
+                debug,
+                text,
+                (10, debug.shape[0] - 20),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.6,
+                color,
+                2,
+                lineType=cv2.LINE_AA,
+            )
+            msg = self.bridge.cv2_to_imgmsg(debug, encoding='bgr8')
+            self.boundary_debug_publisher.publish(msg)
+        except CvBridgeError as exc:
+            self.get_logger().warning(f'Failed to publish boundary debug image: {exc}')
+        except Exception as exc:
+            self.get_logger().warning(f'Unexpected boundary debug publish error: {exc}')
 
     # 現在フレームと指定した過去フレームを選択しAPI送信用のPartを構築する
     def _prepare_frame_parts(self) -> tuple[list[genai_types.Part], list[str]]:
@@ -557,7 +712,11 @@ class GeminiLiveControllerNode(Node):
         linear_delta = self.max_linear_slew * dt
         angular_delta = self.max_angular_slew * dt
 
-        target = self._target_twist
+        target = Twist()
+        target.linear.x = self._target_twist.linear.x
+        target.angular.z = self._target_twist.angular.z
+        target = self._apply_boundary_override(target)
+
         current = Twist()
         current.linear.x = self._slew_towards(self._current_twist.linear.x, target.linear.x, linear_delta)
         current.angular.z = self._slew_towards(self._current_twist.angular.z, target.angular.z, angular_delta)
@@ -673,6 +832,15 @@ class GeminiLiveControllerNode(Node):
             )
             self.failsafe_timeout = minimum_timeout
 
+    def _recreate_boundary_debug_publisher(self) -> None:
+        if hasattr(self, 'boundary_debug_publisher') and self.boundary_debug_publisher:
+            self.destroy_publisher(self.boundary_debug_publisher)
+            self.boundary_debug_publisher = None
+        if self.publish_boundary_debug and self.boundary_debug_topic:
+            self.boundary_debug_publisher = self.create_publisher(
+                Image, self.boundary_debug_topic, 1
+            )
+
     @staticmethod
     # 現在値から指定ステップ内で目標値へ近づくスルーレート制御
     def _slew_towards(current: float, target: float, max_delta: float) -> float:
@@ -694,6 +862,25 @@ class GeminiLiveControllerNode(Node):
         for lin, ang in self._target_history:
             limited_history.append((self._limit_linear(lin), self._limit_angular(ang)))
         self._target_history = limited_history
+
+    def _apply_boundary_override(self, base: Twist) -> Twist:
+        if not self.boundary_override_enabled:
+            return base
+        with self._lock:
+            override = self._boundary_override
+            slowdown = self._boundary_slowdown
+        if abs(override) < 1e-4 and not slowdown:
+            return base
+        adjusted = Twist()
+        adjusted.linear.x = base.linear.x
+        adjusted.angular.z = base.angular.z
+        if abs(override) >= 1e-4:
+            adjusted.angular.z += override
+        if slowdown:
+            adjusted.linear.x = min(adjusted.linear.x, self.max_linear_speed * self.boundary_linear_scale)
+        adjusted.linear.x = self._limit_linear(adjusted.linear.x)
+        adjusted.angular.z = self._limit_angular(adjusted.angular.z)
+        return adjusted
 
     def destroy_node(self) -> None:
         self._shutdown_async_components()

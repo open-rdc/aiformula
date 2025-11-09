@@ -4,6 +4,7 @@ import os
 import threading
 from collections import deque
 from concurrent.futures import TimeoutError as FuturesTimeoutError
+from pathlib import Path
 from typing import Optional
 
 import cv2
@@ -18,29 +19,38 @@ from rclpy.node import Node
 from sensor_msgs.msg import Image
 
 
-class GeminiLiveControllerNode(Node):
+class GeminiLiveControllerBirdseyeNode(Node):
     """ROS2 node that uses the Gemini Live API to produce /cmd_vel commands from camera images."""
 
     # ノード立ち上げ時にパラメータや通信、内部状態を設定する
     def __init__(self) -> None:
-        super().__init__('gemini_live_controller')
+        super().__init__('gemini_live_controller_birdseye')
 
         default_api_key = os.environ.get('GEMINI_API_KEY', 'AIzaSyA2b0g4DkQjha7ig2zbmMrgtIl9s-MGFoI')
-        default_model = os.environ.get('GEMINI_MODEL', 'models/gemini-2.0-flash-live-001') #gemini-2.5-flash-live-preview
+        default_model = os.environ.get('GEMINI_MODEL', 'models/gemini-2.5-flash-live-preview')
 
         self.declare_parameter('api_key', default_api_key)
         self.declare_parameter('model', default_model)
         self.declare_parameter('subscribe_topic', '/gemini/annotated_image')
         self.declare_parameter('publish_topic', '/cmd_vel')
         self.declare_parameter('request_interval_sec', 0.1)
-        self.declare_parameter('max_linear_speed', 2.4)
-        self.declare_parameter('max_angular_speed', 3.7)
+        self.declare_parameter('max_linear_speed', 2.7)
+        self.declare_parameter('max_angular_speed', 4.0)
         self.declare_parameter('control_period_sec', 0.1)
-        self.declare_parameter('max_linear_slew', 3.0)
-        self.declare_parameter('max_angular_slew', 6.5)
-        self.declare_parameter('min_linear_speed', 1.6)
+        self.declare_parameter('max_linear_slew', 1.3)
+        self.declare_parameter('max_angular_slew', 5.5)
+        self.declare_parameter('min_linear_speed', 0.5)
         self.declare_parameter('linear_gain', 1.2)
         self.declare_parameter('angular_gain', 7.1)
+        default_birdseye = str(
+            Path(__file__).resolve().parents[3]
+            / 'simulator'
+            / 'world'
+            / 'meshes'
+            / 'sihou_corce.png'
+        )
+        self.declare_parameter('birdseye_image_path', default_birdseye)
+        self.declare_parameter('birdseye_label', 'BIRDSEYE_REFERENCE')
         self.declare_parameter('stop_on_failure', True)
         self.declare_parameter('failsafe_timeout_sec', 10.0)
         self.declare_parameter('allow_reverse', False)
@@ -71,6 +81,8 @@ class GeminiLiveControllerNode(Node):
         self.min_linear_speed = float(self.get_parameter('min_linear_speed').value)
         self.linear_gain = max(0.0, float(self.get_parameter('linear_gain').value))
         self.angular_gain = max(0.0, float(self.get_parameter('angular_gain').value))
+        self.birdseye_image_path = self.get_parameter('birdseye_image_path').value
+        self.birdseye_label = self.get_parameter('birdseye_label').value
         self.stop_on_failure = bool(self.get_parameter('stop_on_failure').value)
         self.failsafe_timeout = float(self.get_parameter('failsafe_timeout_sec').value)
         self.allow_reverse = bool(self.get_parameter('allow_reverse').value)
@@ -116,6 +128,9 @@ class GeminiLiveControllerNode(Node):
         self._target_history: deque[tuple[float, float]] = deque(maxlen=self.smoothing_window)
         self._have_valid_target = False
         self._reset_target_history(Twist(), valid=False)
+
+        self._birdseye_bytes: Optional[bytes] = None
+        self._load_birdseye_image(self.birdseye_image_path)
 
         # Gemini Live API を扱うイベントループとセッションを常駐化する
         self._async_loop = asyncio.new_event_loop()
@@ -177,6 +192,11 @@ class GeminiLiveControllerNode(Node):
                 self.linear_gain = max(0.0, float(param.value))
             elif param.name == 'angular_gain':
                 self.angular_gain = max(0.0, float(param.value))
+            elif param.name == 'birdseye_image_path':
+                self.birdseye_image_path = param.value
+                self._load_birdseye_image(self.birdseye_image_path)
+            elif param.name == 'birdseye_label':
+                self.birdseye_label = param.value
             elif param.name == 'stop_on_failure':
                 self.stop_on_failure = bool(param.value)
                 if not self.stop_on_failure and self.failsafe_timer:
@@ -411,6 +431,14 @@ class GeminiLiveControllerNode(Node):
                 f'{idx}) {label} view from ≈{actual_delta:.2f} s earlier (requested {requested_lookback:.1f} s).'
             )
 
+        if self._birdseye_bytes:
+            parts.extend(
+                [
+                    genai_types.Part(text=self.birdseye_label),
+                    self._build_live_image_part(self._birdseye_bytes),
+                ]
+            )
+            descriptors.append('Birdseye reference image.')
         return parts, descriptors
 
     # Gemini Liveセッションを開いて応答テキストを受信する
@@ -672,6 +700,22 @@ class GeminiLiveControllerNode(Node):
                 f'to {minimum_timeout:.2f}s to accommodate request interval.'
             )
             self.failsafe_timeout = minimum_timeout
+
+    def _load_birdseye_image(self, path: str) -> None:
+        if not path:
+            self._birdseye_bytes = None
+            return
+        candidate = Path(path).expanduser()
+        try:
+            if not candidate.is_file():
+                self.get_logger().warning(f'Birdseye image not found: {candidate}')
+                self._birdseye_bytes = None
+                return
+            self._birdseye_bytes = candidate.read_bytes()
+            self.get_logger().info(f'Loaded birdseye image: {candidate}')
+        except Exception as exc:
+            self.get_logger().error(f'Failed to load birdseye image: {exc}')
+            self._birdseye_bytes = None
 
     @staticmethod
     # 現在値から指定ステップ内で目標値へ近づくスルーレート制御
