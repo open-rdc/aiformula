@@ -61,6 +61,11 @@
             <uri>package://simulator/models/ai_car1/meshes/AIF_body.dae</uri>
           </mesh>
         </geometry>
+        <surface>
+          <contact>
+            <collide_bitmask>0x04</collide_bitmask>
+          </contact>
+        </surface>
       </collision>
     </link>
 
@@ -96,6 +101,11 @@
             <scale>0.001 0.001 0.001</scale>
           </mesh>
         </geometry>
+        <surface>
+          <contact>
+            <collide_bitmask>0x02</collide_bitmask>
+          </contact>
+        </surface>
       </collision>
     </link>
 
@@ -136,6 +146,11 @@
             <size>0.017 0.01 0.01</size>
           </box>
         </geometry>
+        <surface>
+          <contact>
+            <collide_bitmask>0x01</collide_bitmask>
+          </contact>
+        </surface>
       </collision>
 
       <!-- 🔸 右アーム -->
@@ -146,6 +161,11 @@
             <size>0.017 0.01 0.01</size>
           </box>
         </geometry>
+        <surface>
+          <contact>
+            <collide_bitmask>0x01</collide_bitmask>
+          </contact>
+        </surface>
       </collision>
 
       <!-- 🔸 背中（Uの底） -->
@@ -157,6 +177,11 @@
             <length>0.005</length>
           </cylinder>
         </geometry>
+        <surface>
+          <contact>
+            <collide_bitmask>0x01</collide_bitmask>
+          </contact>
+        </surface>
       </collision>
     </link>
 
@@ -194,6 +219,11 @@
             <scale>0.05 0.12 0.12</scale>
           </mesh>
         </geometry>
+        <surface>
+          <contact>
+            <collide_bitmask>0x01</collide_bitmask>
+          </contact>
+        </surface>
       </collision>
     </link>
 
@@ -232,6 +262,11 @@
             <scale>0.05 0.12 0.12</scale>
           </mesh>
         </geometry>
+        <surface>
+          <contact>
+            <collide_bitmask>0x01</collide_bitmask>
+          </contact>
+        </surface>
       </collision>
     </link>
 
@@ -279,6 +314,11 @@
             <size>0.017 0.005 0.01</size>
           </box>
         </geometry>
+        <surface>
+          <contact>
+            <collide_bitmask>0x01</collide_bitmask>
+          </contact>
+        </surface>
       </collision>
 
       <!-- 🔸 右アーム -->
@@ -289,6 +329,11 @@
             <size>0.017 0.005 0.01</size>
           </box>
         </geometry>
+        <surface>
+          <contact>
+            <collide_bitmask>0x01</collide_bitmask>
+          </contact>
+        </surface>
       </collision>
 
       <!-- 🔸 中心柱 -->
@@ -300,11 +345,16 @@
             <length>0.09</length>
           </cylinder>
         </geometry>
+        <surface>
+          <contact>
+            <collide_bitmask>0x01</collide_bitmask>
+          </contact>
+        </surface>
       </collision>
     </link>
 
     <link name='caster'>
-      <pose relative_to='caster_yaw'>0.15 0.0 -0.25 0 0 1.57</pose>
+      <pose relative_to='caster_yaw'>0.1 0.0 -0.25 0 0 1.57</pose>
       <inertial>
         <mass>1.0</mass>
         <inertia>
@@ -334,6 +384,11 @@
             <scale>0.1 0.1 0.1</scale>
           </mesh>
         </geometry>
+        <surface>
+          <contact>
+            <collide_bitmask>0x01</collide_bitmask>
+          </contact>
+        </surface>
       </collision>
     </link>
 
