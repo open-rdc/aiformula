@@ -1,0 +1,214 @@
+<?xml version="1.0"?>
+<robot name="ai_car1">
+
+  <!-- ========== Chassis ========== -->
+  <link name="chassis">
+    <inertial>
+      <mass value="40.0"/>
+      <inertia ixx="1.73333" iyy="4.56667" izz="4.56667" ixy="0" ixz="0" iyz="0"/>
+    </inertial>
+    <visual>
+      <geometry>
+        <mesh filename="package://simulator/models/ai_car1/meshes/AIF_body.dae"/>
+      </geometry>
+    </visual>
+    <collision>
+      <geometry>
+        <mesh filename="package://simulator/models/ai_car1/meshes/AIF_body.dae"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <!-- ========== Motor Assembly ========== -->
+  <link name="motor">
+    <inertial>
+      <mass value="7.0"/>
+      <inertia ixx="0.04778" iyy="0.04778" izz="0.07875" ixy="0" ixz="0" iyz="0"/>
+    </inertial>
+    <visual>
+      <geometry>
+        <mesh filename="package://simulator/models/ai_car1/meshes/motor.dae">
+	  <scale>0.001 0.001 0.001</scale>
+	</mesh>
+      </geometry>
+    </visual>
+    <collision>
+      <geometry>
+        <mesh filename="package://simulator/models/ai_car1/meshes/motor.dae">
+	  <scale>0.001 0.001 0.001</scale>
+	</mesh>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="motor_joint" type="fixed">
+    <parent link="chassis"/>
+    <child link="motor"/>
+    <origin xyz="0.7 0 0.33" rpy="0 0 0"/>
+  </joint>
+
+  <link name="motor_spin">
+    <inertial>
+      <mass value="7.0"/>
+      <inertia ixx="0.04778" iyy="0.04778" izz="0.07875" ixy="0" ixz="0" iyz="0"/>
+    </inertial>
+    <visual>
+      <geometry>
+        <mesh filename="package://simulator/models/ai_car1/meshes/motor_spin.dae">
+	  <scale>1 1 1</scale>
+        </mesh>
+      </geometry>
+    </visual>
+    <collision>
+      <geometry>
+	<mesh filename="package://simulator/models/ai_car1/meshes/motor_spin.dae">
+	  <scale>1 1 1</scale>
+	</mesh>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="motor_spin_joint" type="revolute">
+    <parent link="motor"/>
+    <child link="motor_spin"/>
+    <origin xyz="0 0 0.022" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-6.283" upper="6.283" effort="1.0" velocity="5.0"/>
+    <dynamics friction="0.1" damping="0.0"/>
+  </joint>
+
+  <!-- ========== Left Wheel ========== -->
+  <link name="left_wheel">
+    <inertial>
+      <mass value="7.0"/>
+      <inertia ixx="0.04778" iyy="0.04778" izz="0.07875" ixy="0" ixz="0" iyz="0"/>
+    </inertial>
+    <visual>
+      <geometry>
+        <mesh filename="package://simulator/models/ai_car1/meshes/tire.dae"/>
+      </geometry>
+    </visual>
+    <collision>
+      <geometry>
+        <mesh filename="package://simulator/models/ai_car1/meshes/tire.dae"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="left_wheel_joint" type="revolute">
+    <parent link="chassis"/>
+    <child link="left_wheel"/>
+    <origin xyz="0 -0.3 0" rpy="1.57 0 1.57"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-1000000" upper="1000000" effort="9.4" velocity="1000"/>
+    <dynamics friction="0.9" damping="0.0"/>
+  </joint>
+
+  <!-- ========== Right Wheel ========== -->
+  <link name="right_wheel">
+    <inertial>
+      <mass value="7.0"/>
+      <inertia ixx="0.04778" iyy="0.04778" izz="0.07875" ixy="0" ixz="0" iyz="0"/>
+    </inertial>
+    <visual>
+      <geometry>
+        <mesh filename="package://simulator/models/ai_car1/meshes/tire.dae"/>
+      </geometry>
+    </visual>
+    <collision>
+      <geometry>
+        <mesh filename="package://simulator/models/ai_car1/meshes/tire.dae"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="right_wheel_joint" type="revolute">
+    <parent link="chassis"/>
+    <child link="right_wheel"/>
+    <origin xyz="0 0.3 0" rpy="1.57 0 1.57"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-1000000" upper="1000000" effort="9.4" velocity="1000"/>
+    <dynamics friction="0.9" damping="0.0"/>
+  </joint>
+
+  <!-- ========== Caster Assembly ========== -->
+  <link name="caster_yaw">
+    <inertial>
+      <mass value="5.0"/>
+      <inertia ixx="0.001" iyy="0.001" izz="0.001" ixy="0" ixz="0" iyz="0"/>
+    </inertial>
+  </link>
+
+  <joint name="caster_yaw_wheel" type="revolute">
+    <parent link="chassis"/>
+    <child link="caster_yaw"/>
+    <origin xyz="0.8 0 0.25" rpy="0 0 -1.57"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-0.26" upper="0.26" effort="1.0" velocity="1.0"/>
+  </joint>
+
+  <link name="caster">
+    <inertial>
+      <mass value="1.0"/>
+      <inertia ixx="0.04778" iyy="0.04778" izz="0.07875" ixy="0" ixz="0" iyz="0"/>
+    </inertial>
+  </link>
+
+  <joint name="caster_pitch_joint" type="revolute">
+    <parent link="caster_yaw"/>
+    <child link="caster"/>
+    <origin xyz="0.1 0 -0.25" rpy="0 0 1.57"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-3.14" upper="3.14" effort="1.0" velocity="1.0"/>
+  </joint>
+
+  <!-- ========== Sensors ========== -->
+  <link name="imu_link"/>
+  <joint name="imu_joint" type="fixed">
+    <parent link="chassis"/>
+    <child link="imu_link"/>
+    <origin xyz="-0.032 0 0.068" rpy="0 0 0"/>
+  </joint>
+
+  <link name="camera_link"/>
+  <joint name="camera_joint" type="fixed">
+    <parent link="chassis"/>
+    <child link="camera_link"/>
+    <origin xyz="0.35 0 0.55" rpy="0 0 0"/>
+  </joint>
+
+  <link name="camera_rgb_link"/>
+  <joint name="camera_rgb_joint" type="fixed">
+    <parent link="camera_link"/>
+    <child link="camera_rgb_link"/>
+  </joint>
+
+  <link name="camera_depth_link"/>
+  <joint name="camera_depth_joint" type="fixed">
+    <parent link="camera_link"/>
+    <child link="camera_depth_link"/>
+  </joint>
+
+  <link name="gps_link"/>
+  <joint name="gps_joint" type="fixed">
+    <parent link="chassis"/>
+    <child link="gps_link"/>
+  </joint>
+
+  <!-- ========== Gazebo Plugins ========== -->
+  <plugin filename="libignition-gazebo-diff-drive-system.so" name="ignition::gazebo::systems::DiffDrive">
+    <left_joint>left_wheel_joint</left_joint>
+    <right_joint>right_wheel_joint</right_joint>
+    <wheel_separation>0.6</wheel_separation>
+    <wheel_radius>0.124</wheel_radius>
+    <odom_publish_frequency>30</odom_publish_frequency>
+    <topic>cmd_vel</topic>
+    <odom_topic>odom</odom_topic>
+  </plugin>
+
+  <plugin filename="libignition-gazebo-imu-system.so" name="ignition::gazebo::systems::Imu"/>
+  <plugin filename="ignition-gazebo-sensors-system" name="ignition::gazebo::systems::Sensors"/>
+
+
+</robot>
+

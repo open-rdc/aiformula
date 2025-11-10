@@ -1,0 +1,81 @@
+<?xml version="1.0"?>
+<robot name="ai_car1">
+
+
+  <link name="base_link"/>
+  <!-- ========== Motor Assembly ========== -->
+  <link name="motor">
+    <inertial>
+      <mass value="7.0"/>
+      <inertia ixx="0.04778" iyy="0.04778" izz="0.07875" ixy="0" ixz="0" iyz="0"/>
+    </inertial>
+    <visual>
+      <geometry>
+        <mesh filename="package://simulator/models/ai_car1/meshes/motor.dae" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </visual>
+    <collision>
+      <geometry>
+        <mesh filename="package://simulator/models/ai_car1/meshes/motor.dae" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="motor_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="motor"/>
+    <origin xyz="0.7 0 0.33" rpy="0 0 0"/>
+  </joint>
+
+  <link name="motor_spin">
+    <inertial>
+      <mass value="7.0"/>
+      <inertia ixx="0.04778" iyy="0.04778" izz="0.07875" ixy="0" ixz="0" iyz="0"/>
+    </inertial>
+    <visual>
+      <geometry>
+        <mesh filename="package://simulator/models/ai_car1/meshes/motor_spin.dae" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </visual>
+    <collision>
+      <geometry>
+	      <mesh filename="package://simulator/models/ai_car1/meshes/motor_spin.dae" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="motor_spin_joint" type="revolute">
+    <parent link="motor"/>
+    <child link="motor_spin"/>
+    <origin xyz="0 0 0.022" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-6.283" upper="6.283" effort="1.0" velocity="5.0"/>
+    <dynamics friction="0.1" damping="0.0"/>
+  </joint>
+
+  <!-- ========== ROS 2 Control設定 ========== -->
+  <ros2_control name="MotorControlSystem" type="system">
+    <hardware>
+      <plugin>gz_ros2_control/GazeboSimSystem</plugin>
+    </hardware>
+
+    <joint name="motor_spin_joint">
+      <command_interface name="position"/>
+      <command_interface name="effort"/>
+      <command_interface name="velocity"/>
+      <state_interface name="position"/>
+      <state_interface name="effort"/>
+      <state_interface name="velocity"/>
+    </joint>
+  </ros2_control>
+
+
+  <gazebo>
+    <plugin filename="gz_ros2_control-system" name="gz_ros2_control::GazeboSimROS2ControlPlugin">
+      <parameters>/home/ikenta/ros2_ws/src/aiformula/simulator/config/8108_effort_controller.yaml</parameters>
+    </plugin>
+  </gazebo>
+
+
+</robot>
+
