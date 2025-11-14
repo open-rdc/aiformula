@@ -28,7 +28,7 @@ def generate_launch_description():
         parameters = [config_file_path],
         output='screen'
     )
-    # socket canノードの作成
+    # socketcanノードの作成
     socketcan_node = Node(
         package = 'socketcan_interface',
         executable = 'socketcan_interface_node',
