@@ -15,7 +15,7 @@ from scipy.interpolate import splprep, splev
 def denormalize_waypoints(normalized: np.ndarray) -> np.ndarray:
     denormalized = normalized.copy()
     denormalized[0::2] = (normalized[0::2] + 1.0) * 5.0
-    denormalized[1::2] = (normalized[1::2] + 1.0) * 3.0 - 3.0
+    denormalized[1::2] = (normalized[1::2] + 1.0) * 5.0 - 5.0
     return denormalized
 
 class InferenceNode(Node):
@@ -47,6 +47,7 @@ class InferenceNode(Node):
         self.timer = self.create_timer(interval_ms / 1000.0, self.timer_callback)
 
     def preprocess_image(self, image: np.ndarray) -> torch.Tensor:
+        image = image[:, 40:440]
         resized = cv2.resize(image, (64, 48))
         normalized = resized.astype(np.float32) / 255.0
         tensor = torch.from_numpy(normalized).permute(2, 0, 1).unsqueeze(0)
