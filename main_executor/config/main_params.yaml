@@ -23,12 +23,10 @@ launch: #起動パラメータ
 
     autonomous_flag : false
 
-socketcan_interface_node:
+pure_pursuit_node:
   ros__parameters:
-    if_name : "can0"
+    lookahead_distance : 2.0
 
-# controller_node:
-#   ros__parameters:
 
 chassis_driver_node:
   ros__parameters:
@@ -43,3 +41,10 @@ chassis_driver_node:
     p_gain : 6.0
     i_gain : 0.0
     d_gain : 0.0
+
+socketcan_interface_node:
+  ros__parameters:
+    if_name : "can0"
+
+# controller_node:
+#   ros__parameters:
