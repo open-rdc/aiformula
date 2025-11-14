@@ -16,7 +16,7 @@ angular_max_vel(get_parameter("angular_max.vel").as_double()),
 lookahead_distance(get_parameter("lookahead_distance").as_double())
 {
     _subscription_path = this->create_subscription<nav_msgs::msg::Path>(
-        "path",
+        "e2e_planner/path",
         _qos,
         std::bind(&PurePursuit::_subscriber_callback_path, this, std::placeholders::_1)
     );
@@ -66,7 +66,7 @@ void PurePursuit::_subscriber_callback_path(const nav_msgs::msg::Path::SharedPtr
     const double safe_lookahead = std::max(lookahead_distance, 1e-3);
     const double linear_scale = std::clamp(distance / safe_lookahead, 0.0, 1.0);
     const double linear_velocity = std::clamp(linear_max_vel * linear_scale, 0.0, linear_max_vel);
-    const double curvature = (2.0 * target_y) / (distance * distance);  // Pure pursuit curvature.
+    const double curvature = (20.0 * target_y) / (distance * distance);  // Pure pursuit curvature.
     double angular_velocity = linear_velocity * curvature;
 
     angular_velocity = std::clamp(angular_velocity, -angular_max_vel, angular_max_vel);
