@@ -29,7 +29,7 @@ class E2EDataset(Dataset):
         self.image_files = sorted(list(self.images_dir.glob('*.png')))
 
     def __len__(self) -> int:
-        return len(self.image_files) * 3
+        return len(self.image_files)*3
 
     def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
         original_idx = idx // 3
@@ -47,13 +47,14 @@ class E2EDataset(Dataset):
         augmented_data = augment(image, waypoints)
         cropped_image, rotated_waypoints = augmented_data[aug_type]
 
+        cropped_image = image[:, 40:440]
         cropped_image = cv2.resize(cropped_image, (IMAGE_WIDTH, IMAGE_HEIGHT))
         cropped_image = cropped_image.astype(np.float32) / 255.0
         cropped_image = torch.from_numpy(cropped_image).permute(2, 0, 1)
 
         waypoints_tensor = torch.tensor(rotated_waypoints, dtype=torch.float32).flatten()
         waypoints_tensor[0::2] = waypoints_tensor[0::2] / 5.0 - 1.0
-        waypoints_tensor[1::2] = (waypoints_tensor[1::2] + 5.0) / 5.0 - 1.0
+        waypoints_tensor[1::2] = (waypoints_tensor[1::2] + 3.0) / 3.0 - 1.0
 
         return cropped_image, waypoints_tensor
 

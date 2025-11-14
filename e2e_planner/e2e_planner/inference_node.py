@@ -15,7 +15,7 @@ from scipy.interpolate import splprep, splev
 def denormalize_waypoints(normalized: np.ndarray) -> np.ndarray:
     denormalized = normalized.copy()
     denormalized[0::2] = (normalized[0::2] + 1.0) * 5.0
-    denormalized[1::2] = (normalized[1::2] + 1.0) * 5.0 - 5.0
+    denormalized[1::2] = (normalized[1::2] + 1.0) * 3.0 - 3.0
     return denormalized
 
 class InferenceNode(Node):
