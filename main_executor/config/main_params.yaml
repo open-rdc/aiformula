@@ -1,9 +1,9 @@
 launch: #起動パラメータ
   ros__parameters:
-    joy: true
+    joy: false
     vectornav : false
-    odrive : true
-    log_level : 10
+    odrive : false
+    socketcan : false
 
 /**:  #ワイルドカード(ここのパラメータは全ノードから読める: <名前に注意>)
   ros__parameters:
@@ -43,21 +43,3 @@ chassis_driver_node:
     p_gain : 6.0
     i_gain : 0.0
     d_gain : 0.0
-
-path_publisher_node:
-  ros__parameters:
-    interval_ms : 1000
-    path_file_name : "precourse"
-
-gnssnav_follower_node:
-  ros__parameters:
-    debug_flag : false
-    interval_ms : 50
-    lookahead_gain : 1.0
-    p_gain : 1.5
-    i_gain : 0.5
-    d_gain : 0.2
-    min_lookahead_distance : 3.0
-    max_linear_vel : 2.0
-    max_angular_vel : 1.57
-    laps : 3
