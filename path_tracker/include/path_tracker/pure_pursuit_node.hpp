@@ -1,0 +1,33 @@
+#pragma once
+
+#include <rclcpp/rclcpp.hpp>
+#include <geometry_msgs/msg/twist.hpp>
+#include <nav_msgs/msg/path.hpp>
+
+#include "path_tracker/visibility_control.h"
+
+namespace path_tracker{
+
+class PurePursuit : public rclcpp::Node {
+public:
+    PATH_TRACKER_PUBLIC
+    explicit PurePursuit(const rclcpp::NodeOptions& options = rclcpp::NodeOptions());
+
+    PATH_TRACKER_PUBLIC
+    explicit PurePursuit(const std::string& name_space, const rclcpp::NodeOptions& options = rclcpp::NodeOptions());
+
+private:
+    rclcpp::Subscription<nav_msgs::msg::Path>::SharedPtr _subscription_path;
+    void _subscriber_callback_path(const nav_msgs::msg::Path::SharedPtr msg);
+
+    rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr publisher_vel;
+
+    rclcpp::QoS _qos = rclcpp::QoS(10);
+
+    // 定数
+    const double linear_max_vel;
+    const double angular_max_vel;
+    const double lookahead_distance;
+};
+
+}  // namespace path_tracker

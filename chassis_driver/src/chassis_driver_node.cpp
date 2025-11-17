@@ -80,6 +80,9 @@ dtor(get_parameter("angular_max.acc").as_double()))
     auto request = std::make_shared<odrive_can::srv::AxisState::Request>();
     request->axis_requested_state = 8;
     auto future = odrive_axis_client_->async_send_request(request);
+
+    RCLCPP_INFO(this->get_logger(), "Chassis Driver Node has been started. max vel: %.2f m/s, max angular vel: %.2f deg/s",
+        linear_limit.vel, rtod(angular_limit.vel));
 }
 
 void ChassisDriver::_subscriber_callback_vel(const geometry_msgs::msg::Twist::SharedPtr msg){
