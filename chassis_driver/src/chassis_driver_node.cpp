@@ -62,6 +62,7 @@ dtor(get_parameter("angular_max.acc").as_double()))
     publisher_can = this->create_publisher<socketcan_interface_msg::msg::SocketcanIF>("can_tx", _qos);
     publisher_ref_vel = this->create_publisher<geometry_msgs::msg::TwistStamped>("ref_vel", _qos);
     publisher_odrive = this->create_publisher<odrive_can::msg::ControlMessage>("/odrive_axis0/control_message", _qos);
+    publisher_delta = this->create_publisher<std_msgs::msg::Float64>("delta", _qos);
 
     // ODriveのAxis Stateサービスクライアント作成
     odrive_axis_client_ = this->create_client<odrive_can::srv::AxisState>("/odrive_axis0/request_axis_state");
@@ -114,6 +115,11 @@ void ChassisDriver::_publisher_callback(){
         if(std::isnan(delta)) delta = 0.0;
         delta = constrain(delta, -caster_max_angle, caster_max_angle);
     }
+
+    // （テスト用）従動輪目標角度の出版
+    std_msgs::msg::Float64 delta_msg;
+    delta_msg.data = delta;
+    publisher_delta->publish(delta_msg);
 
     // const double motor_torque = -1.0* constrain(caster_pid.cycle(caster_orientation, delta), -motor_max_torque, motor_max_torque);
     double motor_pos = 0.0;

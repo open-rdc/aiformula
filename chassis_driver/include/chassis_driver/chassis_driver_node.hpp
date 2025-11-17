@@ -42,6 +42,7 @@ private:
     rclcpp::Publisher<socketcan_interface_msg::msg::SocketcanIF>::SharedPtr publisher_can;
     rclcpp::Publisher<geometry_msgs::msg::TwistStamped>::SharedPtr publisher_ref_vel;
     rclcpp::Publisher<odrive_can::msg::ControlMessage>::SharedPtr publisher_odrive;
+    rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr publisher_delta;
 
     rclcpp::Client<odrive_can::srv::AxisState>::SharedPtr odrive_axis_client_;
 
