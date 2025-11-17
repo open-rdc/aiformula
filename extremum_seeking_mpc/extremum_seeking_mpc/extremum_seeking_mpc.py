@@ -185,7 +185,7 @@ class ExtremumSeekingMpc(Node):
         vehicle_linear_velocity = self.calculate_linear_velocity(yaw_angle)
 
         # Debug output
-        self.get_logger().info(f"yaw_angle: {yaw_angle:.4f}, yaw_rate: {yaw_rate:.4f}, curvatures: {self.curvatures}")
+        # self.get_logger().info(f"yaw_angle: {yaw_angle:.4f}, yaw_rate: {yaw_rate:.4f}, curvatures: {self.curvatures}")
 
         self.publish_cmd_vel(vehicle_linear_velocity, yaw_rate)
 

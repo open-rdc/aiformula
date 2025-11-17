@@ -7,6 +7,9 @@ import numpy as np
 import torch
 import os
 from ament_index_python.packages import get_package_share_directory
+from rclpy.qos import qos_profile_sensor_data
+
+import time
 
 # Utility functions
 from .utils.utils import lane_line_mask
@@ -24,11 +27,9 @@ class RoadDetectorNode(Node):
         image_topic = '/zed/zed_node/rgb/image_rect_color'
         # image_topic = '/image_raw'
 
-        self.subscription = self.create_subscription(
-            Image, image_topic, self.image_callback, 10
-        )
-        self.ll_seg_publisher = self.create_publisher(Image, '/yolopv2/image/ll_seg_mask', 10)
-        self.result_publisher = self.create_publisher(Image, '/yolopv2/image/result_image', 10)
+        self.subscription = self.create_subscription(Image, image_topic, self.image_callback, qos_profile_sensor_data)
+        self.ll_seg_publisher = self.create_publisher(Image, '/yolopv2/image/ll_seg_mask', 1)
+        self.result_publisher = self.create_publisher(Image, '/yolopv2/image/result_image', 1)
         self.bridge = CvBridge()
 
         # モデルパス

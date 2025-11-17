@@ -3,7 +3,7 @@
 Real-time traffic cone detection using camera
 Subscribes to camera image topic, detects cones, and publishes bounding box information
 """
-
+import os
 import warnings
 warnings.filterwarnings('ignore', category=FutureWarning)
 import rclpy
@@ -14,6 +14,8 @@ from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
 from obstacle_detector_msgs.msg import RectArray, Rect
 from traffic_cone_detector.cone_detector import ConeDetector
+from ament_index_python.packages import get_package_share_directory
+from rclpy.qos import qos_profile_sensor_data
 
 
 class DetectCameraNode(Node):
@@ -33,11 +35,14 @@ class DetectCameraNode(Node):
         conf_thres = self.get_parameter('conf_thres').value
         iou_thres = self.get_parameter('iou_thres').value
 
+        package_share_directory = get_package_share_directory('traffic_cone_detector')
+        model_path = os.path.join(package_share_directory, weights_path)
+
         # Initialize detector
         self.get_logger().info('Loading YOLOv5 model...')
         try:
             self.detector = ConeDetector(
-                weights_path=weights_path,
+                weights_path=model_path,
                 conf_thres=conf_thres,
                 iou_thres=iou_thres
             )
@@ -47,7 +52,7 @@ class DetectCameraNode(Node):
             raise
 
         self.bridge = CvBridge()
-        self.image_sub = self.create_subscription(Image, image_topic, self.image_callback, 10)
+        self.image_sub = self.create_subscription(Image, image_topic, self.image_callback, qos_profile_sensor_data)
         self.obstacle_pub = self.create_publisher(RectArray, output_topic, 10)
 
         self.get_logger().info(f'Subscribed to: {image_topic}')

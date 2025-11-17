@@ -3,6 +3,7 @@ Traffic Cone Detector Model Library
 """
 
 import torch
+import os
 
 
 class ConeDetector:
@@ -17,7 +18,18 @@ class ConeDetector:
             conf_thres: Confidence threshold
             iou_thres: IOU threshold for NMS
         """
-        self.model = torch.hub.load('ultralytics/yolov5', 'custom', path=weights_path)
+        # Disable YOLOv5 auto-install to prevent pip dependency errors
+        os.environ['YOLOv5_AUTOINSTALL'] = 'False'
+        os.environ['YOLOv5_VERBOSE'] = 'False'
+
+        # Use local YOLOv5 repository to avoid dependency issues
+        yolov5_path = '/home/nvidia/yolov5'
+        if os.path.exists(yolov5_path):
+            self.model = torch.hub.load(yolov5_path, 'custom', path=weights_path, source='local')
+        else:
+            # Fallback to online loading if local repo not available
+            self.model = torch.hub.load('ultralytics/yolov5', 'custom', path=weights_path)
+
         self.model.conf = conf_thres
         self.model.iou = iou_thres
 

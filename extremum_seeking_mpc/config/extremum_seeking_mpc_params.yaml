@@ -1,13 +1,13 @@
 /**:
   ros__parameters:
     control_period: 0.01 #[s]
-    buffer_size: 10
+    buffer_size: 1
 
-    horizon_times: [1.0, 2.0, 3.0] #[s]
-    planned_speed: [0.6, 0.0] # linear_velocity[m/s], angular_velocity[rad/s]
-    curvature_gain: 25.
-    benefit_gain: 2.
+    horizon_times: [3.0, 5.0, 7.0] #[s]
+    planned_speed: [2.0, 0.0] # linear_velocity[m/s], angular_velocity[rad/s]
+    curvature_gain: 10.
+    benefit_gain: 1
     
     velocity_control:
-      deceleration_angle_maximum: 0.16 #[rad]
-      deceleration_gain: 5.
+      deceleration_angle_maximum: 0.05 #[rad]
+      deceleration_gain: 10.

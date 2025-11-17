@@ -11,7 +11,7 @@ launch: #起動パラメータ
   ros__parameters:
     # 並進  速度[m/s],加速度[m/s^2],加減速度[-m/s^2],躍度[m/s^3]
     linear_max:
-      vel : 2.0
+      vel : 3.0
       acc: 5.0
       jer: 0.0
     # 回転  速度[deg/s],加速度[deg/s^2],加減速度[-deg/s^2],躍度[deg/s^3]
@@ -27,7 +27,7 @@ launch: #起動パラメータ
 
 socketcan_interface_node:
   ros__parameters:
-    if_name : "can0"
+    if_name : "can_main"
 
 # controller_node:
 #   ros__parameters:

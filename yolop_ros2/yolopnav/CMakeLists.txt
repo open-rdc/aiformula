@@ -32,6 +32,7 @@ ament_target_dependencies(yolopnav_node
   cv_bridge
   OpenCV
   utilities
+  Eigen3
 )
 target_link_libraries(yolopnav_node Eigen3::Eigen)
 
@@ -74,6 +75,7 @@ ament_export_dependencies(
   cv_bridge
   OpenCV
   utilities
+  Eigen3
 )
 
 ament_package()

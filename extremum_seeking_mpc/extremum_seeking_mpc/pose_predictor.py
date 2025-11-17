@@ -29,8 +29,8 @@ class PosePredictor:
             TwistWithCovarianceStamped, 'sub_odom', self.velocity_callback, buffer_size)
 
     def velocity_callback(self, vel_msg: TwistWithCovarianceStamped) -> None:
-        linear_vel = vel_msg.twist.twist.linear.x
-        angular_vel = vel_msg.twist.twist.angular.z
+        linear_vel = 1.0 * vel_msg.twist.twist.linear.y
+        angular_vel = -1.0 * vel_msg.twist.twist.angular.z
         self.ego_current_velocity = Velocity(linear=linear_vel, angular=angular_vel)
         print(f"{self.ego_current_velocity}")
 
