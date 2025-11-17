@@ -5,6 +5,7 @@
   <version>0.0.1</version>
   <description>End-to-end learning path planner</description>
   <maintainer email="s21c1135sc@s.chibakoudai.jp">kyo yamashita</maintainer>
+  <license>MIT</license>
 
   <depend>rclpy</depend>
   <depend>sensor_msgs</depend>

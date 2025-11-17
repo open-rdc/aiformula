@@ -102,7 +102,7 @@ class Trainer:
         )
 
         self.model = Network(num_waypoints=NUM_WAYPOINTS).to(self.device)
-        self.optimizer = RAdamScheduleFree(self.model.parameters(), lr=config.learning_rate)
+        self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=config.learning_rate)
         self.mseloss = nn.MSELoss()
         self.writer = SummaryWriter(log_dir=str(config.logs_dir))
 
@@ -113,7 +113,6 @@ class Trainer:
 
     def validate(self) -> float:
         self.model.eval()
-        self.optimizer.eval()
         total_loss = 0.0
 
         with torch.no_grad():
@@ -128,23 +127,19 @@ class Trainer:
                 total_loss += loss.item()
                 pbar.set_postfix({'loss': f'{loss.item():.6f}'})
 
-        self.optimizer.train()
         return total_loss / len(self.val_loader)
 
     def save_checkpoint(self, val_loss: float) -> None:
         if val_loss < self.best_val_loss:
             self.best_val_loss = val_loss
             weight_path = self.config.weights_dir / self.config.weight_file
-            self.optimizer.eval()
             scripted_model = torch.jit.script(self.model)
             scripted_model.save(str(weight_path))
-            self.optimizer.train()
             print(f'Best model saved: {weight_path} (val_loss: {val_loss:.6f})')
 
     def train(self, epochs: int) -> None:
         for epoch in range(1, epochs + 1):
             self.model.train()
-            self.optimizer.train()
             total_train_loss = 0.0
 
             pbar = tqdm(self.train_loader, desc=f'Epoch {epoch} [Train]')
@@ -157,7 +152,6 @@ class Trainer:
 
                 loss = self.mseloss(outputs, waypoints)
                 loss.backward()
-                self.optimizer.step()
 
                 total_train_loss += loss.item()
                 pbar.set_postfix({'loss': f'{loss.item():.6f}'})
