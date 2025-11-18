@@ -11,4 +11,4 @@ launch:
       value: 0
     -
       name: "interface"
-      value: "can1"
+      value: "can_sub"
