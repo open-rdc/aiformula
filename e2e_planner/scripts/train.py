@@ -152,6 +152,7 @@ class Trainer:
 
                 loss = self.mseloss(outputs, waypoints)
                 loss.backward()
+                self.optimizer.step()
 
                 total_train_loss += loss.item()
                 pbar.set_postfix({'loss': f'{loss.item():.6f}'})
