@@ -190,7 +190,7 @@ def main():
         get_package_share_directory('gnssnav'),
         'config',
         'course_data',
-        'shihou_241030_dynamic.csv'
+        'precourse.csv'
     )   # 目標csv
 
     GnssDataProcessor(bag_file_path, target_csv_path)
