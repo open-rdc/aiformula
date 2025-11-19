@@ -5,7 +5,7 @@ launch: #起動パラメータ
     road_detector : true
     traffic_cone_detector : false
     odrive : true
-    log_level : 10
+    socketcan : true
 
 /**:  #ワイルドカード(ここのパラメータは全ノードから読める: <名前に注意>)
   ros__parameters:
@@ -25,12 +25,10 @@ launch: #起動パラメータ
 
     autonomous_flag : false
 
-socketcan_interface_node:
+pure_pursuit_node:
   ros__parameters:
-    if_name : "can_main"
+    lookahead_distance : 2.0
 
-# controller_node:
-#   ros__parameters:
 
 chassis_driver_node:
   ros__parameters:
@@ -39,12 +37,19 @@ chassis_driver_node:
     reduction_ratio : 1.0
     reverse_left_flag : false
     reverse_right_flag : false
+    caster_max_angle : 15.0 # [deg]
     caster_max_count : 4096
-    caster_max_angle : 15.0 # [deg]ff
     motor_max_torque : 1.0 # [Nm]
     p_gain : 6.0
     i_gain : 0.0
     d_gain : 0.0
+
+socketcan_interface_node:
+  ros__parameters:
+    if_name : "can_main"
+
+# controller_node:
+#   ros__parameters:
 
 path_publisher_node:
   ros__parameters:
