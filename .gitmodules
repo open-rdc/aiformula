@@ -10,3 +10,6 @@
 [submodule "utilities"]
 	path = utilities
 	url = https://github.com/hcmos/ros2-utilities
+[submodule "odrive_can"]
+	path = odrive_can
+	url = https://github.com/hcmos/ros2-odrive_can
