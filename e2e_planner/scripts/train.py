@@ -15,6 +15,7 @@ from tqdm import tqdm
 from schedulefree import RAdamScheduleFree
 from network import Network
 from util.slit_aug import augment
+from util.yolop_processor import YOLOPv2Processor
 
 IMAGE_WIDTH = 64
 IMAGE_HEIGHT = 48
@@ -22,11 +23,12 @@ NUM_WAYPOINTS = 10
 
 
 class E2EDataset(Dataset):
-    def __init__(self, dataset_path: Path):
+    def __init__(self, dataset_path: Path, yolop_processor: YOLOPv2Processor):
         self.dataset_path = dataset_path
         self.images_dir = dataset_path / 'images'
         self.path_dir = dataset_path / 'path'
         self.image_files = sorted(list(self.images_dir.glob('*.png')))
+        self.yolop_processor = yolop_processor
 
     def __len__(self) -> int:
         return len(self.image_files)*3
@@ -47,16 +49,16 @@ class E2EDataset(Dataset):
         augmented_data = augment(image, waypoints)
         cropped_image, rotated_waypoints = augmented_data[aug_type]
 
-        cropped_image = image[:, 40:440]
-        cropped_image = cv2.resize(cropped_image, (IMAGE_WIDTH, IMAGE_HEIGHT))
-        cropped_image = cropped_image.astype(np.float32) / 255.0
-        cropped_image = torch.from_numpy(cropped_image).permute(2, 0, 1)
+        mask = self.yolop_processor.process_image(image, (IMAGE_WIDTH, IMAGE_HEIGHT))
+
+        mask_normalized = mask.astype(np.float32)
+        mask_tensor = torch.from_numpy(mask_normalized).unsqueeze(0)
 
         waypoints_tensor = torch.tensor(rotated_waypoints, dtype=torch.float32).flatten()
         waypoints_tensor[0::2] = waypoints_tensor[0::2] / 5.0 - 1.0
         waypoints_tensor[1::2] = (waypoints_tensor[1::2] + 3.0) / 3.0 - 1.0
 
-        return cropped_image, waypoints_tensor
+        return mask_tensor, waypoints_tensor
 
 class Config:
     def __init__(self, config_path: Path, package_root: Path):
@@ -78,12 +80,16 @@ class Config:
 
         self.device = torch.device('cuda')
 
+        self.yolop_model_path = self.weights_dir / 'yolopv2.pt'
+
 class Trainer:
     def __init__(self, dataset_path: Path, config: Config):
         self.config = config
         self.device = config.device
 
-        dataset = E2EDataset(dataset_path)
+        yolop_processor = YOLOPv2Processor(config.yolop_model_path, config.device)
+
+        dataset = E2EDataset(dataset_path, yolop_processor)
         train_size = int(0.8 * len(dataset))
         val_size = len(dataset) - train_size
         train_dataset, val_dataset = random_split(dataset, [train_size, val_size])

@@ -8,9 +8,14 @@ import cv2
 import torch
 import numpy as np
 import os
+import sys
+from pathlib import Path as FilePath
 from rclpy.qos import qos_profile_system_default, qos_profile_sensor_data
 from ament_index_python.packages import get_package_share_directory
 from scipy.interpolate import splprep, splev
+
+sys.path.append(str(FilePath(__file__).parent.parent / 'scripts'))
+from util.yolop_processor import YOLOPv2Processor
 
 def denormalize_waypoints(normalized: np.ndarray) -> np.ndarray:
     denormalized = normalized.copy()
@@ -34,6 +39,8 @@ class InferenceNode(Node):
 
         package_share_directory = get_package_share_directory('e2e_planner')
         weight_path = os.path.join(package_share_directory, 'weights', model_path)
+        yolop_weight_path = FilePath(package_share_directory) / 'weights' / 'yolopv2.pt'
+
         if os.path.exists(weight_path):
             self.model = torch.jit.load(weight_path, map_location=self.device)
             self.model.eval()
@@ -41,16 +48,20 @@ class InferenceNode(Node):
             self.get_logger().warn(f'Model file not found: {weight_path}')
             self.model = None
 
+        self.yolop_processor = YOLOPv2Processor(yolop_weight_path, self.device)
+
         self.sub = self.create_subscription(Image, '/zed/zed_node/rgb/image_rect_color', self.image_callback, qos_profile_sensor_data)
         self.pub_raw = self.create_publisher(Path, 'e2e_planner/path_raw', qos_profile_system_default)
         self.pub = self.create_publisher(Path, 'e2e_planner/path', qos_profile_system_default)
         self.timer = self.create_timer(interval_ms / 1000.0, self.timer_callback)
 
     def preprocess_image(self, image: np.ndarray) -> torch.Tensor:
-        image = image[:, 40:440]
-        resized = cv2.resize(image, (64, 48))
-        normalized = resized.astype(np.float32) / 255.0
-        tensor = torch.from_numpy(normalized).permute(2, 0, 1).unsqueeze(0)
+        bgr_image = cv2.cvtColor(image, cv2.COLOR_BGRA2BGR)
+
+        mask = self.yolop_processor.process_image(bgr_image, (64, 48))
+
+        mask_normalized = mask.astype(np.float32)
+        tensor = torch.from_numpy(mask_normalized).unsqueeze(0).unsqueeze(0)
         return tensor.to(self.device)
 
     def image_callback(self, msg: Image) -> None:
