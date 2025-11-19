@@ -1,6 +1,6 @@
 launch: #起動パラメータ
   ros__parameters:
-    joy: true
+    joy: false
     vectornav : false
     odrive : true
     socketcan : true
