@@ -262,14 +262,17 @@ class DataCollectionNode(Node):
         pointclouds_dir.mkdir(parents=True, exist_ok=True)
 
         for idx, (image, waypoints, point_cloud) in enumerate(self.collected_data, start=1):
-            image_path = images_dir / f'{idx:05d}.npy'
-            waypoints_path = waypoints_dir / f'{idx:05d}.npy'
+            image_path = images_dir / f'{idx:05d}.png'
+            waypoints_path = waypoints_dir / f'{idx:05d}.csv'
             pointcloud_path = pointclouds_dir / f'{idx:05d}.npy'
 
-            np.save(str(image_path), image)
+            cv2.imwrite(str(image_path), image)
 
-            waypoints_array = np.array(waypoints, dtype=np.float32)
-            np.save(str(waypoints_path), waypoints_array)
+            with open(str(waypoints_path), 'w', newline='') as csvfile:
+                csv_writer = csv.writer(csvfile)
+                csv_writer.writerow(['x', 'y'])
+                for x, y in waypoints:
+                    csv_writer.writerow([x, y])
 
             if point_cloud is not None:
                 np.save(str(pointcloud_path), point_cloud)
