@@ -39,7 +39,7 @@ class DataCollectionNode(Node):
     def __init__(self) -> None:
         super().__init__('data_collection_node')
 
-        self.declare_parameter('sdk_flag', False)
+        self.declare_parameter('sdk_flag', True)
         self.sdk_flag_ = self.get_parameter('sdk_flag').value
 
         self.bridge: CvBridge = CvBridge()
@@ -107,6 +107,8 @@ class DataCollectionNode(Node):
 
         self.zed_camera.retrieve_image(self.zed_image, sl.VIEW.LEFT)
         image = self.zed_image.get_data()
+        height, width = image.shape[:2]
+        resized_image = cv2.resize(image, (width // 2, height // 2))
 
         self.zed_camera.get_position(self.zed_pose, sl.REFERENCE_FRAME.WORLD)
         odom = self._convert_pose_to_odometry(self.zed_pose)
@@ -114,7 +116,7 @@ class DataCollectionNode(Node):
         self.zed_camera.retrieve_measure(self.zed_point_cloud, sl.MEASURE.XYZRGBA)
         point_cloud = self.zed_point_cloud.get_data()
 
-        return image, odom, point_cloud
+        return resized_image, odom, point_cloud
 
     def _convert_pose_to_odometry(self, pose: sl.Pose) -> Odometry:
         odom = Odometry()

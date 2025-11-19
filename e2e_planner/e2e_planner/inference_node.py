@@ -83,7 +83,11 @@ class InferenceNode(Node):
     def _capture_image_from_zed(self) -> Optional[np.ndarray]:
         if self.zed_camera.grab(self.zed_runtime_params) == sl.ERROR_CODE.SUCCESS:
             self.zed_camera.retrieve_image(self.zed_image, sl.VIEW.LEFT)
-            return self.zed_image.get_data()
+            image = self.zed_image.get_data()
+            # Resize image to half size
+            height, width = image.shape[:2]
+            resized_image = cv2.resize(image, (width // 2, height // 2))
+            return resized_image
         return None
 
     def preprocess_image(self, image: np.ndarray) -> torch.Tensor:
