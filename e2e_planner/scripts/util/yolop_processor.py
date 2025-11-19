@@ -40,20 +40,20 @@ class YOLOPv2Processor:
 
         return img, r, (dw, dh)
 
-    def lane_line_mask(self, ll: torch.Tensor) -> np.ndarray:
-        ll_softmax = torch.nn.functional.softmax(ll, dim=1)
-        ll_prob = ll_softmax[0, 1, :, :]
-        mask = (ll_prob > 0.5).cpu().numpy().astype(np.uint8)
-        return mask
+    def lane_line_mask(self, ll = None):
+        ll_seg_mask = torch.nn.functional.interpolate(ll, scale_factor=2, mode='bilinear')
+        ll_seg_mask = torch.round(ll_seg_mask).squeeze(1)
+        ll_seg_mask = ll_seg_mask.int().squeeze().cpu().numpy()
+        return ll_seg_mask
 
     def process_image(self, image: np.ndarray, target_size: Tuple[int, int]) -> np.ndarray:
         img_resized, ratio, (pad_left, pad_top) = self.letterbox(image, self.input_shape)
 
-        img_normalized = img_resized.astype(np.float32) / 255.0
-        img_tensor = torch.from_numpy(np.transpose(img_normalized, (2, 0, 1))).unsqueeze(0).to(self.device)
+        img = img_resized.astype(np.float32) / 255.0
+        img = torch.from_numpy(np.transpose(img, (2, 0, 1))).unsqueeze(0).to(self.device)
 
         with torch.no_grad():
-            outputs = self.model(img_tensor)
+            outputs = self.model(img)
             [pred, anchor_grid], seg, ll = outputs
 
         ll_seg_mask = self.lane_line_mask(ll)
