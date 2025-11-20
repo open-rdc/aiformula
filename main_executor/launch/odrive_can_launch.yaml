@@ -8,7 +8,7 @@ launch:
     param:
     -
       name: "node_id"
-      value: 0
+      value: 24
     -
       name: "interface"
       value: "can_sub"
