@@ -34,8 +34,8 @@ class InferenceNode(Node):
 
         self.declare_parameter('model_name', 'model.pt')
         self.declare_parameter('interval_ms', 100)
-        self.declare_parameter('sdk_flag', False)
-        self.declare_parameter('debug_mode', False)
+        self.declare_parameter('sdk_flag', True)
+        self.declare_parameter('debug_mode', True)
 
         model_path = self.get_parameter('model_name').value
         interval_ms = self.get_parameter('interval_ms').value
@@ -135,10 +135,9 @@ class InferenceNode(Node):
         input_tensor, mask = self.preprocess_image(cv_image)
 
         if self.debug_mode_:
-            mask_vis = (mask * 255).astype(np.uint8)
-            mask_bgr = cv2.cvtColor(mask_vis, cv2.COLOR_GRAY2BGR)
-            mask_bgr[mask == 1] = [0, 0, 255]
-            debug_msg = self.bridge.cv2_to_imgmsg(mask_bgr, encoding='bgr8')
+            resized_input = cv2.resize(cv2.cvtColor(cv_image, cv2.COLOR_BGRA2BGR), (64, 48))
+            resized_input[mask == 1] = [0, 0, 255]
+            debug_msg = self.bridge.cv2_to_imgmsg(resized_input, encoding='bgr8')
             debug_msg.header = header
             self.pub_debug_image.publish(debug_msg)
 
