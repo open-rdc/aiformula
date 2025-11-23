@@ -22,14 +22,15 @@ class InferenceNode(Node):
     def __init__(self) -> None:
         super().__init__('inference_node')
 
-        self.declare_parameter('model_name', 'model.pt')
+        self.declare_parameter('model_name', 'e2e_model.pt')
         self.declare_parameter('interval_ms', 100)
 
         model_path = self.get_parameter('model_name').value
         interval_ms = self.get_parameter('interval_ms').value
 
         self.bridge = CvBridge()
-        self.device = torch.device('cuda')
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        self.get_logger().info(f'Using device: {self.device}')
         self.latest_image = None
 
         package_share_directory = get_package_share_directory('e2e_planner')
@@ -41,7 +42,7 @@ class InferenceNode(Node):
             self.get_logger().warn(f'Model file not found: {weight_path}')
             self.model = None
 
-        self.sub = self.create_subscription(Image, '/zed/zed_node/rgb/image_rect_color', self.image_callback, qos_profile_sensor_data)
+        self.sub = self.create_subscription(Image, '/image_raw', self.image_callback, qos_profile_sensor_data)
         self.pub_raw = self.create_publisher(Path, 'e2e_planner/path_raw', qos_profile_system_default)
         self.pub = self.create_publisher(Path, 'e2e_planner/path', qos_profile_system_default)
         self.timer = self.create_timer(interval_ms / 1000.0, self.timer_callback)

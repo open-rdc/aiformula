@@ -25,6 +25,45 @@ install(
   DIRECTORY include/
   DESTINATION include
 )
+
+find_package(nav_msgs REQUIRED)
+find_package(utilities REQUIRED)
+find_package(Eigen3 REQUIRED)
+find_package(tf2 REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
+find_package(rclcpp_components REQUIRED)
+
+include_directories(
+  include
+  ${Eigen3_INCLUDE_DIRS}
+  ${rclcpp_components_INCLUDE_DIRS}
+)
+
+
+add_executable(mpc_node src/mpc_node.cpp)
+target_include_directories(mpc_node PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
+)
+target_link_libraries(mpc_node Eigen3::Eigen)
+ament_target_dependencies(mpc_node
+  rclcpp
+  geometry_msgs
+  nav_msgs
+  utilities
+  tf2
+  tf2_geometry_msgs
+  rclcpp_components
+)
+
+install(TARGETS mpc_node
+  DESTINATION lib/${PROJECT_NAME}
+)
+
+install(DIRECTORY launch
+  DESTINATION share/${PROJECT_NAME}
+)
+
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   # the following line skips the linter which checks for copyrights
