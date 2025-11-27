@@ -52,7 +52,7 @@ class DataCollectionNode(Node):
         self.collected_data: List[Tuple[np.ndarray, List[Tuple[float, float]], Optional[np.ndarray]]] = []
         self.last_sample_time: Optional[float] = None
 
-        self.is_paused: bool = False
+        self.is_paused: bool = True
         self.prev_button_state: int = 0
 
         self.zed_camera: Optional[sl.Camera] = None
@@ -150,7 +150,7 @@ class DataCollectionNode(Node):
 
     def joy_callback(self, msg: Joy) -> None:
         if len(msg.buttons) > 2:
-            current_button_state = msg.buttons[2]
+            current_button_state = msg.buttons[1]
             if current_button_state == 1 and self.prev_button_state == 0:
                 self.is_paused = not self.is_paused
                 if self.is_paused:
@@ -256,7 +256,7 @@ class DataCollectionNode(Node):
         timestamp = time.strftime('%Y%m%d_%H%M%S')
         dataset_dir = data_base_dir / f'{timestamp}_dataset'
         images_dir = dataset_dir / 'images'
-        waypoints_dir = dataset_dir / 'waypoints'
+        waypoints_dir = dataset_dir / 'path'
         pointclouds_dir = dataset_dir / 'pointclouds'
 
         images_dir.mkdir(parents=True, exist_ok=True)
