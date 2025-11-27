@@ -28,16 +28,21 @@ def generate_launch_description():
         package='ros_gz_bridge',
         executable='parameter_bridge',
         arguments=[
-            '/camera_info@sensor_msgs/msg/CameraInfo@ignition.msgs.CameraInfo',
-            '/image_raw@sensor_msgs/msg/Image@ignition.msgs.Image',
-            '/odom@nav_msgs/msg/Odometry@ignition.msgs.Odometry',
-            '/depth_image_raw@sensor_msgs/msg/Image@ignition.msgs.Image',
-            '/depth_points@sensor_msgs/msg/PointCloud2@ignition.msgs.PointCloudPacked',
-            '/navsat@sensor_msgs/msg/NavSatFix@ignition.msgs.NavSat',
-            '/imu_raw@sensor_msgs/msg/Imu@ignition.msgs.IMU',
-            '/cmd_vel@geometry_msgs/msg/Twist@ignition.msgs.Twist'],
+            '/camera/camera_info@sensor_msgs/msg/CameraInfo@gz.msgs.CameraInfo',
+            '/camera/image@sensor_msgs/msg/Image@gz.msgs.Image',
+            '/camera/depth_image@sensor_msgs/msg/Image@gz.msgs.Image',
+            '/camera/points@sensor_msgs/msg/PointCloud2@gz.msgs.PointCloudPacked',
+            '/odom@nav_msgs/msg/Odometry@gz.msgs.Odometry',
+            '/navsat@sensor_msgs/msg/NavSatFix@gz.msgs.NavSat',
+            '/imu_raw@sensor_msgs/msg/Imu@gz.msgs.IMU',
+            '/cmd_vel@geometry_msgs/msg/Twist@gz.msgs.Twist'],
         output='screen',
-        remappings=[('/odom', '/zed/zed_node/odom')]
+        remappings=[
+            ('/odom', '/zed/zed_node/odom'),
+            ('/camera/image', '/zed/zed_node/rgb/image_rect_color'),
+            ('/camera/depth_image', '/zed/zed_node/depth/depth_registered'),
+            ('/camera/points', '/zed/zed_node/pointcloud'),
+        ]
     )
 
     return LaunchDescription([
