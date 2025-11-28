@@ -51,8 +51,8 @@ def generate_launch_description():
     # odrive起動の作成
     odrive_launch = launch.actions.IncludeLaunchDescription(
         AnyLaunchDescriptionSource([os.path.join(
-            get_package_share_directory('odrive_can'), 'launch/'),
-            'own_launch.yaml'])
+            get_package_share_directory('main_executor'), 'launch/'),
+            'odrive_can_launch.yaml'])
     )
 
     # 起動エンティティクラスの作成
