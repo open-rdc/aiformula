@@ -12,7 +12,7 @@
       <right_joint>right_wheel_joint</right_joint>
       <wheel_separation>0.6</wheel_separation>
       <wheel_radius>0.124</wheel_radius>
-      <odom_publish_frequency>0.1</odom_publish_frequency>
+      <odom_publish_frequency>20.0</odom_publish_frequency>
       <topic>cmd_vel</topic>
     </plugin>
     <plugin

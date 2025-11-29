@@ -26,7 +26,8 @@ def generate_launch_description():
             '/depth_points@sensor_msgs/msg/PointCloud2@ignition.msgs.PointCloudPacked',
             '/navsat@sensor_msgs/msg/NavSatFix@ignition.msgs.NavSat',
             '/imu_raw@sensor_msgs/msg/Imu@ignition.msgs.IMU',
-            '/cmd_vel@geometry_msgs/msg/Twist@ignition.msgs.Twist'],
+            '/cmd_vel@geometry_msgs/msg/Twist@ignition.msgs.Twist',
+            '/model/ai_car1/odometry@nav_msgs/msg/Odometry@ignition.msgs.Odometry'],
         output='screen'
     )
 

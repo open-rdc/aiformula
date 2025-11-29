@@ -10,8 +10,8 @@ MPCNode::MPCNode(const rclcpp::NodeOptions &options)
   // Parameters
   dt_ = this->declare_parameter("dt", 0.1);
   horizon_ = this->declare_parameter("horizon", 20);
-  max_v_ = this->declare_parameter("max_v", 1.0);
-  max_w_ = this->declare_parameter("max_w", 1.0);
+  max_v_ = this->declare_parameter("max_v", 2.0);
+  max_w_ = this->declare_parameter("max_w", 2.0);
   goal_tolerance_ = this->declare_parameter("goal_tolerance", 0.1);
 
   // Subscribers and Publishers
