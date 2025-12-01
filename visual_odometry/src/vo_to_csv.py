@@ -1,10 +1,10 @@
 import rclpy
 from rclpy.node import Node
-from nav?msgs.msg import Odometry
+from nav_msgs.msg import Odometry
 import csv
 import math
 
-class VoCsvConvereter(Node):
+class VoCsvConverter(Node):
     def __init__(self):
         super().__init__("vo_csv_node")
         self.subscription = self.create_subscription(
@@ -16,11 +16,12 @@ class VoCsvConvereter(Node):
         self.subscription
 
        self.get_logger().info("ZED VOをCSVファイルにします。")
-       self.csv_file = open('shihou_vo.csv', mode ='w', newline" ")
+       self.csv_file = open("shihou_vo.csv", mode ="w", newline"")
+       self.csv_writer = csv.writer(self.csv_file)
        self.csv_writer.writerow(["x", "y", "z", "yaw"])
        self.counter = 0
 
-    def callback(self,msg):
+    def callback(self, msg):
         self.counter += 1
         if self.counter % 5 != 0:
            return
@@ -34,7 +35,7 @@ class VoCsvConvereter(Node):
         qz = msg.pose.pose.orientation.z
         qw = msg.pose.pose.orientation.w
         #yaw
-        siny_cosp = 2.0 * (qw * qz + qx *qy)
+        siny_cosp = 2.0 * (qw * qz + qx * qy)
         cosy_cosp = 1.0 - 2.0 * (qy * qy + qz * qz)
         yaw = math.atan2(siny_cosp, cosy_cosp)
 
@@ -44,7 +45,7 @@ class VoCsvConvereter(Node):
         self.csv_file.close()
         super().destroy_node()
 
-    def main():
+def main():
         rclpy.init()
         node = VoCsvConverter()
         rclpy.spin(node)
