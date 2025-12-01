@@ -9,20 +9,20 @@ class VoCsvConvereter(Node):
         super().__init__("vo_csv_node")
         self.subscription = self.create_subscription(
             Odometry,
-           "/vo/odom",
+           "/zed/zed_node/odom",
            self.callback,
            10
         )
         self.subscription
 
-       self.get_logger().info("/vo/odomをCSVファイルにします。")
+       self.get_logger().info("ZED VOをCSVファイルにします。")
        self.csv_file = open('shihou_vo.csv', mode ='w', newline" ")
        self.csv_writer.writerow(["x", "y", "z", "yaw"])
        self.counter = 0
 
     def callback(self,msg):
         self.counter += 1
-        if self.counter % 10 != 0:
+        if self.counter % 5 != 0:
            return
 
         x = msg.pose.pose.position.x
@@ -38,7 +38,7 @@ class VoCsvConvereter(Node):
         cosy_cosp = 1.0 - 2.0 * (qy * qy + qz * qz)
         yaw = math.atan2(siny_cosp, cosy_cosp)
 
-        self.get_logger().info(f"x={x:.3f}, y={y:.3f}, z={z:.3f}, yaw={yaw:.3f}")
+        self.get_logger().info(f"x={x:.2f}, y={y:.2f}, z={z:.2f}, yaw={yaw:.2f}")
         self.csv_writer.writerow([x, y,z, yaw])
     def destroy_node(self):
         self.csv_file.close()
