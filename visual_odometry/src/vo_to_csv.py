@@ -15,11 +15,11 @@ class VoCsvConverter(Node):
         )
         self.subscription
 
-       self.get_logger().info("ZED VOをCSVファイルにします。")
-       self.csv_file = open("shihou_vo.csv", mode ="w", newline"")
-       self.csv_writer = csv.writer(self.csv_file)
-       self.csv_writer.writerow(["x", "y", "z", "yaw"])
-       self.counter = 0
+        self.get_logger().info("ZED VOをCSVファイルにします。")
+        self.csv_file = open("shihou_vo.csv", mode ="w", newline="")
+        self.csv_writer = csv.writer(self.csv_file)
+        self.csv_writer.writerow(["x", "y", "z", "yaw"])
+        self.counter = 0
 
     def callback(self, msg):
         self.counter += 1
