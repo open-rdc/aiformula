@@ -26,36 +26,37 @@ class GeminiLiveControllerNode(Node):
         super().__init__('gemini_live_controller')
 
         default_api_key = os.environ.get('GEMINI_API_KEY', 'AIzaSyA2b0g4DkQjha7ig2zbmMrgtIl9s-MGFoI')
-        default_model = os.environ.get('GEMINI_MODEL', 'models/gemini-2.0-flash-live-001') #gemini-2.5-flash-live-preview
+        default_model = os.environ.get('GEMINI_MODEL', 'models/gemini-2.0-flash-live-001') #gemini-2.5-flash-live-preview, models/gemini-2.0-flash-live-001
+
 
         self.declare_parameter('api_key', default_api_key)
         self.declare_parameter('model', default_model)
-        self.declare_parameter('subscribe_topic', '/gemini/annotated_image')
+        self.declare_parameter('subscribe_topic', '/gemini/annotated_image') #gemini/annotated_image、gemini/drivable_area_image
         self.declare_parameter('publish_topic', '/cmd_vel')
         self.declare_parameter('request_interval_sec', 0.1)
-        self.declare_parameter('max_linear_speed', 2.4)
-        self.declare_parameter('max_angular_speed', 3.7)
+        self.declare_parameter('max_linear_speed', 2.0)
+        self.declare_parameter('max_angular_speed', 2.0)
         self.declare_parameter('control_period_sec', 0.1)
-        self.declare_parameter('max_linear_slew', 3.0)
-        self.declare_parameter('max_angular_slew', 6.5)
-        self.declare_parameter('min_linear_speed', 1.6)
-        self.declare_parameter('linear_gain', 1.2)
-        self.declare_parameter('angular_gain', 7.1)
+        self.declare_parameter('max_linear_slew', 1.0)
+        self.declare_parameter('max_angular_slew', 0.7)
+        self.declare_parameter('min_linear_speed', 1.0)
+        self.declare_parameter('linear_gain', 1.0)
+        self.declare_parameter('angular_gain', 2.5)
         self.declare_parameter('stop_on_failure', True)
         self.declare_parameter('failsafe_timeout_sec', 10.0)
         self.declare_parameter('allow_reverse', False)
-        self.declare_parameter('smoothing_window', 2)
+        self.declare_parameter('smoothing_window', 1)
         self.declare_parameter('response_timeout_sec', 12.0)
         self.declare_parameter('history_lookback_sec', 2.0)
         self.declare_parameter('history_second_lookback_sec', 4.0)
         self.declare_parameter('use_history_frames', True)
         self.declare_parameter(
             'base_prompt',
-            'Drive the simulated race car using the camera frame. Stay between the left solid white line and the center dashed line,'
-            ' favoring the left lane but never touching red/white boundaries or green runoff. '
-            'When you see a curve ahead, immediately reduce speed and begin turning in the direction of the curve to stay centered.'
-            ' Re-center and accelerate once aligned, then unwind steering. Avoid orange cones while remaining in lane.'
-            ' Respond ONLY with JSON {"linear_x": m/s, "angular_z": rad/s} within limits, forward-only, smooth, no narration.'
+            'Drive the simulated race car using the camera frame. '
+            'The image shows segmented road information with lane lines highlighted in RED. '
+            'When you see a curve ahead, immediately reduce speed and begin turning in the direction of the curve to stay centered. '
+            'Re-center and accelerate once aligned, then unwind steering. '
+            'Respond ONLY with JSON {"linear_x": m/s, "angular_z": rad/s} within limits, forward-only, smooth, no narration.'
         )
 
         self.api_key = self.get_parameter('api_key').value

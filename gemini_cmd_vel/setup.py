@@ -9,6 +9,7 @@ setup(
     data_files=[
         ('share/ament_index/resource_index/packages', ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
+        ('share/' + package_name + '/launch', ['launch/gemini_er_launch.py']),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
@@ -20,6 +21,7 @@ setup(
     entry_points={
         'console_scripts': [
             'gemini_controller = gemini_cmd_vel.gemini_controller_node:main',
+            'gemini_vla_node = gemini_cmd_vel.gemini_vla_node:main',
         ],
     },
 )

@@ -24,6 +24,7 @@ setup(
     entry_points={
         'console_scripts': [
             'road_detector_node = road_detector.road_detector_node:main',
+            'drivable_area_node = road_detector.drivable_area_node:main',
         ],
     },
 )
