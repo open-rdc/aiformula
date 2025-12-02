@@ -26,7 +26,7 @@ class GeminiLiveControllerBirdseyeNode(Node):
     def __init__(self) -> None:
         super().__init__('gemini_live_controller_birdseye')
 
-        default_api_key = os.environ.get('GEMINI_API_KEY', 'AIzaSyA2b0g4DkQjha7ig2zbmMrgtIl9s-MGFoI')
+        default_api_key = os.environ.get('GEMINI_API_KEY', '')
         default_model = os.environ.get('GEMINI_MODEL', 'models/gemini-2.5-flash-live-preview')
 
         self.declare_parameter('api_key', default_api_key)
