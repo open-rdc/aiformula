@@ -13,8 +13,8 @@
       <wheel_separation>0.6</wheel_separation>
       <wheel_radius>0.124</wheel_radius>
       <odom_publish_frequency>30</odom_publish_frequency>
-      <topic>cmd_vel</topic>
-      <odom_topic>odom</odom_topic>
+      <topic>/cmd_vel</topic>
+      <odom_topic>/odom</odom_topic>
     </plugin>
     <plugin
         filename="libignition-gazebo-imu-system.so"
@@ -249,7 +249,7 @@
         <always_on>1</always_on>
         <update_rate>20.0</update_rate> <!--Hz-->
         <visualize>true</visualize>
-        <topic>imu_raw</topic>
+        <topic>/imu_raw</topic>
       </sensor>
     </link>
 
@@ -289,7 +289,7 @@
       <sensor name="realsense_d435" type="rgbd_camera">
         <update_rate>60.0</update_rate>
         <always_on>true</always_on>
-        <topic>camera</topic>
+        <topic>/image_raw</topic>
         <ignition_frame_id>camera_link</ignition_frame_id>
 
         <camera name="camera">
@@ -323,7 +323,7 @@
       <sensor name="gps_sensor" type="navsat">
         <always_on>true</always_on>
         <update_rate>1.0</update_rate>
-        <topic>navsat</topic>
+        <topic>/navsat</topic>
       </sensor>
     </link>
 
