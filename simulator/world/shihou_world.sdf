@@ -102,7 +102,7 @@
             <visual name="visual">
                 <geometry>
                     <mesh>
-                      <uri>package://simulator/world/meshes/lane_line_obj.dae</uri>
+                      <uri>package://simulator/world/meshes/shihou_world.dae</uri>
                     <scale>1 1 1</scale>
                     </mesh>
                 </geometry>
