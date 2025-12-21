@@ -13,7 +13,6 @@
   <depend>std_msgs</depend>
   <depend>geometry_msgs</depend>
   <depend>nav_msgs</depend>
-  <depend>utilities</depend>
   <depend>eigen</depend>
   <depend>tf2</depend>
   <depend>tf2_geometry_msgs</depend>
