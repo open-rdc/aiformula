@@ -10,20 +10,20 @@ MPCNode::MPCNode(const rclcpp::NodeOptions &options)
     : Node("mpc_node", options), dt_(0.1), horizon_(20), max_v_(1.5),
       max_accel_(0.3), max_delta_rate_(1.0), goal_tolerance_(0.1), L_(0.8),
       m_(71.5), I_(7.72) {
-  // Parameters
+  // パラメータの宣言とデフォルト値の設定
   dt_ = this->declare_parameter("dt", 0.1);
-  horizon_ = this->declare_parameter("horizon", 20);
-  max_v_ = this->declare_parameter("max_v", 2.0); // Keep for reference
+  horizon_ = this->declare_parameter("horizon", 8);
+  max_v_ = this->declare_parameter("max_v", 2.0); // 参照用
   max_accel_ = this->declare_parameter("max_accel", 2.0);
   max_delta_rate_ = this->declare_parameter("max_delta_rate", 5);
   goal_tolerance_ = this->declare_parameter("goal_tolerance", 0.1);
 
-  // Model Parameters
-  L_ = this->declare_parameter("wheelbase", 0.8);
+  // モデルパラメータ
+  L_ = this->declare_parameter("wheelbase", 0.9);
   m_ = this->declare_parameter("mass", 71.5);
   I_ = this->declare_parameter("inertia", 7.72);
 
-  // Subscribers and Publishers
+  // サブスクライバとパブリッシャの設定
   sub_path_ = this->create_subscription<nav_msgs::msg::Path>(
       "/e2e_planner/path", 10,
       std::bind(&MPCNode::on_path_received, this, std::placeholders::_1));
@@ -45,7 +45,7 @@ MPCNode::MPCNode(const rclcpp::NodeOptions &options)
   pub_cmd_vel_ =
       this->create_publisher<geometry_msgs::msg::Twist>("cmd_vel", 10);
 
-  // Timer for control loop (run at 1/dt Hz)
+  // 制御ループタイマーの設定 (1/dt Hz)
   timer_ = this->create_wall_timer(std::chrono::duration<double>(dt_),
                                    std::bind(&MPCNode::control_loop, this));
 
@@ -61,18 +61,18 @@ void MPCNode::on_path_received(const nav_msgs::msg::Path::SharedPtr msg) {
 void MPCNode::on_velocity_received(
     const geometry_msgs::msg::TwistWithCovarianceStamped::SharedPtr msg) {
   double raw_v = msg->twist.twist.linear.x;
-  // Stronger LPF for velocity to kill pulsing (alpha=0.1)
+  // 線形速度に強力なローパスフィルタを適用 (脈動抑制, alpha=0.1)
   latest_v_ = 0.9 * latest_v_ + 0.1 * raw_v;
-  // Right+ Throughout: IMU is CCW+, so invert to match Right+ model
+  // Right+ Throughout: IMUはCCW+なので反転させてRight+モデルに合わせる
   latest_w_ = -msg->twist.twist.angular.z;
 }
 
 void MPCNode::on_caster_received(
     const std_msgs::msg::Float64MultiArray::SharedPtr msg) {
   if (msg->data.size() > 0) {
-    // Normalization: Caster sensor appears to match polar convention (CCW+)
+    // キャスター角（ステアリング角）を取得
     double raw_delta = msg->data[0];
-    // Low-pass filter (alpha=0.3) to reduce vibration
+    // ローパスフィルタを適用して振動を低減 (alpha=0.3)
     latest_delta_ = 0.7 * latest_delta_ + 0.3 * raw_delta;
   }
 }
@@ -88,7 +88,7 @@ std::vector<State> MPCNode::transform_path_to_local(
   std::vector<State> local_traj;
   double rx = robot_pose.pose.position.x;
   double ry = robot_pose.pose.position.y;
-  // Right+ Throughout: Use raw yaw
+  // Right+ Throughout: 生のヨー角を使用
   double rtheta = tf2::getYaw(robot_pose.pose.orientation);
 
   double cos_theta = std::cos(rtheta);
@@ -97,20 +97,20 @@ std::vector<State> MPCNode::transform_path_to_local(
   for (const auto &p : global_path->poses) {
     double gx = p.pose.position.x;
     double gy = p.pose.position.y;
-    // Right+ Throughout: Use raw yaw
+    // Right+ Throughout: 生のヨー角を使用
     double gtheta = tf2::getYaw(p.pose.orientation);
 
-    // Relative position
+    // 相対位置の計算
     double dx = gx - rx;
     double dy = gy - ry;
 
     State s;
-    // Map to robot frame
+    // ロボット座標系（base_link）へ変換
     s.x = dx * cos_theta + dy * sin_theta;
     s.y = -dx * sin_theta + dy * cos_theta;
     s.theta = gtheta - rtheta;
 
-    // Normalize angle
+    // 角度の正規化
     while (s.theta > M_PI)
       s.theta -= 2.0 * M_PI;
     while (s.theta < -M_PI)
@@ -134,24 +134,23 @@ void MPCNode::control_loop() {
     return;
   }
 
-  // Transform global path to local base_link frame
+  // グローバルパスをローカルの base_link 座標系に変換
   std::vector<State> local_path =
       transform_path_to_local(current_path_, *latest_pose_);
 
-  // Use the latest feedback values as the initial state for the MPC solver
-  // After coordinate transformation, the robot is always at the local origin
-  // (0,0,0)
+  // 最新のフィードバック値をMPCソルバーの初期状態として使用
+  // 座標変換後はロボットは常に原点 (0,0,0) に位置する
   State current_state = {0.0, 0.0, 0.0, latest_v_, latest_delta_};
 
-  // Extract reference trajectory from path based on distance (velocity * dt)
+  // 走行距離（速度 * dt）に基づいて参照軌道を抽出
   std::vector<State> reference_trajectory;
   double lookahead_dist = 0.0;
   for (int i = 0; i < horizon_; ++i) {
-    // target_v = 2.0 to match Bag Cmd
-    double target_v_ref = 2.0;
-    lookahead_dist += (target_v_ref * dt_) + 0.1;
+    // 現在の速度に基づいて予測位置を計算（極低速時でも0.5m/s分は先読みする）
+    double effective_v = std::max(latest_v_, 0.5);
+    lookahead_dist += (effective_v * dt_);
 
-    // Find the point in local_path closest to lookahead_dist
+    // local_path の中で lookahead_dist に最も近い点を探す
     size_t best_idx = 0;
     double min_diff = 1e9;
     for (size_t j = 0; j < local_path.size(); ++j) {
@@ -165,27 +164,30 @@ void MPCNode::control_loop() {
     }
     reference_trajectory.push_back(State{local_path[best_idx].x,
                                          local_path[best_idx].y,
-                                         local_path[best_idx].theta, 1.4, 0.0});
+                                         local_path[best_idx].theta, 2.0, 0.0});
   }
 
-  // Solve MPC (Kinematic Only)
+  // MPCソルバーを実行 (幾何学モデル版)
   std::vector<Control> optimal_controls =
       solve_mpc(current_state, reference_trajectory);
 
-  // Publish command
+  // コマンドの公開
   if (!optimal_controls.empty()) {
+    // 次の状態をモデルで予測して目標速度/角度を決定
     State next_state = step_model(current_state, optimal_controls[0], dt_);
     double target_v = next_state.v;
     double target_delta = next_state.delta;
-    double target_omega = (target_v * std::tan(target_delta)) / L_;
+    double angular_gain = 1.0; // 実機の応答の鈍さを補正（アンプ）
+    double target_omega =
+        ((target_v * std::tan(target_delta)) / L_) * angular_gain;
 
     geometry_msgs::msg::Twist cmd;
     cmd.linear.x = target_v;
-    // Right+ Throughout: omega is Right+, assume actuator/bag/plot are all
-    // Right+
+    // Right+ Throughout: omegaは右旋回正、現在すべての系で右旋回正として統一
     cmd.angular.z = target_omega;
     pub_cmd_vel_->publish(cmd);
 
+    // 次回の計算のために予測履歴をシフト
     predicted_controls_ = optimal_controls;
     predicted_controls_.erase(predicted_controls_.begin());
     predicted_controls_.push_back(Control{0.0, 0.0});
@@ -194,7 +196,7 @@ void MPCNode::control_loop() {
 
 State MPCNode::step_model(const State &s, const Control &u, double dt) {
   State next;
-  // Kinematic Bicycle Model
+  // 運動学自転車モデル (Kinematic Bicycle Model)
   // x_{k+1} = x_k + v_k * cos(theta_k) * dt
   next.x = s.x + s.v * std::cos(s.theta) * dt;
   // y_{k+1} = y_k + v_k * sin(theta_k) * dt
@@ -215,7 +217,7 @@ MPCNode::solve_mpc(const State &current_state,
                    const std::vector<State> &reference_trajectory) {
   int N = horizon_;
 
-  // Pack inputs
+  // 入力データを配列にパック
   double current_state_arr[5] = {current_state.x, current_state.y,
                                  current_state.theta, current_state.v,
                                  current_state.delta};
@@ -231,11 +233,11 @@ MPCNode::solve_mpc(const State &current_state,
   std::vector<double> out_a(N);
   std::vector<double> out_dr(N);
 
-  // Call the ABI-safe bridge function
+  // ABI安全なブリッジ関数を介してCasADiソルバーを呼び出し
   solve_mpc_casadi_c(current_state_arr, ref_traj_arr.data(), N, dt_, L_,
                      max_accel_, max_delta_rate_, out_a.data(), out_dr.data());
 
-  // Unpack outputs
+  // 出力をアンパック
   std::vector<Control> optimal_controls;
   for (int i = 0; i < (int)out_a.size(); ++i) {
     optimal_controls.push_back({out_a[i], out_dr[i]});

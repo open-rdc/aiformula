@@ -6,13 +6,13 @@ extern "C" {
 #endif
 
 void solve_mpc_casadi_c(
-    const double *current_state, // [5]: x, y, theta, v, delta
-    const double
-        *reference_trajectory, // [horizon*4]: x, y, theta, v (repeated)
+    const double *current_state, // 現在の状態 [5]: x, y, theta, v, delta
+    const double *
+        reference_trajectory, // 参照軌道 [horizon*4]: x, y, theta, v (繰り返し)
     int horizon, double dt, double wheelbase, double max_accel,
     double max_delta_rate,
-    double *out_a,           // [horizon]
-    double *out_delta_rate); // [horizon]
+    double *out_a,           // 出力: 最適加速度 [horizon]
+    double *out_delta_rate); // 出力: 最適ステアリング速度 [horizon]
 
 #ifdef __cplusplus
 }

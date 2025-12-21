@@ -42,15 +42,20 @@ class InferenceNode(Node):
             self.get_logger().warn(f'Model file not found: {weight_path}')
             self.model = None
 
-        self.sub = self.create_subscription(Image, '/image_raw', self.image_callback, qos_profile_sensor_data)
+        # ZEDカメラ画像トピックを購読
+        self.sub = self.create_subscription(Image, '/zed/zed_node/rgb/image_rect_color', self.image_callback, qos_profile_sensor_data) #/zed/zed_node/rgb/image_rect_color #/image_raw
         self.pub_raw = self.create_publisher(Path, 'e2e_planner/path_raw', qos_profile_system_default)
         self.pub = self.create_publisher(Path, 'e2e_planner/path', qos_profile_system_default)
+        # 指定されたインターバル（デフォルト100ms）でタイマーを実行
         self.timer = self.create_timer(interval_ms / 1000.0, self.timer_callback)
 
     def preprocess_image(self, image: np.ndarray) -> torch.Tensor:
+        # 画像を切り抜いてリサイズ（モデルの入力サイズ 64x48 に合わせる）
         image = image[:, 40:440]
         resized = cv2.resize(image, (64, 48))
+        # 0.0〜1.0 に正規化
         normalized = resized.astype(np.float32) / 255.0
+        # PyTorchテンソルに変換 (C, H, W)
         tensor = torch.from_numpy(normalized).permute(2, 0, 1).unsqueeze(0)
         return tensor.to(self.device)
 
@@ -60,27 +65,35 @@ class InferenceNode(Node):
     def timer_callback(self) -> None:
         if self.latest_image is None:   return
 
+        # ROS画像をOpenCV形式に変換
         cv_image = self.bridge.imgmsg_to_cv2(self.latest_image, desired_encoding='bgra8')
+        # 画像の前処理
         input_tensor = self.preprocess_image(cv_image)
 
+        # モデル推論の実行
         with torch.no_grad():
             output = self.model(input_tensor)
 
+        # 出力をデ正規化（実際の座標系に戻す）
         output_normalized = output.cpu().numpy().flatten()
         output_denormalized = denormalize_waypoints(output_normalized)
         output_denormalized_tensor = torch.from_numpy(output_denormalized).unsqueeze(0)
 
+        # 生の推定ウェイポイントをPathとして公開
         path_raw_msg = self.create_path_from_output(output_denormalized_tensor, self.latest_image.header)
         self.pub_raw.publish(path_raw_msg)
 
+        # スムージングを適用してPathとして公開（MPC用）
         path_smooth_msg = self.apply_bspline_smoothing(output_denormalized_tensor, self.latest_image.header)
         self.pub.publish(path_smooth_msg)
 
     def apply_bspline_smoothing(self, output: torch.Tensor, header) -> Path:
+        # 推定されたウェイポイントを取得
         waypoints = output.cpu().numpy().reshape(-1, 2)
         x = waypoints[:, 0]
         y = waypoints[:, 1]
 
+        # B-スプライン補間によるスムージング
         # s: smoothing factor（値が大きいほど滑らか、0だと補間）
         # k: スプラインの次数（3次）
         tck, u = splprep([x, y], s=0.1, k=3)

@@ -58,28 +58,26 @@ private:
   rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr pub_cmd_vel_;
   rclcpp::TimerBase::SharedPtr timer_;
 
-  // Parameters
+  // パラメータ
   double dt_;
   int horizon_;
-  double
-      max_v_; // Not strictly used in input constraint anymore, but maybe state
-              // constraint? We'll keep it for reference or safety check.
-  double max_accel_;      // New input constraint
-  double max_delta_rate_; // New input constraint
+  double max_v_;          // 状態拘束などで使用する可能性があるため参照用に保持
+  double max_accel_;      // 入力拘束: 最大加速度
+  double max_delta_rate_; // 入力拘束: 最大ステアリング速度
   double goal_tolerance_;
 
-  // Model Parameters
-  double L_; // Wheelbase
-  double m_; // Mass
-  double I_; // Inertia
+  // モデルパラメータ
+  double L_; // ホイールベース
+  double m_; // 質量
+  double I_; // 慣性モーメント
 
-  // State
+  // 内部状態
   nav_msgs::msg::Path::SharedPtr current_path_;
   geometry_msgs::msg::PoseStamped::SharedPtr latest_pose_;
   double latest_v_ = 0.0;
   double latest_w_ = 0.0;
   double latest_delta_ = 0.0;
-  std::vector<Control> predicted_controls_; // Warm start
+  std::vector<Control> predicted_controls_; // ウォームスタート用予測履歴
 };
 
 } // namespace path_tracker

@@ -12,13 +12,14 @@ void solve_mpc_casadi_c(const double *current_state,
                         double *out_delta_rate) {
   using namespace casadi;
 
+  // ソルバーを呼び出し間で持続させるためのスタティック変数
   static bool initialized = false;
   static Function solver;
   static int cached_N = -1;
 
   int N = horizon;
-  int nx = 5; // x, y, theta, v, delta
-  int nu = 2; // a, delta_rate
+  int nx = 5; // 状態変数: x, y, theta, v, delta
+  int nu = 2; // 制御入力: a, delta_rate
 
   static MX p_state = MX::sym("p_state", nx);
   static MX p_traj = MX::sym("p_traj", N * 4);
@@ -28,14 +29,15 @@ void solve_mpc_casadi_c(const double *current_state,
     MX obj = 0;
     MX g = MX::zeros((N + 1) * nx);
 
-    // Weights (Restored to reasonable values)
-    double w_pos = 100.0;
-    double w_yaw = 50.0;
-    double w_vel = 50.0;
-    double w_accel = 500.0;
-    double w_delta_rate = 1000.0;
+    // 重み設定 (安定性のために調整済み)
+    double w_pos = 100.0;   // 位置追従の重み
+    double w_yaw = 50.0;    // 向き（ヨー角）の重み
+    double w_vel = 50.0;    // 速度追従の重み
+    double w_accel = 500.0; // 加速度へのペナルティ（振動抑制）
+    double w_delta_rate =
+        1000.0; // ステアリング速度へのペナルティ（ジッター抑制）
 
-    // Initial state constraint
+    // 初期状態の拘束
     g(Slice(0, nx)) = z(Slice(0, nx)) - p_state;
 
     for (int k = 0; k < N; ++k) {
@@ -54,10 +56,12 @@ void solve_mpc_casadi_c(const double *current_state,
       MX dth = x(2) - ref(2);
       MX dv = x(3) - ref(3);
 
+      // 目的関数: パス追従誤差と制御入力の最小化
       obj +=
           w_pos * (dx * dx + dy * dy) + w_yaw * (dth * dth) + w_vel * (dv * dv);
       obj += w_accel * (u(0) * u(0)) + w_delta_rate * (u(1) * u(1));
 
+      // 運動学モデル（自転車モデル）の方程式
       MX x_next_model = MX::zeros(nx);
       x_next_model(0) = x(0) + x(3) * cos(x(2)) * dt;
       x_next_model(1) = x(1) + x(3) * sin(x(2)) * dt;
@@ -81,13 +85,14 @@ void solve_mpc_casadi_c(const double *current_state,
     initialized = true;
   }
 
-  // Prepare input arguments
+  // 入力引数の準備
   std::vector<double> p_val;
   for (int i = 0; i < nx; ++i)
     p_val.push_back(current_state[i]);
   for (int i = 0; i < N * 4; ++i)
     p_val.push_back(reference_trajectory[i]);
 
+  // 変数の上下限設定 (拘束条件)
   std::vector<double> lbz((N + 1) * nx + N * nu, -inf);
   std::vector<double> ubz((N + 1) * nx + N * nu, inf);
   for (int k = 0; k < N; ++k) {
@@ -98,6 +103,7 @@ void solve_mpc_casadi_c(const double *current_state,
     ubz[ctrl_idx + 1] = max_delta_rate;
   }
 
+  // ウォームスタート用の中間初期化
   std::vector<double> z0((N + 1) * nx + N * nu, 0.0);
   for (int k = 0; k <= N; ++k) {
     z0[k * nx + 3] = current_state[3];
@@ -110,6 +116,7 @@ void solve_mpc_casadi_c(const double *current_state,
 
   std::vector<double> sol_z = std::vector<double>(res.at("x"));
 
+  // 最適な制御量を出力にコピー
   for (int k = 0; k < N; ++k) {
     int ctrl_idx = (N + 1) * nx + k * nu;
     out_a[k] = sol_z[ctrl_idx];
