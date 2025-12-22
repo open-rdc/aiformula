@@ -33,6 +33,7 @@ private:
     const double linear_max_vel;
     const double angular_max_vel;
     const double lookahead_distance;
+    const double curvature_gain;
 };
 
 }  // namespace path_tracker
