@@ -14,14 +14,17 @@ class Converter(Node):
     def __init__(self):
         super().__init__("sim_to_vectornav_pose_converter_node")
 
-        self.create_subscription(NavSatFix, "/gps", self.callback_gps, 10)
-        self.create_subscription(Imu, "/imu", self.callback_imu, 10)
+        # IMU yaw offset parameter (degrees)
+        self.imu_yaw_offset = -176
+
+        self.create_subscription(NavSatFix, "/navsat", self.callback_gps, 10)
+        self.create_subscription(Imu, "/imu_raw", self.callback_imu, 10)
 
         self.publisher = self.create_publisher(PoseWithCovarianceStamped, '/vectornav/pose', 10)
 
         self.pub_msg = PoseWithCovarianceStamped()
 
-        self.get_logger().info("シミュレータのgpsとimuからvectornav/poseを再現します．")
+        self.get_logger().info(f"シミュレータのgpsとimuからvectornav/poseを再現します．IMU yawオフセット: {self.imu_yaw_offset}度")
 
 
 
@@ -36,7 +39,7 @@ class Converter(Node):
 
     def callback_imu(self, msg):
         t = msg.orientation
-        q = self.fix_rotation([t.x, t.y, t.z, t.w], -93.41)
+        q = self.fix_rotation([t.x, t.y, t.z, t.w], self.imu_yaw_offset)
 
         self.pub_msg.pose.pose.orientation.x = q[0]
         self.pub_msg.pose.pose.orientation.y = q[1]

@@ -41,7 +41,7 @@ class DataCollectionNode(Node):
     def __init__(self) -> None:
         super().__init__('data_collection_node')
 
-        self.declare_parameter('sdk_flag', True)
+        self.declare_parameter('sdk_flag', False)
         self.sdk_flag_ = self.get_parameter('sdk_flag').value
 
         self.bridge: CvBridge = CvBridge()
