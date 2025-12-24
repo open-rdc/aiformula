@@ -20,12 +20,25 @@ lookahead_distance(get_parameter("lookahead_distance").as_double())
         _qos,
         std::bind(&PurePursuit::_subscriber_callback_path, this, std::placeholders::_1)
     );
+    _subscription_autonomous = this->create_subscription<std_msgs::msg::Bool>(
+        "/autonomous",
+        _qos,
+        std::bind(&PurePursuit::autonomous_callback, this, std::placeholders::_1)
+    );
     publisher_vel = this->create_publisher<geometry_msgs::msg::Twist>("cmd_vel", _qos);
 
     RCLCPP_INFO(this->get_logger(), "PurePursuit node has been initialized. lookahead_distance: %.2f", lookahead_distance);
 }
 
+void PurePursuit::autonomous_callback(const std_msgs::msg::Bool::SharedPtr msg){
+    autonomous_flag_ = msg->data;
+}
+
 void PurePursuit::_subscriber_callback_path(const nav_msgs::msg::Path::SharedPtr msg){
+    if (!autonomous_flag_) {
+        return;
+    }
+
     geometry_msgs::msg::Twist command;
 
     if (!msg || msg->poses.empty()) {

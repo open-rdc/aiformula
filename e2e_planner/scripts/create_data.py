@@ -54,7 +54,7 @@ class DataCollectionNode(Node):
         self.collected_data: List[Tuple[np.ndarray, List[Tuple[float, float]], Optional[np.ndarray]]] = []
         self.last_sample_time: Optional[float] = None
 
-        self.is_paused: bool = False
+        self.is_paused: bool = True
         self.prev_button_state: int = 0
 
         self.zed_camera: Optional[sl.Camera] = None

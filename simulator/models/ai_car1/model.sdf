@@ -18,6 +18,7 @@
       <max_angular_acceleration>5.0</max_angular_acceleration>
       <min_angular_acceleration>-5.0</min_angular_acceleration>
       <topic>cmd_vel</topic>
+      <odom_topic>odom</odom_topic>
     </plugin>
     <plugin
         filename="libignition-gazebo-imu-system.so"
@@ -187,6 +188,10 @@
             <radius>0.05</radius>
           </sphere>
         </geometry>
+        <material>
+          <ambient>0.2 0.2 0.2 1</ambient>
+          <diffuse>0.2 0.2 0.2 1</diffuse>
+        </material>
       </visual>
 
       <collision name='collision'>

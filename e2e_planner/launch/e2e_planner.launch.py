@@ -12,6 +12,7 @@ def generate_launch_description():
             parameters=[{
                 'model_name': 'e2e_model.pt',
                 'interval_ms': 100,
+                'debug_mode': True,
             }]
         )
     ])
