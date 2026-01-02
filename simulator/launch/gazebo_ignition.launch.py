@@ -27,7 +27,9 @@ def generate_launch_description():
             '/odom@nav_msgs/msg/Odometry@ignition.msgs.Odometry',
             '/navsat@sensor_msgs/msg/NavSatFix@ignition.msgs.NavSat',
             '/imu_raw@sensor_msgs/msg/Imu@ignition.msgs.IMU',
-            '/cmd_vel@geometry_msgs/msg/Twist@ignition.msgs.Twist'],
+            '/cmd_vel@geometry_msgs/msg/Twist@ignition.msgs.Twist',
+            '/motor_spin_angle@std_msgs/msg/Float64@ignition.msgs.Double',
+            '/motor_spin_state@std_msgs/msg/Float64@ignition.msgs.Double'],
         output='screen'
     )
 

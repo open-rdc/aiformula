@@ -21,8 +21,27 @@ find_package(ament_cmake REQUIRED)
 # further dependencies manually.
 # find_package(<dependency> REQUIRED)
 install(
-  DIRECTORY  launch world models
+  DIRECTORY  include launch world models urdf config src
   DESTINATION share/${PROJECT_NAME}
+)
+
+find_package(rclcpp REQUIRED)
+find_package(geometry_msgs REQUIRED)
+find_package(std_msgs REQUIRED)
+
+add_executable(active_caster_node
+  src/active_caster.cpp
+)
+
+ament_target_dependencies(active_caster_node
+  rclcpp
+  geometry_msgs
+  std_msgs
+)
+
+install(TARGETS
+  active_caster_node
+  DESTINATION lib/${PROJECT_NAME}
 )
 
 ament_environment_hooks("${CMAKE_CURRENT_SOURCE_DIR}/hooks/${PROJECT_NAME}.dsv.in")
