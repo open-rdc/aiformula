@@ -82,6 +82,7 @@ install(PROGRAMS
   scripts/path_plotter.py
   scripts/estimate_params.py
   scripts/compare_mpc.py
+  scripts/evaluate_model.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

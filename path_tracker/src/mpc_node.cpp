@@ -19,7 +19,7 @@ MPCNode::MPCNode(const rclcpp::NodeOptions &options)
   goal_tolerance_ = this->declare_parameter("goal_tolerance", 0.1);
 
   // モデルパラメータ
-  L_ = this->declare_parameter("wheelbase", 0.9);
+  L_ = this->declare_parameter("wheelbase", 0.8);
   m_ = this->declare_parameter("mass", 71.5);
   I_ = this->declare_parameter("inertia", 7.72);
 
