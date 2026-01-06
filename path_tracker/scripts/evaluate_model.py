@@ -47,6 +47,7 @@ class KinematicModelEvaluator(Node):
         self.odom_x_hist = deque(maxlen=50000)
         self.delta_hist = deque(maxlen=50000)
         self.omega_hist = deque(maxlen=50000)
+        self.error_x_hist = deque(maxlen=50000)
         
         # Subscribers
         # Subscribers
@@ -153,10 +154,14 @@ class KinematicModelEvaluator(Node):
             self.odom_x_hist.append(ox)
             self.delta_hist.append(sdelta)
             self.omega_hist.append(somega)
+            self.error_x_hist.append(sx - ox)
 
 def plot_thread(node):
     plt.ion()
-    fig, ax = plt.subplots(2, 1, figsize=(10, 10))
+    # 3段のグラフに変更
+    fig, ax = plt.subplots(3, 1, figsize=(10, 15))
+    # 余白調整
+    plt.subplots_adjust(hspace=0.4)
     
     # Plot 1: Position X
     # グラフ1: 位置の比較 (軌跡)
@@ -183,6 +188,15 @@ def plot_thread(node):
     line_omega, = ax[1].plot([], [], 'm-', label='IMU Omega (rad/s)', linewidth=1, alpha=0.8)
     ax[1].legend()
 
+    # グラフ3: 誤差 (Model X - Odom X)
+    ax[2].set_title("Error: Model X - Odom X")
+    ax[2].set_xlabel("Time [s]")
+    ax[2].set_ylabel("Error [m]")
+    ax[2].grid(True)
+    
+    line_error, = ax[2].plot([], [], 'k-', label='Error (Model - Odom)', linewidth=1.5)
+    ax[2].legend()
+
     while rclpy.ok():
         # ロックを取得してデータのスナップショットを作成
         with node.lock:
@@ -196,16 +210,18 @@ def plot_thread(node):
             odom_x = list(node.odom_x_hist)
             delta_data = list(node.delta_hist)
             omega_data = list(node.omega_hist)
+            error_data = list(node.error_x_hist)
         
         # 万が一の競合に備えて、全てのリストの長さを最小のものに合わせる
-        min_len = min(len(t_data), len(est_x), len(odom_x), len(delta_data), len(omega_data))
+        min_len = min(len(t_data), len(est_x), len(odom_x), len(delta_data), len(omega_data), len(error_data))
         t_data = t_data[:min_len]
         est_x = est_x[:min_len]
         odom_x = odom_x[:min_len]
         delta_data = delta_data[:min_len]
         omega_data = omega_data[:min_len]
+        error_data = error_data[:min_len]
             
-        # Update plot
+            # Update plot
         try:
             line_est.set_data(t_data, est_x)
             line_odom.set_data(t_data, odom_x)
@@ -213,10 +229,14 @@ def plot_thread(node):
             line_delta.set_data(t_data, delta_data)
             line_omega.set_data(t_data, omega_data)
             
+            line_error.set_data(t_data, error_data)
+            
             ax[0].relim()
             ax[0].autoscale_view()
             ax[1].relim()
             ax[1].autoscale_view()
+            ax[2].relim()
+            ax[2].autoscale_view()
             
             fig.canvas.draw()
             fig.canvas.flush_events()
