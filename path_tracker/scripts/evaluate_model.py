@@ -88,33 +88,46 @@ class KinematicModelEvaluator(Node):
         if dt > 0.1: # 時間差が大きすぎる場合は飛躍を防ぐためにスキップ
             return
 
-        # --- モデル推定 (Sensor Driven Model) ---
-        # 操舵角(delta)と車速(v)から、「本来これだけ曲がるはず」という軌道を計算
-        # 赤色の線
-        # x_dot = v * cos(theta)
-        # theta_dot = v * tan(delta) / L  <-- 運動学モデル(Bicycle Model)
-        sx, sy, stheta = self.est_state
+        # ---------------------------------------------------------
+        # データの準備
+        # ---------------------------------------------------------
         sv = self.latest_sensor_v
         sdelta = self.latest_sensor_delta * self.steer_gain
+        somega = self.latest_sensor_omega
+
+        # IMUの実測ヨー角を取得 (odom_stateの3番目の要素に積分値が入っています)
+        # ※前回のループまでの積分値を使います
+        theta_imu = self.odom_state[2]
+
+        # ---------------------------------------------------------
+        # 1. モデル推定 (Model X) の書き換え
+        #    数式: X += v * cos(theta_IMU + delta) * dt
+        # ---------------------------------------------------------
+        sx, sy, stheta = self.est_state
+
+        # グローバルな進行方向 = 「IMUの実測向き」 + 「舵角」
+        # これが「カニ走り（スリップ）」を再現する角度になります
+        global_move_angle = theta_imu + sdelta
+
+        # その角度に向かって速度 v で進む
+        sx += sv * math.cos(global_move_angle) * dt
+        sy += sv * math.sin(global_move_angle) * dt
         
-        sx += sv * math.cos(stheta) * dt
-        sy += sv * math.sin(stheta) * dt
+        # ※ stheta (モデル内部の向き) の更新は、表示用として残すか、
+        #    あるいは theta_imu と同期させても良いですが、
+        #    Xの計算にはもう使わないので、ここでは元の運動学モデルのままにしておきます
         stheta += (sv * math.tan(sdelta) / self.L) * dt
         
         self.est_state = [sx, sy, stheta]
 
-        # --- 実測オドメトリ (Truth / IMU Odometry) ---
-        # IMUの角速度(omega)と車速(v)から、「実際に車両がどう動いたか」を計算
-        # 青色の点線
-        # x_dot = v * cos(theta)
-        # theta_dot = omega (IMUの直接計測値)
+        # ---------------------------------------------------------
+        # 2. 実測オドメトリ (Odom X) の更新 (IMU積分)
+        # ---------------------------------------------------------
         ox, oy, otheta = self.odom_state
-        # sv is same (velocity_body)
-        somega = self.latest_sensor_omega
 
         ox += sv * math.cos(otheta) * dt
         oy += sv * math.sin(otheta) * dt
-        otheta += somega * dt # Assuming CCW+ standard ROS
+        otheta += somega * dt # 角速度を積分して角度にする
         
         self.odom_state = [ox, oy, otheta]
 
