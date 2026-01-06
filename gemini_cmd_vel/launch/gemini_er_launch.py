@@ -28,13 +28,13 @@ def _spawn_gemini_controller_node(context) -> List[ExecuteProcess]:
     if model:
         cmd.extend(['--param', f'model:={model}'])
 
-    # We use ExecuteProcess to run the node so we can easily pass arguments dynamically if needed,
-    # but using Node action is also fine. Here we stick to the pattern in the reference file
-    # but actually using Node action is more standard for python launch files unless we need shell features.
-    # However, the reference used ExecuteProcess for `gemini_live_controller_box_node`.
-    # Let's use Node action for better integration, or stick to the reference pattern if there was a specific reason.
-    # The reference used `python3 -m ...` which is why it used ExecuteProcess.
-    # Since we have an entry point `gemini_controller`, we can use Node.
+    # ExecuteProcessを使用してノードを実行することで、必要に応じて引数を動的に渡しやすくしていますが、
+    # Nodeアクションを使用することも可能です。ここではリファレンスファイルのパターンに従っていますが、
+    # シェル機能が必要ない限り、PythonのランチファイルではNodeアクションを使用するのがより標準的です。
+    # ただし、リファレンスでは `gemini_live_controller_box_node` に対して ExecuteProcess を使用していました。
+    # より良い統合のためにNodeアクションを使用するか、特定の理由があった場合はリファレンスパターンに従います。
+    # リファレンスでは `python3 -m ...` を使用していたため、ExecuteProcess が使われていました。
+    # ここでは `gemini_controller` というエントリーポイントがあるため、Node を使用できます。
     
     node_params = []
     if api_key:
@@ -82,12 +82,12 @@ def generate_launch_description():
             DeclareLaunchArgument(
                 'gemini_api_key',
                 default_value=EnvironmentVariable('GEMINI_API_KEY', default_value=''),
-                description='API key for Google Gemini. Leave blank to disable Gemini requests.',
+                description='Google GeminiのAPIキー。Geminiへのリクエストを無効にする場合は空のままにしてください。',
             ),
             DeclareLaunchArgument(
                 'gemini_model',
                 default_value=EnvironmentVariable('GEMINI_MODEL', default_value='gemini-robotics-er-1.5-preview'),
-                description='Model name to use with the Gemini API.',
+                description='Gemini APIで使用するモデル名。',
             ),
             IncludeLaunchDescription(
                 PythonLaunchDescriptionSource(

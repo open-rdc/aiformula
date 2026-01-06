@@ -19,12 +19,12 @@ from sensor_msgs.msg import Image, CameraInfo
 
 
 class GeminiVLANode(Node):
-    """ROS2 node that queries Gemini with camera images to produce /cmd_vel commands based on trajectory."""
+    """カメラ画像を使ってGeminiに問い合わせ、軌道に基づいて /cmd_vel コマンドを生成するROS2ノード。"""
 
     def __init__(self) -> None:
         super().__init__('gemini_vla_node')
 
-        default_api_key = os.environ.get('GEMINI_API_KEY', '')
+        default_api_key = os.environ.get('GEMINI_API_KEY', 'AIzaSyACSzAAldqST8jdvexMxES6ZDefGykdiaY')
         default_model = os.environ.get('GEMINI_MODEL', 'gemini-robotics-er-1.5-preview')
 
         self.declare_parameter('api_key', default_api_key)
@@ -107,7 +107,7 @@ class GeminiVLANode(Node):
         self._trajectory_start_time = self.get_clock().now()
         self._last_trajectory_update_time = self.get_clock().now()
 
-        # Initialize Gemini Client
+        # Geminiクライアントの初期化
         self.client: Optional[genai.Client] = None
         if self.api_key:
             self.client = genai.Client(api_key=self.api_key)
@@ -153,7 +153,7 @@ class GeminiVLANode(Node):
         try:
             cv_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
             
-            # Crop top half
+            # 画像の上半分を切り捨て、下半分を使用（道路面などの重要な情報が含まれるため）
             height, width = cv_image.shape[:2]
             crop_y = height // 2
             cropped_image = cv_image[crop_y:, :]
@@ -251,7 +251,7 @@ class GeminiVLANode(Node):
 
     def _publish_path(self, trajectory: List[Tuple[float, float]]) -> None:
         path_msg = Path()
-        path_msg.header.frame_id = 'base_link' # Trajectory is relative to robot
+        path_msg.header.frame_id = 'base_link' # 軌道はロボット座標系（相対座標）
         path_msg.header.stamp = self.get_clock().now().to_msg()
         
         for x, y in trajectory:
@@ -260,48 +260,44 @@ class GeminiVLANode(Node):
             pose.pose.position.x = x
             pose.pose.position.y = y
             pose.pose.position.z = 0.0
-            pose.pose.orientation.w = 1.0 # Identity quaternion
+            pose.pose.orientation.w = 1.0 # 単位クォータニオン（回転なし）
             path_msg.poses.append(pose)
             
         self.path_publisher.publish(path_msg)
 
     def _publish_annotated_image(self, image: np.ndarray, trajectory: List[Tuple[float, float]], camera_matrix: np.ndarray, dist_coeffs: np.ndarray, crop_offset_y: int) -> None:
-        # Adjust camera matrix for crop
-        # The principal point cy is shifted by -crop_offset_y
+        # 画像クロップに合わせてカメラ行列を調整
+        # 光学中心（主点）cy を -crop_offset_y だけずらす
         camera_matrix_cropped = camera_matrix.copy()
         camera_matrix_cropped[1, 2] -= crop_offset_y
 
-        # Project points to image
-        # Robot frame: x-forward, y-left, z-up
-        # Camera frame (standard): z-forward, x-right, y-down
-        # Assuming camera is mounted forward facing at some height.
-        # Let's assume a simple transform if extrinsic is unknown, or just use identity if camera is at origin.
-        # Usually camera is at some height z_cam and maybe pitched.
-        # Without TF, we can only guess.
-        # Let's assume camera is at (0, 0, 0) relative to base_link for now, but rotated.
-        # Standard ROS camera optical frame: Z forward, X right, Y down.
-        # Robot frame: X forward, Y left, Z up.
-        # Rotation:
-        # Cam Z = Robot X
-        # Cam X = -Robot Y
-        # Cam Y = -Robot Z
+        # 3次元点を画像平面に投影
+        # ロボット座標系: X-前方, Y-左, Z-上
+        # カメラ座標系 (標準的なROS定義): Z-前方, X-右, Y-下
+        # カメラが前方を向いていると仮定した場合の変換:
+        # TF（座標変換）がないため、簡易的な変換を行う。
+        # カメラは base_link に対して (0, 0, 0) にあると仮定し、回転のみ考慮する。
+        # 回転関係:
+        # カメラのZ軸 = ロボットのX軸
+        # カメラのX軸 = -ロボットのY軸
+        # カメラのY軸 = -ロボットのZ軸
         
-        # Points in robot frame: (x, y, 0)
-        # Points in camera frame:
+        # ロボット座標系の点: (x, y, 0)
+        # カメラ座標系への変換:
         # xc = -y
-        # yc = 0 (if camera is at ground level) -> This will be problematic as zc=x.
-        # If camera is at height H:
-        # yc = - (-H) = H? No.
-        # Let's assume camera is at height 0.5m
+        # yc = 0 (もしカメラが地面レベルにある場合) -> しかし実際には高さが必要 (zc=xとなるため)
+        # カメラの高さを仮定:
+        # yc = - (-H) = H? いや、カメラ座標系のY軸は下向き正。
+        # カメラの高さを 0.5m と仮定する
         cam_height = 0.5
         
         object_points = []
         for x, y in trajectory:
-            # Robot frame to Camera Optical Frame
-            # xc = -y
-            # yc = 0.0 # roughly horizon if camera is level? No, yc is vertical distance from camera center.
-            # If camera is at height H, ground is at Y = H (down is positive Y).
-            # zc = x
+            # ロボット座標系からカメラ光学座標系への変換
+            # xc = -y （横方向）
+            # yc = 0.0 # 水平線？いいえ、ycはカメラ中心からの垂直距離。
+            # カメラが高さHにある場合、地面は Y = H (Y軸下向きが正のため)。
+            # zc = x （奥行き方向）
             
             xc = -y
             yc = cam_height 
@@ -312,26 +308,26 @@ class GeminiVLANode(Node):
         object_points = np.array(object_points, dtype=np.float32)
         
         if len(object_points) > 0:
-            # Project
-            rvec = np.zeros((3, 1), dtype=np.float32) # Identity rotation (already transformed)
-            tvec = np.zeros((3, 1), dtype=np.float32) # Identity translation
+            # 投影を実行
+            rvec = np.zeros((3, 1), dtype=np.float32) # 単位回転行列（すでに手動で座標変換済みのため）
+            tvec = np.zeros((3, 1), dtype=np.float32) # 単位並進ベクトル
             
             img_points, _ = cv2.projectPoints(object_points, rvec, tvec, camera_matrix_cropped, dist_coeffs)
             
-            # Draw
+            # 描画
             for i in range(len(img_points) - 1):
                 pt1 = (int(img_points[i][0][0]), int(img_points[i][0][1]))
                 pt2 = (int(img_points[i+1][0][0]), int(img_points[i+1][0][1]))
                 cv2.line(image, pt1, pt2, (0, 255, 0), 2)
                 cv2.circle(image, pt1, 3, (0, 0, 255), -1)
             
-            # Draw last point
+            # 最後の点を描画（終点）
             pt_last = (int(img_points[-1][0][0]), int(img_points[-1][0][1]))
             cv2.circle(image, pt_last, 3, (0, 0, 255), -1)
 
         try:
             img_msg = self.bridge.cv2_to_imgmsg(image, encoding='bgr8')
-            img_msg.header.frame_id = 'camera_link' # Or whatever the camera frame is
+            img_msg.header.frame_id = 'camera_link' # または適切なカメラフレーム名
             img_msg.header.stamp = self.get_clock().now().to_msg()
             self.image_publisher.publish(img_msg)
         except Exception as e:
@@ -339,16 +335,16 @@ class GeminiVLANode(Node):
 
 
     def _control_loop(self) -> None:
-        # Simple Pure Pursuit / Follow the Carrot
+        # シンプルな Pure Pursuit アルゴリズム / Follow the Carrot (人参を追いかけるような制御)
         twist = Twist()
         
         with self._lock:
             if not self._current_trajectory:
-                self.publisher.publish(twist) # Stop
+                self.publisher.publish(twist) # 停止
                 return
 
-            # Find a target point at a desired lookahead distance
-            lookahead_dist = 1.5 # meters
+            # 指定した前方注視距離（Lookahead distance）にある目標点を探す
+            lookahead_dist = 1.5 # メートル
             target_x = 0.0
             target_y = 0.0
             found_target = False
@@ -361,7 +357,7 @@ class GeminiVLANode(Node):
                     found_target = True
                     break
             
-            # If all points are closer than lookahead, take the last one
+            # すべての点が注視距離より近い場合は、最後の点を採用する
             if not found_target and self._current_trajectory:
                 target_pt = self._current_trajectory[-1]
                 target_x = target_pt[0]
@@ -370,25 +366,25 @@ class GeminiVLANode(Node):
             lookahead_dist_sq = target_x**2 + target_y**2
             
             if lookahead_dist_sq > 0.01:
-                # Set constant linear speed
+                # 一定の並進速度を設定
                 linear_vel = self.max_linear_speed
                 
-                # Pure pursuit curvature = 2y / L^2
+                # Pure Pursuit の曲率計算: curvature = 2y / L^2
                 curvature = 2.0 * target_y / lookahead_dist_sq
                 
-                # Add a gain to make turning more aggressive
+                # 旋回をより積極的にするためのゲインを適用
                 angular_vel = linear_vel * curvature * self.angular_gain
                 
-                # Clamp
+                # 値の制限（クランプ）
                 angular_vel = max(-self.max_angular_speed, min(self.max_angular_speed, angular_vel))
                 
                 twist.linear.x = linear_vel
                 twist.angular.z = angular_vel
                 
-                # Debug log (throttle)
+                # デバッグログ（大量に出ないよう調整が必要な場合はthrottleを使用）
                 # self.get_logger().info(f'Target: ({target_x:.2f}, {target_y:.2f}), Curv: {curvature:.2f}, AngVel: {angular_vel:.2f}')
             else:
-                # Too close or invalid, stop or move slowly
+                # 近すぎるか無効な場合、停止するかゆっくり動く
                 twist.linear.x = 0.0
                 twist.angular.z = 0.0
 
@@ -398,11 +394,11 @@ class GeminiVLANode(Node):
         if not self.stop_on_failure:
             return
         
-        # If we haven't received a trajectory update in a while, stop
+        # しばらく軌道の更新がない場合、安全のため停止する
         elapsed = (self.get_clock().now() - self._last_trajectory_update_time).nanoseconds * 1e-9
         if elapsed > self.failsafe_timeout:
             self.get_logger().warning('Failsafe triggered: No trajectory update.')
-            self.publisher.publish(Twist()) # Stop
+            self.publisher.publish(Twist()) # 停止
             with self._lock:
                 self._current_trajectory = []
 
