@@ -30,12 +30,11 @@ void solve_mpc_casadi_c(const double *current_state,
     MX g = MX::zeros((N + 1) * nx);
 
     // 重み設定 (安定性のために調整済み)
-    double w_pos = 100.0;   // 位置追従の重み
-    double w_yaw = 50.0;    // 向き（ヨー角）の重み
-    double w_vel = 50.0;    // 速度追従の重み
-    double w_accel = 500.0; // 加速度へのペナルティ（振動抑制）
-    double w_delta_rate =
-        1000.0; // ステアリング速度へのペナルティ（ジッター抑制）
+    double w_pos = 100.0;    // 位置追従の重み
+    double w_yaw = 0.0;      // 向き（ヨー角）の重み (無効化)
+    double w_vel = 0.0;      // 速度追従の重み (無効化)
+    double w_accel = 0;      // 加速度へのペナルティ（振動抑制）
+    double w_delta_rate = 0; // ステアリング速度へのペナルティ（ジッター抑制）
 
     // 初期状態の拘束
     g(Slice(0, nx)) = z(Slice(0, nx)) - p_state;
@@ -61,10 +60,12 @@ void solve_mpc_casadi_c(const double *current_state,
           w_pos * (dx * dx + dy * dy) + w_yaw * (dth * dth) + w_vel * (dv * dv);
       obj += w_accel * (u(0) * u(0)) + w_delta_rate * (u(1) * u(1));
 
-      // 運動学モデル（自転車モデル）の方程式
+      // 運動学モデル（自転車モデル + 横滑り角考慮）の方程式
+      // x_{k+1} = x_k + v_k * cos(theta_k + delta_k) * dt
+      // y_{k+1} = y_k + v_k * sin(theta_k + delta_k) * dt
       MX x_next_model = MX::zeros(nx);
-      x_next_model(0) = x(0) + x(3) * cos(x(2)) * dt;
-      x_next_model(1) = x(1) + x(3) * sin(x(2)) * dt;
+      x_next_model(0) = x(0) + x(3) * cos(x(2) + x(4)) * dt;
+      x_next_model(1) = x(1) + x(3) * sin(x(2) + x(4)) * dt;
       x_next_model(2) = x(2) + (x(3) * tan(x(4)) / wheelbase) * dt;
       x_next_model(3) = x(3) + u(0) * dt;
       x_next_model(4) = x(4) + u(1) * dt;

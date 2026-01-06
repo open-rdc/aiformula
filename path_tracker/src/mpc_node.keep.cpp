@@ -196,11 +196,11 @@ void MPCNode::control_loop() {
 
 State MPCNode::step_model(const State &s, const Control &u, double dt) {
   State next;
-  // 運動学自転車モデル (Kinematic Bicycle Model + Slip Angle)
-  // x_{k+1} = x_k + v_k * cos(theta_k + delta_k) * dt
-  next.x = s.x + s.v * std::cos(s.theta + s.delta) * dt;
-  // y_{k+1} = y_k + v_k * sin(theta_k + delta_k) * dt
-  next.y = s.y + s.v * std::sin(s.theta + s.delta) * dt;
+  // 運動学自転車モデル (Kinematic Bicycle Model)
+  // x_{k+1} = x_k + v_k * cos(theta_k) * dt
+  next.x = s.x + s.v * std::cos(s.theta) * dt;
+  // y_{k+1} = y_k + v_k * sin(theta_k) * dt
+  next.y = s.y + s.v * std::sin(s.theta) * dt;
   // theta_{k+1} = theta_k + (v_k * tan(delta_k) / L) * dt
   next.theta = s.theta + (s.v * std::tan(s.delta) / L_) * dt;
 
