@@ -16,6 +16,8 @@ MPCNode::MPCNode(const rclcpp::NodeOptions &options)
   max_v_ = this->declare_parameter("max_v", 2.0); // 参照用
   max_accel_ = this->declare_parameter("max_accel", 2.0);
   max_delta_rate_ = this->declare_parameter("max_delta_rate", 5);
+  velocity_gain_ = this->declare_parameter("velocity_gain", 1.573);
+  steer_gain_ = this->declare_parameter("steer_gain", 1.468);
   goal_tolerance_ = this->declare_parameter("goal_tolerance", 0.1);
 
   // モデルパラメータ
@@ -38,10 +40,6 @@ MPCNode::MPCNode(const rclcpp::NodeOptions &options)
       "/caster_data", 10,
       std::bind(&MPCNode::on_caster_received, this, std::placeholders::_1));
 
-  sub_pose_ = this->create_subscription<geometry_msgs::msg::PoseStamped>(
-      "/current_pose", 10,
-      std::bind(&MPCNode::on_pose_received, this, std::placeholders::_1));
-
   pub_cmd_vel_ =
       this->create_publisher<geometry_msgs::msg::Twist>("cmd_vel", 10);
 
@@ -53,9 +51,39 @@ MPCNode::MPCNode(const rclcpp::NodeOptions &options)
 }
 
 void MPCNode::on_path_received(const nav_msgs::msg::Path::SharedPtr msg) {
-  RCLCPP_INFO(this->get_logger(), "Path received with %zu poses",
-              msg->poses.size());
+  RCLCPP_INFO(this->get_logger(), "Path received with %zu poses, frame: %s",
+              msg->poses.size(), msg->header.frame_id.c_str());
   current_path_ = msg;
+
+  bool is_local = (msg->header.frame_id == "base_link" ||
+                   msg->header.frame_id == "base_footprint");
+
+  if (!is_local && !is_odom_initialized_ && !msg->poses.empty()) {
+    // Pathの開始地点をロボットの初期位置とする (Global Pathの場合)
+    double start_x = msg->poses[0].pose.position.x;
+    double start_y = msg->poses[0].pose.position.y;
+    double start_yaw = tf2::getYaw(msg->poses[0].pose.orientation);
+
+    odom_x_ = start_x;
+    odom_y_ = start_y;
+    odom_yaw_ = start_yaw;
+    last_odom_time_ = this->get_clock()->now();
+
+    is_odom_initialized_ = true;
+    RCLCPP_INFO(this->get_logger(),
+                "Initialized Odometry to Path Start: (%.2f, %.2f, %.2f)",
+                start_x, start_y, start_yaw);
+  } else if (is_local) {
+    // Local PathならOdometry初期化は不要（常に0基準）だが、
+    // 速度統合のために時間はリセットしておく
+    if (!is_odom_initialized_) {
+      last_odom_time_ = this->get_clock()->now();
+      is_odom_initialized_ = true; // Mark as initialized so loop runs
+      odom_x_ = 0;
+      odom_y_ = 0;
+      odom_yaw_ = 0;
+    }
+  }
 }
 
 void MPCNode::on_velocity_received(
@@ -65,6 +93,29 @@ void MPCNode::on_velocity_received(
   latest_v_ = 0.9 * latest_v_ + 0.1 * raw_v;
   // Right+ Throughout: IMUはCCW+なので反転させてRight+モデルに合わせる
   latest_w_ = -msg->twist.twist.angular.z;
+
+  // Dead Reckoning (Odometry Integration)
+  rclcpp::Time current_time = msg->header.stamp;
+  if (!is_odom_initialized_) {
+    last_odom_time_ = current_time;
+    return;
+  }
+
+  double dt = (current_time - last_odom_time_).seconds();
+  if (dt > 0.0 && dt < 1.0) { // Reject huge jumps or negative dt
+    double da = odom_yaw_ + (latest_w_ * dt *
+                             0.5); // Runge-Kutta 2nd order approx or midpoint
+    odom_x_ += latest_v_ * std::cos(da) * dt;
+    odom_y_ += latest_v_ * std::sin(da) * dt;
+    odom_yaw_ += latest_w_ * dt;
+
+    // Normalize yaw
+    while (odom_yaw_ > M_PI)
+      odom_yaw_ -= 2.0 * M_PI;
+    while (odom_yaw_ < -M_PI)
+      odom_yaw_ += 2.0 * M_PI;
+  }
+  last_odom_time_ = current_time;
 }
 
 void MPCNode::on_caster_received(
@@ -77,19 +128,10 @@ void MPCNode::on_caster_received(
   }
 }
 
-void MPCNode::on_pose_received(
-    const geometry_msgs::msg::PoseStamped::SharedPtr msg) {
-  latest_pose_ = msg;
-}
-
 std::vector<State> MPCNode::transform_path_to_local(
-    const nav_msgs::msg::Path::SharedPtr global_path,
-    const geometry_msgs::msg::PoseStamped &robot_pose) {
+    const nav_msgs::msg::Path::SharedPtr global_path, double rx, double ry,
+    double rtheta) {
   std::vector<State> local_traj;
-  double rx = robot_pose.pose.position.x;
-  double ry = robot_pose.pose.position.y;
-  // Right+ Throughout: 生のヨー角を使用
-  double rtheta = tf2::getYaw(robot_pose.pose.orientation);
 
   double cos_theta = std::cos(rtheta);
   double sin_theta = std::sin(rtheta);
@@ -128,15 +170,31 @@ void MPCNode::control_loop() {
     return;
   }
 
-  if (!latest_pose_) {
+  if (!is_odom_initialized_) {
     RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
-                         "Waiting for pose...");
+                         "Waiting for Odometry Init (Path or Sensor)...");
     return;
   }
 
-  // グローバルパスをローカルの base_link 座標系に変換
-  std::vector<State> local_path =
-      transform_path_to_local(current_path_, *latest_pose_);
+  // Use Internal Odometry State
+  std::vector<State> local_path;
+
+  bool is_local = (current_path_->header.frame_id == "base_link" ||
+                   current_path_->header.frame_id == "base_footprint");
+
+  if (is_local) {
+    // already local, just convert type
+    for (const auto &p : current_path_->poses) {
+      State s;
+      s.x = p.pose.position.x;
+      s.y = p.pose.position.y;
+      s.theta = tf2::getYaw(p.pose.orientation);
+      local_path.push_back(s);
+    }
+  } else {
+    local_path =
+        transform_path_to_local(current_path_, odom_x_, odom_y_, odom_yaw_);
+  }
 
   // 最新のフィードバック値をMPCソルバーの初期状態として使用
   // 座標変換後はロボットは常に原点 (0,0,0) に位置する
@@ -175,11 +233,11 @@ void MPCNode::control_loop() {
   if (!optimal_controls.empty()) {
     // 次の状態をモデルで予測して目標速度/角度を決定
     State next_state = step_model(current_state, optimal_controls[0], dt_);
-    double target_v = next_state.v;
+    double target_v = next_state.v * velocity_gain_; // 速度ゲインを適用
     double target_delta = next_state.delta;
-    double angular_gain = 1.0; // 実機の応答の鈍さを補正（アンプ）
+    // ステアリングゲインを適用
     double target_omega =
-        ((target_v * std::tan(target_delta)) / L_) * angular_gain;
+        ((target_v * std::tan(target_delta)) / L_) * steer_gain_;
 
     geometry_msgs::msg::Twist cmd;
     cmd.linear.x = target_v;

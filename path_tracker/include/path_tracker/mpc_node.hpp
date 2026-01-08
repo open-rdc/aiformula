@@ -37,7 +37,7 @@ private:
       const geometry_msgs::msg::TwistWithCovarianceStamped::SharedPtr msg);
   void
   on_caster_received(const std_msgs::msg::Float64MultiArray::SharedPtr msg);
-  void on_pose_received(const geometry_msgs::msg::PoseStamped::SharedPtr msg);
+
   void control_loop();
 
   // MPC Solver functions
@@ -47,14 +47,13 @@ private:
   State step_model(const State &state, const Control &control, double dt);
   std::vector<State>
   transform_path_to_local(const nav_msgs::msg::Path::SharedPtr global_path,
-                          const geometry_msgs::msg::PoseStamped &robot_pose);
+                          double rx, double ry, double ryaw);
 
   // ROS interfaces
   rclcpp::Subscription<nav_msgs::msg::Path>::SharedPtr sub_path_;
   rclcpp::Subscription<
       geometry_msgs::msg::TwistWithCovarianceStamped>::SharedPtr sub_velocity_;
   rclcpp::Subscription<std_msgs::msg::Float64MultiArray>::SharedPtr sub_caster_;
-  rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr sub_pose_;
   rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr pub_cmd_vel_;
   rclcpp::TimerBase::SharedPtr timer_;
 
@@ -64,6 +63,8 @@ private:
   double max_v_;          // 状態拘束などで使用する可能性があるため参照用に保持
   double max_accel_;      // 入力拘束: 最大加速度
   double max_delta_rate_; // 入力拘束: 最大ステアリング速度
+  double velocity_gain_;  // 速度制御ゲイン
+  double steer_gain_;     // 操舵制御ゲイン
   double goal_tolerance_;
 
   // モデルパラメータ
@@ -73,7 +74,13 @@ private:
 
   // 内部状態
   nav_msgs::msg::Path::SharedPtr current_path_;
-  geometry_msgs::msg::PoseStamped::SharedPtr latest_pose_;
+  // Odometry State
+  bool is_odom_initialized_ = false;
+  rclcpp::Time last_odom_time_;
+  double odom_x_ = 0.0;
+  double odom_y_ = 0.0;
+  double odom_yaw_ = 0.0;
+
   double latest_v_ = 0.0;
   double latest_w_ = 0.0;
   double latest_delta_ = 0.0;
