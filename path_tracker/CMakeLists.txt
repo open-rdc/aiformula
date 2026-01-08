@@ -86,6 +86,7 @@ install(PROGRAMS
   scripts/estimate_gains.py
   scripts/extract_path_from_bag.py
   scripts/publish_path_from_csv.py
+  scripts/evaluate_tracking.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

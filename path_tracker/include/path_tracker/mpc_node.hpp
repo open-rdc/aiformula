@@ -55,6 +55,8 @@ private:
       geometry_msgs::msg::TwistWithCovarianceStamped>::SharedPtr sub_velocity_;
   rclcpp::Subscription<std_msgs::msg::Float64MultiArray>::SharedPtr sub_caster_;
   rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr pub_cmd_vel_;
+  rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr
+      pub_estimated_pose_;
   rclcpp::TimerBase::SharedPtr timer_;
 
   // パラメータ

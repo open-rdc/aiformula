@@ -42,6 +42,8 @@ MPCNode::MPCNode(const rclcpp::NodeOptions &options)
 
   pub_cmd_vel_ =
       this->create_publisher<geometry_msgs::msg::Twist>("cmd_vel", 10);
+  pub_estimated_pose_ = this->create_publisher<geometry_msgs::msg::PoseStamped>(
+      "/mpc/estimated_pose", 10);
 
   // 制御ループタイマーの設定 (1/dt Hz)
   timer_ = this->create_wall_timer(std::chrono::duration<double>(dt_),
@@ -174,6 +176,25 @@ void MPCNode::control_loop() {
     RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
                          "Waiting for Odometry Init (Path or Sensor)...");
     return;
+  }
+
+  // Publish Internal Odometry State
+  {
+    geometry_msgs::msg::PoseStamped pose_msg;
+    pose_msg.header.stamp = this->get_clock()->now();
+    // Use the same frame as the path for consistency
+    pose_msg.header.frame_id =
+        current_path_->header.frame_id; // "base_link" or "map"/"odom"
+
+    pose_msg.pose.position.x = odom_x_;
+    pose_msg.pose.position.y = odom_y_;
+    pose_msg.pose.position.z = 0.0;
+
+    tf2::Quaternion q;
+    q.setRPY(0, 0, odom_yaw_);
+    pose_msg.pose.orientation = tf2::toMsg(q);
+
+    pub_estimated_pose_->publish(pose_msg);
   }
 
   // Use Internal Odometry State
