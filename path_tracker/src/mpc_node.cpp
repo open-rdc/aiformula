@@ -7,12 +7,12 @@
 namespace path_tracker {
 
 MPCNode::MPCNode(const rclcpp::NodeOptions &options)
-    : Node("mpc_node", options), dt_(0.1), horizon_(20), max_v_(1.5),
-      max_accel_(0.3), max_delta_rate_(1.0), goal_tolerance_(0.1), L_(0.8),
+    : Node("mpc_node", options), dt_(0.1), horizon_(15), max_v_(2.0),
+      max_accel_(2.0), max_delta_rate_(5), goal_tolerance_(0.1), L_(0.8),
       m_(71.5), I_(7.72) {
   // パラメータの宣言とデフォルト値の設定
   dt_ = this->declare_parameter("dt", 0.1);
-  horizon_ = this->declare_parameter("horizon", 8);
+  horizon_ = this->declare_parameter("horizon", 15);
   max_v_ = this->declare_parameter("max_v", 2.0); // 参照用
   max_accel_ = this->declare_parameter("max_accel", 2.0);
   max_delta_rate_ = this->declare_parameter("max_delta_rate", 5);
