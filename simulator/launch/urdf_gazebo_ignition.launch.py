@@ -1,67 +1,65 @@
 from launch import LaunchDescription
-from launch.actions import IncludeLaunchDescription, SetEnvironmentVariable
+from launch.actions import IncludeLaunchDescription, ExecuteProcess, TimerAction
 from launch.substitutions import PathJoinSubstitution
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from ament_index_python.packages import get_package_share_directory
-from launch_ros.actions import Node
-import os
 
+from launch_ros.actions import Node
+
+import os
 
 def generate_launch_description():
     world_file_path = PathJoinSubstitution([
         get_package_share_directory('simulator'),
         'world',
-        'shihou_urdf_world.sdf'
+        'shihou_world.sdf'
     ])
 
-    # === URDFファイルパス ===
     urdf_file_path = os.path.join(
         get_package_share_directory('simulator'),
         'urdf',
         'ai_car1.urdf'
     )
 
-    set_env = SetEnvironmentVariable(name='IGN_GAZEBO_PHYSICS_COLLIDE_SAME_MODEL', value='1')
+    controllers_yaml = os.path.join(
+        get_package_share_directory('simulator'),
+        'config',
+        'caster.yaml'
+    )
 
-    # === robot_state_publisher ===
+    pkg_sim = get_package_share_directory('simulator')
+
+    # robot_description（controller_manager 用）
     robot_state_publisher = Node(
         package='robot_state_publisher',
         executable='robot_state_publisher',
-        name='robot_state_publisher',
-        output='screen',
         parameters=[{
-            'use_sim_time': True,
             'robot_description': open(urdf_file_path).read()
-        }]
+        }],
+        output='screen'
     )
-
-    # === URDFモデルをGazeboにスポーン ===
-    spawn_entity = Node(
-        package='ros_gz_sim',
-        executable='create',
+    # joint_state_broadcaster
+    joint_state_broadcaster = Node(
+        package='controller_manager',
+        executable='spawner',
         arguments=[
-            '-name', 'motor_spin_robot',
-            '-topic', 'robot_description',
-            '-x', '0', '-y', '0', '-z', '0.0'
+            'joint_state_broadcaster',
+            '--controller-manager', '/controller_manager',
+            '--ros-args', '--params-file', controllers_yaml
         ],
         output='screen'
     )
-
-    # --- controller spawner ---
-    joint_state_spawner = Node(
+    # motor_spin_controller
+    motor_spin_controller = Node(
         package='controller_manager',
         executable='spawner',
-        arguments=['joint_state_broadcaster'],
+        arguments=[
+            'motor_position_controller',
+            '--controller-manager', '/controller_manager',
+            '--ros-args', '--params-file', controllers_yaml
+        ],
         output='screen'
     )
-
-    motor_controller_spawner = Node(
-        package='controller_manager',
-        executable='spawner',
-        arguments=['motor_effort_controller'],
-        output='screen'
-    )
-
     bridge = Node(
         package='ros_gz_bridge',
         executable='parameter_bridge',
@@ -73,11 +71,13 @@ def generate_launch_description():
             '/odom@nav_msgs/msg/Odometry@ignition.msgs.Odometry',
             '/navsat@sensor_msgs/msg/NavSatFix@ignition.msgs.NavSat',
             '/imu_raw@sensor_msgs/msg/Imu@ignition.msgs.IMU',
-            '/cmd_vel@geometry_msgs/msg/Twist@ignition.msgs.Twist'],
+            '/cmd_vel@geometry_msgs/msg/Twist@ignition.msgs.Twist',
+            '/motor_spin_angle@std_msgs/msg/Float64@ignition.msgs.Double',
+            '/motor_spin_state@std_msgs/msg/Float64@ignition.msgs.Double',
+            '/caster_yaw_state@std_msgs/msg/Float64@ignition.msgs.Double'],
         output='screen'
     )
 
-    
     return LaunchDescription([
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource([os.path.join(
@@ -85,10 +85,17 @@ def generate_launch_description():
             launch_arguments=[
                 ('gz_args', [world_file_path, ' -r'])]
         ),
-        set_env,
+        bridge,
         robot_state_publisher,
-        spawn_entity,   
-        joint_state_spawner,
-        motor_controller_spawne,
-        bridge
+
+        # Gazebo 起動後に controller をロード
+        TimerAction(
+            period=3.0,
+            actions=[joint_state_broadcaster]
+        ),
+        TimerAction(
+            period=4.0,
+            actions=[motor_spin_controller]
+        )
     ])
+

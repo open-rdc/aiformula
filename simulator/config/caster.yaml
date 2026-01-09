@@ -1,11 +1,13 @@
 controller_manager:
-  ros_paramters:
-    update_rate: 50
+  ros__parameters:
+    update_rate: 100
     joint_state_broadcaster:
       type: joint_state_broadcaster/JointStateBroadcaster
-    motor_spin_controller:
-      type: motor_spin/MotorSpin
+    motor_position_controller:
+      type: forward_command_controller/ForwardCommandController
 
-motor_spin_controller:
-  ros_parametrs:
-    joint: motor_spin_joint
+motor_position_controller:
+  ros__parameters:
+    joints: 
+      - motor_spin_joint
+    interface_name: position
