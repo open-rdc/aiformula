@@ -2,6 +2,7 @@
 
 #include "utilities/data_utils.hpp"
 #include "utilities/utils.hpp"
+#include <sensor_msgs/msg/joint_state.hpp>
 
 #include <float.h>
 #include <cmath>
@@ -74,33 +75,16 @@ ChassisDriver::ChassisDriver(const std::string& name_space, const rclcpp::NodeOp
         _qos,
         std::bind(&ChassisDriver::_subscriber_callback_vel, this, std::placeholders::_1)
     );
-    _subscription_stop = this->create_subscription<std_msgs::msg::Empty>(
-        "stop",
-        _qos,
-        std::bind(&ChassisDriver::_subscriber_callback_stop, this, std::placeholders::_1)
+    _subscription_caster_yaw = this->create_subscription<sensor_msgs::msg::JointState>(
+        "caster_yaw_angle",
+        rclcpp::SensorDataQoS(),  // まずはこれが無難（BestEffort想定）
+        std::bind(&ChassisDriver::_subscriber_callback_caster_yaw, this, std::placeholders::_1)
     );
-    _subscription_restart = this->create_subscription<std_msgs::msg::Empty>(
-        "restart",
-        _qos,
-        std::bind(&ChassisDriver::_subscriber_callback_restart, this, std::placeholders::_1)
-    );
-    _subscription_caster = this->create_subscription<socketcan_interface_msg::msg::SocketcanIF>(
-        "can_rx_012",
-        _qos,
-        std::bind(&ChassisDriver::_subscriber_callback_caster, this, std::placeholders::_1)
-    );
-    _subscription_emergency = this->create_subscription<socketcan_interface_msg::msg::SocketcanIF>(
-        "can_rx_712",
-        _qos,
-        std::bind(&ChassisDriver::_subscriber_callback_emergency, this, std::placeholders::_1)
-    );
-    publisher_can = this->create_publisher<socketcan_interface_msg::msg::SocketcanIF>("can_tx", _qos);
+
     publisher_ref_vel = this->create_publisher<geometry_msgs::msg::TwistStamped>("ref_vel", _qos);
     publisher_caster = this->create_publisher<std_msgs::msg::Float64>("motor_spin_angle", _qos);
     publisher_caster_data = this->create_publisher<std_msgs::msg::Float64MultiArray>("caster_data", _qos);
 
-    // ODriveのAxis Stateサービスクライアント作成
-    odrive_axis_client_ = this->create_client<odrive_can::srv::AxisState>("/odrive_axis0/request_axis_state");
 
     _pub_timer = this->create_wall_timer(
         std::chrono::milliseconds(interval_ms),
@@ -110,18 +94,12 @@ ChassisDriver::ChassisDriver(const std::string& name_space, const rclcpp::NodeOp
     linear_planner.limit(linear_limit);
     angular_planner.limit(angular_limit);
 
-    // ODriveのAxis Stateをクローズドループに設定（axis_requested_state: 8）
-    auto request = std::make_shared<odrive_can::srv::AxisState::Request>();
-    request->axis_requested_state = 8;
-    auto future = odrive_axis_client_->async_send_request(request);
-
     RCLCPP_INFO(this->get_logger(), "Chassis Driver Node has been started. max vel: %.2f m/s, max angular vel: %.2f deg/s",
         linear_limit.vel, rtod(angular_limit.vel));
+
 }
 
 void ChassisDriver::_subscriber_callback_vel(const geometry_msgs::msg::Twist::SharedPtr msg){
-    if(mode == Mode::stop) return;
-    mode = Mode::cmd;
 
     const double linear_vel = constrain(msg->linear.x, -linear_limit.vel, linear_limit.vel);
     const double angular_vel = constrain(msg->angular.z, -angular_limit.vel, angular_limit.vel);
@@ -132,11 +110,6 @@ void ChassisDriver::_subscriber_callback_vel(const geometry_msgs::msg::Twist::Sh
 void ChassisDriver::_publisher_callback(){
     linear_planner.cycle();
     angular_planner.cycle();
-
-    if(mode == Mode::stop || mode == Mode::stay){
-        this->send_rpm(0.0, 0.0);
-        return;
-    }
 
     // 速度計画機の参照
     const double linear_vel = linear_planner.vel();
@@ -168,7 +141,6 @@ void ChassisDriver::_publisher_callback(){
     }
     // RCLCPP_INFO(this->get_logger(), "DEL:%.2f POS:%.2f ENC:%.2f", rtod(delta), rtod(motor_pos), rtod(caster_orientation));
 
-    send_rpm(linear_vel, angular_vel);
 
     std_msgs::msg::Float64 msg_out;
     msg_out.data = motor_pos;
@@ -184,73 +156,32 @@ void ChassisDriver::_publisher_callback(){
     publisher_ref_vel->publish(*msg_ref_vel);
 }
 
-void ChassisDriver::_subscriber_callback_stop(const std_msgs::msg::Empty::SharedPtr msg){
-    mode = Mode::stop;
-    RCLCPP_INFO(this->get_logger(), "停止");
-}
-void ChassisDriver::_subscriber_callback_restart(const std_msgs::msg::Empty::SharedPtr msg){
-    mode = Mode::stay;
+void ChassisDriver::_subscriber_callback_caster_yaw(const sensor_msgs::msg::JointState::SharedPtr msg)
+{
+    static const std::string kCasterJointName = "caster_yaw_wheel";
 
-    velplanner::Physics_t physics_zero(0.0, 0.0, 0.0);
-    linear_planner.current(physics_zero);
-    angular_planner.current(physics_zero);
-    RCLCPP_INFO(this->get_logger(), "再起動");
-}
-
-void ChassisDriver::_subscriber_callback_caster(const socketcan_interface_msg::msg::SocketcanIF::SharedPtr msg){
-    uint8_t _candata[8];
-    for(int i=0; i<msg->candlc; i++) _candata[i] = msg->candata[i];
-
-    const int count = static_cast<int>(bytes_to_int16(_candata));
-    caster_orientation = count / static_cast<double>(caster_max_count) * 2.0 * d_pi;
-    // RCLCPP_INFO(this->get_logger(), "CAS:%f CNT:%d", rtod(caster_orientation), count);
-}
-void ChassisDriver::_subscriber_callback_emergency(const socketcan_interface_msg::msg::SocketcanIF::SharedPtr msg){
-    uint8_t _candata[8];
-    for(int i=0; i<msg->candlc; i++) _candata[i] = msg->candata[i];
-
-    if(_candata[6] and mode!=Mode::stop){
-        mode = Mode::stop;
-        RCLCPP_INFO(this->get_logger(), "緊急停止!");
+    for (size_t i = 0; i < msg->name.size(); ++i)
+    {
+        if (msg->name[i] == kCasterJointName)
+        {
+            if (i < msg->position.size())
+            {
+                caster_orientation = msg->position[i];
+                caster_orientation = utils::wrap_pi(caster_orientation);
+            }
+            return;
+        }
     }
 }
 
-void ChassisDriver::send_rpm(const double linear_vel, const double angular_vel){
-
-    // 駆動輪の目標角速度
-    const double left_vel = (-tread*angular_vel + 2.0*linear_vel) / (2.0*wheel_radius);
-    const double right_vel = (tread*angular_vel + 2.0*linear_vel) / (2.0*wheel_radius);
-
-    // rad/s -> rpm  &  回転方向制御
-    const double left_rpm = (is_reverse_left ? -1 : 1) * (left_vel*30.0 / d_pi) * rotate_ratio;
-    const double right_rpm = (is_reverse_right ? -1 : 1) * (right_vel*30.0 / d_pi) * rotate_ratio;
-
-    // RCLCPP_INFO(this->get_logger(), "right:%f  left:%f", right_rpm, left_rpm);
-    // 出版
-    auto msg_can = std::make_shared<socketcan_interface_msg::msg::SocketcanIF>();
-    msg_can->canid = 0x210;
-    msg_can->candlc = 8;
-
-    uint8_t _candata[8];
-    int32_to_bytes(_candata, static_cast<int32_t>(right_rpm));
-    int32_to_bytes(_candata+4, static_cast<int32_t>(left_rpm));
-
-    for(int i=0; i<msg_can->candlc; i++) msg_can->candata[i]=_candata[i];
-    publisher_can->publish(*msg_can);
-
-}
-
-
 }  // namespace chassis_driver
-
 
 int main(int argc, char * argv[])
 {
   rclcpp::init(argc, argv);
-  // ノードのインスタンスを作成
   auto node = std::make_shared<chassis_driver::ChassisDriver>(rclcpp::NodeOptions());
-  // 実行（スピン）
   rclcpp::spin(node);
   rclcpp::shutdown();
   return 0;
 }
+
