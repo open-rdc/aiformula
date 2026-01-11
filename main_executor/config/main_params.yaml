@@ -2,8 +2,8 @@ launch: #起動パラメータ
   ros__parameters:
     joy: true
     vectornav : false
-    odrive : true
-    socketcan : true
+    odrive : false
+    socketcan : false
 
 /**:  #ワイルドカード(ここのパラメータは全ノードから読める: <名前に注意>)
   ros__parameters:
@@ -14,19 +14,53 @@ launch: #起動パラメータ
       jer: 0.0
     # 回転  速度[deg/s],加速度[deg/s^2],加減速度[-deg/s^2],躍度[deg/s^3]
     angular_max :
-      vel: 90.0
+      vel: 30.0
       acc: 240.0
       jer: 0.0
 
     tread : 0.6
     wheelbase : 0.65
+    caster_max_angle : 15.0 # [deg]ff
 
     autonomous_flag : false
+
+frenet_planner_node:
+  ros__parameters:
+    # Frenet軌道生成の探索範囲
+    max_road_width_left : 4.0   # [m] 参照パスから左側の探索範囲
+    max_road_width_right : 4.0  # [m] 参照パスから右側の探索範囲
+    d_road_width : 0.5          # [m] 横方向サンプリング間隔
+
+    # 時間パラメータ
+    dt : 0.1               # [s] 軌道の時間離散化間隔
+    sampling_min_d : 4.0   # [s] 生成する軌道の最小時間
+    sampling_max_d : 5.0   # [s] 生成する軌道の最大時間
+    d_t : 0.5              # [s] 時間長のサンプリング間隔
+
+    # 速度パラメータ
+    d_t_s : 0.2         # [-] 速度サンプリングの割合（0.2 = 20%刻み）
+    n_s_sample : 1.0    # [-] 縦方向サンプリング数（現在未使用）
+
+    # 衝突判定
+    robot_radius : 0.5   # [m] ロボットの半径
+    safety_margin : 0.2  # [m] 障害物からの安全マージン
+
+    # コスト関数の重み
+    k_jerk : 1.0          # Jerkペナルティ
+    k_time : 1.0          # 時間ペナルティ
+    k_d : 1.0             # 目標横位置との差ペナルティ
+    k_s_dot : 1.0         # 目標速度との差ペナルティ
+    k_lateral : 1.0       # 横方向軌道のコスト重み
+    k_longitudinal : 0.5  # 縦方向軌道のコスト重み
+
+    # 障害物検出
+    obstacle_z_min : -0.15       # [m] 障害物検出のZ座標下限
+    obstacle_z_max : 0.05        # [m] 障害物検出のZ座標上限
+    obstacle_voxel_size : 0.3    # [m] ボクセルグリッドのサイズ
 
 pure_pursuit_node:
   ros__parameters:
     lookahead_distance : 2.0
-
 
 chassis_driver_node:
   ros__parameters:
@@ -36,7 +70,6 @@ chassis_driver_node:
     reverse_left_flag : false
     reverse_right_flag : false
     caster_max_count : 4096
-    caster_max_angle : 15.0 # [deg]ff
     motor_max_torque : 1.0 # [Nm]
     p_gain : 6.0
     i_gain : 0.0
@@ -45,6 +78,3 @@ chassis_driver_node:
 socketcan_interface_node:
   ros__parameters:
     if_name : "can_main"
-
-# controller_node:
-#   ros__parameters:

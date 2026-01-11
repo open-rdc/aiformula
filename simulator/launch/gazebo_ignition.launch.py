@@ -32,8 +32,8 @@ def generate_launch_description():
             '/camera_info@sensor_msgs/msg/CameraInfo@gz.msgs.CameraInfo',
             '/image_raw@sensor_msgs/msg/Image@gz.msgs.Image',
             # Depth camera (depth image and point cloud only)
-            '/depth_camera/depth_image@sensor_msgs/msg/Image@gz.msgs.Image',
-            '/depth_camera/points@sensor_msgs/msg/PointCloud2@gz.msgs.PointCloudPacked',
+            '/depth_image_raw/depth_image@sensor_msgs/msg/Image@gz.msgs.Image',
+            '/depth_image_raw/points@sensor_msgs/msg/PointCloud2@gz.msgs.PointCloudPacked',
             # Other sensors
             '/odom@nav_msgs/msg/Odometry@gz.msgs.Odometry',
             '/navsat@sensor_msgs/msg/NavSatFix@gz.msgs.NavSat',
@@ -42,9 +42,8 @@ def generate_launch_description():
         output='screen',
         remappings=[
             ('/odom', '/zed/zed_node/odom'),
-            ('/image_raw', '/zed/zed_node/rgb/image_rect_color'),
             ('/depth_image', '/zed/zed_node/depth/depth_registered'),
-            ('/points', '/zed/zed_node/pointcloud'),
+            ('/depth_image_raw/points', '/zed/zed_node/pointcloud'),
         ]
     )
 
