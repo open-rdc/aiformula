@@ -37,7 +37,7 @@ add_executable(vo_follower_node
   src/vo_follower_node.cpp
 )
 
-ament_target_dependencies(vo_fo;;ower_node
+ament_target_dependencies(vo_follower_node
   rclcpp
   sensor_msgs
   nav_msgs
