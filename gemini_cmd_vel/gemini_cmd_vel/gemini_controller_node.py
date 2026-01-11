@@ -33,7 +33,7 @@ class GeminiControllerNode(Node):
         self.declare_parameter('subscribe_topic', '/gemini/annotated_image') #gemini/annotated_image、gemini/drivable_area_image
         self.declare_parameter('publish_topic', '/cmd_vel')
         self.declare_parameter('request_interval_sec', 0.1)
-        self.declare_parameter('max_linear_speed', 0.9)
+        self.declare_parameter('max_linear_speed', 1.2)
         self.declare_parameter('max_angular_speed', 1.2)
         self.declare_parameter('control_period_sec', 0.1)
         self.declare_parameter('max_linear_slew', 1.0)
