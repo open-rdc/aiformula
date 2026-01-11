@@ -15,7 +15,9 @@ find_package(tf2_ros REQUIRED)
 
 include_directories(
   include
+  ${CMAKE_SOURCE_DIR}/src/utilities/include
 )
+
 
 # ---- ノードのビルド ----
 add_executable(vo_path_publisher_node
