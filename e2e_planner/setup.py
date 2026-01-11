@@ -26,6 +26,7 @@ setup(
     entry_points={
         'console_scripts': [
             'inference_node = e2e_planner.inference_node:main',
+            'inference_node_sim.py = e2e_planner.inference_node_sim:main',
         ],
     },
 )
