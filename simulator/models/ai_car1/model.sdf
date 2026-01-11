@@ -13,8 +13,8 @@
       <wheel_separation>0.6</wheel_separation>
       <wheel_radius>0.124</wheel_radius>
       <odom_publish_frequency>30</odom_publish_frequency>
-      <topic>/cmd_vel</topic>
-      <odom_topic>/odom</odom_topic>
+      <topic>cmd_vel</topic>
+      <odom_topic>odom</odom_topic>
     </plugin>
     <plugin
         filename="libignition-gazebo-imu-system.so"
@@ -140,55 +140,56 @@
 
     <!-- caster wheel -->
 
+    <frame name="caster_frame" attached_to='chassis'>
+        <pose>0.8 0 0 0 0 1.57</pose>
+    </frame>
+
+    <link name='caster_yaw'>
+      <pose relative_to='caster_frame'/>
+      <inertial>
+        <mass>5.0</mass>
+        <inertia>
+          <ixx>0.001</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>0.001</iyy>
+          <iyz>0</iyz>
+          <izz>0.001</izz>
+        </inertia>
+      </inertial>
+    </link>
+
     <link name='caster'>
-      <pose relative_to='chassis'>0.8 0 -0.05 0 0 0</pose>
+      <pose relative_to='caster_yaw'/>
       <inertial>
         <mass>1.0</mass>
         <inertia>
-          <ixx>0.01</ixx>
+          <ixx>0.04778</ixx>
           <ixy>0</ixy>
           <ixz>0</ixz>
-          <iyy>0.01</iyy>
+          <iyy>0.04778</iyy>
           <iyz>0</iyz>
-          <izz>0.01</izz>
+          <izz>0.07875</izz>
         </inertia>
       </inertial>
 
       <visual name='visual'>
         <pose>0 0 0 0 0 0</pose>
         <geometry>
-          <sphere>
-            <radius>0.05</radius>
-          </sphere>
+          <mesh>
+            <uri>package://simulator/models/ai_car1/meshes/tire.dae</uri>
+            <scale>0.1 0.1 0.1</scale>
+          </mesh>
         </geometry>
-        <material>
-          <ambient>0.2 0.2 0.2 1</ambient>
-          <diffuse>0.2 0.2 0.2 1</diffuse>
-        </material>
       </visual>
 
       <collision name='collision'>
         <geometry>
-          <sphere>
-            <radius>0.05</radius>
-          </sphere>
+          <mesh>
+            <uri>package://simulator/models/ai_car1/meshes/tire.dae</uri>
+            <scale>0.1 0.1 0.1</scale>
+          </mesh>
         </geometry>
-        <surface>
-          <friction>
-            <ode>
-              <mu>0.3</mu>
-              <mu2>0.3</mu2>
-            </ode>
-          </friction>
-          <contact>
-            <ode>
-              <kp>1000000.0</kp>
-              <kd>100.0</kd>
-              <max_vel>0.1</max_vel>
-              <min_depth>0.001</min_depth>
-            </ode>
-          </contact>
-        </surface>
       </collision>
     </link>
 
@@ -201,7 +202,7 @@
       <axis>
         <xyz expressed_in='__model__'>0 1 0</xyz>
         <limit>
-          <effort>9.4</effort>
+          <effort>84.4</effort>
         </limit>
         <dynamics>
           <friction>0.9</friction>  <!-- 静止摩擦 -->
@@ -216,7 +217,7 @@
       <axis>
         <xyz expressed_in='__model__'>0 1 0</xyz>
         <limit>
-          <effort>9.4</effort>
+          <effort>84.4</effort>
         </limit>
         <dynamics>
           <friction>0.9</friction>  <!-- 静止摩擦 -->
@@ -224,13 +225,32 @@
       </axis>
     </joint>
 
-    <joint name='caster_ball_joint' type='ball'>
+    <joint name='caster_yaw_wheel' type='revolute'>
       <parent>chassis</parent>
+      <child>caster_yaw</child>
+      <axis>
+        <xyz expressed_in='__model__'>0 0 1</xyz>
+        <limit>
+          <lower>-0.26</lower>
+          <upper>0.26</upper>
+        </limit>
+        <dynamics>
+          <damping>10.0</damping>
+          <spring_stiffness>12.0</spring_stiffness>
+          <spring_reference>0.0</spring_reference>
+        </dynamics>
+      </axis>
+    </joint>
+
+    <joint name='caster_pitch_joint' type='revolute'>
+      <parent>caster_yaw</parent>
       <child>caster</child>
-      <dynamics>
-        <damping>0.5</damping>
-        <friction>0.1</friction>
-      </dynamics>
+      <axis>
+        <xyz expressed_in='__model__'>0 1 0</xyz>
+        <dynamics>
+          <damping>0.01</damping>
+        </dynamics>
+      </axis>
     </joint>
 
     <!-- imu sensor -->
@@ -249,7 +269,7 @@
         <always_on>1</always_on>
         <update_rate>20.0</update_rate> <!--Hz-->
         <visualize>true</visualize>
-        <topic>/imu_raw</topic>
+        <topic>imu_raw</topic>
       </sensor>
     </link>
 
@@ -289,7 +309,7 @@
       <sensor name="realsense_d435" type="rgbd_camera">
         <update_rate>60.0</update_rate>
         <always_on>true</always_on>
-        <topic>/image_raw</topic>
+        <topic>camera</topic>
         <ignition_frame_id>camera_link</ignition_frame_id>
 
         <camera name="camera">
@@ -323,7 +343,7 @@
       <sensor name="gps_sensor" type="navsat">
         <always_on>true</always_on>
         <update_rate>1.0</update_rate>
-        <topic>/navsat</topic>
+        <topic>navsat</topic>
       </sensor>
     </link>
 
