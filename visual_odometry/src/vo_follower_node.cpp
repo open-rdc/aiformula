@@ -5,6 +5,10 @@
 #include "nav_msgs/msg/odometry.hpp"
 #include "nav_msgs/msg/path.hpp"
 #include "std_msgs/msg/bool.hpp"
+#include <tf2/LinearMath/Quaternion.h>
+#include <tf2/LinearMath/Matrix3x3.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
+
 
 #include "utilities/position_pid.hpp"
 #include "utilities/utils.hpp"
@@ -217,7 +221,19 @@ private:
     double ld_gain_, ld_min_;
     double v_max_, w_max_;
 
-    PID pid_;
+    controller::PositionPid pid_;
 };
 
-} // namespace vonav
+} 
+// ===== main =====
+int main(int argc, char** argv)
+{
+    rclcpp::init(argc, argv);
+    rclcpp::spin(
+        std::make_shared<vonav::PurePursuitFollower>(
+            rclcpp::NodeOptions()
+        )
+    );
+    rclcpp::shutdown();
+    return 0;
+}

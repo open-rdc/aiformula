@@ -88,16 +88,18 @@ void VoPathPublisher::loop()
   path_pub_->publish(path_msg_);
 }
 
-} // namespace vonav
+} 
 
 // ===== main =====
-int main(int argc, char ** argv)
+int main(int argc, char** argv)
 {
-  rclcpp::init(argc, argv);
-  rclcpp::spin(
-    std::make_shared<vonav::VoPathPublisher>(rclcpp::NodeOptions())
-  );
-  rclcpp::shutdown();
-  return 0;
+    rclcpp::init(argc, argv);
+    rclcpp::spin(
+        std::make_shared<visual_odometry::VoPathPublisher>(
+            rclcpp::NodeOptions()
+        )
+    );
+    rclcpp::shutdown();
+    return 0;
 }
 
