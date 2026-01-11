@@ -7,22 +7,21 @@
 #include <vector>
 #include <string>
 
-namespace vonav
+namespace visual_odometry
 {
 
-class Publisher : public rclcpp::Node
+class VoPathPublisher : public rclcpp::Node
 {
 public:
-  explicit Publisher(const rclcpp::NodeOptions & options);
+  explicit VoPathPublisher(const rclcpp::NodeOptions & options);
 
 private:
   void initCommunication();
   void loadCSV();
-  void loop();
-
   nav_msgs::msg::Path createPath(
     const std::vector<double>& xs,
     const std::vector<double>& ys);
+  void loop();
 
   rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr path_pub_;
   rclcpp::TimerBase::SharedPtr timer_;

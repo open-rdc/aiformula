@@ -12,18 +12,17 @@ find_package(nav_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
-find_package(utilities REQUIRED)
 
+# ---- include ----
 include_directories(
   include
-  ${CMAKE_SOURCE_DIR}/src/utilities/include
 )
 
-
-# ---- ノードのビルド ----
+# ---- vo_path_publisher_node ----
 add_executable(vo_path_publisher_node
   src/vo_path_publisher_node.cpp
 )
+
 ament_target_dependencies(vo_path_publisher_node
   rclcpp
   sensor_msgs
@@ -31,12 +30,17 @@ ament_target_dependencies(vo_path_publisher_node
   geometry_msgs
   tf2
   tf2_ros
-  utilities
 )
 
+# ---- vo_follower_node ----
 add_executable(vo_follower_node
   src/vo_follower_node.cpp
 )
+
+target_include_directories(vo_follower_node PUBLIC
+  ${CMAKE_CURRENT_SOURCE_DIR}/../utilities/include
+)
+
 ament_target_dependencies(vo_follower_node
   rclcpp
   sensor_msgs
@@ -44,10 +48,9 @@ ament_target_dependencies(vo_follower_node
   geometry_msgs
   tf2
   tf2_ros
-  utilities
 )
 
-# ---- インストール ----
+# ---- install ----
 install(TARGETS
   vo_path_publisher_node
   vo_follower_node
@@ -59,3 +62,4 @@ install(DIRECTORY config
 )
 
 ament_package()
+
