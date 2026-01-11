@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.8)
 project(visual_odometry)
 
+
 # 警告設定（お好みで）
 if(NOT CMAKE_CXX_STANDARD)
   set(CMAKE_CXX_STANDARD 17)
@@ -19,8 +20,8 @@ include_directories(
 )
 
 # ---- ノードのビルド ----
-add_executable(vo_node
-  src/vo_node.cpp
+add_executable(vo_path_publisher_node
+  src/vo_path_publisher_node.cpp
 )
 
 ament_target_dependencies(vo_node
@@ -32,6 +33,18 @@ ament_target_dependencies(vo_node
   tf2_ros
 )
 
+add_executable(vo_follower_node
+  src/vo_follower_node.cpp
+)
+
+ament_target_dependencies(vo_fo;;ower_node
+  rclcpp
+  sensor_msgs
+  nav_msgs
+  geometry_msgs
+  tf2
+  tf2_ros
+)
 install(TARGETS
   vo_node
   DESTINATION lib/${PROJECT_NAME}
