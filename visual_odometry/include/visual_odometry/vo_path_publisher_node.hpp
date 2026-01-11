@@ -1,4 +1,4 @@
-#include "vonav/path_publisher_node.hpp"
+#include "visual_odometry/vo_path_publisher_node.hpp"
 
 #include <ament_index_cpp/get_package_share_directory.hpp>
 #include <fstream>
