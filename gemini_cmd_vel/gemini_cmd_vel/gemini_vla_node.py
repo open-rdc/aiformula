@@ -32,12 +32,12 @@ class GeminiVLANode(Node):
         self.declare_parameter('subscribe_topic', '/image_raw')
         self.declare_parameter('publish_topic', '/cmd_vel')
         self.declare_parameter('request_interval_sec', 6.1)
-        self.declare_parameter('max_linear_speed', 0.5)
+        self.declare_parameter('max_linear_speed', 0.8)
         self.declare_parameter('max_angular_speed', 2.0)
         self.declare_parameter('control_period_sec', 0.1)
         self.declare_parameter('stop_on_failure', True)
         self.declare_parameter('failsafe_timeout_sec', 20.0)
-        self.declare_parameter('angular_gain', 20)
+        self.declare_parameter('angular_gain', 30)
         self.declare_parameter(
             'base_prompt',
             'You are a robot navigation assistant. '

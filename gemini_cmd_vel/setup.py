@@ -21,6 +21,7 @@ setup(
     entry_points={
         'console_scripts': [
             'gemini_controller = gemini_cmd_vel.gemini_controller_node:main',
+            'gemini_live_controller = gemini_cmd_vel.gemini_live_controller_node:main',
             'gemini_vla_node = gemini_cmd_vel.gemini_vla_node:main',
         ],
     },

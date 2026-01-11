@@ -1,0 +1,29 @@
+<?xml version="1.0" ?>
+<sdf version="1.5">
+    <model name="Construction Cone">
+        <link name="link">
+            <collision name="collision">
+                <geometry>
+                    <mesh>
+                        <scale>10 10 10</scale>
+                        <uri>https://fuel.gazebosim.org/1.0/openrobotics/models/construction cone/3/files/meshes/construction_cone.dae</uri>
+                    </mesh>
+                </geometry>
+            </collision>
+            <visual name="visual">
+                <geometry>
+                    <mesh>
+                        <scale>10 10 10</scale>
+                        <uri>https://fuel.gazebosim.org/1.0/openrobotics/models/construction cone/3/files/meshes/construction_cone.dae</uri>
+                    </mesh>
+                </geometry>
+                <material>
+                    <ambient>1 0.3 0.0 1</ambient>   <!-- R G B A -->
+                    <diffuse>1 0.3 0.0 1</diffuse>
+                    <specular>0.5 0.5 0.5 1</specular>
+                    <emissive>0 0 0 1</emissive>
+                </material>
+            </visual>
+        </link>
+    </model>
+</sdf>

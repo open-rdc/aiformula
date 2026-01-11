@@ -80,11 +80,29 @@
         </link>
         </model>
 
+
         <include>
             <uri>package://simulator/models/ai_car1</uri>
             <pose>0.6 0.0 0 0 0 -1.5</pose>
         </include>
 
+        <include>
+            <name>cone1</name>
+            <uri>package://simulator/models/construction_cone</uri>
+            <pose>2.5 -10 0 0 0 0</pose>
+        </include>
+
+        <include>
+            <name>cone2</name>
+            <uri>package://simulator/models/construction_cone</uri>
+            <pose>2.0 -10 0 0 0 0</pose>
+        </include>
+
+        <include>
+            <name>cone3</name>
+            <uri>package://simulator/models/construction_cone</uri>
+            <pose>3.0 -10 0 0 0 0</pose>
+        </include>
     <!-- 用調整 -->
 
         <spherical_coordinates>

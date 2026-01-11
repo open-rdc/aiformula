@@ -26,7 +26,7 @@ class GeminiLiveControllerNode(Node):
         super().__init__('gemini_live_controller')
 
         default_api_key = os.environ.get('GEMINI_API_KEY', '')
-        default_model = os.environ.get('GEMINI_MODEL', 'models/gemini-2.0-flash-live-001') #gemini-2.5-flash-live-preview, models/gemini-2.0-flash-live-001
+        default_model = os.environ.get('GEMINI_MODEL', 'models/gemini-2.5-flash-native-audio-latest') #gemini-2.5-flash-live-preview, models/gemini-2.0-flash-live-001
 
 
         self.declare_parameter('api_key', default_api_key)
