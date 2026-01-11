@@ -12,6 +12,7 @@ find_package(nav_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
+find_package(utilities REQUIRED)
 
 include_directories(
   include
@@ -30,6 +31,7 @@ ament_target_dependencies(vo_path_publisher_node
   geometry_msgs
   tf2
   tf2_ros
+  utilities
 )
 
 add_executable(vo_follower_node
@@ -42,6 +44,7 @@ ament_target_dependencies(vo_follower_node
   geometry_msgs
   tf2
   tf2_ros
+  utilities
 )
 
 # ---- インストール ----

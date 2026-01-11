@@ -1,124 +1,103 @@
-#include "visual_odometry/vo_path_publisher_node.hpp"
 
+#include "visual_odometry/vo_path_publisher_node.hpp"
+#include <ament_index_cpp/get_package_share_directory.hpp>
 #include <fstream>
 #include <sstream>
-#include <iostream>
 
-namespace visual_odometry
-{
+namespace vonav {
 
 VoPathPublisher::VoPathPublisher(const rclcpp::NodeOptions & options)
-: rclcpp::Node("vo_path_publisher_node", options)
+: Node("vo_path_publisher", options)
 {
-  // パラメータ宣言
-  this->declare_parameter<std::string>("file_path", "shihou_vo.csv");
-  this->declare_parameter<int>("interval_ms", 100);
+    // パラメータ宣言
+    freq_ = declare_parameter("interval_ms", 100);
+    path_file_name_ = declare_parameter("path_file_name", "vo_path");
 
-  std::string file_path =
-    this->get_parameter("file_path").get_parameter_value().get<std::string>();
-  interval_ms_ =
-    this->get_parameter("interval_ms").get_parameter_value().get<int>();
+    // Publisher 作成
+    path_pub_ = this->create_publisher<nav_msgs::msg::Path>("vo_path", 10);
 
-  RCLCPP_INFO(this->get_logger(), "VO path CSV: %s", file_path.c_str());
-  RCLCPP_INFO(this->get_logger(), "interval_ms: %d", interval_ms_);
+    // CSV ファイルパス
+    file_path_ = ament_index_cpp::get_package_share_directory("visual_odometry") +
+                 "/config/course_data/" + path_file_name_ + ".csv";
 
-  // CSV 読み込み
-  loadCsv(file_path);
+    loadCSV();
 
-  // publisher
-  path_pub_ = this->create_publisher<nav_msgs::msg::Path>("vo_path", 10);
+    // Path 作成
+    path_msg_ = createPath(xs_, ys_);
 
-  // timer
-  timer_ = this->create_wall_timer(
-    std::chrono::milliseconds(interval_ms_),
-    std::bind(&VoPathPublisher::timerCallback, this));
+    // タイマー作成
+    timer_ = this->create_wall_timer(
+        std::chrono::milliseconds(freq_),
+        std::bind(&VoPathPublisher::loop, this));
+
+    RCLCPP_INFO(this->get_logger(), "VO Path Publisher initialized");
 }
 
-void VoPathPublisher::loadCsv(const std::string & file_path)
+void VoPathPublisher::loadCSV()
 {
-  std::ifstream file(file_path);
-  if (!file.is_open()) {
-    RCLCPP_ERROR(this->get_logger(), "Failed to open CSV: %s", file_path.c_str());
-    return;
-  }
+    std::ifstream file(file_path_);
+    RCLCPP_INFO(this->get_logger(), "Loading CSV: %s", file_path_.c_str());
 
-  std::string line;
-  bool first_line = true;
-
-  while (std::getline(file, line)) {
-    if (line.empty()) {
-      continue;
+    if (!file.is_open()) {
+        RCLCPP_ERROR(this->get_logger(), "Failed to open CSV file");
+        return;
     }
 
-    std::stringstream ss(line);
-    std::string cell;
-    std::vector<std::string> tokens;
+    std::string line;
+    bool header_skipped = false;
 
-    while (std::getline(ss, cell, ',')) {
-      tokens.push_back(cell);
+    while (std::getline(file, line)) {
+        if (!header_skipped) { header_skipped = true; continue; }
+
+        std::stringstream ss(line);
+        std::string cell;
+        std::vector<std::string> tokens;
+        while (std::getline(ss, cell, ',')) { tokens.push_back(cell); }
+
+        if (tokens.size() < 2) continue;
+        xs_.push_back(std::stod(tokens[0]));
+        ys_.push_back(std::stod(tokens[1]));
     }
 
-    // 先頭行（x,y,z,yaw）はヘッダなのでスキップ
-    if (first_line) {
-      first_line = false;
-      if (!tokens.empty() && tokens[0] == "x") {
-        continue;
-      }
-    }
-
-    if (tokens.size() < 4) {
-      continue;
-    }
-
-    double x   = std::stod(tokens[0]);
-    double y   = std::stod(tokens[1]);
-    double z   = std::stod(tokens[2]);
-    double yaw = std::stod(tokens[3]);
-
-    if (init_flag_) {
-      base_x_ = x;
-      base_y_ = y;
-      base_z_ = z;
-      init_flag_ = false;
-    }
-
-    xs_.push_back(x - base_x_);
-    ys_.push_back(y - base_y_);
-    zs_.push_back(z - base_z_);
-    yaws_.push_back(yaw);
-  }
-
-  file.close();
-
-  // Path メッセージを作成
-  path_msg_.header.frame_id = "map";
-
-  for (size_t i = 0; i < xs_.size(); ++i) {
-    geometry_msgs::msg::PoseStamped pose;
-    pose.header.frame_id = "map";
-    pose.pose.position.x = xs_[i];
-    pose.pose.position.y = ys_[i];
-    pose.pose.position.z = zs_[i];
-
-    // yaw → quaternion は必要なら後で追加
-    pose.pose.orientation.w = 1.0;
-
-    path_msg_.poses.push_back(pose);
-  }
-
-  RCLCPP_INFO(this->get_logger(), "Loaded %zu points from CSV", xs_.size());
+    file.close();
+    RCLCPP_INFO(this->get_logger(), "Loaded %zu path points from CSV", xs_.size());
 }
 
-void VoPathPublisher::timerCallback()
+nav_msgs::msg::Path VoPathPublisher::createPath(
+    const std::vector<double>& xs, const std::vector<double>& ys)
 {
-  auto now = this->now();
-  path_msg_.header.stamp = now;
+    nav_msgs::msg::Path path;
+    path.header.frame_id = "map";
+    path.header.stamp = now();
 
-  for (auto & pose : path_msg_.poses) {
-    pose.header.stamp = now;
-  }
-
-  path_pub_->publish(path_msg_);
+    for (size_t i = 0; i < xs.size(); ++i) {
+        geometry_msgs::msg::PoseStamped pose;
+        pose.header.frame_id = "map";
+        pose.header.stamp = now();
+        pose.pose.position.x = xs[i];
+        pose.pose.position.y = ys[i];
+        pose.pose.position.z = 0.0;
+        path.poses.push_back(pose);
+    }
+    return path;
 }
 
-}  // namespace visual_odometry
+void VoPathPublisher::loop()
+{
+    path_msg_.header.stamp = now();
+    path_pub_->publish(path_msg_);
+}
+
+} // namespace visual_odometry
+
+#include "rclcpp/rclcpp.hpp"
+
+int main(int argc, char ** argv)
+{
+  rclcpp::init(argc, argv);
+  rclcpp::spin(
+    std::make_shared<vonav::Publisher>(rclcpp::NodeOptions())
+  );
+  rclcpp::shutdown();
+  return 0;
+}
