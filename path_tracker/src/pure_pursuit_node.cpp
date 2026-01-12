@@ -17,7 +17,7 @@ lookahead_distance(get_parameter("lookahead_distance").as_double()),
 curvature_gain(get_parameter("curvature_gain").as_double())
 {
     _subscription_path = this->create_subscription<nav_msgs::msg::Path>(
-        "e2e_planner/path",
+        "/frenet_planner/path",
         _qos,
         std::bind(&PurePursuit::_subscriber_callback_path, this, std::placeholders::_1)
     );

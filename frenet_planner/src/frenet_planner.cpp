@@ -27,8 +27,8 @@ void FrenetPlanner::set_parameters(
     max_accel_ = max_accel;
     max_curvature_ = max_curvature;
     dt_ = dt;
-    sampling_min_d_ = sampling_min_d;
-    sampling_max_d_ = sampling_max_d;
+    sampling_min_d_ = sampling_min_d / max_speed;
+    sampling_max_d_ = sampling_max_d / max_speed;
     d_t_ = d_t;
     d_t_s_ = d_t_s;
     n_s_sample_ = n_s_sample;

@@ -60,7 +60,7 @@ FrenetPlannerNode::FrenetPlannerNode(const std::string& name_space, const rclcpp
         std::bind(&FrenetPlannerNode::odom_callback, this, std::placeholders::_1)
     );
 
-    pub_local_path_ = this->create_publisher<nav_msgs::msg::Path>("local_path", qos_);
+    pub_local_path_ = this->create_publisher<nav_msgs::msg::Path>("frenet_planner/path", qos_);
     pub_obstacle_markers_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("obstacle_markers", qos_);
 
     RCLCPP_INFO(this->get_logger(), "FrenetPlanner node has been initialized.");
