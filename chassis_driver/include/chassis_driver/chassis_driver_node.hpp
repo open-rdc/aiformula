@@ -4,7 +4,7 @@
 #include <geometry_msgs/msg/twist.hpp>
 #include <geometry_msgs/msg/twist_stamped.hpp>
 #include <std_msgs/msg/empty.hpp>
-#include <std_msgs/msg/float64.hpp>
+#include <std_msgs/msg/float64_multi_array.hpp>
 #include "socketcan_interface_msg/msg/socketcan_if.hpp"
 #include "base/velplanner.hpp"
 #include "utilities/position_pid.hpp"
@@ -42,6 +42,7 @@ private:
     rclcpp::Publisher<socketcan_interface_msg::msg::SocketcanIF>::SharedPtr publisher_can;
     rclcpp::Publisher<geometry_msgs::msg::TwistStamped>::SharedPtr publisher_ref_vel;
     rclcpp::Publisher<odrive_can::msg::ControlMessage>::SharedPtr publisher_odrive;
+    rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr publisher_caster_data;
 
     rclcpp::Client<odrive_can::srv::AxisState>::SharedPtr odrive_axis_client_;
 
@@ -54,9 +55,6 @@ private:
     velplanner::VelPlanner angular_planner;
     const velplanner::Limit angular_limit;
 
-    // 従動輪のPID
-    controller::PositionPid caster_pid;
-
     // 定数
     const int interval_ms;
     const double wheel_radius;
@@ -65,9 +63,8 @@ private:
     const double rotate_ratio;
     const bool is_reverse_left;
     const bool is_reverse_right;
-    const int caster_max_count;
     const double caster_max_angle;
-    const double motor_max_torque;
+    const int caster_max_count;
 
     // 変数
     double caster_orientation = 0.0;

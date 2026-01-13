@@ -21,10 +21,8 @@ wheelbase(get_parameter("wheelbase").as_double()),
 rotate_ratio(1.0 / get_parameter("reduction_ratio").as_double()),
 is_reverse_left(get_parameter("reverse_left_flag").as_bool()),
 is_reverse_right(get_parameter("reverse_right_flag").as_bool()),
-caster_max_count(get_parameter("caster_max_count").as_int()),
 caster_max_angle(dtor(get_parameter("caster_max_angle").as_double())),
-motor_max_torque(get_parameter("motor_max_torque").as_double()),
-caster_pid(get_parameter("interval_ms").as_int()),
+caster_max_count(get_parameter("caster_max_count").as_int()),
 
 linear_limit(DBL_MAX,
 get_parameter("linear_max.vel").as_double(),
@@ -62,6 +60,7 @@ dtor(get_parameter("angular_max.acc").as_double()))
     publisher_can = this->create_publisher<socketcan_interface_msg::msg::SocketcanIF>("can_tx", _qos);
     publisher_ref_vel = this->create_publisher<geometry_msgs::msg::TwistStamped>("ref_vel", _qos);
     publisher_odrive = this->create_publisher<odrive_can::msg::ControlMessage>("/odrive_axis0/control_message", _qos);
+    publisher_caster_data = this->create_publisher<std_msgs::msg::Float64MultiArray>("caster_data", _qos);
 
     // ODriveのAxis Stateサービスクライアント作成
     odrive_axis_client_ = this->create_client<odrive_can::srv::AxisState>("/odrive_axis0/request_axis_state");
@@ -73,7 +72,6 @@ dtor(get_parameter("angular_max.acc").as_double()))
 
     linear_planner.limit(linear_limit);
     angular_planner.limit(angular_limit);
-    caster_pid.gain(get_parameter("p_gain").as_double(), get_parameter("i_gain").as_double(), get_parameter("d_gain").as_double());
 
     // ODriveのAxis Stateをクローズドループに設定（axis_requested_state: 8）
     auto request = std::make_shared<odrive_can::srv::AxisState::Request>();
@@ -118,7 +116,12 @@ void ChassisDriver::_publisher_callback(){
         delta = constrain(delta, -caster_max_angle, caster_max_angle);
     }
 
-    // const double motor_torque = -1.0* constrain(caster_pid.cycle(caster_orientation, delta), -motor_max_torque, motor_max_torque);
+    // （テスト用）従動輪目標角度の出版
+    std_msgs::msg::Float64MultiArray caster_data_msg;
+    caster_data_msg.data = {delta, caster_orientation};
+    publisher_caster_data->publish(caster_data_msg);
+
+    // モータ制御
     double motor_pos = 0.0;
     if(delta > dtor(1.0)){
         motor_pos = -1.0 * (delta + dtor(5.0));
@@ -158,8 +161,7 @@ void ChassisDriver::_subscriber_callback_restart(const std_msgs::msg::Empty::Sha
     velplanner::Physics_t physics_zero(0.0, 0.0, 0.0);
     linear_planner.current(physics_zero);
     angular_planner.current(physics_zero);
-    caster_pid.reset();
-    RCLCPP_INFO(this->get_logger(), "再稼働");
+    RCLCPP_INFO(this->get_logger(), "再起動");
 }
 
 void ChassisDriver::_subscriber_callback_caster(const socketcan_interface_msg::msg::SocketcanIF::SharedPtr msg){

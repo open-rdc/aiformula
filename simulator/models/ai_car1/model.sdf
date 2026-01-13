@@ -1,6 +1,7 @@
 <?xml version="1.0" ?>
 <sdf version="1.5">
   <model name="ai_car1">
+  <self_collide>1</self_collide>
   <pose>0 0 0 0 0 0</pose>
 
   <!-- ignition plugin -->
@@ -12,9 +13,10 @@
       <right_joint>right_wheel_joint</right_joint>
       <wheel_separation>0.6</wheel_separation>
       <wheel_radius>0.124</wheel_radius>
-      <odom_publish_frequency>20.0</odom_publish_frequency>
+      <odom_publish_frequency>30</odom_publish_frequency>
       <topic>cmd_vel</topic>
       <odom_topic>odom</odom_topic>
+
     </plugin>
     <plugin
         filename="libignition-gazebo-imu-system.so"
@@ -53,13 +55,134 @@
       </visual>
 
       <collision name='collision'>
-        <pose>0 0 0 0 0 3.14</pose>
+        <pose>0 0 0 0 0 0</pose>
         <geometry>
         <pose>0 0 0 0 0 3.14</pose>
           <mesh>
             <uri>package://simulator/models/ai_car1/meshes/AIF_body.dae</uri>
           </mesh>
         </geometry>
+        <surface>
+          <contact>
+            <collide_bitmask>0x04</collide_bitmask>
+          </contact>
+        </surface>
+      </collision>
+    </link>
+
+    <link name='motor'>
+      <pose relative_to="chassis">0.7 0 0.33 0 0 0</pose>
+      <inertial>
+        <mass>1.0</mass>
+        <inertia>
+          <ixx>0.04778</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>0.04778</iyy>
+          <iyz>0</iyz>
+          <izz>0.07875</izz>
+        </inertia>
+      </inertial>
+
+      <visual name='visual'>
+        <geometry>
+        <!--let's add color to our link-->
+        <pose>0 0 0 0 0 0</pose>
+          <mesh>
+            <uri>package://simulator/models/ai_car1/meshes/motor.dae</uri>
+            <scale>0.001 0.001 0.001</scale>
+          </mesh>
+        </geometry>
+      </visual>
+      <collision name='collision'>
+        <geometry>
+        <pose>0 0 0 0 0 0</pose>
+          <mesh>
+	    <uri>package://simulator/models/ai_car1/meshes/motor.dae</uri>
+            <scale>0.001 0.001 0.001</scale>
+          </mesh>
+        </geometry>
+        <surface>
+          <contact>
+            <collide_bitmask>0x02</collide_bitmask>
+          </contact>
+        </surface>
+      </collision>
+    </link>
+
+    <link name='motor_spin'>
+      <pose relative_to="motor">0 0 0.022 0 0 0</pose>
+      <inertial>
+        <mass>0.5</mass>
+        <inertia>
+          <ixx>0.04778</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>0.04778</iyy>
+          <iyz>0</iyz>
+          <izz>0.07875</izz>
+        </inertia>
+      </inertial>
+
+      <visual name='visual'>
+        <geometry>
+        <!--let's add color to our link-->
+        <pose>0 0 0 0 0 0</pose>
+          <mesh>
+            <uri>package://simulator/models/ai_car1/meshes/motor_spin.dae</uri>
+            <scale>0.001 0.001 0.001</scale>
+          </mesh>
+        </geometry>
+	<material>
+          <ambient>1.0 1.0 0.0 1</ambient>   <!-- 環境光：黄色 -->
+          <diffuse>1.0 1.0 0.0 1</diffuse>   <!-- 拡散反射：黄色 -->
+          <specular>0.2 0.2 0.2 1</specular> <!-- 少し光沢 -->
+          <emissive>0 0 0 1</emissive>       <!-- 発光なし -->
+        </material>
+      </visual>
+      <collision name="fork_left_collision">
+        <pose>-0.037 -0.01509 -0.005 0 0 0.261</pose>
+        <geometry>
+          <box>
+            <size>0.017 0.01 0.01</size>
+          </box>
+        </geometry>
+        <surface>
+          <contact>
+            <collide_bitmask>0x01</collide_bitmask>
+          </contact>
+        </surface>
+      </collision>
+
+      <!-- 🔸 右アーム -->
+      <collision name="fork_right_collision">
+        <pose>-0.037 0.01509 -0.005 0 0 -0.261</pose>
+        <geometry>
+          <box>
+            <size>0.017 0.01 0.01</size>
+          </box>
+        </geometry>
+        <surface>
+          <contact>
+            <collide_bitmask>0x01</collide_bitmask>
+          </contact>
+        </surface>
+      </collision>
+
+      <!-- 🔸 背中（Uの底） -->
+      <collision name="fork_base_collision">
+        <pose>-0.0 0.0 -0.005 0 0 -0.261</pose>
+        <geometry>
+          <cylinder>
+            <radius>0.025</radius>
+            <length>0.005</length>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <collide_bitmask>0x01</collide_bitmask>
+          </contact>
+        </surface>
       </collision>
     </link>
 
@@ -90,23 +213,13 @@
         </geometry>
       </visual>
       <collision name='collision'>
-          <geometry>
-          <pose>0 -0.3 0 1.57 0 1.57</pose>
-            <mesh>
-              <uri>package://simulator/models/ai_car1/meshes/tire.dae</uri>
-              <scale>0.05 0.12 0.12</scale>
-            </mesh>
-          </geometry>
-          <surface>
-            <friction>
-              <ode>
-                <mu>1.0</mu>
-                <mu2>1.0</mu2>
-                <slip1>0.0</slip1>
-                <slip2>0.0</slip2>
-              </ode>
-            </friction>
-          </surface>
+        <geometry>
+        <pose>0 -0.3 0 1.57 0 1.57</pose>
+          <mesh>
+            <uri>package://simulator/models/ai_car1/meshes/tire.dae</uri>
+            <scale>0.05 0.12 0.12</scale>
+          </mesh>
+        </geometry>
       </collision>
     </link>
 
@@ -145,16 +258,6 @@
             <scale>0.05 0.12 0.12</scale>
           </mesh>
         </geometry>
-        <surface>
-          <friction>
-            <ode>
-              <mu>1.0</mu>
-              <mu2>1.0</mu2>
-              <slip1>0.0</slip1>
-              <slip2>0.0</slip2>
-            </ode>
-          </friction>
-        </surface>
       </collision>
     </link>
 
@@ -164,10 +267,10 @@
         <pose>0.8 0 -0.05 0 0 0</pose>
     </frame>
 
-    <link name='caster'>
+    <link name='caster_yaw'>
       <pose relative_to='caster_frame'/>
       <inertial>
-        <mass>1.0</mass>
+        <mass>5.0</mass>
         <inertia>
           <ixx>0.001</ixx>
           <ixy>0</ixy>
@@ -175,6 +278,21 @@
           <iyy>0.001</iyy>
           <iyz>0</iyz>
           <izz>0.001</izz>
+        </inertia>
+      </inertial>
+    </link>
+
+    <link name='caster'>
+      <pose relative_to='caster_yaw'/>
+      <inertial>
+        <mass>1.0</mass>
+        <inertia>
+          <ixx>0.04778</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>0.04778</iyy>
+          <iyz>0</iyz>
+          <izz>0.07875</izz>
         </inertia>
       </inertial>
 
@@ -196,20 +314,31 @@
             <radius>0.05</radius>
           </sphere>
         </geometry>
-        <surface>
-          <friction>
-            <ode>
-              <mu>0.01</mu>
-              <mu2>0.01</mu2>
-              <slip1>1.0</slip1>
-              <slip2>1.0</slip2>
-            </ode>
-          </friction>
-        </surface>
       </collision>
     </link>
 
     <!-- joint config -->
+
+    <joint name='motor_joint' type='fixed'>
+      <parent>chassis</parent>
+      <child>motor</child>
+    </joint>
+
+    <joint name='motor_spin_joint' type='revolute'>
+      <parent>motor</parent>
+      <child>motor_spin</child>
+      <axis>
+        <xyz expressed_in='__model__'>0 0 1</xyz>
+        <limit>
+	  <lower>-6.283</lower>
+	  <upper>6.283</upper>
+	  <effort>9.4</effort>
+        </limit>
+        <dynamics>
+          <friction>0.9</friction>  <!-- 静止摩擦 -->
+        </dynamics>
+      </axis>
+    </joint>
 
     <joint name='left_wheel_joint' type='revolute'>
       <pose relative_to='left_wheel'/>
@@ -247,6 +376,23 @@
 
     <joint name='caster_wheel' type='fixed'>
       <parent>chassis</parent>
+      <child>caster_yaw</child>
+      <axis>
+        <xyz expressed_in='__model__'>0 0 1</xyz>
+        <limit>
+          <lower>-0.26</lower>
+          <upper>0.26</upper>
+        </limit>
+        <dynamics>
+          <damping>10.0</damping>
+          <spring_stiffness>12.0</spring_stiffness>
+          <spring_reference>0.0</spring_reference>
+        </dynamics>
+      </axis>
+    </joint>
+
+    <joint name='caster_pitch_joint' type='revolute'>
+      <parent>caster_yaw</parent>
       <child>caster</child>
     </joint>
 
@@ -378,6 +524,33 @@
         <topic>navsat</topic>
       </sensor>
     </link>
+
+    <plugin
+      filename="libgz-sim-joint-position-controller-system"
+      name="gz::sim::systems::JointPositionController">
+      <joint_name>motor_spin_joint</joint_name>
+      <topic>motor_spin_angle</topic>
+      <p_gain>20</p_gain>
+      <i_gain>0</i_gain>
+      <d_gain>0</d_gain>
+      <i_max>0</i_max>
+      <i_min>0</i_min>
+      <cmd_max>50</cmd_max>
+      <cmd_min>-50</cmd_min>
+    </plugin>
+    <plugin
+      filename="gz-sim-joint-state-publisher-system"
+      name="gz::sim::systems::JointStatePublisher">
+      <joint_name>motor_spin_joint</joint_name>
+      <topic>motor_spin_state</topic>
+    </plugin>
+    <plugin
+      filename="gz-sim-joint-state-publisher-system"
+      name="gz::sim::systems::JointStatePublisher">
+      <joint_name>caster_yaw_wheel</joint_name>
+      <topic>caster_yaw_angle</topic>
+    </plugin>
+
 
   </model>
 </sdf>

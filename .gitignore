@@ -16,6 +16,7 @@ install/
 log/
 
 simulator_old/
+yolop_ros2/road_detector/data/weights/yolopv2.pt
 #ファイル名で指定
 
 

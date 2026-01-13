@@ -8,7 +8,6 @@ from launch_ros.actions import Node
 
 import os
 
-
 def generate_launch_description():
     # Declare world argument (default: shihou_world.sdf)
     # Available options: shihou_world.sdf, classic_world_ignition.sdf
@@ -28,14 +27,20 @@ def generate_launch_description():
         package='ros_gz_bridge',
         executable='parameter_bridge',
         arguments=[
+            '/clock@rosgraph_msgs/msg/Clock[ignition.msgs.Clock',
+            
             '/camera_info@sensor_msgs/msg/CameraInfo@ignition.msgs.CameraInfo',
             '/image_raw@sensor_msgs/msg/Image@ignition.msgs.Image',
             '/depth_image_raw@sensor_msgs/msg/Image@ignition.msgs.Image',
             '/depth_points@sensor_msgs/msg/PointCloud2@ignition.msgs.PointCloudPacked',
+            '/odom@nav_msgs/msg/Odometry@ignition.msgs.Odometry',
             '/navsat@sensor_msgs/msg/NavSatFix@ignition.msgs.NavSat',
             '/imu_raw@sensor_msgs/msg/Imu@ignition.msgs.IMU',
             '/cmd_vel@geometry_msgs/msg/Twist@ignition.msgs.Twist',
-            '/model/ai_car1/odometry@nav_msgs/msg/Odometry@ignition.msgs.Odometry'],
+            '/model/ai_car1/odometry@nav_msgs/msg/Odometry@ignition.msgs.Odometry',
+            '/motor_spin_angle@std_msgs/msg/Float64@ignition.msgs.Double',
+            '/motor_spin_state@sensor_msgs/msg/JointState[ignition.msgs.Model',
+            '/caster_yaw_angle@sensor_msgs/msg/JointState[ignition.msgs.Model'],
         output='screen'
     )
 

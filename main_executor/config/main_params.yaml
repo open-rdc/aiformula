@@ -2,14 +2,16 @@ launch: #起動パラメータ
   ros__parameters:
     joy: true
     vectornav : true
-    odrive : false
+    road_detector : true
+    traffic_cone_detector : false
+    odrive : true
     socketcan : true
 
 /**:  #ワイルドカード(ここのパラメータは全ノードから読める: <名前に注意>)
   ros__parameters:
     # 並進  速度[m/s],加速度[m/s^2],加減速度[-m/s^2],躍度[m/s^3]
     linear_max:
-      vel : 2.0
+      vel : 3.0
       acc: 5.0
       jer: 0.0
     # 回転  速度[deg/s],加速度[deg/s^2],加減速度[-deg/s^2],躍度[deg/s^3]
@@ -36,8 +38,8 @@ chassis_driver_node:
     reduction_ratio : 1.0
     reverse_left_flag : false
     reverse_right_flag : false
+    caster_max_angle : 15.0 # [deg]
     caster_max_count : 4096
-    caster_max_angle : 15.0 # [deg]ff
     motor_max_torque : 1.0 # [Nm]
     p_gain : 6.0
     i_gain : 0.0
@@ -49,3 +51,29 @@ socketcan_interface_node:
 
 # controller_node:
 #   ros__parameters:
+
+path_publisher_node:
+  ros__parameters:
+    interval_ms : 1000
+    path_file_name : "precourse"
+
+gnssnav_follower_node:
+  ros__parameters:
+    debug_flag : false
+    interval_ms : 50
+    lookahead_gain : 1.0
+    p_gain : 1.5
+    i_gain : 0.5
+    d_gain : 0.2
+    min_lookahead_distance : 3.0
+    max_linear_vel : 2.0
+    max_angular_vel : 1.57
+    laps : 3
+
+yolopnav_node:
+  ros__parameters:
+    pid:
+      kp: 5.0
+      ki: 0.0
+      kd: 0.0
+    interval_ms: 50      # 制御周期 (ms)
