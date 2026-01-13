@@ -18,7 +18,6 @@ class VoCsvConverter(Node):
         self.get_logger().info("ZED VOをCSVファイルにします。")
         self.csv_file = open("shihou_vo.csv", mode ="w", newline="")
         self.csv_writer = csv.writer(self.csv_file)
-        self.csv_writer.writerow(["x", "y"])
         self.counter = 0
         self.collecting = False
         self.prev_buttons = []
@@ -52,9 +51,9 @@ class VoCsvConverter(Node):
             if len(self.prev_buttons) > 1:
                 prev = self.prev_buttons[1]
 
-            if buttons[1] == 1 and prev == 0 and not self.collecting:
-                self.collecting = True
-                self.get_logger().info("ジョイスティックボタン[1]押下: データ収集開始")
+            if buttons[1] == 1 and prev == 0:
+                self.collecting = False if self.collecting else True
+                self.get_logger().info(f"ジョイスティックボタン[1]押下: データ収集{self.collecting}")
 
         self.prev_buttons = list(buttons)
     def destroy_node(self):

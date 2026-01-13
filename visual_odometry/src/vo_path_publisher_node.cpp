@@ -1,8 +1,10 @@
 #include "visual_odometry/vo_path_publisher_node.hpp"
 
 #include <ament_index_cpp/get_package_share_directory.hpp>
+#include <cctype>
 #include <fstream>
 #include <sstream>
+#include <stdexcept>
 #include <vector>
 
 namespace visual_odometry
@@ -12,7 +14,7 @@ VoPathPublisher::VoPathPublisher(const rclcpp::NodeOptions & options)
 : Node("vo_path_publisher", options)
 {
   freq_ = declare_parameter("interval_ms", 100);
-  path_file_name_ = declare_parameter("path_file_name", "vo_path");
+  path_file_name_ = declare_parameter("path_file_name", "shihou_vo");
 
   path_pub_ = this->create_publisher<nav_msgs::msg::Path>("vo_path", 10);
 
@@ -33,36 +35,31 @@ VoPathPublisher::VoPathPublisher(const rclcpp::NodeOptions & options)
 void VoPathPublisher::loadCSV()
 {
   std::ifstream file(file_path_);
-  if (!file.is_open()) {
-    // Try fallback to CSV produced by vo_to_csv.py in working directory
-    std::string alt = "shihou_vo.csv";
-    file.open(alt);
-    if (file.is_open()) {
-      RCLCPP_INFO(this->get_logger(), "Using fallback CSV: %s", alt.c_str());
-      file_path_ = alt;
-    } else {
-      RCLCPP_ERROR(this->get_logger(), "Failed to open CSV (tried %s and %s)", file_path_.c_str(), alt.c_str());
-      return;
-    }
-  }
-
   std::string line;
-  bool header = true;
+
+  auto trim = [](const std::string & input) {
+    const std::string whitespace = " \t\r\n";
+    const auto begin = input.find_first_not_of(whitespace);
+    if (begin == std::string::npos) return std::string();
+    const auto end = input.find_last_not_of(whitespace);
+    return input.substr(begin, end - begin + 1);
+  };
 
   while (std::getline(file, line)) {
-    if (header) { header = false; continue; }
-
+    line = trim(line);
+    if (line.empty()) continue;
     std::stringstream ss(line);
     std::string cell;
     std::vector<std::string> tokens;
 
     while (std::getline(ss, cell, ',')) {
-      tokens.push_back(cell);
+      tokens.push_back(trim(cell));
     }
 
     if (tokens.size() < 2) continue;
     xs_.push_back(std::stod(tokens[0]));
     ys_.push_back(std::stod(tokens[1]));
+
   }
 
   RCLCPP_INFO(this->get_logger(),
@@ -75,12 +72,12 @@ VoPathPublisher::createPath(
   const std::vector<double>& ys)
 {
   nav_msgs::msg::Path path;
-  path.header.frame_id = "map";
+  path.header.frame_id = "base_link";
   path.header.stamp = now();
 
   for (size_t i = 0; i < xs.size(); ++i) {
     geometry_msgs::msg::PoseStamped pose;
-    pose.header.frame_id = "map";
+    pose.header.frame_id = "base_link";
     pose.header.stamp = now();
     pose.pose.position.x = xs[i];
     pose.pose.position.y = ys[i];
@@ -116,4 +113,3 @@ int main(int argc, char** argv)
     rclcpp::shutdown();
     return 0;
 }
-

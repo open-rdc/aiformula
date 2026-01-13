@@ -70,7 +70,7 @@ install(TARGETS
 
 install(
   PROGRAMS
-    src/vo_to_csv.py
+    scripts/vo_to_csv.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
@@ -79,4 +79,3 @@ install(DIRECTORY config
 )
 
 ament_package()
-
