@@ -31,8 +31,6 @@ public:
     ) const;
 
 private:
-    double z_min_;
-    double z_max_;
     double voxel_size_;
 
     struct VoxelKey {

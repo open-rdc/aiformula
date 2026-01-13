@@ -4,7 +4,7 @@
 namespace frenet_planner {
 
 ObstacleDetector::ObstacleDetector()
-    : z_min_(-0.15), z_max_(0.05), voxel_size_(0.3) {}
+    : voxel_size_(0.3) {}
 
 ObstacleDetector::VoxelKey ObstacleDetector::get_voxel_key(double x, double y, double z) const {
     VoxelKey key;
@@ -18,11 +18,6 @@ std::vector<Obstacle> ObstacleDetector::detect_obstacles(
     const sensor_msgs::msg::PointCloud2::SharedPtr pointcloud
 ) {
     std::vector<Obstacle> obstacles;
-
-    if (!pointcloud || pointcloud->width == 0) {
-        return obstacles;
-    }
-
     std::unordered_map<VoxelKey, Obstacle, VoxelKeyHash> voxel_map;
 
     sensor_msgs::PointCloud2ConstIterator<float> iter_x(*pointcloud, "x");
@@ -33,10 +28,6 @@ std::vector<Obstacle> ObstacleDetector::detect_obstacles(
         double obs_x = *iter_x;
         double obs_y = *iter_y;
         double obs_z = *iter_z;
-
-        if (obs_z < z_min_ || obs_z > z_max_) {
-            continue;
-        }
 
         VoxelKey voxel_key = get_voxel_key(obs_x, obs_y, obs_z);
         if (voxel_map.find(voxel_key) != voxel_map.end()) {
