@@ -7,6 +7,7 @@
 #include <std_msgs/msg/bool.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <visualization_msgs/msg/marker_array.hpp>
+#include <rmw/qos_profiles.h>
 
 #include "frenet_planner/visibility_control.h"
 #include "frenet_planner/frenet_planner.hpp"
@@ -31,7 +32,10 @@ private:
     rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr pub_local_path_;
     rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr pub_obstacle_markers_;
 
-    rclcpp::QoS qos_ = rclcpp::QoS(10);
+    rclcpp::QoS qos_{
+        rclcpp::QoSInitialization::from_rmw(rmw_qos_profile_sensor_data),
+        rmw_qos_profile_sensor_data
+    };
 
     bool autonomous_flag_ = false;
 

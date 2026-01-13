@@ -41,12 +41,12 @@ FrenetPlannerNode::FrenetPlannerNode(const std::string& name_space, const rclcpp
 
     sub_path_ = this->create_subscription<nav_msgs::msg::Path>(
         "e2e_planner/path",
-        qos_,
+        rclcpp::QoS(10),
         std::bind(&FrenetPlannerNode::path_callback, this, std::placeholders::_1)
     );
     sub_autonomous_ = this->create_subscription<std_msgs::msg::Bool>(
         "/autonomous",
-        qos_,
+        rclcpp::QoS(10),
         std::bind(&FrenetPlannerNode::autonomous_callback, this, std::placeholders::_1)
     );
     sub_pointcloud_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
@@ -56,11 +56,11 @@ FrenetPlannerNode::FrenetPlannerNode(const std::string& name_space, const rclcpp
     );
     sub_odom_ = this->create_subscription<nav_msgs::msg::Odometry>(
         "/zed/zed_node/odom",
-        qos_,
+        rclcpp::QoS(10),
         std::bind(&FrenetPlannerNode::odom_callback, this, std::placeholders::_1)
     );
 
-    pub_local_path_ = this->create_publisher<nav_msgs::msg::Path>("frenet_planner/path", qos_);
+    pub_local_path_ = this->create_publisher<nav_msgs::msg::Path>("frenet_planner/path", rclcpp::QoS(10));
     pub_obstacle_markers_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("obstacle_markers", qos_);
 
     RCLCPP_INFO(this->get_logger(), "FrenetPlanner node has been initialized.");
@@ -80,10 +80,12 @@ void FrenetPlannerNode::odom_callback(const nav_msgs::msg::Odometry::SharedPtr m
 
 void FrenetPlannerNode::path_callback(const nav_msgs::msg::Path::SharedPtr msg){
     if (!autonomous_flag_) {
+        RCLCPP_WARN(this->get_logger(), "returned autonomous flag is false.");
         return;
     }
 
     if (!msg || msg->poses.empty() || !pointcloud_) {
+        RCLCPP_WARN(this->get_logger(), "returned path msg empty or pointcloud empty.");
         return;
     }
 
