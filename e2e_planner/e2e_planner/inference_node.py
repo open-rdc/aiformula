@@ -1,6 +1,6 @@
 import rclpy
 from rclpy.node import Node
-from sensor_msgs.msg import Image, PointCloud2, PointField
+from sensor_msgs.msg import Image, PointCloud2
 from nav_msgs.msg import Path
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import PoseStamped, Pose, Point
@@ -13,8 +13,9 @@ from pathlib import Path as FilePath
 from rclpy.qos import qos_profile_system_default, qos_profile_sensor_data
 from ament_index_python.packages import get_package_share_directory
 from scipy.interpolate import splprep, splev
-from typing import Optional, Tuple
-from sensor_msgs_py import point_cloud2
+from typing import Optional, Tuple, TYPE_CHECKING
+if TYPE_CHECKING:
+    from .zed_sdk import ZedSdk
 
 try:
     import pyzed.sl as sl
@@ -47,11 +48,7 @@ class InferenceNode(Node):
         self.bridge = CvBridge()
         self.device = torch.device('cuda')
         self.latest_image = None
-        self.zed_camera: Optional[sl.Camera] = None
-        self.zed_image: Optional[sl.Mat] = None
-        self.zed_pointcloud: Optional[sl.Mat] = None
-        self.zed_pose: Optional[sl.Pose] = None
-        self.zed_runtime_params: Optional[sl.RuntimeParameters] = None
+        self.zed: Optional["ZedSdk"] = None
 
         package_share_directory = get_package_share_directory('e2e_planner')
         weight_path = os.path.join(package_share_directory, 'weights', model_path)
@@ -71,117 +68,21 @@ class InferenceNode(Node):
             if not ZED_SDK_AVAILABLE:
                 self.get_logger().error('ZED SDK not available. Install pyzed package.')
                 raise RuntimeError('ZED SDK not available')
-            self._initialize_zed_camera()
+            from .zed_sdk import ZedSdk
+            self.zed = ZedSdk(self.get_logger())
         else:
             self.sub = self.create_subscription(Image, '/zed/zed_node/rgb/image_rect_color', self.image_callback, qos_profile_sensor_data)
 
         self.pub_raw = self.create_publisher(Path, 'e2e_planner/path_raw', qos_profile_system_default)
         self.pub = self.create_publisher(Path, 'e2e_planner/path', qos_profile_system_default)
-
+        self.pub_odom = self.create_publisher(Odometry, '/zed/zed_node/odom', qos_profile_system_default)
+        self.pub_pointcloud = self.create_publisher(PointCloud2, '/zed/zed_node/pointcloud', qos_profile_sensor_data)
+        
         if self.debug_mode_:
             self.pub_debug_image = self.create_publisher(Image, 'e2e_planner/debug_image', qos_profile_system_default)
             self.get_logger().info('Debug mode enabled: publishing preprocessed images to e2e_planner/debug_image')
 
-        self.pub_odom = self.create_publisher(Odometry, '/zed/zed_node/odom', qos_profile_system_default)
-        self.pub_pointcloud = self.create_publisher(PointCloud2, '/zed/zed_node/pointcloud', qos_profile_sensor_data)
-
         self.timer = self.create_timer(interval_ms / 1000.0, self.timer_callback)
-
-    def _initialize_zed_camera(self) -> None:
-        self.zed_camera = sl.Camera()
-        init_params = sl.InitParameters()
-        init_params.camera_resolution = sl.RESOLUTION.SVGA
-        init_params.camera_fps = 30
-        init_params.coordinate_units = sl.UNIT.METER
-
-        err = self.zed_camera.open(init_params)
-        if err != sl.ERROR_CODE.SUCCESS:
-            self.get_logger().error(f'Failed to open ZED camera: {err}')
-            raise RuntimeError(f'Failed to open ZED camera: {err}')
-
-        tracking_params = sl.PositionalTrackingParameters()
-        err = self.zed_camera.enable_positional_tracking(tracking_params)
-        if err != sl.ERROR_CODE.SUCCESS:
-            self.get_logger().error(f'Failed to enable positional tracking: {err}')
-            raise RuntimeError(f'Failed to enable positional tracking: {err}')
-
-        self.zed_image = sl.Mat()
-        self.zed_pointcloud = sl.Mat()
-        self.zed_pose = sl.Pose()
-        self.zed_runtime_params = sl.RuntimeParameters()
-        self.get_logger().info('ZED camera initialized successfully')
-
-    def _capture_image_from_zed(self) -> Optional[np.ndarray]:
-        if self.zed_camera.grab(self.zed_runtime_params) == sl.ERROR_CODE.SUCCESS:
-            self.zed_camera.retrieve_image(self.zed_image, sl.VIEW.LEFT)
-            image = self.zed_image.get_data()
-            # Resize image to half size
-            height, width = image.shape[:2]
-            resized_image = cv2.resize(image, (width // 2, height // 2))
-            return resized_image
-        return None
-
-    def _create_odom_msg(self, header) -> Optional[Odometry]:
-        if self.zed_pose is None or self.zed_camera is None:
-            return None
-
-        tracking_state = self.zed_camera.get_position(self.zed_pose, sl.REFERENCE_FRAME.WORLD)
-        if tracking_state != sl.POSITIONAL_TRACKING_STATE.OK:
-            return None
-
-        translation = self.zed_pose.get_translation().get()
-        orientation = self.zed_pose.get_orientation().get()
-
-        odom_msg = Odometry()
-        odom_msg.header = header
-        odom_msg.header.frame_id = 'odom'
-        odom_msg.child_frame_id = 'base_link'
-        odom_msg.pose.pose.position.x = float(translation[0])
-        odom_msg.pose.pose.position.y = float(translation[1])
-        odom_msg.pose.pose.position.z = float(translation[2])
-        odom_msg.pose.pose.orientation.x = float(orientation[0])
-        odom_msg.pose.pose.orientation.y = float(orientation[1])
-        odom_msg.pose.pose.orientation.z = float(orientation[2])
-        odom_msg.pose.pose.orientation.w = float(orientation[3])
-        return odom_msg
-
-    def _create_pointcloud_msg(self, header) -> Optional[PointCloud2]:
-        if self.zed_pointcloud is None or self.zed_camera is None:
-            return None
-
-        self.zed_camera.retrieve_measure(self.zed_pointcloud, sl.MEASURE.XYZRGBA)
-        pointcloud = self.zed_pointcloud.get_data()
-        if pointcloud is None:
-            return None
-
-        points = pointcloud.reshape(-1, 4).astype(np.float32, copy=False)
-        valid = np.isfinite(points[:, 0]) & np.isfinite(points[:, 1]) & np.isfinite(points[:, 2])
-        points = points[valid]
-        if points.size == 0:
-            return None
-
-        rgba = points[:, 3].view(np.uint32)
-        cloud = np.zeros(points.shape[0], dtype=[
-            ('x', np.float32),
-            ('y', np.float32),
-            ('z', np.float32),
-            ('rgba', np.uint32),
-        ])
-        cloud['x'] = points[:, 0]
-        cloud['y'] = points[:, 1]
-        cloud['z'] = points[:, 2]
-        cloud['rgba'] = rgba
-
-        fields = [
-            PointField(name='x', offset=0, datatype=PointField.FLOAT32, count=1),
-            PointField(name='y', offset=4, datatype=PointField.FLOAT32, count=1),
-            PointField(name='z', offset=8, datatype=PointField.FLOAT32, count=1),
-            PointField(name='rgba', offset=12, datatype=PointField.UINT32, count=1),
-        ]
-
-        pointcloud_msg = point_cloud2.create_cloud(header, fields, cloud)
-        pointcloud_msg.header.frame_id = 'zed_camera_center'
-        return pointcloud_msg
 
     def preprocess_image(self, image: np.ndarray) -> Tuple[torch.Tensor, np.ndarray]:
         bgr_image = cv2.cvtColor(image, cv2.COLOR_BGRA2BGR)
@@ -197,7 +98,9 @@ class InferenceNode(Node):
 
     def timer_callback(self) -> None:
         if self.sdk_flag_:
-            cv_image = self._capture_image_from_zed()
+            if self.zed is None or not self.zed.grab():
+                return
+            cv_image = self.zed.get_image()
             if cv_image is None:
                 return
             from std_msgs.msg import Header
@@ -205,11 +108,11 @@ class InferenceNode(Node):
             header.stamp = self.get_clock().now().to_msg()
             header.frame_id = 'base_link'
 
-            odom_msg = self._create_odom_msg(header)
+            odom_msg = self.zed.get_odom(header)
             if odom_msg is not None:
                 self.pub_odom.publish(odom_msg)
 
-            pointcloud_msg = self._create_pointcloud_msg(header)
+            pointcloud_msg = self.zed.get_pointcloud(header)
             if pointcloud_msg is not None:
                 self.pub_pointcloud.publish(pointcloud_msg)
         else:
