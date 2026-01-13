@@ -1,8 +1,8 @@
 import rclpy
 from rclpy.node import Node
 from nav_msgs.msg import Odometry
+from sensor_msgs.msg import Joy
 import csv
-import math
 
 class VoCsvConverter(Node):
     def __init__(self):
@@ -18,29 +18,45 @@ class VoCsvConverter(Node):
         self.get_logger().info("ZED VOをCSVファイルにします。")
         self.csv_file = open("shihou_vo.csv", mode ="w", newline="")
         self.csv_writer = csv.writer(self.csv_file)
-        self.csv_writer.writerow(["x", "y", "z", "yaw"])
+        self.csv_writer.writerow(["x", "y"])
         self.counter = 0
+        self.collecting = False
+        self.prev_buttons = []
+
+        self.joy_subscription = self.create_subscription(
+            Joy,
+            "/joy",
+            self.joy_callback,
+            10
+        )
+        self.joy_subscription
 
     def callback(self, msg):
+        if not self.collecting:
+            return
+
         self.counter += 1
-        if self.counter % 5 != 0:
-           return
+        if self.counter % 100 != 0:
+            return
 
         x = msg.pose.pose.position.x
         y = msg.pose.pose.position.y
-        z = msg.pose.pose.position.z
-        #yawに変換
-        qx = msg.pose.pose.orientation.x
-        qy = msg.pose.pose.orientation.y
-        qz = msg.pose.pose.orientation.z
-        qw = msg.pose.pose.orientation.w
-        #yaw
-        siny_cosp = 2.0 * (qw * qz + qx * qy)
-        cosy_cosp = 1.0 - 2.0 * (qy * qy + qz * qz)
-        yaw = math.atan2(siny_cosp, cosy_cosp)
+        self.get_logger().info(f"x={x:.2f}, y={y:.2f}")
+        self.csv_writer.writerow([x, y])
 
-        self.get_logger().info(f"x={x:.2f}, y={y:.2f}, z={z:.2f}, yaw={yaw:.2f}")
-        self.csv_writer.writerow([x, y,z, yaw])
+    def joy_callback(self, msg: Joy):
+        # ボタン[1] の立ち上がりで収集開始
+        buttons = msg.buttons
+        if len(buttons) > 1:
+            prev = 0
+            if len(self.prev_buttons) > 1:
+                prev = self.prev_buttons[1]
+
+            if buttons[1] == 1 and prev == 0 and not self.collecting:
+                self.collecting = True
+                self.get_logger().info("ジョイスティックボタン[1]押下: データ収集開始")
+
+        self.prev_buttons = list(buttons)
     def destroy_node(self):
         self.csv_file.close()
         super().destroy_node()

@@ -34,8 +34,16 @@ void VoPathPublisher::loadCSV()
 {
   std::ifstream file(file_path_);
   if (!file.is_open()) {
-    RCLCPP_ERROR(this->get_logger(), "Failed to open CSV: %s", file_path_.c_str());
-    return;
+    // Try fallback to CSV produced by vo_to_csv.py in working directory
+    std::string alt = "shihou_vo.csv";
+    file.open(alt);
+    if (file.is_open()) {
+      RCLCPP_INFO(this->get_logger(), "Using fallback CSV: %s", alt.c_str());
+      file_path_ = alt;
+    } else {
+      RCLCPP_ERROR(this->get_logger(), "Failed to open CSV (tried %s and %s)", file_path_.c_str(), alt.c_str());
+      return;
+    }
   }
 
   std::string line;
@@ -76,7 +84,13 @@ VoPathPublisher::createPath(
     pose.header.stamp = now();
     pose.pose.position.x = xs[i];
     pose.pose.position.y = ys[i];
+    // Force z to 0 and ignore any yaw from source data by using
+    // an identity quaternion (no rotation).
     pose.pose.position.z = 0.0;
+    pose.pose.orientation.x = 0.0;
+    pose.pose.orientation.y = 0.0;
+    pose.pose.orientation.z = 0.0;
+    pose.pose.orientation.w = 1.0;
     path.poses.push_back(pose);
   }
   return path;

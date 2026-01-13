@@ -68,6 +68,12 @@ install(TARGETS
   DESTINATION lib/${PROJECT_NAME}
 )
 
+install(
+  PROGRAMS
+    src/vo_to_csv.py
+  DESTINATION lib/${PROJECT_NAME}
+)
+
 install(DIRECTORY config
   DESTINATION share/${PROJECT_NAME}
 )
