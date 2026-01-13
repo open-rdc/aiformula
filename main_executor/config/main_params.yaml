@@ -1,8 +1,8 @@
 launch: #起動パラメータ
   ros__parameters:
     joy: true
-    vectornav : false
-    odrive : true
+    vectornav : true
+    odrive : false
     socketcan : true
 
 /**:  #ワイルドカード(ここのパラメータは全ノードから読める: <名前に注意>)
@@ -25,7 +25,8 @@ launch: #起動パラメータ
 
 pure_pursuit_node:
   ros__parameters:
-    lookahead_distance : 2.0
+    lookahead_distance : 5.0
+    curvature_gain : 7.0
 
 
 chassis_driver_node:

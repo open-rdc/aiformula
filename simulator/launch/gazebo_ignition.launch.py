@@ -1,6 +1,6 @@
 from launch import LaunchDescription
-from launch.actions import IncludeLaunchDescription
-from launch.substitutions import PathJoinSubstitution
+from launch.actions import IncludeLaunchDescription, DeclareLaunchArgument
+from launch.substitutions import PathJoinSubstitution, LaunchConfiguration
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from ament_index_python.packages import get_package_share_directory
 
@@ -10,10 +10,18 @@ import os
 
 
 def generate_launch_description():
+    # Declare world argument (default: shihou_world.sdf)
+    # Available options: shihou_world.sdf, classic_world_ignition.sdf
+    world_arg = DeclareLaunchArgument(
+        'world',
+        default_value='shihou_world.sdf',
+        description='World file name (e.g., shihou_world.sdf, classic_world_ignition.sdf)'
+    )
+
     world_file_path = PathJoinSubstitution([
         get_package_share_directory('simulator'),
         'world',
-        'shihou_world.sdf'
+        LaunchConfiguration('world')
     ])
 
     bridge = Node(
@@ -32,6 +40,7 @@ def generate_launch_description():
     )
 
     return LaunchDescription([
+        world_arg,
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource([os.path.join(
                 get_package_share_directory('ros_gz_sim'), 'launch'), '/gz_sim.launch.py']),
@@ -40,4 +49,3 @@ def generate_launch_description():
         ),
         bridge
     ])
-

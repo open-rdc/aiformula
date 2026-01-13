@@ -3,6 +3,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <geometry_msgs/msg/twist.hpp>
 #include <nav_msgs/msg/path.hpp>
+#include <std_msgs/msg/bool.hpp>
 
 #include "path_tracker/visibility_control.h"
 
@@ -20,14 +21,19 @@ private:
     rclcpp::Subscription<nav_msgs::msg::Path>::SharedPtr _subscription_path;
     void _subscriber_callback_path(const nav_msgs::msg::Path::SharedPtr msg);
 
+    rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr _subscription_autonomous;
+    void autonomous_callback(const std_msgs::msg::Bool::SharedPtr msg);
+
     rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr publisher_vel;
 
     rclcpp::QoS _qos = rclcpp::QoS(10);
 
-    // 定数
+    bool autonomous_flag_ = false;
+
     const double linear_max_vel;
     const double angular_max_vel;
     const double lookahead_distance;
+    const double curvature_gain;
 };
 
 }  // namespace path_tracker

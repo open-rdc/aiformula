@@ -13,19 +13,33 @@ PurePursuit::PurePursuit(const std::string& name_space, const rclcpp::NodeOption
 : rclcpp::Node("pure_pursuit_node", name_space, options),
 linear_max_vel(get_parameter("linear_max.vel").as_double()),
 angular_max_vel(get_parameter("angular_max.vel").as_double()),
-lookahead_distance(get_parameter("lookahead_distance").as_double())
+lookahead_distance(get_parameter("lookahead_distance").as_double()),
+curvature_gain(get_parameter("curvature_gain").as_double())
 {
     _subscription_path = this->create_subscription<nav_msgs::msg::Path>(
         "e2e_planner/path",
         _qos,
         std::bind(&PurePursuit::_subscriber_callback_path, this, std::placeholders::_1)
     );
+    _subscription_autonomous = this->create_subscription<std_msgs::msg::Bool>(
+        "/autonomous",
+        _qos,
+        std::bind(&PurePursuit::autonomous_callback, this, std::placeholders::_1)
+    );
     publisher_vel = this->create_publisher<geometry_msgs::msg::Twist>("cmd_vel", _qos);
 
     RCLCPP_INFO(this->get_logger(), "PurePursuit node has been initialized. lookahead_distance: %.2f", lookahead_distance);
 }
 
+void PurePursuit::autonomous_callback(const std_msgs::msg::Bool::SharedPtr msg){
+    autonomous_flag_ = msg->data;
+}
+
 void PurePursuit::_subscriber_callback_path(const nav_msgs::msg::Path::SharedPtr msg){
+    if (!autonomous_flag_) {
+        return;
+    }
+
     geometry_msgs::msg::Twist command;
 
     if (!msg || msg->poses.empty()) {
@@ -66,7 +80,7 @@ void PurePursuit::_subscriber_callback_path(const nav_msgs::msg::Path::SharedPtr
     const double safe_lookahead = std::max(lookahead_distance, 1e-3);
     const double linear_scale = std::clamp(distance / safe_lookahead, 0.0, 1.0);
     const double linear_velocity = std::clamp(linear_max_vel * linear_scale, 0.0, linear_max_vel);
-    const double curvature = (20.0 * target_y) / (distance * distance);  // Pure pursuit curvature.
+    const double curvature = (target_y * curvature_gain) / (distance * distance);  // Pure pursuit curvature.
     double angular_velocity = linear_velocity * curvature;
 
     angular_velocity = std::clamp(angular_velocity, -angular_max_vel, angular_max_vel);
