@@ -13,6 +13,8 @@ PurePursuitFollower::PurePursuitFollower(const rclcpp::NodeOptions& options)
     this->get_parameter_or("min_lookahead_distance", ld_min_, 0.5);
     this->get_parameter_or("max_linear_vel", v_max_, 2.0);
     this->get_parameter_or("max_angular_vel", w_max_, 1.0);
+    this->get_parameter_or("goal_tolerance", goal_tolerance_, 0.2);
+    last_linear_vel_ = v_max_;
 
     pid_ = std::make_unique<controller::PositionPid>(freq_ms_);
     double p_gain = 1.0, i_gain = 0.0, d_gain = 0.0;
@@ -79,31 +81,45 @@ void PurePursuitFollower::autonomousCallback(const std_msgs::msg::Bool::SharedPt
 void PurePursuitFollower::controlLoop()
 {
     if (!autonomous_ || path_.empty() || !base_initialized_) return;
-
-    findLookaheadPoint();
+    const double lookahead = std::max(ld_min_, ld_gain_ * last_linear_vel_ + ld_min_);
+    findLookaheadPoint(lookahead);
     publishLookahead();
+    
+    const auto& goal = path_.back().pose.position;
+    const double goal_dx = goal.x - current_x_;
+    const double goal_dy = goal.y - current_y_;
+    const double goal_dist = std::hypot(goal_dx, goal_dy);
+    if (goal_dist <= goal_tolerance_) {
+        geometry_msgs::msg::Twist cmd;
+        cmd_pub_->publish(cmd);
+        return;
+    }
+
+    if (target_idx_ >= path_.size()) {
+        target_idx_ = path_.size() - 1;
+    }
 
     double heading_error = calcHeadingError();
     double w = pid_->cycle(heading_error);
+    const double heading_scale = std::max(0.0, std::cos(heading_error));
 
     geometry_msgs::msg::Twist cmd;
-    cmd.linear.x  = v_max_;
+    cmd.linear.x  = v_max_ * heading_scale;
     cmd.angular.z = constrain(w, -w_max_, w_max_);
 
-    if (target_idx_ >= path_.size()) {
-        cmd.linear.x = 0.0;
-        cmd.angular.z = 0.0;
-    }
+    last_linear_vel_ = cmd.linear.x;
 
     cmd_pub_->publish(cmd);
 }
 
-void PurePursuitFollower::findLookaheadPoint()
+void PurePursuitFollower::findLookaheadPoint(double lookahead)
 {
-    double lookahead = ld_gain_ * v_max_ + ld_min_;
+    // start search from prev_idx_ (clamped to path_.size())
+    auto start_idx = std::min(prev_idx_, path_.size());
+    auto start_it = path_.begin() + start_idx;
 
     auto target_it = std::find_if(
-        (path_.begin() + std::min(prev_idx_, path_.size())), path_.end(),
+        start_it, path_.end(),
         [this, lookahead](const geometry_msgs::msg::PoseStamped& pose){
             const double dx = pose.pose.position.x - current_x_;
             const double dy = pose.pose.position.y - current_y_;
@@ -120,25 +136,7 @@ void PurePursuitFollower::findLookaheadPoint()
     }
 }
 
-/* ===================== PURE PURSUIT ===================== */
 
-// void PurePursuitFollower::findLookaheadPoint()
-// {
-//     double lookahead = ld_gain_ * v_max_ + ld_min_;
-
-//     for (size_t i = prev_idx_; i < path_.size(); ++i) {
-//         double dx = path_[i].pose.position.x - current_x_;
-//         double dy = path_[i].pose.position.y - current_y_;
-//         double dist = std::hypot(dx, dy);
-
-//         if (dist > lookahead) {
-//             target_idx_ = i;
-//             prev_idx_ = i;
-//             return;
-//         }
-//     }
-//     target_idx_ = path_.size();
-// }
 
 double PurePursuitFollower::calcHeadingError()
 {

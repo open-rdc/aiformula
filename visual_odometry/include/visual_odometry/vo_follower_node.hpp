@@ -39,7 +39,7 @@ private:
     void controlLoop();
 
     /* ================= PURE PURSUIT ================= */
-    void findLookaheadPoint();
+    void findLookaheadPoint(double lookahead);
     double calcHeadingError();
 
     /* ================= VISUALIZATION ================= */
@@ -77,7 +77,8 @@ private:
     double ld_min_;
     double v_max_;
     double w_max_;
-
+    double goal_tolerance_;
+    double last_linear_vel_{0.0};
     std::unique_ptr<controller::PositionPid> pid_;
 };
 
