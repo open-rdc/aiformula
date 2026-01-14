@@ -11,7 +11,7 @@ PurePursuitFollower::PurePursuitFollower(const rclcpp::NodeOptions& options)
     this->get_parameter_or("interval_ms", freq_ms_, 50);
     this->get_parameter_or("lookahead_gain", ld_gain_, 1.5);
     this->get_parameter_or("min_lookahead_distance", ld_min_, 0.5);
-    this->get_parameter_or("max_linear_vel", v_max_, 0.5);
+    this->get_parameter_or("max_linear_vel", v_max_, 2.0);
     this->get_parameter_or("max_angular_vel", w_max_, 1.0);
 
     pid_ = std::make_unique<controller::PositionPid>(freq_ms_);
@@ -98,25 +98,47 @@ void PurePursuitFollower::controlLoop()
     cmd_pub_->publish(cmd);
 }
 
-/* ===================== PURE PURSUIT ===================== */
-
 void PurePursuitFollower::findLookaheadPoint()
 {
     double lookahead = ld_gain_ * v_max_ + ld_min_;
 
-    for (size_t i = prev_idx_; i < path_.size(); ++i) {
-        double dx = path_[i].pose.position.x - current_x_;
-        double dy = path_[i].pose.position.y - current_y_;
-        double dist = std::hypot(dx, dy);
-
-        if (dist > lookahead) {
-            target_idx_ = i;
-            prev_idx_ = i;
-            return;
+    auto target_it = std::find_if(
+        (path_.begin() + std::min(prev_idx_, path_.size())), path_.end(),
+        [this, lookahead](const geometry_msgs::msg::PoseStamped& pose){
+            const double dx = pose.pose.position.x - current_x_;
+            const double dy = pose.pose.position.y - current_y_;
+            const double dist = std::hypot(dx, dy);
+            return dist > lookahead;
         }
+    );
+
+    if (target_it != path_.end()) {
+        target_idx_ = static_cast<size_t>(std::distance(path_.begin(), target_it));
+        prev_idx_ = target_idx_;
+    } else {
+        target_idx_ = path_.size();
     }
-    target_idx_ = path_.size();
 }
+
+/* ===================== PURE PURSUIT ===================== */
+
+// void PurePursuitFollower::findLookaheadPoint()
+// {
+//     double lookahead = ld_gain_ * v_max_ + ld_min_;
+
+//     for (size_t i = prev_idx_; i < path_.size(); ++i) {
+//         double dx = path_[i].pose.position.x - current_x_;
+//         double dy = path_[i].pose.position.y - current_y_;
+//         double dist = std::hypot(dx, dy);
+
+//         if (dist > lookahead) {
+//             target_idx_ = i;
+//             prev_idx_ = i;
+//             return;
+//         }
+//     }
+//     target_idx_ = path_.size();
+// }
 
 double PurePursuitFollower::calcHeadingError()
 {
