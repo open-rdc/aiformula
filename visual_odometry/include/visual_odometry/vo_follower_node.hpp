@@ -18,6 +18,7 @@
 #include <vector>
 #include <cmath>
 #include <memory>
+#include <limits>
 
 namespace vonav
 {

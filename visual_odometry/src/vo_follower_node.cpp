@@ -104,10 +104,25 @@ void PurePursuitFollower::findLookaheadPoint()
 {
     double lookahead = ld_gain_ * v_max_ + ld_min_;
 
+    size_t closest_idx = prev_idx_;
+    double closest_dist = std::numeric_limits<double>::infinity();
     for (size_t i = prev_idx_; i < path_.size(); ++i) {
-        double dx = path_[i].pose.position.x - current_x_;
-        double dy = path_[i].pose.position.y - current_y_;
-        double dist = std::hypot(dx, dy);
+        const double dx = path_[i].pose.position.x - current_x_;
+        const double dy = path_[i].pose.position.y - current_y_;
+        const double dist = std::hypot(dx, dy);
+
+        if (dist < closest_dist) {
+            closest_dist = dist;
+            closest_idx = i;
+        }
+    }
+
+    prev_idx_ = closest_idx;
+
+    for (size_t i = closest_idx; i < path_.size(); ++i) {
+        const double dx = path_[i].pose.position.x - current_x_;
+        const double dy = path_[i].pose.position.y - current_y_;
+        const double dist = std::hypot(dx, dy);
 
         if (dist > lookahead) {
             target_idx_ = i;
