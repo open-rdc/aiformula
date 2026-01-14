@@ -17,6 +17,7 @@
 
 #include <vector>
 #include <cmath>
+#include <memory>
 
 namespace vonav
 {
@@ -75,7 +76,7 @@ private:
     double v_max_;
     double w_max_;
 
-    controller::PositionPid pid_;
+    std::unique_ptr<controller::PositionPid> pid_;
 };
 
 } // namespace vonav
