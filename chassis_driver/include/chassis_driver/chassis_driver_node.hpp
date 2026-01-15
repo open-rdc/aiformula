@@ -5,6 +5,7 @@
 #include <geometry_msgs/msg/twist_stamped.hpp>
 #include <std_msgs/msg/empty.hpp>
 #include <std_msgs/msg/float64_multi_array.hpp>
+#include <nav_msgs/msg/odometry.hpp>
 #include "socketcan_interface_msg/msg/socketcan_if.hpp"
 #include "base/velplanner.hpp"
 #include "utilities/position_pid.hpp"
@@ -25,16 +26,16 @@ public:
 
 private:
     rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr _subscription_vel;
-    rclcpp::Subscription<std_msgs::msg::Empty>::SharedPtr _subscription_stop;
     rclcpp::Subscription<std_msgs::msg::Empty>::SharedPtr _subscription_restart;
-    rclcpp::Subscription<socketcan_interface_msg::msg::SocketcanIF>::SharedPtr _subscription_caster;
+    rclcpp::Subscription<socketcan_interface_msg::msg::SocketcanIF>::SharedPtr _subscription_caster_orientation;
+    rclcpp::Subscription<socketcan_interface_msg::msg::SocketcanIF>::SharedPtr _subscription_caster_rotation;
     rclcpp::Subscription<socketcan_interface_msg::msg::SocketcanIF>::SharedPtr _subscription_emergency;
     rclcpp::TimerBase::SharedPtr _pub_timer;
 
     void _subscriber_callback_vel(const geometry_msgs::msg::Twist::SharedPtr msg);
-    void _subscriber_callback_stop(const std_msgs::msg::Empty::SharedPtr msg);
     void _subscriber_callback_restart(const std_msgs::msg::Empty::SharedPtr msg);
-    void _subscriber_callback_caster(const socketcan_interface_msg::msg::SocketcanIF::SharedPtr msg);
+    void _subscriber_callback_caster_orientation(const socketcan_interface_msg::msg::SocketcanIF::SharedPtr msg);
+    void _subscriber_callback_caster_rotation(const socketcan_interface_msg::msg::SocketcanIF::SharedPtr msg);
     void _subscriber_callback_emergency(const socketcan_interface_msg::msg::SocketcanIF::SharedPtr msg);
     void _publisher_callback();
     void send_rpm(const double linear_vel, const double angular_vel);
@@ -43,6 +44,7 @@ private:
     rclcpp::Publisher<geometry_msgs::msg::TwistStamped>::SharedPtr publisher_ref_vel;
     rclcpp::Publisher<odrive_can::msg::ControlMessage>::SharedPtr publisher_odrive;
     rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr publisher_caster_data;
+    rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr publisher_odom;
 
     rclcpp::Client<odrive_can::srv::AxisState>::SharedPtr odrive_axis_client_;
 
@@ -63,11 +65,22 @@ private:
     const double rotate_ratio;
     const bool is_reverse_left;
     const bool is_reverse_right;
-    const double caster_max_angle;
     const int caster_max_count;
+    const double caster_max_angle;
+    const double caster_gear_ratio;
+    const double caster_wheel_radius;
 
     // 変数
     double caster_orientation = 0.0;
+    double caster_rotation = 0.0;
+    int caster_rotation_lastcount = 0;
+    int caster_rotation_count = 0;
+    bool caster_rotation_initialized = false;
+    // オドメトリ用変数
+    double caster_rotation_prev_for_odom = 0.0;
+    double odom_x = 0.0;
+    double odom_y = 0.0;
+    double odom_yaw = 0.0;
 
     // 動作モード
     enum class Mode{
@@ -76,6 +89,7 @@ private:
         stop
     } mode = Mode::stay;
 
+    static double normalize_angle(double angle);
 };
 
 }  // namespace chassis_driver

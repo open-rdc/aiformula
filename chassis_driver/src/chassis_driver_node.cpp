@@ -21,8 +21,10 @@ wheelbase(get_parameter("wheelbase").as_double()),
 rotate_ratio(1.0 / get_parameter("reduction_ratio").as_double()),
 is_reverse_left(get_parameter("reverse_left_flag").as_bool()),
 is_reverse_right(get_parameter("reverse_right_flag").as_bool()),
-caster_max_angle(dtor(get_parameter("caster_max_angle").as_double())),
 caster_max_count(get_parameter("caster_max_count").as_int()),
+caster_max_angle(dtor(get_parameter("caster_max_angle").as_double())),
+caster_gear_ratio(get_parameter("caster_gear_ratio").as_double()),
+caster_wheel_radius(this->get_parameter("caster_wheel_radius").as_double()),
 
 linear_limit(DBL_MAX,
 get_parameter("linear_max.vel").as_double(),
@@ -37,20 +39,20 @@ dtor(get_parameter("angular_max.acc").as_double()))
         _qos,
         std::bind(&ChassisDriver::_subscriber_callback_vel, this, std::placeholders::_1)
     );
-    _subscription_stop = this->create_subscription<std_msgs::msg::Empty>(
-        "stop",
-        _qos,
-        std::bind(&ChassisDriver::_subscriber_callback_stop, this, std::placeholders::_1)
-    );
     _subscription_restart = this->create_subscription<std_msgs::msg::Empty>(
         "restart",
         _qos,
         std::bind(&ChassisDriver::_subscriber_callback_restart, this, std::placeholders::_1)
     );
-    _subscription_caster = this->create_subscription<socketcan_interface_msg::msg::SocketcanIF>(
+    _subscription_caster_orientation = this->create_subscription<socketcan_interface_msg::msg::SocketcanIF>(
         "can_rx_012",
         _qos,
-        std::bind(&ChassisDriver::_subscriber_callback_caster, this, std::placeholders::_1)
+        std::bind(&ChassisDriver::_subscriber_callback_caster_orientation, this, std::placeholders::_1)
+    );
+    _subscription_caster_rotation = this->create_subscription<socketcan_interface_msg::msg::SocketcanIF>(
+        "can_rx_013",
+        _qos,
+        std::bind(&ChassisDriver::_subscriber_callback_caster_rotation, this, std::placeholders::_1)
     );
     _subscription_emergency = this->create_subscription<socketcan_interface_msg::msg::SocketcanIF>(
         "can_rx_712",
@@ -61,6 +63,7 @@ dtor(get_parameter("angular_max.acc").as_double()))
     publisher_ref_vel = this->create_publisher<geometry_msgs::msg::TwistStamped>("ref_vel", _qos);
     publisher_odrive = this->create_publisher<odrive_can::msg::ControlMessage>("/odrive_axis0/control_message", _qos);
     publisher_caster_data = this->create_publisher<std_msgs::msg::Float64MultiArray>("caster_data", _qos);
+    publisher_odom = this->create_publisher<nav_msgs::msg::Odometry>("caster_odom", _qos);
 
     // ODriveのAxis Stateサービスクライアント作成
     odrive_axis_client_ = this->create_client<odrive_can::srv::AxisState>("/odrive_axis0/request_axis_state");
@@ -93,6 +96,39 @@ void ChassisDriver::_subscriber_callback_vel(const geometry_msgs::msg::Twist::Sh
 }
 
 void ChassisDriver::_publisher_callback(){
+/*従動輪オドメトリ計算*/
+    if(caster_rotation_initialized){
+        const double delta_rotation = caster_rotation - caster_rotation_prev_for_odom;
+        caster_rotation_prev_for_odom = caster_rotation;
+
+        const double delta_travel = delta_rotation * caster_wheel_radius;
+        const double delta_theta = delta_travel * std::sin(caster_orientation) / wheelbase;
+
+        const double delta_center = delta_travel * std::cos(caster_orientation);
+
+        const double heading_mid = odom_yaw + delta_theta * 0.5;
+        odom_x += delta_center * std::cos(heading_mid);
+        odom_y += delta_center * std::sin(heading_mid);
+        odom_yaw = normalize_angle(odom_yaw + delta_theta);
+
+        nav_msgs::msg::Odometry odom_msg;
+        odom_msg.header.stamp = this->now();
+        odom_msg.header.frame_id = "base_link";
+        odom_msg.pose.pose.position.x = odom_x;
+        odom_msg.pose.pose.position.y = odom_y;
+        odom_msg.pose.pose.position.z = 0.0;
+
+        geometry_msgs::msg::Quaternion orientation_msg;
+        orientation_msg.x = 0.0;
+        orientation_msg.y = 0.0;
+        orientation_msg.z = std::sin(odom_yaw * 0.5);
+        orientation_msg.w = std::cos(odom_yaw * 0.5);
+        odom_msg.pose.pose.orientation = orientation_msg;
+
+        publisher_odom->publish(odom_msg);
+    }
+
+/*駆動輪制御*/
     linear_planner.cycle();
     angular_planner.cycle();
 
@@ -101,11 +137,21 @@ void ChassisDriver::_publisher_callback(){
         return;
     }
 
-    // 速度計画機の参照
+    // 速度計画機の参照 -> 送信
     const double linear_vel = linear_planner.vel();
     const double angular_vel = angular_planner.vel();
+    send_rpm(linear_vel, angular_vel);
 
-    // 従動輪目標角度の生成
+    // （デバッグ用）ロボットの目標速度指令値を出版
+    auto msg_ref_vel = std::make_shared<geometry_msgs::msg::TwistStamped>();
+    msg_ref_vel->header.stamp = this->now();
+    msg_ref_vel->header.frame_id = "base_link";
+    msg_ref_vel->twist.linear.x = linear_vel;
+    msg_ref_vel->twist.angular.z = angular_vel;
+    publisher_ref_vel->publish(*msg_ref_vel);
+
+/*従動輪制御*/
+    // 目標舵角の生成
     double delta = 0.0;
     if(linear_vel == 0.0){
         delta = 0.0;
@@ -115,11 +161,6 @@ void ChassisDriver::_publisher_callback(){
         if(std::isnan(delta)) delta = 0.0;
         delta = constrain(delta, -caster_max_angle, caster_max_angle);
     }
-
-    // （テスト用）従動輪目標角度の出版
-    std_msgs::msg::Float64MultiArray caster_data_msg;
-    caster_data_msg.data = {delta, caster_orientation};
-    publisher_caster_data->publish(caster_data_msg);
 
     // モータ制御
     double motor_pos = 0.0;
@@ -131,8 +172,6 @@ void ChassisDriver::_publisher_callback(){
     }
     // RCLCPP_INFO(this->get_logger(), "DEL:%.2f POS:%.2f ENC:%.2f", rtod(delta), rtod(motor_pos), rtod(caster_orientation));
 
-    send_rpm(linear_vel, angular_vel);
-
     // ODriveにトルク指令を送信
     auto msg_odrive_control = std::make_shared<odrive_can::msg::ControlMessage>();
     msg_odrive_control->control_mode = 3;
@@ -142,35 +181,57 @@ void ChassisDriver::_publisher_callback(){
     msg_odrive_control->input_torque = 0.0;
     publisher_odrive->publish(*msg_odrive_control);
 
-    // デバッグ用にロボットの目標速度指令値を出版
-    auto msg_ref_vel = std::make_shared<geometry_msgs::msg::TwistStamped>();
-    msg_ref_vel->header.stamp = this->now();
-    msg_ref_vel->header.frame_id = "map";
-    msg_ref_vel->twist.linear.x = linear_vel;
-    msg_ref_vel->twist.angular.z = angular_vel;
-    publisher_ref_vel->publish(*msg_ref_vel);
+    // （テスト用）従動輪{目標舵角，実測舵角，回転位置｝を出版
+    std_msgs::msg::Float64MultiArray caster_data_msg;
+    caster_data_msg.data = {delta, caster_orientation, caster_rotation};
+    publisher_caster_data->publish(caster_data_msg);
 }
 
-void ChassisDriver::_subscriber_callback_stop(const std_msgs::msg::Empty::SharedPtr msg){
-    mode = Mode::stop;
-    RCLCPP_INFO(this->get_logger(), "停止");
-}
 void ChassisDriver::_subscriber_callback_restart(const std_msgs::msg::Empty::SharedPtr msg){
     mode = Mode::stay;
 
     velplanner::Physics_t physics_zero(0.0, 0.0, 0.0);
     linear_planner.current(physics_zero);
     angular_planner.current(physics_zero);
+
+    caster_rotation_initialized = false;
+    caster_rotation_count = 0;
+
+    caster_rotation_prev_for_odom = 0.0;
+    odom_x = 0.0;
+    odom_y = 0.0;
+    odom_yaw = 0.0;
     RCLCPP_INFO(this->get_logger(), "再起動");
 }
 
-void ChassisDriver::_subscriber_callback_caster(const socketcan_interface_msg::msg::SocketcanIF::SharedPtr msg){
+void ChassisDriver::_subscriber_callback_caster_orientation(const socketcan_interface_msg::msg::SocketcanIF::SharedPtr msg){
     uint8_t _candata[8];
     for(int i=0; i<msg->candlc; i++) _candata[i] = msg->candata[i];
 
     const int count = static_cast<int>(bytes_to_int16(_candata));
     caster_orientation = count / static_cast<double>(caster_max_count) * 2.0 * d_pi;
-    // RCLCPP_INFO(this->get_logger(), "CAS:%f CNT:%d", rtod(caster_orientation), count);
+    // RCLCPP_INFO(this->get_logger(), "CAS_ORI:%f CNT:%d", rtod(caster_orientation), count);
+}
+void ChassisDriver::_subscriber_callback_caster_rotation(const socketcan_interface_msg::msg::SocketcanIF::SharedPtr msg){
+    uint8_t _candata[8];
+    for(int i=0; i<msg->candlc; i++) _candata[i] = msg->candata[i];
+
+    const int count = static_cast<int>(bytes_to_int16(_candata));
+    if(!caster_rotation_initialized){
+        caster_rotation_lastcount = count;
+        caster_rotation_initialized = true;
+    }
+    const int count_gap = count - caster_rotation_lastcount;
+    caster_rotation_lastcount = count;
+
+    caster_rotation_count += count_gap;
+    if(count_gap > caster_max_count / 2) caster_rotation_count -= caster_max_count;
+    else if(count_gap < -caster_max_count / 2) caster_rotation_count += caster_max_count;
+
+    // 取付位置からマイナスをかける
+    caster_rotation = -caster_rotation_count / static_cast<double>(caster_max_count) * 2.0 * d_pi * caster_gear_ratio;
+    // RCLCPP_INFO(this->get_logger(), "CAS_ROT:%f CNT:%d", rtod(caster_rotation), count);
+    // RCLCPP_INFO(this->get_logger(), "ROT CRR:%f CNT:%d", rtod(current_rotation), count);
 }
 void ChassisDriver::_subscriber_callback_emergency(const socketcan_interface_msg::msg::SocketcanIF::SharedPtr msg){
     uint8_t _candata[8];
@@ -205,6 +266,10 @@ void ChassisDriver::send_rpm(const double linear_vel, const double angular_vel){
     for(int i=0; i<msg_can->candlc; i++) msg_can->candata[i]=_candata[i];
     publisher_can->publish(*msg_can);
 
+}
+
+double ChassisDriver::normalize_angle(double angle){
+    return std::atan2(std::sin(angle), std::cos(angle));
 }
 
 
