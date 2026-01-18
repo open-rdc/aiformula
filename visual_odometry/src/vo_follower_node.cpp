@@ -67,8 +67,11 @@ void PurePursuitFollower::odomCallback(const nav_msgs::msg::Odometry::SharedPtr 
 void PurePursuitFollower::pathCallback(const nav_msgs::msg::Path::SharedPtr msg)
 {
     path_ = msg->poses;
-    target_idx_ = 0;
-    prev_idx_ = 0;
+    if (!path_received_) {
+        target_idx_ = 0;
+        prev_idx_   = 0;
+        path_received_ = true;
+    }
 }
 
 void PurePursuitFollower::autonomousCallback(const std_msgs::msg::Bool::SharedPtr msg)
@@ -80,7 +83,9 @@ void PurePursuitFollower::autonomousCallback(const std_msgs::msg::Bool::SharedPt
 
 void PurePursuitFollower::controlLoop()
 {
-    if (!autonomous_ || path_.empty() || !base_initialized_) return;
+   if (!autonomous_ || path_.empty() || !base_initialized_ || !path_received_) {
+        return;
+    }
     const double lookahead = std::max(ld_min_, ld_gain_ * last_linear_vel_ + ld_min_);
     findLookaheadPoint(lookahead);
     publishLookahead();
