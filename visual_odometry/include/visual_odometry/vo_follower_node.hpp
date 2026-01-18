@@ -70,7 +70,8 @@ private:
 
     bool base_initialized_{false};
     bool autonomous_{false};
-
+    bool path_received_{false};
+    
     /* ---------- Parameters ---------- */
     int freq_ms_;
     double ld_gain_;
