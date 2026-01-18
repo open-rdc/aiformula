@@ -168,7 +168,7 @@ void ChassisDriver::_subscriber_callback_caster(const socketcan_interface_msg::m
     uint8_t _candata[8];
     for(int i=0; i<msg->candlc; i++) _candata[i] = msg->candata[i];
 
-    const int count = static_cast<int>(bytes_to_int16(_candata));
+    const int count = static_cast<int>(bytes_to_short(_candata));
     caster_orientation = count / static_cast<double>(caster_max_count) * 2.0 * d_pi;
     // RCLCPP_INFO(this->get_logger(), "CAS:%f CNT:%d", rtod(caster_orientation), count);
 }
@@ -199,8 +199,8 @@ void ChassisDriver::send_rpm(const double linear_vel, const double angular_vel){
     msg_can->candlc = 8;
 
     uint8_t _candata[8];
-    int32_to_bytes(_candata, static_cast<int32_t>(right_rpm));
-    int32_to_bytes(_candata+4, static_cast<int32_t>(left_rpm));
+    int_to_bytes(_candata, static_cast<int32_t>(right_rpm));
+    int_to_bytes(_candata+4, static_cast<int32_t>(left_rpm));
 
     for(int i=0; i<msg_can->candlc; i++) msg_can->candata[i]=_candata[i];
     publisher_can->publish(*msg_can);

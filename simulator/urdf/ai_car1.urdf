@@ -1,0 +1,492 @@
+<?xml version="1.0"?>
+<robot name="ai_car1">
+
+  <!-- モデルのベースとなる空リンク -->
+  <link name="base_link"/>
+
+  <!-- chassis本体 -->
+  <link name="chassis">
+    <inertial>
+      <mass value="40.0"/>
+      <inertia
+        ixx="1.73333" ixy="0.0" ixz="0.0"
+        iyy="4.56667" iyz="0.0" izz="4.56667"/>
+    </inertial>
+
+    <visual name="chassis_visual">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://simulator/models/ai_car1/meshes/AIF_body.dae"/>
+      </geometry>
+    </visual>
+
+    <collision name="chassis_collision">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://simulator/models/ai_car1/meshes/AIF_body.dae"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <!-- chassisをオフセットして配置 -->
+  <joint name="chassis_offset_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="chassis"/>
+    <origin xyz="0 0 0.15" rpy="0 0 1.57"/>
+  </joint>
+
+  <!-- ========== Motor Assembly ========== -->
+  <!-- モータ本体 -->
+  <link name="motor">
+    <inertial>
+      <mass value="7.0"/>
+      <inertia
+        ixx="0.04778"
+        ixy="0.0"
+        ixz="0.0"
+        iyy="0.04778"
+        iyz="0.0"
+        izz="0.07875"/>
+    </inertial>
+
+    <visual name="motor_visual">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://simulator/models/ai_car1/meshes/motor.dae" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </visual>
+
+    <collision name="motor_collision">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://simulator/models/ai_car1/meshes/motor.dae" scale="0.001 0.001 0.001"/>
+      </geometry>
+      <surface>
+        <contact>
+          <ode>
+            <kp>1e5</kp>    <!-- ばね係数 -->
+            <kd>1.0</kd>    <!-- 減衰係数 -->
+          </ode>
+        </contact>
+        <friction>
+          <ode>
+            <mu>1.0</mu>    <!-- 静止摩擦 -->
+            <mu2>1.0</mu2>  <!-- 動摩擦 -->
+          </ode>
+        </friction>
+      </surface>
+    </collision>
+  </link>
+
+  <!-- モータの回転部分 -->
+  <link name="motor_spin">
+    <inertial>
+      <mass value="7.0"/>
+      <inertia
+        ixx="0.04778"
+        ixy="0.0"
+        ixz="0.0"
+        iyy="0.04778"
+        iyz="0.0"
+        izz="0.07875"/>
+    </inertial>
+
+    <visual name="motor_spin_visual">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://simulator/models/ai_car1/meshes/motor_spin.dae" scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="yellow">
+        <color rgba="1.0 1.0 0.0 1.0"/>
+      </material>
+    </visual>
+
+    <collision name="motor_spin_collision">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://simulator/models/ai_car1/meshes/motor_spin.dae" scale="0.001 0.001 0.001"/>
+      </geometry>
+      <surface>
+        <contact>
+          <ode>
+            <kp>1e5</kp>    <!-- ばね係数 -->
+            <kd>1.0</kd>    <!-- 減衰係数 -->
+          </ode>
+        </contact>
+        <friction>
+          <ode>
+            <mu>1.0</mu>    <!-- 静止摩擦 -->
+            <mu2>1.0</mu2>  <!-- 動摩擦 -->
+          </ode>
+        </friction>
+      </surface>
+    </collision>
+  </link>
+
+  <!-- chassis に固定されるモータ -->
+  <joint name="motor_joint" type="fixed">
+    <parent link="chassis"/>
+    <child link="motor"/>
+    <origin xyz="0.7 0 0.33" rpy="0 0 0"/>
+  </joint>
+
+  <!-- モータ回転軸 -->
+  <joint name="motor_spin_joint" type="revolute">
+    <parent link="motor"/>
+    <child link="motor_spin"/>
+    <origin xyz="0 0 0.022" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-6.283" upper="6.283" effort="9.4" velocity="100.0"/>
+    <dynamics friction="0.9"/>
+  </joint>
+
+
+  <!-- ========== Left Wheel ========== -->
+  <!-- ========================== -->
+  <!--        Left Wheel          -->
+  <!-- ========================== -->
+  <link name="left_wheel">
+    <inertial>
+      <mass value="7.0"/>
+      <inertia
+        ixx="0.04778"
+        ixy="0.0"
+        ixz="0.0"
+        iyy="0.04778"
+        iyz="0.0"
+        izz="0.07875"/>
+    </inertial>
+
+    <visual name="left_wheel_visual">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://simulator/models/ai_car1/meshes/tire.dae" scale="0.05 0.12 0.12"/>
+      </geometry>
+    </visual>
+
+    <collision name="left_wheel_collision">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://simulator/models/ai_car1/meshes/tire.dae" scale="0.05 0.12 0.12"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <!-- 左車輪ジョイント -->
+  <joint name="left_wheel_joint" type="revolute">
+    <parent link="chassis"/>
+    <child link="left_wheel"/>
+    <origin xyz="0 -0.3 0" rpy="1.57 0 1.57"/>
+    <axis xyz="-1 0 0"/>
+    <limit effort="9.4" lower="-1000.0" upper="1000.0" velocity="100.0"/>
+    <dynamics friction="0.9"/>
+  </joint>
+
+  <!-- ========================== -->
+  <!--        Right Wheel         -->
+  <!-- ========================== -->
+  <link name="right_wheel">
+    <inertial>
+      <mass value="7.0"/>
+      <inertia
+        ixx="0.04778"
+        ixy="0.0"
+        ixz="0.0"
+        iyy="0.04778"
+        iyz="0.0"
+        izz="0.07875"/>
+    </inertial>
+
+    <visual name="right_wheel_visual">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://simulator/models/ai_car1/meshes/tire.dae" scale="0.05 0.12 0.12"/>
+      </geometry>
+    </visual>
+
+    <collision name="right_wheel_collision">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://simulator/models/ai_car1/meshes/tire.dae" scale="0.05 0.12 0.12"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <!-- 右車輪ジョイント -->
+  <joint name="right_wheel_joint" type="revolute">
+    <parent link="chassis"/>
+    <child link="right_wheel"/>
+    <origin xyz="0 0.3 0" rpy="1.57 0 1.57"/>
+    <axis xyz="-1 0 0"/>
+    <limit effort="9.4" lower="-1000.0" upper="1000.0" velocity="100.0"/>
+    <dynamics friction="0.9"/>
+  </joint>
+
+  <!-- ========== Caster Assembly ========== -->
+  <!-- caster_yaw -->
+  <link name="caster_yaw">
+    <inertial>
+      <mass value="5.0"/>
+      <inertia
+        ixx="0.001" ixy="0.0" ixz="0.0"
+        iyy="0.001" iyz="0.0" izz="0.001"/>
+    </inertial>
+
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://simulator/models/ai_car1/meshes/castor_yaw.dae" scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="red">
+        <color rgba="1.0 0.0 0.0 1.0"/>
+      </material>
+    </visual>
+
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://simulator/models/ai_car1/meshes/castor_yaw.dae" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <!-- caster -->
+  <link name="caster">
+    <inertial>
+      <mass value="1.0"/>
+      <inertia
+        ixx="0.04778" ixy="0.0" ixz="0.0"
+        iyy="0.04778" iyz="0.0" izz="0.07875"/>
+    </inertial>
+
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://simulator/models/ai_car1/meshes/tire.dae" scale="0.1 0.1 0.1"/>
+      </geometry>
+    </visual>
+
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://simulator/models/ai_car1/meshes/tire.dae" scale="0.1 0.1 0.1"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <!-- chassis → caster_yaw（SDFの frame と link pose を合成）-->
+  <!-- T(chassis→caster_yaw) = [0.7, 0, 0.25], rpy=[0,0,0] -->
+  <joint name="caster_yaw_wheel" type="revolute">
+    <parent link="chassis"/>
+    <child link="caster_yaw"/>
+    <origin xyz="0.7 0 0.25" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-0.26" upper="0.26" effort="100.0" velocity="1.0"/>
+    <dynamics damping="10.0" spring_stiffness="12.0" spring_reference="0.0"/>
+  </joint>
+
+  <!-- caster_yaw → caster（SDFの relative pose をそのまま）-->
+  <!-- SDFはrevolute(無制限)でしたが、URDFでは無制限はcontinuousで表現 -->
+  <joint name="caster_pitch_joint" type="continuous">
+    <parent link="caster_yaw"/>
+    <child link="caster"/>
+    <origin xyz="0.1 0 -0.25" rpy="0 0 1.57"/>
+    <axis xyz="1 0 0"/>
+    <dynamics damping="0.01"/>
+  </joint>
+
+
+  <!-- ========== Sensors ========== -->
+  <!-- ============================ -->
+  <!--       IMU センサ             -->
+  <!-- ============================ -->
+
+  <link name="imu_link">
+    <inertial>
+      <mass value="0.01"/>
+      <inertia ixx="1e-6" iyy="1e-6" izz="1e-6" ixy="0" ixz="0" iyz="0"/>
+    </inertial>
+  </link>
+
+  <joint name="imu_joint" type="fixed">
+    <parent link="chassis"/>
+    <child link="imu_link"/>
+    <origin xyz="-0.032 0 0.068" rpy="0 0 0"/>
+  </joint>
+
+  <!-- Gazebo用IMUプラグイン -->
+  <gazebo reference="imu_link">
+    <sensor name="imu_sensor" type="imu">
+      <always_on>true</always_on>
+      <update_rate>20.0</update_rate>
+      <visualize>true</visualize>
+      <topic>imu_raw</topic>
+    </sensor>
+  </gazebo>
+
+  <!-- ============================ -->
+  <!--       カメラベースリンク     -->
+  <!-- ============================ -->
+
+  <link name="camera_link">
+    <inertial>
+      <mass value="0.01"/>
+      <inertia ixx="1e-6" iyy="1e-6" izz="1e-6" ixy="0" ixz="0" iyz="0"/>
+    </inertial>
+  </link>
+
+  <joint name="camera_joint" type="fixed">
+    <parent link="chassis"/>
+    <child link="camera_link"/>
+    <origin xyz="0.35 0 0.55" rpy="0 0 0"/>
+  </joint>
+
+  <!-- ============================ -->
+  <!--       RGB カメラ             -->
+  <!-- ============================ -->
+
+  <link name="camera_rgb_link"/>
+
+  <joint name="camera_rgb_joint" type="fixed">
+    <parent link="camera_link"/>
+    <child link="camera_rgb_link"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+
+  <gazebo reference="camera_rgb_link">
+    <sensor name="camera_rgb_sensor" type="camera">
+      <update_rate>60.0</update_rate>
+      <always_on>true</always_on>
+      <visualize>true</visualize>
+      <topic>image_raw</topic>
+      <camera name="camera">
+        <horizontal_fov>1.91986</horizontal_fov>
+        <vertical_fov>1.39626</vertical_fov>
+        <image>
+          <width>480</width>
+          <height>300</height>
+          <format>R8G8B8</format>
+        </image>
+        <clip>
+          <near>0.02</near>
+          <far>300</far>
+        </clip>
+      </camera>
+    </sensor>
+  </gazebo>
+
+  <!-- ============================ -->
+  <!--       Depth カメラ           -->
+  <!-- ============================ -->
+
+  <link name="camera_depth_link"/>
+
+  <joint name="camera_depth_joint" type="fixed">
+    <parent link="camera_link"/>
+    <child link="camera_depth_link"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+
+  <gazebo reference="camera_depth_link">
+    <sensor name="camera_depth_sensor" type="depth">
+      <update_rate>60.0</update_rate>
+      <always_on>true</always_on>
+      <visualize>true</visualize>
+      <topic>depth_image_raw</topic>
+      <pointcloud>
+        <topic>depth_points</topic>
+      </pointcloud>
+      <camera name="camera">
+        <horizontal_fov>1.91986</horizontal_fov>
+        <vertical_fov>1.39626</vertical_fov>
+        <image>
+          <width>480</width>
+          <height>300</height>
+          <format>R8G8B8</format>
+        </image>
+        <clip>
+          <near>0.02</near>
+          <far>20</far>
+        </clip>
+      </camera>
+    </sensor>
+  </gazebo>
+
+  <!-- ============================ -->
+  <!--         GNSS (GPS)           -->
+  <!-- ============================ -->
+
+  <link name="gps_link"/>
+
+  <joint name="gps_joint" type="fixed">
+    <parent link="chassis"/>
+    <child link="gps_link"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+
+  <gazebo reference="gps_link">
+    <sensor name="gps_sensor" type="navsat">
+      <always_on>true</always_on>
+      <update_rate>1.0</update_rate>
+      <topic>navsat</topic>
+    </sensor>
+  </gazebo>
+
+
+  <!-- ============================ -->
+  <!-- Diff Drive Plugin -->
+  <!-- ============================ -->
+  <gazebo>
+    <plugin name="ignition::gazebo::systems::DiffDrive" filename="libignition-gazebo-diff-drive-system.so">
+      <left_joint>left_wheel_joint</left_joint>
+      <right_joint>right_wheel_joint</right_joint>
+      <wheel_separation>0.6</wheel_separation>
+      <wheel_radius>0.124</wheel_radius>
+      <odom_publish_frequency>30</odom_publish_frequency>
+      <topic>cmd_vel</topic>
+      <odom_topic>odom</odom_topic>
+    </plugin>
+  </gazebo>
+
+  <!-- ============================ -->
+  <!-- IMU Plugin -->
+  <!-- ============================ -->
+  <gazebo>
+    <plugin name="ignition_imu" filename="libignition-gazebo-imu-system.so">
+    </plugin>
+  </gazebo>
+
+  <!-- ============================ -->
+  <!-- Sensors Plugin -->
+  <!-- ============================ -->
+  <gazebo>
+    <plugin name="ignition_sensors" filename="ignition-gazebo-sensors-system">
+    </plugin>
+  </gazebo>
+
+
+  <!-- ========== ROS 2 Control設定 ========== -->
+  <ros2_control name="MotorControlSystem" type="system">
+    <hardware>
+      <plugin>gz_ros2_control/GazeboSimSystem</plugin>
+    </hardware>
+
+    <joint name="motor_spin_joint">
+      <command_interface name="position"/>
+      <command_interface name="effort"/>
+      <command_interface name="velocity"/>
+      <state_interface name="position"/>
+      <state_interface name="effort"/>
+      <state_interface name="velocity"/>
+    </joint>
+  </ros2_control>
+
+
+  <gazebo>
+    <plugin filename="gz_ros2_control-system" name="gz_ros2_control::GazeboSimROS2ControlPlugin">
+      <parameters>/home/ikenta/ros2_ws/src/aiformula/simulator/config/8108_effort_controller.yaml</parameters>
+    </plugin>
+  </gazebo>
+
+</robot>
+

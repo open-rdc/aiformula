@@ -1,0 +1,35 @@
+<?xml version="1.0"?>
+<robot name="ai_car1" xmlns:xacro="http://ros.org/wiki/xacro">
+
+  <!-- include各モジュール -->
+    <xacro:include filename="$(find simulator)/urdf/base.xacro" />
+    <xacro:include filename="$(find simulator)/urdf/wheels.xacro" />
+    <xacro:include filename="$(find simulator)/urdf/sensors.xacro" />
+    <xacro:include filename="$(find simulator)/urdf/plugins.xacro" />
+
+  <!-- 全体構成 -->
+  <xacro:base/>
+  <xacro:wheels/>
+  <xacro:sensors/>
+  <xacro:plugins_diffdrive/>
+  <xacro:plugins_sensors/>
+
+  <!-- ros2_control -->
+  <ros2_control name="GazeboSimSystem" type="system">
+    <hardware>
+      <plugin>gz_ros2_control/GazeboSimSystem</plugin>
+    </hardware>
+    <joint name="motor_spin_joint">
+      <command_interface name="position" />
+      <state_interface name="position" />
+    </joint>
+  </ros2_control>
+
+  <gazebo>
+    <plugin filename="gz_ros2_control-system" name="gz_ros2_control::GazeboSimROS2ControlPlugin">
+      <parameters>$(find simulator)/config/caster.yaml</parameters>
+    </plugin>
+  </gazebo>
+
+</robot>
+
