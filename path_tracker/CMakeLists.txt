@@ -66,8 +66,33 @@ ament_target_dependencies(mpc_node
   rclcpp_components
 )
 
+# 4.5 mpc_node_sim のビルド
+add_executable(mpc_node_sim src/mpc_node_sim.cpp)
+
+target_include_directories(mpc_node_sim PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
+  ${CASADI_INCLUDE_DIRS}
+)
+
+target_link_libraries(mpc_node_sim 
+  Eigen3::Eigen
+  casadi_solver
+  ${CASADI_LIBRARIES}
+)
+
+ament_target_dependencies(mpc_node_sim
+  rclcpp
+  geometry_msgs
+  nav_msgs
+  tf2
+  tf2_geometry_msgs
+  rclcpp_components
+)
+
 # 5. インストール設定
-install(TARGETS mpc_node casadi_solver
+# 5. インストール設定
+install(TARGETS mpc_node mpc_node_sim casadi_solver
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION lib/${PROJECT_NAME}

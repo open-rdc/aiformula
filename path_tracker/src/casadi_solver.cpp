@@ -7,8 +7,8 @@ extern "C" {
 
 void solve_mpc_casadi_c(const double *current_state,
                         const double *reference_trajectory, int horizon,
-                        double dt, double wheelbase, double max_accel,
-                        double max_delta_rate, double *out_a,
+                        double dt, double wheelbase, double max_v,
+                        double max_accel, double max_delta_rate, double *out_a,
                         double *out_delta_rate) {
   using namespace casadi;
 
@@ -96,6 +96,15 @@ void solve_mpc_casadi_c(const double *current_state,
   // 変数の上下限設定 (拘束条件)
   std::vector<double> lbz((N + 1) * nx + N * nu, -inf);
   std::vector<double> ubz((N + 1) * nx + N * nu, inf);
+
+  // 1. 状態変数の拘束 (v)
+  for (int k = 0; k <= N; ++k) {
+    int v_idx = k * nx + 3;
+    lbz[v_idx] = 0.0;
+    ubz[v_idx] = max_v;
+  }
+
+  // 2. 制御入力の拘束 (a, delta_rate)
   for (int k = 0; k < N; ++k) {
     int ctrl_idx = (N + 1) * nx + k * nu;
     lbz[ctrl_idx] = -max_accel;

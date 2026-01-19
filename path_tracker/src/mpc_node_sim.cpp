@@ -1,4 +1,4 @@
-#include "path_tracker/mpc_node.hpp"
+#include "path_tracker/mpc_node_sim.hpp"
 #include <algorithm>
 #include <cmath>
 #include <tf2/utils.h>
@@ -6,18 +6,18 @@
 
 namespace path_tracker {
 
-MPCNode::MPCNode(const rclcpp::NodeOptions &options)
-    : Node("mpc_node", options), dt_(0.1), horizon_(15), max_v_(2.0),
+MPCNodeSim::MPCNodeSim(const rclcpp::NodeOptions &options)
+    : Node("mpc_node_sim", options), dt_(0.1), horizon_(15), max_v_(2.0),
       max_accel_(2.0), max_delta_rate_(5), goal_tolerance_(0.1), L_(0.8),
       m_(71.5), I_(7.72) {
   // パラメータの宣言とデフォルト値の設定
   dt_ = this->declare_parameter("dt", 0.1);
   horizon_ = this->declare_parameter("horizon", 15);
-  max_v_ = this->declare_parameter("max_v", 2.0); // 参照用
+  max_v_ = this->declare_parameter("max_v", 4.0); // 参照用
   max_accel_ = this->declare_parameter("max_accel", 2.0);
   max_delta_rate_ = this->declare_parameter("max_delta_rate", 5);
-  velocity_gain_ = this->declare_parameter("velocity_gain", 1.573);
-  steer_gain_ = this->declare_parameter("steer_gain", 1.468);
+  velocity_gain_ = this->declare_parameter("velocity_gain", 1.0);
+  steer_gain_ = this->declare_parameter("steer_gain", 1.0);
   goal_tolerance_ = this->declare_parameter("goal_tolerance", 0.1);
 
   // モデルパラメータ
@@ -28,17 +28,21 @@ MPCNode::MPCNode(const rclcpp::NodeOptions &options)
   // サブスクライバとパブリッシャの設定
   sub_path_ = this->create_subscription<nav_msgs::msg::Path>(
       "/e2e_planner/path", 10,
-      std::bind(&MPCNode::on_path_received, this, std::placeholders::_1));
+      std::bind(&MPCNodeSim::on_path_received, this, std::placeholders::_1));
 
-  sub_velocity_ =
-      this->create_subscription<geometry_msgs::msg::TwistWithCovarianceStamped>(
-          "/vectornav/velocity_body", 10,
-          std::bind(&MPCNode::on_velocity_received, this,
-                    std::placeholders::_1));
+  // sub_velocity_ =
+  //     this->create_subscription<geometry_msgs::msg::TwistWithCovarianceStamped>(
+  //         "/vectornav/velocity_body", 10,
+  //         std::bind(&MPCNode::on_velocity_received, this,
+  //                   std::placeholders::_1));
 
-  sub_caster_ = this->create_subscription<std_msgs::msg::Float64MultiArray>(
-      "/caster_data", 10,
-      std::bind(&MPCNode::on_caster_received, this, std::placeholders::_1));
+  // sub_caster_ = this->create_subscription<std_msgs::msg::Float64MultiArray>(
+  //     "/caster_data", 10,
+  //     std::bind(&MPCNode::on_caster_received, this, std::placeholders::_1));
+
+  sub_odom_ = this->create_subscription<nav_msgs::msg::Odometry>(
+      "/odom", 10,
+      std::bind(&MPCNodeSim::on_odom_received, this, std::placeholders::_1));
 
   pub_cmd_vel_ =
       this->create_publisher<geometry_msgs::msg::Twist>("cmd_vel", 10);
@@ -47,12 +51,12 @@ MPCNode::MPCNode(const rclcpp::NodeOptions &options)
 
   // 制御ループタイマーの設定 (1/dt Hz)
   timer_ = this->create_wall_timer(std::chrono::duration<double>(dt_),
-                                   std::bind(&MPCNode::control_loop, this));
+                                   std::bind(&MPCNodeSim::control_loop, this));
 
   RCLCPP_INFO(this->get_logger(), "MPC Node (Feedback Integrated) initialized");
 }
 
-void MPCNode::on_path_received(const nav_msgs::msg::Path::SharedPtr msg) {
+void MPCNodeSim::on_path_received(const nav_msgs::msg::Path::SharedPtr msg) {
   RCLCPP_INFO(this->get_logger(), "Path received with %zu poses, frame: %s",
               msg->poses.size(), msg->header.frame_id.c_str());
   current_path_ = msg;
@@ -88,30 +92,96 @@ void MPCNode::on_path_received(const nav_msgs::msg::Path::SharedPtr msg) {
   }
 }
 
-void MPCNode::on_velocity_received(
-    const geometry_msgs::msg::TwistWithCovarianceStamped::SharedPtr msg) {
+// void MPCNode::on_velocity_received(
+//     const geometry_msgs::msg::TwistWithCovarianceStamped::SharedPtr msg) {
+//   double raw_v = msg->twist.twist.linear.x;
+//   // 線形速度に強力なローパスフィルタを適用 (脈動抑制, alpha=0.1)
+//   latest_v_ = 0.9 * latest_v_ + 0.1 * raw_v;
+//   // Right+ Throughout: IMUはCCW+なので反転させてRight+モデルに合わせる
+//   latest_w_ = -msg->twist.twist.angular.z;
+
+//   // Dead Reckoning (Odometry Integration)
+//   rclcpp::Time current_time = msg->header.stamp;
+//   if (!is_odom_initialized_) {
+//     last_odom_time_ = current_time;
+//     return;
+//   }
+
+//   double dt = (current_time - last_odom_time_).seconds();
+//   if (dt > 0.0 && dt < 1.0) { // Reject huge jumps or negative dt
+//     double da = odom_yaw_ + (latest_w_ * dt *
+//                              0.5); // Runge-Kutta 2nd order approx or
+//                              midpoint
+//     odom_x_ += latest_v_ * std::cos(da) * dt;
+//     odom_y_ += latest_v_ * std::sin(da) * dt;
+//     odom_yaw_ += latest_w_ * dt;
+
+//     // Normalize yaw
+//     while (odom_yaw_ > M_PI)
+//       odom_yaw_ -= 2.0 * M_PI;
+//     while (odom_yaw_ < -M_PI)
+//       odom_yaw_ += 2.0 * M_PI;
+//   }
+//   last_odom_time_ = current_time;
+// }
+
+// void MPCNode::on_caster_received(
+//     const std_msgs::msg::Float64MultiArray::SharedPtr msg) {
+//   if (msg->data.size() > 0) {
+//     // キャスター角（ステアリング角）を取得
+//     double raw_delta = msg->data[0];
+//     // ローパスフィルタを適用して振動を低減 (alpha=0.3)
+//     latest_delta_ = 0.7 * latest_delta_ + 0.3 * raw_delta;
+//   }
+// }
+
+void MPCNodeSim::on_odom_received(
+    const nav_msgs::msg::Odometry::SharedPtr msg) {
   double raw_v = msg->twist.twist.linear.x;
-  // 線形速度に強力なローパスフィルタを適用 (脈動抑制, alpha=0.1)
+  // Use weaker filter for simulation or keep same
   latest_v_ = 0.9 * latest_v_ + 0.1 * raw_v;
-  // Right+ Throughout: IMUはCCW+なので反転させてRight+モデルに合わせる
+
+  // Simulator Odom is CCW+, convert to Right+ (CW+)
   latest_w_ = -msg->twist.twist.angular.z;
 
+  // Derive Steering Angle (delta) from v and w
+  // tan(delta) = w * L / v
+  if (std::abs(latest_v_) > 0.1) {
+    // latest_w_ is CW, latest_v_ is forward. Delta should be positive for Right
+    // turn. If w is positive (Right), delta should be positive.
+    double raw_delta = std::atan(latest_w_ * L_ / latest_v_);
+
+    // Clamp to reasonable range
+    if (raw_delta > 0.6)
+      raw_delta = 0.6;
+    if (raw_delta < -0.6)
+      raw_delta = -0.6;
+
+    latest_delta_ = 0.7 * latest_delta_ + 0.3 * raw_delta;
+  } else {
+    // If stopped, maintain last or zero.
+    latest_delta_ = 0.0;
+  }
+
   // Dead Reckoning (Odometry Integration)
+  // Preserving original logic to maintain coordinate system consistency
   rclcpp::Time current_time = msg->header.stamp;
   if (!is_odom_initialized_) {
     last_odom_time_ = current_time;
+    // For simulation, we might want to just start running even if path hasn't
+    // reset us. But let's respect the "wait for path" or "wait for manual init"
+    // logic if possible. However, if we don't return here, we can
+    // self-initialize? The original code returns if !is_odom_initialized_.
     return;
   }
 
   double dt = (current_time - last_odom_time_).seconds();
-  if (dt > 0.0 && dt < 1.0) { // Reject huge jumps or negative dt
-    double da = odom_yaw_ + (latest_w_ * dt *
-                             0.5); // Runge-Kutta 2nd order approx or midpoint
+  if (dt > 0.0 && dt < 1.0) {
+    double da = odom_yaw_ + (latest_w_ * dt * 0.5);
     odom_x_ += latest_v_ * std::cos(da) * dt;
     odom_y_ += latest_v_ * std::sin(da) * dt;
     odom_yaw_ += latest_w_ * dt;
 
-    // Normalize yaw
     while (odom_yaw_ > M_PI)
       odom_yaw_ -= 2.0 * M_PI;
     while (odom_yaw_ < -M_PI)
@@ -120,17 +190,7 @@ void MPCNode::on_velocity_received(
   last_odom_time_ = current_time;
 }
 
-void MPCNode::on_caster_received(
-    const std_msgs::msg::Float64MultiArray::SharedPtr msg) {
-  if (msg->data.size() > 0) {
-    // キャスター角（ステアリング角）を取得
-    double raw_delta = msg->data[0];
-    // ローパスフィルタを適用して振動を低減 (alpha=0.3)
-    latest_delta_ = 0.7 * latest_delta_ + 0.3 * raw_delta;
-  }
-}
-
-std::vector<State> MPCNode::transform_path_to_local(
+std::vector<State> MPCNodeSim::transform_path_to_local(
     const nav_msgs::msg::Path::SharedPtr global_path, double rx, double ry,
     double rtheta) {
   std::vector<State> local_traj;
@@ -165,7 +225,7 @@ std::vector<State> MPCNode::transform_path_to_local(
   return local_traj;
 }
 
-void MPCNode::control_loop() {
+void MPCNodeSim::control_loop() {
   if (!current_path_ || current_path_->poses.empty()) {
     RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
                          "Waiting for path...");
@@ -208,6 +268,7 @@ void MPCNode::control_loop() {
     for (const auto &p : current_path_->poses) {
       State s;
       s.x = p.pose.position.x;
+      // ROS (Y-Left) to MPC Model (Y-Left) - Standard
       s.y = p.pose.position.y;
       s.theta = tf2::getYaw(p.pose.orientation);
       local_path.push_back(s);
@@ -254,8 +315,9 @@ void MPCNode::control_loop() {
   if (!optimal_controls.empty()) {
     // 次の状態をモデルで予測して目標速度/角度を決定
     State next_state = step_model(current_state, optimal_controls[0], dt_);
-    double target_v = next_state.v * velocity_gain_; // 速度ゲインを適用
-    target_v = std::min(target_v, max_v_);           // 最大速度制限を適用
+    double target_v = std::max(
+        0.0, next_state.v * velocity_gain_); // 速度ゲインを適用 (後退防止)
+    target_v = std::min(target_v, max_v_);   // 最大速度制限を適用
     double target_delta = next_state.delta;
     // ステアリングゲインを適用
     double target_omega =
@@ -267,6 +329,10 @@ void MPCNode::control_loop() {
     cmd.angular.z = target_omega;
     pub_cmd_vel_->publish(cmd);
 
+    // RCLCPP_INFO(this->get_logger(),
+    //             "Control: v=%.4f, omega=%.4f (next_v=%.4f, delta=%.4f)",
+    //             target_v, target_omega, next_state.v, target_delta);
+
     // 次回の計算のために予測履歴をシフト
     predicted_controls_ = optimal_controls;
     predicted_controls_.erase(predicted_controls_.begin());
@@ -274,7 +340,7 @@ void MPCNode::control_loop() {
   }
 }
 
-State MPCNode::step_model(const State &s, const Control &u, double dt) {
+State MPCNodeSim::step_model(const State &s, const Control &u, double dt) {
   State next;
   // 運動学自転車モデル (Kinematic Bicycle Model + Slip Angle)
   // x_{k+1} = x_k + v_k * cos(theta_k + delta_k) * dt
@@ -293,8 +359,8 @@ State MPCNode::step_model(const State &s, const Control &u, double dt) {
 }
 
 std::vector<Control>
-MPCNode::solve_mpc(const State &current_state,
-                   const std::vector<State> &reference_trajectory) {
+MPCNodeSim::solve_mpc(const State &current_state,
+                      const std::vector<State> &reference_trajectory) {
   int N = horizon_;
 
   // 入力データを配列にパック
@@ -336,11 +402,12 @@ MPCNode::solve_mpc(const State &current_state,
 } // namespace path_tracker
 
 #include "rclcpp_components/register_node_macro.hpp"
-RCLCPP_COMPONENTS_REGISTER_NODE(path_tracker::MPCNode)
+RCLCPP_COMPONENTS_REGISTER_NODE(path_tracker::MPCNodeSim)
 
 int main(int argc, char **argv) {
   rclcpp::init(argc, argv);
-  rclcpp::spin(std::make_shared<path_tracker::MPCNode>(rclcpp::NodeOptions()));
+  rclcpp::spin(
+      std::make_shared<path_tracker::MPCNodeSim>(rclcpp::NodeOptions()));
   rclcpp::shutdown();
   return 0;
 }

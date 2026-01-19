@@ -26,6 +26,7 @@ setup(
     entry_points={
         'console_scripts': [
             'inference_node = e2e_planner.inference_node:main',
+            'image_binarizer_node = e2e_planner.image_binarizer_node:main',
         ],
     },
 )

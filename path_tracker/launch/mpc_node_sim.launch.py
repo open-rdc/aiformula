@@ -12,18 +12,18 @@ def generate_launch_description():
         description='Topic name for the input path'
     )
 
-    mpc_node = Node(
+    mpc_node_sim = Node(
         package='path_tracker',
-        executable='mpc_node',
-        name='mpc_node',
+        executable='mpc_node_sim',
+        name='mpc_node_sim',
         output='screen',
         remappings=[
             ('e2e_planner/path', LaunchConfiguration('path_topic'))
         ],
         parameters=[{
-            'velocity_gain': 1.573,
-            'steer_gain': 1.468,
-            'max_v': 2.0,
+            'velocity_gain': 1.0,
+            'steer_gain': 1.0,
+            'max_v': 4.0,
             'max_accel': 2.0,
             'goal_tolerance': 0.1
         }]
@@ -31,5 +31,5 @@ def generate_launch_description():
 
     return LaunchDescription([
         path_topic_arg,
-        mpc_node
+        mpc_node_sim
     ])
