@@ -9,16 +9,15 @@ FrenetPlannerNode::FrenetPlannerNode(const rclcpp::NodeOptions& options)
 
 FrenetPlannerNode::FrenetPlannerNode(const std::string& name_space, const rclcpp::NodeOptions& options)
 : rclcpp::Node("frenet_planner_node", name_space, options),
+  risk_calculator_(),
+  frenet_planner_(risk_calculator_),
+  obstacle_detector_(),
   wheelbase_(get_parameter("wheelbase").as_double()),
   caster_max_angle_(get_parameter("caster_max_angle").as_double())
 {
-    risk_calculator_ = std::make_shared<RiskCalculator>();
-    frenet_planner_ = std::make_unique<FrenetPlanner>(risk_calculator_);
-    obstacle_detector_ = std::make_unique<ObstacleDetector>();
-
     double max_curvature = std::tan(caster_max_angle_ * M_PI / 180.0) / wheelbase_;
 
-    frenet_planner_->set_parameters(
+    frenet_planner_.set_parameters(
         get_parameter("linear_max.vel").as_double(),
         get_parameter("linear_max.acc").as_double(),
         max_curvature,
@@ -31,7 +30,7 @@ FrenetPlannerNode::FrenetPlannerNode(const std::string& name_space, const rclcpp
         get_parameter("linear_max.vel").as_double(),
         get_parameter("safety_margin").as_double()
     );
-    risk_calculator_->set_parameters(
+    risk_calculator_.set_parameters(
         get_parameter("k_jerk").as_double(),
         get_parameter("k_time").as_double(),
         get_parameter("k_d").as_double(),
@@ -91,16 +90,16 @@ void FrenetPlannerNode::path_callback(const nav_msgs::msg::Path::SharedPtr msg){
 
     global_path_ = msg;
     std::vector<Obstacle> obstacles;
-    obstacles = obstacle_detector_->detect_obstacles(pointcloud_);
+    obstacles = obstacle_detector_.detect_obstacles(pointcloud_);
     pointcloud_ = nullptr;
 
-    local_path_ = obstacles.empty() ? global_path_  : std::make_shared<nav_msgs::msg::Path>(frenet_planner_->plan_local_path(global_path_, obstacles, current_twist_));
+    local_path_ = obstacles.empty() ? global_path_  : std::make_shared<nav_msgs::msg::Path>(frenet_planner_.plan_local_path(global_path_, obstacles, current_twist_));
 
     if (!local_path_) {
         local_path_ = global_path_;
     }
 
-    auto marker_array = obstacle_detector_->obstacles_to_marker_array(obstacles, global_path_->header.frame_id, this->now());
+    auto marker_array = obstacle_detector_.obstacles_to_marker_array(obstacles, global_path_->header.frame_id, this->now());
     pub_obstacle_markers_->publish(marker_array);
     pub_local_path_->publish(*local_path_);
 }

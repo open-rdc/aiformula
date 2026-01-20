@@ -44,9 +44,9 @@ private:
     nav_msgs::msg::Path::SharedPtr local_path_;
     geometry_msgs::msg::Twist current_twist_;
 
-    std::unique_ptr<FrenetPlanner> frenet_planner_;
-    std::unique_ptr<ObstacleDetector> obstacle_detector_;
-    std::shared_ptr<RiskCalculator> risk_calculator_;
+    RiskCalculator risk_calculator_;
+    FrenetPlanner frenet_planner_;
+    ObstacleDetector obstacle_detector_;
 
     const double wheelbase_;
     const double caster_max_angle_;

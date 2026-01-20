@@ -4,7 +4,6 @@
 #include <cmath>
 #include <limits>
 #include <algorithm>
-#include <memory>
 #include <Eigen/Dense>
 #include <nav_msgs/msg/path.hpp>
 #include <geometry_msgs/msg/pose_stamped.hpp>
@@ -157,7 +156,7 @@ struct FrenetTrajectory {
 
 class FrenetPlanner {
 public:
-    explicit FrenetPlanner(std::shared_ptr<RiskCalculator> risk_calculator);
+    explicit FrenetPlanner(RiskCalculator& risk_calculator);
 
     void set_parameters(
         double max_speed,
@@ -196,7 +195,7 @@ private:
     const double robot_radius_ = 0.5;
     double safety_margin_;
 
-    std::shared_ptr<RiskCalculator> risk_calculator_;
+    RiskCalculator& risk_calculator_;
 
     std::vector<FrenetTrajectory> generate_frenet_paths(
         const VehicleState& current_state,

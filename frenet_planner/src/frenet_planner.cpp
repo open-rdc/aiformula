@@ -6,8 +6,8 @@
 
 namespace frenet_planner {
 
-FrenetPlanner::FrenetPlanner(std::shared_ptr<RiskCalculator> risk_calculator)
-    : risk_calculator_(std::move(risk_calculator)) {
+FrenetPlanner::FrenetPlanner(RiskCalculator& risk_calculator)
+    : risk_calculator_(risk_calculator) {
 }
 
 void FrenetPlanner::set_parameters(
@@ -67,7 +67,7 @@ nav_msgs::msg::Path FrenetPlanner::plan_local_path(
             continue;
         }
 
-        fp.cost = risk_calculator_->calculate_cost(fp, obstacles);
+        fp.cost = risk_calculator_.calculate_cost(fp, obstacles);
         valid_count++;
     }
 
