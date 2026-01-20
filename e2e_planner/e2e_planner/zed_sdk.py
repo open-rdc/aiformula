@@ -95,9 +95,9 @@ class ZedSdk:
             ('z', np.float32),
             ('rgba', np.uint32),
         ])
-        cloud['x'] = points[:, 0]
-        cloud['y'] = points[:, 1]
-        cloud['z'] = points[:, 2]
+        cloud['x'] = points[:, 2]
+        cloud['y'] = -1 * points[:, 0]
+        cloud['z'] = -1 * points[:, 1]
         cloud['rgba'] = rgba
 
         fields = [
