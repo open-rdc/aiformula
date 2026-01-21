@@ -4,7 +4,6 @@
 #include <geometry_msgs/msg/twist.hpp>
 #include <nav_msgs/msg/path.hpp>
 #include <nav_msgs/msg/odometry.hpp>
-#include <std_msgs/msg/bool.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <visualization_msgs/msg/marker_array.hpp>
 #include <rmw/qos_profiles.h>
@@ -25,7 +24,6 @@ public:
 
 private:
     rclcpp::Subscription<nav_msgs::msg::Path>::SharedPtr sub_path_;
-    rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr sub_autonomous_;
     rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr sub_pointcloud_;
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr sub_odom_;
 
@@ -37,7 +35,6 @@ private:
         rmw_qos_profile_sensor_data
     };
 
-    bool autonomous_flag_ = false;
 
     nav_msgs::msg::Path::SharedPtr global_path_;
     sensor_msgs::msg::PointCloud2::SharedPtr pointcloud_;
@@ -52,7 +49,6 @@ private:
     const double caster_max_angle_;
 
     void path_callback(const nav_msgs::msg::Path::SharedPtr msg);
-    void autonomous_callback(const std_msgs::msg::Bool::SharedPtr msg);
     void pointcloud_callback(const sensor_msgs::msg::PointCloud2::SharedPtr msg);
     void odom_callback(const nav_msgs::msg::Odometry::SharedPtr msg);
 };

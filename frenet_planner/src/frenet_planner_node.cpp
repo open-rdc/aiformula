@@ -43,11 +43,6 @@ FrenetPlannerNode::FrenetPlannerNode(const std::string& name_space, const rclcpp
         rclcpp::QoS(10),
         std::bind(&FrenetPlannerNode::path_callback, this, std::placeholders::_1)
     );
-    sub_autonomous_ = this->create_subscription<std_msgs::msg::Bool>(
-        "/autonomous",
-        rclcpp::QoS(10),
-        std::bind(&FrenetPlannerNode::autonomous_callback, this, std::placeholders::_1)
-    );
     sub_pointcloud_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
         "/zed/zed_node/pointcloud",
         qos_,
@@ -65,10 +60,6 @@ FrenetPlannerNode::FrenetPlannerNode(const std::string& name_space, const rclcpp
     RCLCPP_INFO(this->get_logger(), "FrenetPlanner node has been initialized.");
 }
 
-void FrenetPlannerNode::autonomous_callback(const std_msgs::msg::Bool::SharedPtr msg){
-    autonomous_flag_ = msg->data;
-}
-
 void FrenetPlannerNode::pointcloud_callback(const sensor_msgs::msg::PointCloud2::SharedPtr msg){
     pointcloud_ = msg;
 }
@@ -78,13 +69,7 @@ void FrenetPlannerNode::odom_callback(const nav_msgs::msg::Odometry::SharedPtr m
 }
 
 void FrenetPlannerNode::path_callback(const nav_msgs::msg::Path::SharedPtr msg){
-    if (!autonomous_flag_) {
-        RCLCPP_WARN(this->get_logger(), "returned autonomous flag is false.");
-        return;
-    }
-
-    if (!msg || msg->poses.empty() || !pointcloud_) {
-        RCLCPP_WARN(this->get_logger(), "returned path msg empty or pointcloud empty.");
+    if (msg->poses.empty()) {
         return;
     }
 
