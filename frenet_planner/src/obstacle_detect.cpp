@@ -17,6 +17,10 @@ ObstacleDetector::VoxelKey ObstacleDetector::get_voxel_key(double x, double y, d
 std::vector<Obstacle> ObstacleDetector::detect_obstacles(
     const sensor_msgs::msg::PointCloud2::SharedPtr pointcloud
 ) {
+    if (pointcloud->data.empty()) {
+        return {};
+    }
+
     std::vector<Obstacle> obstacles;
     std::unordered_map<VoxelKey, Obstacle, VoxelKeyHash> voxel_map;
 
