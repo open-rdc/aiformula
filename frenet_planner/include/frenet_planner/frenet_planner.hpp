@@ -163,11 +163,8 @@ public:
         double max_accel,
         double max_curvature,
         double dt,
-        double sampling_min_d,
-        double sampling_max_d,
-        double d_t,
         double d_t_s,
-        double n_s_sample,
+        int n_s_sample,
         double target_speed,
         double safety_margin
     );
@@ -186,11 +183,8 @@ private:
     const double max_road_width_right_ = 4.0;
     const double d_road_width_ = 0.5;
     double dt_;
-    double sampling_min_d_;
-    double sampling_max_d_;
-    double d_t_;
     double d_t_s_;
-    double n_s_sample_;
+    int n_s_sample_;
     double target_speed_;
     const double robot_radius_ = 0.5;
     double safety_margin_;
@@ -201,7 +195,7 @@ private:
         const VehicleState& current_state,
         const nav_msgs::msg::Path::SharedPtr& reference_path);
 
-    FrenetTrajectory generate_lateral_trajectory_ds(
+    FrenetTrajectory generate_lateral_trajectory(
         const VehicleState& current_state,
         double target_d,
         const FrenetTrajectory& longitudinal_traj);

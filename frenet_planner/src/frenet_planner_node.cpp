@@ -22,11 +22,8 @@ FrenetPlannerNode::FrenetPlannerNode(const std::string& name_space, const rclcpp
         get_parameter("linear_max.acc").as_double(),
         max_curvature,
         get_parameter("dt").as_double(),
-        get_parameter("sampling_min_d").as_double(),
-        get_parameter("sampling_max_d").as_double(),
-        get_parameter("d_t").as_double(),
         get_parameter("d_t_s").as_double(),
-        get_parameter("n_s_sample").as_double(),
+        get_parameter("n_s_sample").as_int(),
         get_parameter("linear_max.vel").as_double(),
         get_parameter("safety_margin").as_double()
     );
@@ -35,6 +32,8 @@ FrenetPlannerNode::FrenetPlannerNode(const std::string& name_space, const rclcpp
         get_parameter("k_time").as_double(),
         get_parameter("k_d").as_double(),
         get_parameter("k_s_dot").as_double(),
+        get_parameter("k_lat").as_double(),
+        get_parameter("k_lon").as_double(),
         get_parameter("linear_max.vel").as_double()
     );
 
