@@ -15,21 +15,15 @@ void FrenetPlanner::set_parameters(
     double max_accel,
     double max_curvature,
     double dt,
-    double sampling_min_d,
-    double sampling_max_d,
-    double d_t,
     double d_t_s,
-    double n_s_sample,
+    int n_s_sample,
     double target_speed,
     double safety_margin
 ) {
-    max_speed_ = max_speed;
+    max_speed_ = 10.0;
     max_accel_ = max_accel;
     max_curvature_ = max_curvature;
     dt_ = dt;
-    sampling_min_d_ = sampling_min_d / max_speed;
-    sampling_max_d_ = sampling_max_d / max_speed;
-    d_t_ = d_t;
     d_t_s_ = d_t_s;
     n_s_sample_ = n_s_sample;
     target_speed_ = target_speed;
@@ -110,6 +104,10 @@ std::vector<FrenetTrajectory> FrenetPlanner::generate_frenet_paths(
     std::vector<FrenetTrajectory> longitudinal_trajectories;
     std::vector<FrenetTrajectory> frenet_paths;
 
+    if (!reference_path || reference_path->poses.size() < 2) {
+        return frenet_paths;
+    }
+
     std::vector<double> ref_x;
     std::vector<double> ref_y;
     ref_x.reserve(reference_path->poses.size());
@@ -120,25 +118,24 @@ std::vector<FrenetTrajectory> FrenetPlanner::generate_frenet_paths(
     }
     ReferenceCurve reference_curve(ref_x, ref_y);
 
-    double min_t = sampling_min_d_;
-    double max_t = sampling_max_d_;
-
     double max_s_available = reference_curve.max_s();
+    double min_t = 0.8 * max_s_available / target_speed_;
+    double max_t = max_s_available / target_speed_;
+
     double max_t_for_path = max_s_available / std::max(1e-3, target_speed_);
     double max_t_adjusted = std::min(max_t, max_t_for_path);
+    double min_t_adjusted = std::min(min_t, max_t_adjusted);
 
-    size_t n_time_samples = static_cast<size_t>((max_t_adjusted - min_t) / d_t_) + 1;
+    size_t n_time_samples = static_cast<size_t>((max_t_adjusted - min_t_adjusted) / dt_) + 1;
     size_t n_lateral_samples = static_cast<size_t>((max_road_width_left_ + max_road_width_right_) / d_road_width_) + 1;
-    int n_speed_sample = std::max(0, static_cast<int>(std::round(n_s_sample_)));
-    double dv = std::abs(target_speed_) * d_t_s_;
-    if (dv < 1e-3) {
-        dv = 0.1;
-    }
+    
+    int n_speed_sample = std::max(0, n_s_sample_);
+    double dv = std::abs(d_t_s_);
     size_t n_speed_samples = static_cast<size_t>(2 * n_speed_sample + 1);
 
     longitudinal_trajectories.reserve(n_time_samples * n_speed_samples);
 
-    for (double T = min_t; T <= max_t_adjusted; T += d_t_) {
+    for (double T = min_t_adjusted; T <= max_t_adjusted; T += dt_) {
         for (int i = -n_speed_sample; i <= n_speed_sample; ++i) {
             double tv = target_speed_ + static_cast<double>(i) * dv;
             if (tv < 0.0) {
@@ -222,7 +219,7 @@ void FrenetPlanner::combine_trajectories(
                     continue;
                 }
 
-                FrenetTrajectory lat = generate_lateral_trajectory_ds(current_state, target_d, lon);
+                FrenetTrajectory lat = generate_lateral_trajectory(current_state, target_d, lon);
                 if (lat.t.size() != lon.t.size()) {
                     continue;
                 }
@@ -272,12 +269,9 @@ void FrenetPlanner::combine_trajectories(
             }
         }
     }
-
-    RCLCPP_DEBUG(rclcpp::get_logger("frenet_planner"),
-        "Combined %zu trajectories", frenet_paths.size());
 }
 
-FrenetTrajectory FrenetPlanner::generate_lateral_trajectory_ds(
+FrenetTrajectory FrenetPlanner::generate_lateral_trajectory(
     const VehicleState& current_state,
     double target_d,
     const FrenetTrajectory& longitudinal_traj) {
@@ -289,23 +283,15 @@ FrenetTrajectory FrenetPlanner::generate_lateral_trajectory_ds(
         return trajectory;
     }
 
-    const double s0 = longitudinal_traj.s.front();
-    const double send = longitudinal_traj.s.back();
-    const double ds_total = std::max(1e-6, send - s0);
-
-    const double s_dot0 = std::max(1e-3, current_state.s_dot);
-    const double d_s = current_state.d_dot / s_dot0;
-    const double d_ss = (current_state.d_ddot * s_dot0 - current_state.d_dot * current_state.s_ddot) /
-                        (s_dot0 * s_dot0 * s_dot0);
-
+    const double T = longitudinal_traj.t.back();
     QuinticPolynomial lat_qp(
         current_state.d,
-        d_s,
-        d_ss,
+        current_state.d_dot,
+        current_state.d_ddot,
         target_d,
         0.0,
         0.0,
-        ds_total
+        T
     );
 
     const size_t n_points = longitudinal_traj.s.size();
@@ -322,21 +308,19 @@ FrenetTrajectory FrenetPlanner::generate_lateral_trajectory_ds(
     trajectory.d_dddot.reserve(n_points);
 
     for (size_t i = 0; i < n_points; ++i) {
-        const double ds = std::max(0.0, longitudinal_traj.s[i] - s0);
-        const double d = lat_qp.calc_point(ds);
-        const double d_s_i = lat_qp.calc_first_derivative(ds);
-        const double d_ss_i = lat_qp.calc_second_derivative(ds);
-        const double d_sss_i = lat_qp.calc_third_derivative(ds);
+        const double t = longitudinal_traj.t[i];
+        const double d = lat_qp.calc_point(t);
+        const double d_dot_t = lat_qp.calc_first_derivative(t);
+        const double d_ddot_t = lat_qp.calc_second_derivative(t);
+        const double d_dddot_t = lat_qp.calc_third_derivative(t);
 
         const double s_dot = longitudinal_traj.s_dot[i];
         const double s_ddot = longitudinal_traj.s_ddot[i];
-        const double s_dddot = longitudinal_traj.s_dddot[i];
+        const double s_dot_inv = 1.0 / (std::abs(s_dot) + 1e-6);
+        const double s_dot_inv_sq = s_dot_inv * s_dot_inv;
 
-        const double d_dot_t = d_s_i * s_dot;
-        const double d_ddot_t = d_ss_i * s_dot * s_dot + d_s_i * s_ddot;
-        const double d_dddot_t = d_sss_i * s_dot * s_dot * s_dot +
-                                 3.0 * d_ss_i * s_dot * s_ddot +
-                                 d_s_i * s_dddot;
+        const double d_s_i = d_dot_t * s_dot_inv;
+        const double d_ss_i = (d_ddot_t - d_s_i * s_ddot) * s_dot_inv_sq;
 
         trajectory.d.push_back(d);
         trajectory.d_s.push_back(d_s_i);
@@ -374,12 +358,6 @@ bool FrenetPlanner::check_collision(
 bool FrenetPlanner::check_path_validity(
     const FrenetTrajectory& trajectory,
     const std::vector<double>& reference_path_s) {
-    double max_s = reference_path_s.back();
-    double max_s_in_traj = *std::max_element(trajectory.s.begin(), trajectory.s.end());
-    if (max_s_in_traj > max_s * 1.2) {
-        return false;
-    }
-
     for (const auto& point : trajectory.points) {
         if (point.velocity > max_speed_) {
             return false;
@@ -402,6 +380,12 @@ void FrenetPlanner::get_frenet_state(const nav_msgs::msg::Path::SharedPtr& path,
     state.d = 0.0;
     state.d_ddot = 0.0;
     state.s_ddot = 0.0;
+
+    if (!path || path->poses.size() < 2) {
+        state.s_dot = 0.0;
+        state.d_dot = 0.0;
+        return;
+    }
 
     const double path1_x = path->poses[1].pose.position.x - path->poses[0].pose.position.x;
     const double path1_y = path->poses[1].pose.position.y - path->poses[0].pose.position.y;
