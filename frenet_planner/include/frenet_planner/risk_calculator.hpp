@@ -18,6 +18,8 @@ public:
         double k_time,
         double k_d,
         double k_s_dot,
+        double k_lat,
+        double k_lon,
         double target_speed
     );
 
@@ -31,8 +33,8 @@ private:
     double k_time_;
     double k_d_;
     double k_s_dot_;
-    const double k_lateral_ = 1.0;
-    const double k_longitudinal_ = 1.0;
+    double k_lateral_ = 1.0;
+    double k_longitudinal_ = 1.0;
     double target_speed_;
 };
 
