@@ -18,12 +18,16 @@ void RiskCalculator::set_parameters(
     double k_time,
     double k_d,
     double k_s_dot,
+    double k_lat,
+    double k_lon,
     double target_speed
 ) {
     k_jerk_ = k_jerk;
     k_time_ = k_time;
     k_d_ = k_d;
     k_s_dot_ = k_s_dot;
+    k_lateral_ = k_lat;
+    k_longitudinal_ = k_lon;
     target_speed_ = target_speed;
 }
 
