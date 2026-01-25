@@ -17,7 +17,7 @@ ObstacleDetector::VoxelKey ObstacleDetector::get_voxel_key(double x, double y, d
 std::vector<Obstacle> ObstacleDetector::detect_obstacles(
     const sensor_msgs::msg::PointCloud2::SharedPtr pointcloud
 ) {
-    if (pointcloud->data.empty()) {
+    if (!pointcloud || pointcloud->data.empty()) {
         return {};
     }
 
