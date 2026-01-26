@@ -47,10 +47,10 @@ FrenetPlannerNode::FrenetPlannerNode(const std::string& name_space, const rclcpp
         qos_,
         std::bind(&FrenetPlannerNode::pointcloud_callback, this, std::placeholders::_1)
     );
-    sub_odom_ = this->create_subscription<nav_msgs::msg::Odometry>(
-        "/zed/zed_node/odom",
+    sub_velocity_body_ = this->create_subscription<geometry_msgs::msg::TwistWithCovarianceStamped>(
+        "/vectornav/velocity_body",
         rclcpp::QoS(10),
-        std::bind(&FrenetPlannerNode::odom_callback, this, std::placeholders::_1)
+        std::bind(&FrenetPlannerNode::velocity_body_callback, this, std::placeholders::_1)
     );
 
     pub_local_path_ = this->create_publisher<nav_msgs::msg::Path>("frenet_planner/path", rclcpp::QoS(10));
@@ -63,7 +63,7 @@ void FrenetPlannerNode::pointcloud_callback(const sensor_msgs::msg::PointCloud2:
     pointcloud_ = msg;
 }
 
-void FrenetPlannerNode::odom_callback(const nav_msgs::msg::Odometry::SharedPtr msg){
+void FrenetPlannerNode::velocity_body_callback(const geometry_msgs::msg::TwistWithCovarianceStamped::SharedPtr msg){
     current_twist_ = msg->twist.twist;
 }
 
