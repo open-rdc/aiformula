@@ -79,7 +79,7 @@ class ZedSdk:
             return None
 
         y = points[:, 1]
-        in_range = (y >= -0.3) & (y <= 0.5)
+        in_range = (y >= -0.2) & (y <= 0.2)
         points = points[in_range]
         if points.size == 0:
             return None
