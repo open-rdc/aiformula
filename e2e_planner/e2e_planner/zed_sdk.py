@@ -3,7 +3,6 @@ from typing import Optional
 import cv2
 import numpy as np
 import pyzed.sl as sl
-from nav_msgs.msg import Odometry
 from sensor_msgs.msg import PointCloud2, PointField
 from sensor_msgs_py import point_cloud2
 
@@ -22,14 +21,8 @@ class ZedSdk:
         if err != sl.ERROR_CODE.SUCCESS:
             raise RuntimeError(f'Failed to open ZED camera: {err}')
 
-        tracking_params = sl.PositionalTrackingParameters()
-        err = self._camera.enable_positional_tracking(tracking_params)
-        if err != sl.ERROR_CODE.SUCCESS:
-            raise RuntimeError(f'Failed to enable positional tracking: {err}')
-
         self._image = sl.Mat()
         self._pointcloud = sl.Mat()
-        self._pose = sl.Pose()
         self._runtime = sl.RuntimeParameters()
 
         self._logger.info('ZED camera initialized successfully')
@@ -44,27 +37,6 @@ class ZedSdk:
             return None
         height, width = image.shape[:2]
         return cv2.resize(image, (width // 2, height // 2))
-
-    def get_odom(self, header) -> Optional[Odometry]:
-        tracking_state = self._camera.get_position(self._pose, sl.REFERENCE_FRAME.WORLD)
-        if tracking_state != sl.POSITIONAL_TRACKING_STATE.OK:
-            return None
-
-        translation = self._pose.get_translation().get()
-        orientation = self._pose.get_orientation().get()
-
-        odom_msg = Odometry()
-        odom_msg.header = header
-        odom_msg.header.frame_id = 'odom'
-        odom_msg.child_frame_id = 'base_link'
-        odom_msg.pose.pose.position.x = float(translation[0])
-        odom_msg.pose.pose.position.y = float(translation[1])
-        odom_msg.pose.pose.position.z = float(translation[2])
-        odom_msg.pose.pose.orientation.x = float(orientation[0])
-        odom_msg.pose.pose.orientation.y = float(orientation[1])
-        odom_msg.pose.pose.orientation.z = float(orientation[2])
-        odom_msg.pose.pose.orientation.w = float(orientation[3])
-        return odom_msg
 
     def get_pointcloud(self, header) -> Optional[PointCloud2]:
         self._camera.retrieve_measure(self._pointcloud, sl.MEASURE.XYZRGBA)

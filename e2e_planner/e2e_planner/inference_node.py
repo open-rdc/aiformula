@@ -2,7 +2,6 @@ import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Image, PointCloud2
 from nav_msgs.msg import Path
-from nav_msgs.msg import Odometry
 from geometry_msgs.msg import PoseStamped, Pose, Point
 from cv_bridge import CvBridge
 import cv2
@@ -75,7 +74,6 @@ class InferenceNode(Node):
 
         self.pub_raw = self.create_publisher(Path, 'e2e_planner/path_raw', qos_profile_system_default)
         self.pub = self.create_publisher(Path, 'e2e_planner/path', qos_profile_system_default)
-        self.pub_odom = self.create_publisher(Odometry, '/zed/zed_node/odom', qos_profile_system_default)
         self.pub_pointcloud = self.create_publisher(PointCloud2, '/zed/zed_node/pointcloud', qos_profile_sensor_data)
         
         if self.debug_mode_:
@@ -107,10 +105,6 @@ class InferenceNode(Node):
             header = Header()
             header.stamp = self.get_clock().now().to_msg()
             header.frame_id = 'base_link'
-
-            odom_msg = self.zed.get_odom(header)
-            if odom_msg is not None:
-                self.pub_odom.publish(odom_msg)
 
             pointcloud_msg = self.zed.get_pointcloud(header)
             if pointcloud_msg is not None:
