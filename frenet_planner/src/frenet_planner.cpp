@@ -135,7 +135,8 @@ std::vector<FrenetTrajectory> FrenetPlanner::generate_frenet_paths(
 
     longitudinal_trajectories.reserve(n_time_samples * n_speed_samples);
 
-    for (double T = min_t_adjusted; T <= max_t_adjusted; T += dt_) {
+    for (size_t t_index = 0; t_index < n_time_samples; ++t_index) {
+        const double T = min_t_adjusted + static_cast<double>(t_index) * dt_;
         for (int i = -n_speed_sample; i <= n_speed_sample; ++i) {
             double tv = target_speed_ + static_cast<double>(i) * dv;
             if (tv < 0.0) {
@@ -144,7 +145,6 @@ std::vector<FrenetTrajectory> FrenetPlanner::generate_frenet_paths(
             FrenetTrajectory lon_traj = generate_longitudinal_trajectory(current_state, tv, T);
             longitudinal_trajectories.push_back(std::move(lon_traj));
         }
-
     }
 
     combine_trajectories(
