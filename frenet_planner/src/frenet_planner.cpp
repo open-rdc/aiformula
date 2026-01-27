@@ -38,29 +38,13 @@ nav_msgs::msg::Path FrenetPlanner::plan_local_path(
     nav_msgs::msg::Path local_path;
     local_path.header = reference_path->header;
 
-    std::vector<double> reference_path_s(reference_path->poses.size(), 0.0);
-    for (size_t i = 1; i < reference_path->poses.size(); ++i) {
-        double dx = reference_path->poses[i].pose.position.x - reference_path->poses[i-1].pose.position.x;
-        double dy = reference_path->poses[i].pose.position.y - reference_path->poses[i-1].pose.position.y;
-        reference_path_s[i] = reference_path_s[i-1] + std::hypot(dx, dy);
-    }
-
     VehicleState current_state;
     get_frenet_state(reference_path, current_twist, current_state);
-    std::vector<FrenetTrajectory> frenet_paths = generate_frenet_paths(current_state, reference_path);
+    std::vector<FrenetTrajectory> frenet_paths = generate_frenet_paths(
+        current_state, reference_path, obstacles);
 
     int valid_count = 0;
     for (auto& fp : frenet_paths) {
-        if (check_collision(fp, obstacles)) {
-            fp.valid = false;
-            continue;
-        }
-
-        if (!check_path_validity(fp, reference_path_s)) {
-            fp.valid = false;
-            continue;
-        }
-
         fp.cost = risk_calculator_.calculate_cost(fp, obstacles);
         valid_count++;
     }
@@ -100,7 +84,8 @@ nav_msgs::msg::Path FrenetPlanner::plan_local_path(
 
 std::vector<FrenetTrajectory> FrenetPlanner::generate_frenet_paths(
     const VehicleState& current_state,
-    const nav_msgs::msg::Path::SharedPtr& reference_path) {
+    const nav_msgs::msg::Path::SharedPtr& reference_path,
+    const std::vector<Obstacle>& obstacles) {
     std::vector<FrenetTrajectory> longitudinal_trajectories;
     std::vector<FrenetTrajectory> frenet_paths;
 
@@ -154,7 +139,8 @@ std::vector<FrenetTrajectory> FrenetPlanner::generate_frenet_paths(
         reference_curve,
         n_time_samples,
         n_lateral_samples,
-        n_speed_samples
+        n_speed_samples,
+        obstacles
     );
 
     return frenet_paths;
@@ -203,9 +189,13 @@ void FrenetPlanner::combine_trajectories(
     const ReferenceCurve& reference_curve,
     size_t n_time_samples,
     size_t n_lateral_samples,
-    size_t n_speed_samples
+    size_t n_speed_samples,
+    const std::vector<Obstacle>& obstacles
 ) {
     frenet_paths.reserve(n_time_samples * n_lateral_samples * n_speed_samples);
+    const bool has_obstacles = !obstacles.empty();
+    const double collision_threshold = robot_radius_ + safety_margin_;
+    const double collision_threshold_sq = collision_threshold * collision_threshold;
 
     for (size_t i = 0; i < n_time_samples; ++i) {
         const size_t lon_base = i * n_speed_samples;
@@ -237,9 +227,10 @@ void FrenetPlanner::combine_trajectories(
                 fp.s_ddot = lon.s_ddot;
                 fp.s_dddot = lon.s_dddot;
                 fp.cost = 0.0;
-                fp.valid = true;
+                fp.valid = false;
                 fp.points.reserve(fp.s.size());
 
+                bool valid = true;
                 for (size_t m = 0; m < fp.s.size(); ++m) {
                     FrenetState frenet_state{
                         fp.s[m],
@@ -262,9 +253,36 @@ void FrenetPlanner::combine_trajectories(
                     point.velocity = cartesian_state.velocity;
                     point.acceleration = cartesian_state.acceleration;
 
+                    if (std::abs(point.velocity) > max_speed_ ||
+                        std::abs(point.acceleration) > max_accel_ ||
+                        std::abs(point.curvature) > max_curvature_) {
+                        valid = false;
+                        break;
+                    }
+
+                    if (has_obstacles) {
+                        for (const auto& obs : obstacles) {
+                            const double dx = point.x - obs.x;
+                            const double dy = point.y - obs.y;
+                            const double dist_sq = dx * dx + dy * dy;
+                            if (dist_sq < collision_threshold_sq) {
+                                valid = false;
+                                break;
+                            }
+                        }
+                        if (!valid) {
+                            break;
+                        }
+                    }
+
                     fp.points.push_back(point);
                 }
 
+                if (!valid) {
+                    continue;
+                }
+
+                fp.valid = true;
                 frenet_paths.push_back(std::move(fp));
             }
         }
@@ -332,47 +350,6 @@ FrenetTrajectory FrenetPlanner::generate_lateral_trajectory(
 
     trajectory.cost = 0.0;
     return trajectory;
-}
-
-bool FrenetPlanner::check_collision(
-    const FrenetTrajectory& trajectory,
-    const std::vector<Obstacle>& obstacles
-) {
-    double collision_threshold = robot_radius_ + safety_margin_;
-
-    for (const auto& point : trajectory.points) {
-        for (const auto& obs : obstacles) {
-            double dx = point.x - obs.x;
-            double dy = point.y - obs.y;
-            double distance = std::hypot(dx, dy);
-
-            if (distance < collision_threshold) {
-                return true;
-            }
-        }
-    }
-
-    return false;
-}
-
-bool FrenetPlanner::check_path_validity(
-    const FrenetTrajectory& trajectory,
-    const std::vector<double>& reference_path_s) {
-    for (const auto& point : trajectory.points) {
-        if (point.velocity > max_speed_) {
-            return false;
-        }
-
-        if (std::abs(point.acceleration) > max_accel_) {
-            return false;
-        }
-
-        if (std::abs(point.curvature) > max_curvature_) {
-            return false;
-        }
-    }
-
-    return true;
 }
 
 void FrenetPlanner::get_frenet_state(const nav_msgs::msg::Path::SharedPtr& path, const geometry_msgs::msg::Twist& current_twist, VehicleState& state) {

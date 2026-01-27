@@ -193,7 +193,8 @@ private:
 
     std::vector<FrenetTrajectory> generate_frenet_paths(
         const VehicleState& current_state,
-        const nav_msgs::msg::Path::SharedPtr& reference_path);
+        const nav_msgs::msg::Path::SharedPtr& reference_path,
+        const std::vector<Obstacle>& obstacles);
 
     FrenetTrajectory generate_lateral_trajectory(
         const VehicleState& current_state,
@@ -212,17 +213,9 @@ private:
         const ReferenceCurve& reference_curve,
         size_t n_time_samples,
         size_t n_lateral_samples,
-        size_t n_speed_samples
-    );
-
-    bool check_collision(
-        const FrenetTrajectory& trajectory,
+        size_t n_speed_samples,
         const std::vector<Obstacle>& obstacles
     );
-
-    bool check_path_validity(
-        const FrenetTrajectory& trajectory,
-        const std::vector<double>& reference_path_s);
 
     void get_frenet_state(
         const nav_msgs::msg::Path::SharedPtr& path,
