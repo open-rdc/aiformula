@@ -54,12 +54,13 @@ FrenetPlannerNode::FrenetPlannerNode(const std::string& name_space, const rclcpp
     );
 
     pub_local_path_ = this->create_publisher<nav_msgs::msg::Path>("frenet_planner/path", rclcpp::QoS(10));
-    pub_obstacle_markers_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("obstacle_markers", rclcpp::QoS(10));
+    pub_obstacle_markers_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("obstacle_markers", qos_);
 
     RCLCPP_INFO(this->get_logger(), "FrenetPlanner node has been initialized.");
 }
 
 void FrenetPlannerNode::pointcloud_callback(const sensor_msgs::msg::PointCloud2::SharedPtr msg){
+    pointcloud_ = nullptr;
     pointcloud_ = msg;
 }
 
@@ -75,7 +76,6 @@ void FrenetPlannerNode::path_callback(const nav_msgs::msg::Path::SharedPtr msg){
     global_path_ = msg;
     std::vector<Obstacle> obstacles;
     obstacles = obstacle_detector_.detect_obstacles(pointcloud_);
-    pointcloud_ = nullptr;
 
     local_path_ = obstacles.empty() ? global_path_  : std::make_shared<nav_msgs::msg::Path>(frenet_planner_.plan_local_path(global_path_, obstacles, current_twist_));
 
