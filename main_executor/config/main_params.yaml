@@ -14,8 +14,8 @@ launch: #起動パラメータ
       jer: 0.0
     # 回転  速度[deg/s],加速度[deg/s^2],加減速度[-deg/s^2],躍度[deg/s^3]
     angular_max :
-      vel: 90.0
-      acc: 240.0
+      vel: 30.0
+      acc: 90.0
       jer: 0.0
 
     tread : 0.6
@@ -34,14 +34,15 @@ chassis_driver_node:
     reduction_ratio : 1.0
     reverse_left_flag : false
     reverse_right_flag : false
-    caster_max_angle : 15.0 # [deg]
-    caster_max_count : 16384
-    caster_gear_ratio : 0.59090909090909
-    caster_wheel_radius : 0.12 # [m]
-    motor_max_torque : 1.0 # [Nm]
-    p_gain : 6.0
-    i_gain : 0.0
-    d_gain : 0.0
+    caster:
+      max_angle : 15.0 # [deg]
+      max_count : 16384
+      gear_ratio : 0.59090909090909
+      wheel_radius : 0.12 # [m]
+    drive_pid:
+      p_gain : 1.0
+      i_gain : 0.0
+      d_gain : 0.0
 
 socketcan_interface_node:
   ros__parameters:

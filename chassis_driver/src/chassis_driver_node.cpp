@@ -21,10 +21,10 @@ wheelbase(get_parameter("wheelbase").as_double()),
 rotate_ratio(1.0 / get_parameter("reduction_ratio").as_double()),
 is_reverse_left(get_parameter("reverse_left_flag").as_bool()),
 is_reverse_right(get_parameter("reverse_right_flag").as_bool()),
-caster_max_count(get_parameter("caster_max_count").as_int()),
-caster_max_angle(dtor(get_parameter("caster_max_angle").as_double())),
-caster_gear_ratio(get_parameter("caster_gear_ratio").as_double()),
-caster_wheel_radius(this->get_parameter("caster_wheel_radius").as_double()),
+caster_max_count(get_parameter("caster.max_count").as_int()),
+caster_max_angle(dtor(get_parameter("caster.max_angle").as_double())),
+caster_gear_ratio(get_parameter("caster.gear_ratio").as_double()),
+caster_wheel_radius(this->get_parameter("caster.wheel_radius").as_double()),
 
 linear_limit(DBL_MAX,
 get_parameter("linear_max.vel").as_double(),
@@ -32,7 +32,9 @@ get_parameter("linear_max.acc").as_double()),
 
 angular_limit(DBL_MAX,
 dtor(get_parameter("angular_max.vel").as_double()),
-dtor(get_parameter("angular_max.acc").as_double()))
+dtor(get_parameter("angular_max.acc").as_double())),
+
+drive_pid(get_parameter("interval_ms").as_int())
 {
     _subscription_vel = this->create_subscription<geometry_msgs::msg::Twist>(
         "cmd_vel",
@@ -73,8 +75,10 @@ dtor(get_parameter("angular_max.acc").as_double()))
         [this] { _publisher_callback(); }
     );
 
+    // クラスのパラメータ設定
     linear_planner.limit(linear_limit);
     angular_planner.limit(angular_limit);
+    drive_pid.gain(get_parameter("drive_pid.p_gain").as_double(), get_parameter("drive_pid.i_gain").as_double(), get_parameter("drive_pid.d_gain").as_double());
 
     // ODriveのAxis Stateをクローズドループに設定（axis_requested_state: 8）
     auto request = std::make_shared<odrive_can::srv::AxisState::Request>();
@@ -128,19 +132,12 @@ void ChassisDriver::_publisher_callback(){
         publisher_odom->publish(odom_msg);
     }
 
-/*駆動輪制御*/
+/*速度計画*/
+    // 速度計画機の参照
     linear_planner.cycle();
     angular_planner.cycle();
-
-    if(mode == Mode::stop || mode == Mode::stay){
-        this->send_rpm(0.0, 0.0);
-        return;
-    }
-
-    // 速度計画機の参照 -> 送信
     const double linear_vel = linear_planner.vel();
     const double angular_vel = angular_planner.vel();
-    send_rpm(linear_vel, angular_vel);
 
     // （デバッグ用）ロボットの目標速度指令値を出版
     auto msg_ref_vel = std::make_shared<geometry_msgs::msg::TwistStamped>();
@@ -153,11 +150,8 @@ void ChassisDriver::_publisher_callback(){
 /*従動輪制御*/
     // 目標舵角の生成
     double delta = 0.0;
-    if(linear_vel == 0.0){
-        delta = 0.0;
-    }
-    else{
-        delta = std::asin((wheelbase*angular_vel) / linear_vel);
+    if(linear_vel > 0.001){
+        delta = std::atan((wheelbase*angular_vel) / linear_vel);
         if(std::isnan(delta)) delta = 0.0;
         delta = constrain(delta, -caster_max_angle, caster_max_angle);
     }
@@ -185,6 +179,15 @@ void ChassisDriver::_publisher_callback(){
     std_msgs::msg::Float64MultiArray caster_data_msg;
     caster_data_msg.data = {delta, caster_orientation, caster_rotation};
     publisher_caster_data->publish(caster_data_msg);
+
+/*駆動輪制御*/
+    if(mode == Mode::stop || mode == Mode::stay){
+        this->send_rpm(0.0, 0.0);
+        return;
+    }
+    const double angular_command = drive_pid.cycle(caster_orientation, delta) * (linear_vel*linear_vel);
+    RCLCPP_INFO(this->get_logger(), "ANG_CMD: %.2f", rtod(angular_command));
+    send_rpm(linear_vel, angular_command);
 }
 
 void ChassisDriver::_subscriber_callback_restart(const std_msgs::msg::Empty::SharedPtr msg){

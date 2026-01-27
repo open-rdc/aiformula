@@ -39,6 +39,7 @@ private:
     void _subscriber_callback_emergency(const socketcan_interface_msg::msg::SocketcanIF::SharedPtr msg);
     void _publisher_callback();
     void send_rpm(const double linear_vel, const double angular_vel);
+    static double normalize_angle(double angle);
 
     rclcpp::Publisher<socketcan_interface_msg::msg::SocketcanIF>::SharedPtr publisher_can;
     rclcpp::Publisher<geometry_msgs::msg::TwistStamped>::SharedPtr publisher_ref_vel;
@@ -56,6 +57,9 @@ private:
     const velplanner::Limit linear_limit;
     velplanner::VelPlanner angular_planner;
     const velplanner::Limit angular_limit;
+
+    // トルク差PID
+    controller::PositionPid drive_pid;
 
     // 定数
     const int interval_ms;
@@ -89,7 +93,6 @@ private:
         stop
     } mode = Mode::stay;
 
-    static double normalize_angle(double angle);
 };
 
 }  // namespace chassis_driver
