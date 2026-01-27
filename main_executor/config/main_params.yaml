@@ -1,9 +1,9 @@
 launch: #起動パラメータ
   ros__parameters:
-    joy: true
+    joy: false
     vectornav : false
     odrive : false
-    socketcan : true
+    socketcan : false
 
 /**:  #ワイルドカード(ここのパラメータは全ノードから読める: <名前に注意>)
   ros__parameters:
@@ -21,12 +21,11 @@ launch: #起動パラメータ
     tread : 0.6
     wheelbase : 0.823
 
-    autonomous_flag : false
 
-pure_pursuit_node:
+controller_node:
   ros__parameters:
-    lookahead_distance : 2.0
-
+    linear_max_vel : 1.0  #[m/s]
+    angular_max_vel : 60.0  #[deg/s]
 
 chassis_driver_node:
   ros__parameters:
@@ -48,9 +47,12 @@ socketcan_interface_node:
   ros__parameters:
     if_name : "can_main"
 
-# controller_node:
-#   ros__parameters:
 
+# 経路追従・追従
+pure_pursuit_node:
+  ros__parameters:
+
+    lookahead_distance : 2.0
 path_publisher_node:
   ros__parameters:
     interval_ms : 1000

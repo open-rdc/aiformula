@@ -27,11 +27,8 @@ private:
     void _subscriber_callback_joy(const sensor_msgs::msg::Joy::SharedPtr msg);
 
     rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr publisher_vel;
-    rclcpp::Publisher<std_msgs::msg::Empty>::SharedPtr publisher_stop;
     rclcpp::Publisher<std_msgs::msg::Empty>::SharedPtr publisher_restart;
-    rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr publisher_emergency;
     rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr publisher_autonomous;
-    rclcpp::Publisher<std_msgs::msg::Empty>::SharedPtr publisher_nav_start;
 
     rclcpp::QoS _qos = rclcpp::QoS(10);
 
@@ -39,13 +36,9 @@ private:
     const double angular_max_vel;
 
     bool is_autonomous = false;
-    bool is_emergency = false;
 
-    utils::UpEdge upedge_ps;
     utils::UpEdge upedge_share;
     utils::UpEdge upedge_options;
-    utils::UpEdge upedge_circle;
-    utils::UpEdge upedge_cross;
 
     enum class Axes{
         L_x,
