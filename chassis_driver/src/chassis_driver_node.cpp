@@ -22,7 +22,6 @@ rotate_ratio(1.0 / get_parameter("reduction_ratio").as_double()),
 is_reverse_left(get_parameter("reverse_left_flag").as_bool()),
 is_reverse_right(get_parameter("reverse_right_flag").as_bool()),
 caster_max_count(get_parameter("caster.max_count").as_int()),
-caster_max_angle(dtor(get_parameter("caster.max_angle").as_double())),
 caster_gear_ratio(get_parameter("caster.gear_ratio").as_double()),
 caster_wheel_radius(this->get_parameter("caster.wheel_radius").as_double()),
 
@@ -30,9 +29,8 @@ linear_limit(DBL_MAX,
 get_parameter("linear_max.vel").as_double(),
 get_parameter("linear_max.acc").as_double()),
 
-angular_limit(DBL_MAX,
-dtor(get_parameter("angular_max.vel").as_double()),
-dtor(get_parameter("angular_max.acc").as_double())),
+steering_limit(dtor(get_parameter("steering_max.pos").as_double()),
+DBL_MAX, DBL_MAX),
 
 drive_pid(get_parameter("interval_ms").as_int())
 {
@@ -61,6 +59,11 @@ drive_pid(get_parameter("interval_ms").as_int())
         _qos,
         std::bind(&ChassisDriver::_subscriber_callback_emergency, this, std::placeholders::_1)
     );
+    _subscription_bodyvel = this->create_subscription<geometry_msgs::msg::TwistWithCovarianceStamped>(
+        "body_vel",
+        _qos,
+        std::bind(&ChassisDriver::_subscriber_callback_bodyvel, this, std::placeholders::_1)
+    );
     publisher_can = this->create_publisher<socketcan_interface_msg::msg::SocketcanIF>("can_tx", _qos);
     publisher_ref_vel = this->create_publisher<geometry_msgs::msg::TwistStamped>("ref_vel", _qos);
     publisher_odrive = this->create_publisher<odrive_can::msg::ControlMessage>("/odrive_axis0/control_message", _qos);
@@ -77,7 +80,6 @@ drive_pid(get_parameter("interval_ms").as_int())
 
     // クラスのパラメータ設定
     linear_planner.limit(linear_limit);
-    angular_planner.limit(angular_limit);
     drive_pid.gain(get_parameter("drive_pid.p_gain").as_double(), get_parameter("drive_pid.i_gain").as_double(), get_parameter("drive_pid.d_gain").as_double());
 
     // ODriveのAxis Stateをクローズドループに設定（axis_requested_state: 8）
@@ -85,8 +87,8 @@ drive_pid(get_parameter("interval_ms").as_int())
     request->axis_requested_state = 8;
     auto future = odrive_axis_client_->async_send_request(request);
 
-    RCLCPP_INFO(this->get_logger(), "Chassis Driver Node has been started. max vel: %.2f m/s, max angular vel: %.2f deg/s",
-        linear_limit.vel, rtod(angular_limit.vel));
+    RCLCPP_INFO(this->get_logger(), "Chassis Driver Node has been started. max vel: %.2f m/s, steering angle: %.1f deg",
+        linear_limit.vel, rtod(steering_limit.pos));
 }
 
 void ChassisDriver::_subscriber_callback_vel(const geometry_msgs::msg::Twist::SharedPtr msg){
@@ -94,9 +96,8 @@ void ChassisDriver::_subscriber_callback_vel(const geometry_msgs::msg::Twist::Sh
     mode = Mode::cmd;
 
     const double linear_vel = constrain(msg->linear.x, -linear_limit.vel, linear_limit.vel);
-    const double angular_vel = constrain(msg->angular.z, -angular_limit.vel, angular_limit.vel);
+    steering_angle = constrain(msg->angular.z, -steering_limit.pos, steering_limit.pos);
     linear_planner.vel(linear_vel);
-    angular_planner.vel(angular_vel);
 }
 
 void ChassisDriver::_publisher_callback(){
@@ -135,9 +136,13 @@ void ChassisDriver::_publisher_callback(){
 /*速度計画*/
     // 速度計画機の参照
     linear_planner.cycle();
-    angular_planner.cycle();
     const double linear_vel = linear_planner.vel();
-    const double angular_vel = angular_planner.vel();
+    // 角速度の計算
+    double angular_vel = 0.0;
+    if(std::abs(linear_vel) > 0.1){
+        angular_vel = (linear_vel * std::tan(steering_angle)) / wheelbase;
+        if(std::isnan(angular_vel)) angular_vel = 0.0;
+    }
 
     // （デバッグ用）ロボットの目標速度指令値を出版
     auto msg_ref_vel = std::make_shared<geometry_msgs::msg::TwistStamped>();
@@ -150,11 +155,7 @@ void ChassisDriver::_publisher_callback(){
 /*従動輪制御*/
     // 目標舵角の生成
     double delta = 0.0;
-    if(linear_vel > 0.001){
-        delta = std::atan((wheelbase*angular_vel) / linear_vel);
-        if(std::isnan(delta)) delta = 0.0;
-        delta = constrain(delta, -caster_max_angle, caster_max_angle);
-    }
+    if(std::abs(linear_vel) > 0.1) delta = steering_angle;
 
     // モータ制御
     double motor_pos = 0.0;
@@ -185,7 +186,7 @@ void ChassisDriver::_publisher_callback(){
         this->send_rpm(0.0, 0.0);
         return;
     }
-    const double angular_command = drive_pid.cycle(caster_orientation, delta) * (linear_vel*linear_vel);
+    const double angular_command = drive_pid.cycle(caster_orientation, delta) * (current_body_vel.linear.x*current_body_vel.linear.x);
     RCLCPP_INFO(this->get_logger(), "ANG_CMD: %.2f", rtod(angular_command));
     send_rpm(linear_vel, angular_command);
 }
@@ -195,7 +196,6 @@ void ChassisDriver::_subscriber_callback_restart(const std_msgs::msg::Empty::Sha
 
     velplanner::Physics_t physics_zero(0.0, 0.0, 0.0);
     linear_planner.current(physics_zero);
-    angular_planner.current(physics_zero);
 
     caster_rotation_initialized = false;
     caster_rotation_count = 0;
@@ -244,6 +244,9 @@ void ChassisDriver::_subscriber_callback_emergency(const socketcan_interface_msg
         mode = Mode::stop;
         RCLCPP_INFO(this->get_logger(), "緊急停止!");
     }
+}
+void ChassisDriver::_subscriber_callback_bodyvel(const geometry_msgs::msg::TwistWithCovarianceStamped::SharedPtr msg){
+    current_body_vel = msg->twist.twist;
 }
 
 void ChassisDriver::send_rpm(const double linear_vel, const double angular_vel){

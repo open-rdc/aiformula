@@ -11,7 +11,7 @@ Controller::Controller(const rclcpp::NodeOptions& options) : Controller("", opti
 Controller::Controller(const std::string& name_space, const rclcpp::NodeOptions& options)
 : rclcpp::Node("controller_node", name_space, options),
 linear_max_vel(get_parameter("linear_max_vel").as_double()),
-angular_max_vel(dtor(get_parameter("angular_max_vel").as_double()))
+steering_max_angle(dtor(get_parameter("steering_max.pos").as_double()))
 {
     _subscription_joy = this->create_subscription<sensor_msgs::msg::Joy>(
         "joy",
@@ -44,7 +44,7 @@ void Controller::_subscriber_callback_joy(const sensor_msgs::msg::Joy::SharedPtr
     if(!is_autonomous){
         auto msg_vel = std::make_shared<geometry_msgs::msg::Twist>();
         msg_vel->linear.x = linear_max_vel * msg->axes[static_cast<int>(Axes::L_y)];
-        msg_vel->angular.z = angular_max_vel * msg->axes[static_cast<int>(Axes::R_x)];
+        msg_vel->angular.z = steering_max_angle * msg->axes[static_cast<int>(Axes::R_x)];
         publisher_vel->publish(*msg_vel);
     }
 

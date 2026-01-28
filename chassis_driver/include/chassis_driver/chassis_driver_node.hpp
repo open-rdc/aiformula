@@ -3,6 +3,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <geometry_msgs/msg/twist.hpp>
 #include <geometry_msgs/msg/twist_stamped.hpp>
+#include <geometry_msgs/msg/twist_with_covariance_stamped.hpp>
 #include <std_msgs/msg/empty.hpp>
 #include <std_msgs/msg/float64_multi_array.hpp>
 #include <nav_msgs/msg/odometry.hpp>
@@ -30,6 +31,7 @@ private:
     rclcpp::Subscription<socketcan_interface_msg::msg::SocketcanIF>::SharedPtr _subscription_caster_orientation;
     rclcpp::Subscription<socketcan_interface_msg::msg::SocketcanIF>::SharedPtr _subscription_caster_rotation;
     rclcpp::Subscription<socketcan_interface_msg::msg::SocketcanIF>::SharedPtr _subscription_emergency;
+    rclcpp::Subscription<geometry_msgs::msg::TwistWithCovarianceStamped>::SharedPtr _subscription_bodyvel;
     rclcpp::TimerBase::SharedPtr _pub_timer;
 
     void _subscriber_callback_vel(const geometry_msgs::msg::Twist::SharedPtr msg);
@@ -37,6 +39,7 @@ private:
     void _subscriber_callback_caster_orientation(const socketcan_interface_msg::msg::SocketcanIF::SharedPtr msg);
     void _subscriber_callback_caster_rotation(const socketcan_interface_msg::msg::SocketcanIF::SharedPtr msg);
     void _subscriber_callback_emergency(const socketcan_interface_msg::msg::SocketcanIF::SharedPtr msg);
+    void _subscriber_callback_bodyvel(const geometry_msgs::msg::TwistWithCovarianceStamped::SharedPtr msg);
     void _publisher_callback();
     void send_rpm(const double linear_vel, const double angular_vel);
     static double normalize_angle(double angle);
@@ -55,8 +58,7 @@ private:
     // 速度計画機
     velplanner::VelPlanner linear_planner;
     const velplanner::Limit linear_limit;
-    velplanner::VelPlanner angular_planner;
-    const velplanner::Limit angular_limit;
+    const velplanner::Limit steering_limit;
 
     // トルク差PID
     controller::PositionPid drive_pid;
@@ -70,12 +72,14 @@ private:
     const bool is_reverse_left;
     const bool is_reverse_right;
     const int caster_max_count;
-    const double caster_max_angle;
     const double caster_gear_ratio;
     const double caster_wheel_radius;
 
     // 変数
+    double steering_angle = 0.0;
     double caster_orientation = 0.0;
+    geometry_msgs::msg::Twist current_body_vel;
+    // キャスター回転角関連変数
     double caster_rotation = 0.0;
     int caster_rotation_lastcount = 0;
     int caster_rotation_count = 0;

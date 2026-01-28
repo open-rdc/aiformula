@@ -33,7 +33,7 @@ private:
     rclcpp::QoS _qos = rclcpp::QoS(10);
 
     const double linear_max_vel;
-    const double angular_max_vel;
+    const double steering_max_angle;
 
     bool is_autonomous = false;
 
