@@ -60,7 +60,7 @@ drive_pid(get_parameter("interval_ms").as_int())
         std::bind(&ChassisDriver::_subscriber_callback_emergency, this, std::placeholders::_1)
     );
     _subscription_bodyvel = this->create_subscription<geometry_msgs::msg::TwistWithCovarianceStamped>(
-        "body_vel",
+        "vectornav/velocity_body",
         _qos,
         std::bind(&ChassisDriver::_subscriber_callback_bodyvel, this, std::placeholders::_1)
     );
@@ -247,6 +247,7 @@ void ChassisDriver::_subscriber_callback_emergency(const socketcan_interface_msg
 }
 void ChassisDriver::_subscriber_callback_bodyvel(const geometry_msgs::msg::TwistWithCovarianceStamped::SharedPtr msg){
     current_body_vel = msg->twist.twist;
+    // RCLCPP_INFO(this->get_logger(), "VEL:%.2f", current_body_vel.linear.x);
 }
 
 void ChassisDriver::send_rpm(const double linear_vel, const double angular_vel){
