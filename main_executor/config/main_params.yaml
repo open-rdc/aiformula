@@ -36,9 +36,9 @@ chassis_driver_node:
       gear_ratio : 0.59090909090909
       wheel_radius : 0.12 # [m]
     drive_pid:
-      p_gain : 10.0
+      p_gain : 20.0
       i_gain : 0.0
-      d_gain : 0.0
+      d_gain : 2.0
 
 socketcan_interface_node:
   ros__parameters:
