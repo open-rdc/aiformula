@@ -14,7 +14,7 @@ PurePursuit::PurePursuit(const std::string& name_space, const rclcpp::NodeOption
 linear_max_vel(get_parameter("linear_max.vel").as_double()),
 angular_max_vel(get_parameter("angular_max.vel").as_double()),
 lookahead_distance(get_parameter("lookahead_distance").as_double()),
-curvature_gain(get_parameter("curvature_gain").as_double())
+wheelbase_(get_parameter("wheelbase").as_double())
 {
     _subscription_path = this->create_subscription<nav_msgs::msg::Path>(
         "/frenet_planner/path",
@@ -26,7 +26,7 @@ curvature_gain(get_parameter("curvature_gain").as_double())
         _qos,
         std::bind(&PurePursuit::autonomous_callback, this, std::placeholders::_1)
     );
-    publisher_vel = this->create_publisher<geometry_msgs::msg::Twist>("cmd_vel", _qos);
+    publisher_vel = this->create_publisher<ackermann_msgs::msg::AckermannDrive>("cmd_vel", _qos);
 
     RCLCPP_INFO(this->get_logger(), "PurePursuit node has been initialized. lookahead_distance: %.2f", lookahead_distance);
 }
@@ -40,7 +40,7 @@ void PurePursuit::_subscriber_callback_path(const nav_msgs::msg::Path::SharedPtr
         return;
     }
 
-    geometry_msgs::msg::Twist command;
+    ackermann_msgs::msg::AckermannDrive command;
 
     if (!msg || msg->poses.empty()) {
         RCLCPP_WARN_THROTTLE(
@@ -80,13 +80,13 @@ void PurePursuit::_subscriber_callback_path(const nav_msgs::msg::Path::SharedPtr
     const double safe_lookahead = std::max(lookahead_distance, 1e-3);
     const double linear_scale = std::clamp(distance / safe_lookahead, 0.0, 1.0);
     const double linear_velocity = std::clamp(linear_max_vel * linear_scale, 0.0, linear_max_vel);
-    const double curvature = (target_y * curvature_gain) / (distance * distance);  // Pure pursuit curvature.
-    double angular_velocity = linear_velocity * curvature;
+    
+    const double alpha = std::atan2(target_y, target_x);
+    const double steer_angle = std::atan2(2.0 * wheelbase_ * std::sin(alpha), lookahead_distance);
+    const double steer_angle_clamped = std::clamp(steer_angle, -angular_max_vel, angular_max_vel);
 
-    angular_velocity = std::clamp(angular_velocity, -angular_max_vel, angular_max_vel);
-
-    command.linear.x = linear_velocity;
-    command.angular.z = angular_velocity;
+    command.speed = linear_velocity;
+    command.steering_angle = steer_angle_clamped;
     publisher_vel->publish(command);
 }
 

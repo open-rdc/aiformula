@@ -1,7 +1,7 @@
 #pragma once
 
 #include <rclcpp/rclcpp.hpp>
-#include <geometry_msgs/msg/twist.hpp>
+#include <ackermann_msgs/msg/ackermann_drive.hpp>
 #include <nav_msgs/msg/path.hpp>
 #include <std_msgs/msg/bool.hpp>
 
@@ -24,7 +24,7 @@ private:
     rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr _subscription_autonomous;
     void autonomous_callback(const std_msgs::msg::Bool::SharedPtr msg);
 
-    rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr publisher_vel;
+    rclcpp::Publisher<ackermann_msgs::msg::AckermannDrive>::SharedPtr publisher_vel;
 
     rclcpp::QoS _qos = rclcpp::QoS(10);
 
@@ -33,7 +33,7 @@ private:
     const double linear_max_vel;
     const double angular_max_vel;
     const double lookahead_distance;
-    const double curvature_gain;
+    const double wheelbase_;
 };
 
 }  // namespace path_tracker
