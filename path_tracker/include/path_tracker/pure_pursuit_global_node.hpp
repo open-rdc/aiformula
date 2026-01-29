@@ -1,5 +1,6 @@
 #pragma once
 
+#include <ackermann_msgs/msg/ackermann_drive.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <geometry_msgs/msg/twist.hpp>
@@ -33,7 +34,7 @@ private:
     rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr subscription_autonomous_;
     void autonomous_callback(const std_msgs::msg::Bool::SharedPtr msg);
 
-    rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr publisher_vel_;
+    rclcpp::Publisher<ackermann_msgs::msg::AckermannDrive>::SharedPtr publisher_vel_;
     rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr publisher_self_pose_;
     rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr publisher_target_pose_;
 
@@ -59,9 +60,10 @@ private:
     std::size_t last_target_index_ = 0;
 
     const double linear_max_vel;
-    const double angular_max_vel;
     const double lookahead_distance;
     const double curvature_gain;
+    const double wheelbase_;
+    const double caster_max_angle_rad_;
 };
 
 }  // namespace path_tracker

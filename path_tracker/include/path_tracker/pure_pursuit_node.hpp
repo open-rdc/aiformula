@@ -31,9 +31,9 @@ private:
     bool autonomous_flag_ = false;
 
     const double linear_max_vel;
-    const double angular_max_vel;
     const double lookahead_distance;
     const double wheelbase_;
+    const double caster_max_angle_rad_;
 };
 
 }  // namespace path_tracker

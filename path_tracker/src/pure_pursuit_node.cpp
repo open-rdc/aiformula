@@ -12,9 +12,9 @@ PurePursuit::PurePursuit(const rclcpp::NodeOptions& options) : PurePursuit("", o
 PurePursuit::PurePursuit(const std::string& name_space, const rclcpp::NodeOptions& options)
 : rclcpp::Node("pure_pursuit_node", name_space, options),
 linear_max_vel(get_parameter("linear_max.vel").as_double()),
-angular_max_vel(get_parameter("angular_max.vel").as_double()),
 lookahead_distance(get_parameter("lookahead_distance").as_double()),
-wheelbase_(get_parameter("wheelbase").as_double())
+wheelbase_(get_parameter("wheelbase").as_double()),
+caster_max_angle_rad_(get_parameter("caster_max_angle").as_double() * 0.017453292519943295)
 {
     _subscription_path = this->create_subscription<nav_msgs::msg::Path>(
         "/frenet_planner/path",
@@ -83,7 +83,7 @@ void PurePursuit::_subscriber_callback_path(const nav_msgs::msg::Path::SharedPtr
     
     const double alpha = std::atan2(target_y, target_x);
     const double steer_angle = std::atan2(2.0 * wheelbase_ * std::sin(alpha), lookahead_distance);
-    const double steer_angle_clamped = std::clamp(steer_angle, -angular_max_vel, angular_max_vel);
+    const double steer_angle_clamped = std::clamp(steer_angle, -caster_max_angle_rad_, caster_max_angle_rad_);
 
     command.speed = linear_velocity;
     command.steering_angle = steer_angle_clamped;

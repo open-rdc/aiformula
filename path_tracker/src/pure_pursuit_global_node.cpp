@@ -11,9 +11,10 @@ PurePursuitGlobal::PurePursuitGlobal(const rclcpp::NodeOptions& options) : PureP
 PurePursuitGlobal::PurePursuitGlobal(const std::string& name_space, const rclcpp::NodeOptions& options)
 : rclcpp::Node("pure_pursuit_global_node", name_space, options),
   linear_max_vel(get_parameter("linear_max.vel").as_double()),
-  angular_max_vel(get_parameter("angular_max.vel").as_double()),
   lookahead_distance(get_parameter("lookahead_distance").as_double()),
-  curvature_gain(get_parameter("curvature_gain").as_double())
+  curvature_gain(get_parameter("curvature_gain").as_double()),
+  wheelbase_(get_parameter("wheelbase").as_double()),
+  caster_max_angle_rad_(get_parameter("caster_max_angle").as_double() * 0.017453292519943295)
 {
     subscription_path_ = this->create_subscription<nav_msgs::msg::Path>(
         "global_planner/path",
@@ -35,7 +36,7 @@ PurePursuitGlobal::PurePursuitGlobal(const std::string& name_space, const rclcpp
         qos_,
         std::bind(&PurePursuitGlobal::autonomous_callback, this, std::placeholders::_1)
     );
-    publisher_vel_ = this->create_publisher<geometry_msgs::msg::Twist>("cmd_vel", qos_);
+    publisher_vel_ = this->create_publisher<ackermann_msgs::msg::AckermannDrive>("cmd_vel", qos_);
     publisher_self_pose_ = this->create_publisher<geometry_msgs::msg::PoseStamped>(
         "/path_tracker/self_pose",
         qos_
@@ -159,7 +160,7 @@ void PurePursuitGlobal::timer_callback(){
     publisher_self_pose_->publish(self_pose_msg);
     publisher_target_pose_->publish(target_pose_msg);
 
-    geometry_msgs::msg::Twist command;
+    ackermann_msgs::msg::AckermannDrive command;
 
     if (distance < 1e-6) {
         publisher_vel_->publish(command);
@@ -169,13 +170,13 @@ void PurePursuitGlobal::timer_callback(){
     const double safe_lookahead = std::max(lookahead_distance, 1e-3);
     const double linear_scale = std::clamp(distance / safe_lookahead, 0.0, 1.0);
     const double linear_velocity = std::clamp(linear_max_vel * linear_scale, 0.0, linear_max_vel);
-    const double curvature = (target_y * curvature_gain) / (distance * distance);
-    double angular_velocity = linear_velocity * curvature;
 
-    angular_velocity = std::clamp(angular_velocity, -angular_max_vel, angular_max_vel);
+    const double alpha = std::atan2(target_y, target_x);
+    const double steer_angle = std::atan2(2.0 * wheelbase_ * std::sin(alpha), lookahead_distance);
+    const double steer_angle_clamped = std::clamp(steer_angle, -caster_max_angle_rad_, caster_max_angle_rad_);
 
-    command.linear.x = linear_velocity;
-    command.angular.z = angular_velocity;
+    command.speed = linear_velocity;
+    command.steering_angle = steer_angle_clamped;
     publisher_vel_->publish(command);
 }
 
