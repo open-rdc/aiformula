@@ -11,8 +11,16 @@ ament_auto_find_build_dependencies()
 ament_auto_add_library(pure_pursuit_node SHARED
   src/pure_pursuit_node.cpp
 )
+ament_auto_add_library(pure_pursuit_global_node SHARED
+  src/pure_pursuit_global_node.cpp
+)
 target_compile_features(pure_pursuit_node PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
 target_include_directories(pure_pursuit_node PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
+)
+target_compile_features(pure_pursuit_global_node PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
+target_include_directories(pure_pursuit_global_node PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
 )
@@ -20,6 +28,7 @@ target_include_directories(pure_pursuit_node PUBLIC
 # Causes the visibility macros to use dllexport rather than dllimport,
 # which is appropriate when building the dll but not consuming it.
 target_compile_definitions(pure_pursuit_node PRIVATE "PATH_TRACKER_BUILDING_LIBRARY")
+target_compile_definitions(pure_pursuit_global_node PRIVATE "PATH_TRACKER_BUILDING_LIBRARY")
 
 install(
   DIRECTORY include/
