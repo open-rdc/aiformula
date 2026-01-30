@@ -11,7 +11,7 @@ Controller::Controller(const rclcpp::NodeOptions& options) : Controller("", opti
 Controller::Controller(const std::string& name_space, const rclcpp::NodeOptions& options)
 : rclcpp::Node("controller_node", name_space, options),
 linear_max_vel(get_parameter("linear_max.vel").as_double()),
-angular_max_vel(dtor(get_parameter("angular_max.vel").as_double())),
+steering_max_angle(dtor(get_parameter("steering_max.pos").as_double())),
 is_autonomous(get_parameter("autonomous_flag").as_bool())
 {
     _subscription_joy = this->create_subscription<sensor_msgs::msg::Joy>(
@@ -20,7 +20,7 @@ is_autonomous(get_parameter("autonomous_flag").as_bool())
         std::bind(&Controller::_subscriber_callback_joy, this, std::placeholders::_1)
     );
 
-    publisher_vel = this->create_publisher<geometry_msgs::msg::Twist>("cmd_vel", _qos);
+    publisher_vel = this->create_publisher<ackermann_msgs::msg::AckermannDrive>("cmd_vel", _qos);
     publisher_stop = this->create_publisher<std_msgs::msg::Empty>("stop", _qos);
     publisher_restart = this->create_publisher<std_msgs::msg::Empty>("restart", _qos);
     publisher_emergency = this->create_publisher<std_msgs::msg::Bool>("emergency", _qos);
@@ -61,9 +61,9 @@ void Controller::_subscriber_callback_joy(const sensor_msgs::msg::Joy::SharedPtr
     }
     // 手動の場合、速度指令値を送る
     if(!is_autonomous){
-        auto msg_vel = std::make_shared<geometry_msgs::msg::Twist>();
-        msg_vel->linear.x = linear_max_vel * msg->axes[static_cast<int>(Axes::L_y)];
-        msg_vel->angular.z = angular_max_vel * msg->axes[static_cast<int>(Axes::R_x)];
+        auto msg_vel = std::make_shared<ackermann_msgs::msg::AckermannDrive>();
+        msg_vel->speed = linear_max_vel * msg->axes[static_cast<int>(Axes::L_y)];
+        msg_vel->steering_angle = steering_max_angle * msg->axes[static_cast<int>(Axes::R_x)];
         publisher_vel->publish(*msg_vel);
     }
 

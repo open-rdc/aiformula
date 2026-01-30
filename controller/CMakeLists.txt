@@ -10,9 +10,9 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(ament_cmake_ros REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(ackermann_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
-find_package(geometry_msgs REQUIRED)
 find_package(socketcan_interface_msg REQUIRED)
 find_package(utilities REQUIRED)
 
@@ -24,9 +24,9 @@ target_include_directories(controller_node PUBLIC
   )
 ament_target_dependencies(controller_node
   rclcpp
+  ackermann_msgs
   std_msgs
   sensor_msgs
-  geometry_msgs
   socketcan_interface_msg
   utilities
 )
@@ -71,8 +71,8 @@ ament_export_targets(
 
 ament_export_dependencies(
   rclcpp
+  ackermann_msgs
   std_msgs
-  geometry_msgs
   sensor_msgs
   socketcan_interface_msg
   utilities
