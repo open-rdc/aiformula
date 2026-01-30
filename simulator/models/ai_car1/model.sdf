@@ -12,8 +12,9 @@
       <right_joint>right_wheel_joint</right_joint>
       <wheel_separation>0.6</wheel_separation>
       <wheel_radius>0.124</wheel_radius>
-      <odom_publish_frequency>0.1</odom_publish_frequency>
+      <odom_publish_frequency>30</odom_publish_frequency>
       <topic>cmd_vel_twist</topic>
+      <odom_topic>odom</odom_topic>
     </plugin>
     <plugin
       filename="gz_ros2_control-system"
