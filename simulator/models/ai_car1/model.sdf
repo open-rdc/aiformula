@@ -322,6 +322,25 @@
       </axis>
     </joint>
 
+    <joint name="camera_rgb_joint" type="fixed">
+      <parent>camera_link</parent>
+      <child>camera_rgb_link</child>
+      <pose>0.35 0 0.55 0 0 0</pose>
+      <axis>
+        <xyz>0 0 1</xyz>
+      </axis>
+    </joint>
+
+    <joint name="camera_depth_joint" type="fixed">
+      <parent>camera_link</parent>
+      <child>camera_depth_link</child>
+      <pose>0.35 0 0.55 0 0 0</pose>
+      <axis>
+        <xyz>0 0 1</xyz>
+      </axis>
+    </joint>
+
+
     <link name="camera_link">
       <pose>0 0 0 0 0 0</pose>
       <inertial>
@@ -332,24 +351,41 @@
           <izz>1e-6</izz>
         </inertia>
       </inertial>
+    </link>
 
-      <visual name="camera_visual">
-        <geometry>
-          <box>
-            <size>0.05 0.1 0.05</size>
-          </box>
-        </geometry>
-        <material>
-          <ambient>0.5 0.5 0.5 1</ambient>
-        </material>
-      </visual>
-
-      <sensor name="realsense_d435" type="rgbd_camera">
+    <link name="camera_rgb_link">
+      <sensor name="camera_rgb_link" type="camera">
         <update_rate>60.0</update_rate>
         <always_on>true</always_on>
-        <topic>camera</topic>
-        <ignition_frame_id>camera_link</ignition_frame_id>
+        <ignition_frame_id>camera_rgb_link</ignition_frame_id>
+        <pose>0.35 0 0.55 0 0 0</pose>
+        <topic>image_raw</topic>
+        <camera name="camera">
+          <horizontal_fov>1.91986</horizontal_fov>
+          <vertical_fov>1.39626</vertical_fov>
+          <image>
+             <width>480</width>
+             <height>300</height>
+             <format>R8G8B8</format>
+          </image>
+          <clip>
+            <near>0.02</near>
+            <far>300</far>
+          </clip>
+        </camera>
+      </sensor>
+    </link>
 
+    <link name="camera_depth_link">
+      <sensor name="camera_depth_link" type="depth">
+        <update_rate>60.0</update_rate>
+        <always_on>true</always_on>
+        <ignition_frame_id>camera_depth_link</ignition_frame_id>
+        <pose>0.35 0 0.55 0 0 0</pose>
+        <topic>depth_image_raw</topic>
+        <pointcloud>
+          <topic>depth_points</topic>
+        </pointcloud>
         <camera name="camera">
           <horizontal_fov>1.91986</horizontal_fov>
           <vertical_fov>1.39626</vertical_fov>
@@ -380,7 +416,7 @@
     <link name="gps_link">
       <sensor name="gps_sensor" type="navsat">
         <always_on>true</always_on>
-        <update_rate>20.0</update_rate>
+        <update_rate>5.0</update_rate>
         <topic>navsat</topic>
       </sensor>
     </link>
