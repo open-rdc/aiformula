@@ -14,7 +14,7 @@ PurePursuit::PurePursuit(const std::string& name_space, const rclcpp::NodeOption
 linear_max_vel(get_parameter("linear_max.vel").as_double()),
 lookahead_distance(get_parameter("lookahead_distance").as_double()),
 wheelbase_(get_parameter("wheelbase").as_double()),
-caster_max_angle_rad_(get_parameter("caster_max_angle").as_double() * 0.017453292519943295)
+caster_max_angle_rad_(get_parameter("steering_max.pos").as_double() * 0.017453292519943295)
 {
     _subscription_path = this->create_subscription<nav_msgs::msg::Path>(
         "/frenet_planner/path",

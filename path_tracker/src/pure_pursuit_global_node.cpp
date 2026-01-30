@@ -12,9 +12,8 @@ PurePursuitGlobal::PurePursuitGlobal(const std::string& name_space, const rclcpp
 : rclcpp::Node("pure_pursuit_global_node", name_space, options),
   linear_max_vel(get_parameter("linear_max.vel").as_double()),
   lookahead_distance(get_parameter("lookahead_distance").as_double()),
-  curvature_gain(get_parameter("curvature_gain").as_double()),
   wheelbase_(get_parameter("wheelbase").as_double()),
-  caster_max_angle_rad_(get_parameter("caster_max_angle").as_double() * 0.017453292519943295)
+  caster_max_angle_rad_(get_parameter("steering_max.pos").as_double() * 0.017453292519943295)
 {
     subscription_path_ = this->create_subscription<nav_msgs::msg::Path>(
         "global_planner/path",
