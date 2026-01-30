@@ -2,7 +2,7 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/joy.hpp>
-#include <geometry_msgs/msg/twist.hpp>
+#include <ackermann_msgs/msg/ackermann_drive.hpp>
 #include <std_msgs/msg/empty.hpp>
 #include <std_msgs/msg/bool.hpp>
 #include <std_msgs/msg/char.hpp>
@@ -26,7 +26,7 @@ private:
 
     void _subscriber_callback_joy(const sensor_msgs::msg::Joy::SharedPtr msg);
 
-    rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr publisher_vel;
+    rclcpp::Publisher<ackermann_msgs::msg::AckermannDrive>::SharedPtr publisher_vel;
     rclcpp::Publisher<std_msgs::msg::Empty>::SharedPtr publisher_stop;
     rclcpp::Publisher<std_msgs::msg::Empty>::SharedPtr publisher_restart;
     rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr publisher_emergency;
@@ -36,7 +36,7 @@ private:
     rclcpp::QoS _qos = rclcpp::QoS(10);
 
     const double linear_max_vel;
-    const double angular_max_vel;
+    const double steering_max_angle;
 
     bool is_autonomous = false;
     bool is_emergency = false;
