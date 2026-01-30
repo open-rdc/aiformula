@@ -13,7 +13,18 @@
       <wheel_separation>0.6</wheel_separation>
       <wheel_radius>0.124</wheel_radius>
       <odom_publish_frequency>0.1</odom_publish_frequency>
-      <topic>cmd_vel</topic>
+      <topic>cmd_vel_twist</topic>
+    </plugin>
+    <plugin
+      filename="gz_ros2_control-system"
+      name="gz_ros2_control::GazeboSimROS2ControlPlugin">
+      <robot_param>robot_description</robot_param>
+      <robot_param_node>robot_state_publisher</robot_param_node>
+      <parameters>/tmp/simulator_ai_car1_ros2_control.yaml</parameters>
+      <controller_manager_name>controller_manager</controller_manager_name>
+      <ros>
+        <remapping>/caster_yaw_position_controller/commands:=/cmd_caster</remapping>
+      </ros>
     </plugin>
     <plugin
         filename="libignition-gazebo-imu-system.so"
@@ -23,6 +34,20 @@
         filename="ignition-gazebo-sensors-system"
         name="ignition::gazebo::systems::Sensors">
     </plugin>
+
+    <ros2_control name="gz_ros2_control" type="system">
+      <hardware>
+        <plugin>gz_ros2_control/GazeboSimSystem</plugin>
+      </hardware>
+      <joint name="caster_yaw_wheel">
+        <command_interface name="position">
+          <param name="min">-0.26</param>
+          <param name="max">0.26</param>
+        </command_interface>
+        <state_interface name="position"/>
+        <state_interface name="velocity"/>
+      </joint>
+    </ros2_control>
 
     <!-- chassis -->
 
@@ -201,7 +226,7 @@
       <axis>
         <xyz expressed_in='__model__'>0 1 0</xyz>
         <limit>
-          <effort>9.4</effort>
+          <effort>84.0</effort>
         </limit>
         <dynamics>
           <friction>0.9</friction>  <!-- 静止摩擦 -->
@@ -216,7 +241,7 @@
       <axis>
         <xyz expressed_in='__model__'>0 1 0</xyz>
         <limit>
-          <effort>9.4</effort>
+          <effort>84.0</effort>
         </limit>
         <dynamics>
           <friction>0.9</friction>  <!-- 静止摩擦 -->
@@ -232,6 +257,7 @@
         <limit>
           <lower>-0.26</lower>
           <upper>0.26</upper>
+          <effort>1000000.0</effort>
         </limit>
         <dynamics>
           <damping>10.0</damping>
