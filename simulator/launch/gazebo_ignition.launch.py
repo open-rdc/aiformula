@@ -42,10 +42,9 @@ def generate_launch_description():
             '/cmd_vel_twist@geometry_msgs/msg/Twist@gz.msgs.Twist'],
         output='screen',
         remappings=[
-            ('/odom', '/zed/zed_node/odom'),
             ('/depth_image', '/zed/zed_node/depth/depth_registered'),
             ('/depth_image_raw/points', '/zed/zed_node/pointcloud'),
-
+            ('/imu_raw', '/vectornav/imu')
         ]
     )
 
