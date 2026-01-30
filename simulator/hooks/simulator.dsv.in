@@ -1,1 +1,2 @@
 prepend-non-duplicate;IGN_GAZEBO_RESOURCE_PATH;@CMAKE_INSTALL_PREFIX@/share
+set;SIMULATOR_SHARE;@CMAKE_INSTALL_PREFIX@/share/simulator
