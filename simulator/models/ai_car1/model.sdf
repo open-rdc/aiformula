@@ -11,12 +11,8 @@
       <left_joint>left_wheel_joint</left_joint>
       <right_joint>right_wheel_joint</right_joint>
       <wheel_separation>0.6</wheel_separation>
-      <wheel_radius>0.1</wheel_radius>
-      <odom_publish_frequency>50.0</odom_publish_frequency>
-      <max_linear_acceleration>5.0</max_linear_acceleration>
-      <min_linear_acceleration>-5.0</min_linear_acceleration>
-      <max_angular_acceleration>5.0</max_angular_acceleration>
-      <min_angular_acceleration>-5.0</min_angular_acceleration>
+      <wheel_radius>0.124</wheel_radius>
+      <odom_publish_frequency>30</odom_publish_frequency>
       <topic>cmd_vel</topic>
       <odom_topic>odom</odom_topic>
     </plugin>
@@ -25,7 +21,7 @@
         name="ignition::gazebo::systems::Imu">
     </plugin>
     <plugin
-        filename="ignition-gazebo-sensors-system"
+        filename="libignition-gazebo-sensors-system.so"
         name="ignition::gazebo::systems::Sensors">
     </plugin>
 
@@ -222,8 +218,7 @@
       <axis>
         <xyz expressed_in='__model__'>0 1 0</xyz> <!--can be defined as any frame or even arbitrary frames-->
         <limit>
-          <lower>-1.79769e+308</lower>    <!--negative infinity-->
-          <upper>1.79769e+308</upper>     <!--positive infinity-->
+          <effort>84.4</effort>
         </limit>
         <dynamics>
           <damping>0.1</damping>
@@ -239,8 +234,7 @@
       <axis>
         <xyz expressed_in='__model__'>0 1 0</xyz>
         <limit>
-          <lower>-1.79769e+308</lower>    <!--negative infinity-->
-          <upper>1.79769e+308</upper>     <!--positive infinity-->
+          <effort>84.4</effort>
         </limit>
         <dynamics>
           <damping>0.1</damping>
@@ -285,24 +279,6 @@
       </axis>
     </joint>
 
-    <joint name="camera_rgb_joint" type="fixed">
-      <parent>camera_link</parent>
-      <child>camera_rgb_link</child>
-      <pose>0.35 0 0.55 0 0 0</pose>
-      <axis>
-        <xyz>0 0 1</xyz>
-      </axis>
-    </joint>
-
-    <joint name="camera_depth_joint" type="fixed">
-      <parent>camera_link</parent>
-      <child>camera_depth_link</child>
-      <pose>0.35 0 0.55 0 0 0</pose>
-      <axis>
-        <xyz>0 0 1</xyz>
-      </axis>
-    </joint>
-
     <link name="camera_link">
       <pose>0 0 0 0 0 0</pose>
       <inertial>
@@ -313,41 +289,24 @@
           <izz>1e-6</izz>
         </inertia>
       </inertial>
-    </link>
 
-    <link name="camera_rgb_link">
-      <sensor name="camera_rgb_link" type="camera">
+      <visual name="camera_visual">
+        <geometry>
+          <box>
+            <size>0.05 0.1 0.05</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.5 0.5 0.5 1</ambient>
+        </material>
+      </visual>
+
+      <sensor name="realsense_d435" type="rgbd_camera">
         <update_rate>60.0</update_rate>
         <always_on>true</always_on>
-        <ignition_frame_id>camera_rgb_link</ignition_frame_id>
-        <pose>0.35 0 0.55 0 0 0</pose>
-        <topic>image_raw</topic>
-        <camera name="camera">
-          <horizontal_fov>1.91986</horizontal_fov>
-          <vertical_fov>1.39626</vertical_fov>
-          <image>
-             <width>480</width>
-             <height>300</height>
-             <format>R8G8B8</format>
-          </image>
-          <clip>
-            <near>0.02</near>
-            <far>300</far>
-          </clip>
-        </camera>
-      </sensor>
-    </link>
+        <topic>camera</topic>
+        <ignition_frame_id>camera_link</ignition_frame_id>
 
-    <link name="camera_depth_link">
-      <sensor name="camera_depth_link" type="depth">
-        <update_rate>60.0</update_rate>
-        <always_on>true</always_on>
-        <ignition_frame_id>camera_depth_link</ignition_frame_id>
-        <pose>0.35 0 0.55 0 0 0</pose>
-        <topic>depth_image_raw</topic>
-        <pointcloud>
-          <topic>depth_points</topic>
-        </pointcloud>
         <camera name="camera">
           <horizontal_fov>1.91986</horizontal_fov>
           <vertical_fov>1.39626</vertical_fov>

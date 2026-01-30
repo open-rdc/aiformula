@@ -28,13 +28,10 @@ def generate_launch_description():
         package='ros_gz_bridge',
         executable='parameter_bridge',
         arguments=[
-            # RGB camera (color image only)
-            '/camera_info@sensor_msgs/msg/CameraInfo@gz.msgs.CameraInfo',
-            '/image_raw@sensor_msgs/msg/Image@gz.msgs.Image',
-            # Depth camera (depth image and point cloud only)
-            '/depth_image_raw/depth_image@sensor_msgs/msg/Image@gz.msgs.Image',
-            '/depth_image_raw/points@sensor_msgs/msg/PointCloud2@gz.msgs.PointCloudPacked',
-            # Other sensors
+            '/camera/camera_info@sensor_msgs/msg/CameraInfo@gz.msgs.CameraInfo',
+            '/camera/image@sensor_msgs/msg/Image@gz.msgs.Image',
+            '/camera/depth_image@sensor_msgs/msg/Image@gz.msgs.Image',
+            '/camera/points@sensor_msgs/msg/PointCloud2@gz.msgs.PointCloudPacked',
             '/odom@nav_msgs/msg/Odometry@gz.msgs.Odometry',
             '/navsat@sensor_msgs/msg/NavSatFix@gz.msgs.NavSat',
             '/imu_raw@sensor_msgs/msg/Imu@gz.msgs.IMU',
@@ -42,8 +39,9 @@ def generate_launch_description():
         output='screen',
         remappings=[
             ('/odom', '/zed/zed_node/odom'),
-            ('/depth_image', '/zed/zed_node/depth/depth_registered'),
-            ('/depth_image_raw/points', '/zed/zed_node/pointcloud'),
+            ('/camera/image', '/zed/zed_node/rgb/image_rect_color'),
+            ('/camera/depth_image', '/zed/zed_node/depth/depth_registered'),
+            ('/camera/points', '/zed/zed_node/pointcloud'),
         ]
     )
 
@@ -57,4 +55,3 @@ def generate_launch_description():
         ),
         bridge
     ])
-
