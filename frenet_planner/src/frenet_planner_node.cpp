@@ -1,7 +1,5 @@
 #include "frenet_planner/frenet_planner_node.hpp"
 
-#include <cmath>
-
 namespace frenet_planner {
 
 FrenetPlannerNode::FrenetPlannerNode(const rclcpp::NodeOptions& options)
@@ -12,10 +10,9 @@ FrenetPlannerNode::FrenetPlannerNode(const std::string& name_space, const rclcpp
   risk_calculator_(),
   frenet_planner_(risk_calculator_),
   obstacle_detector_(),
-  wheelbase_(get_parameter("wheelbase").as_double()),
-  caster_max_angle_(get_parameter("caster_max_angle").as_double())
+  caster_max_angle_(get_parameter("steering_max.pos").as_double())
 {
-    double max_curvature = std::tan(caster_max_angle_ * M_PI / 180.0) / wheelbase_;
+    double max_curvature = caster_max_angle_;
 
     frenet_planner_.set_parameters(
         get_parameter("linear_max.vel").as_double(),

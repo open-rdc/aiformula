@@ -45,7 +45,6 @@ private:
     FrenetPlanner frenet_planner_;
     ObstacleDetector obstacle_detector_;
 
-    const double wheelbase_;
     const double caster_max_angle_;
 
     void path_callback(const nav_msgs::msg::Path::SharedPtr msg);
