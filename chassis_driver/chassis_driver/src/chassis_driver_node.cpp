@@ -34,7 +34,7 @@ DBL_MAX, DBL_MAX),
 
 drive_pid(get_parameter("interval_ms").as_int())
 {
-    _subscription_vel = this->create_subscription<geometry_msgs::msg::Twist>(
+    _subscription_vel = this->create_subscription<steered_drive_msg::msg::SteeredDrive>(
         "cmd_vel",
         _qos,
         std::bind(&ChassisDriver::_subscriber_callback_vel, this, std::placeholders::_1)
@@ -65,7 +65,6 @@ drive_pid(get_parameter("interval_ms").as_int())
         std::bind(&ChassisDriver::_subscriber_callback_bodyvel, this, std::placeholders::_1)
     );
     publisher_can = this->create_publisher<socketcan_interface_msg::msg::SocketcanIF>("can_tx", _qos);
-    publisher_ref_vel = this->create_publisher<geometry_msgs::msg::TwistStamped>("ref_vel", _qos);
     publisher_odrive = this->create_publisher<odrive_can::msg::ControlMessage>("/odrive_axis0/control_message", _qos);
     publisher_caster_data = this->create_publisher<std_msgs::msg::Float64MultiArray>("caster_data", _qos);
     publisher_odom = this->create_publisher<nav_msgs::msg::Odometry>("caster_odom", _qos);
@@ -82,21 +81,16 @@ drive_pid(get_parameter("interval_ms").as_int())
     linear_planner.limit(linear_limit);
     drive_pid.gain(get_parameter("drive_pid.p_gain").as_double(), get_parameter("drive_pid.i_gain").as_double(), get_parameter("drive_pid.d_gain").as_double());
 
-    // ODriveのAxis Stateをクローズドループに設定（axis_requested_state: 8）
-    auto request = std::make_shared<odrive_can::srv::AxisState::Request>();
-    request->axis_requested_state = 8;
-    auto future = odrive_axis_client_->async_send_request(request);
-
     RCLCPP_INFO(this->get_logger(), "Chassis Driver Node has been started. max vel: %.2f m/s, steering angle: %.1f deg",
         linear_limit.vel, rtod(steering_limit.pos));
 }
 
-void ChassisDriver::_subscriber_callback_vel(const geometry_msgs::msg::Twist::SharedPtr msg){
+void ChassisDriver::_subscriber_callback_vel(const steered_drive_msg::msg::SteeredDrive::SharedPtr msg){
     if(mode == Mode::stop) return;
     mode = Mode::cmd;
 
-    const double linear_vel = constrain(msg->linear.x, -linear_limit.vel, linear_limit.vel);
-    steering_angle = constrain(msg->angular.z, -steering_limit.pos, steering_limit.pos);
+    const double linear_vel = constrain(msg->velocity, -linear_limit.vel, linear_limit.vel);
+    cmd_steering = constrain(msg->steering_angle, -steering_limit.pos, steering_limit.pos);
     linear_planner.vel(linear_vel);
 }
 
@@ -140,22 +134,14 @@ void ChassisDriver::_publisher_callback(){
     // 角速度の計算
     double angular_vel = 0.0;
     if(std::abs(linear_vel) > 0.1){
-        angular_vel = (linear_vel * std::tan(steering_angle)) / wheelbase;
+        angular_vel = (linear_vel * std::tan(cmd_steering)) / wheelbase;
         if(std::isnan(angular_vel)) angular_vel = 0.0;
     }
-
-    // （デバッグ用）ロボットの目標速度指令値を出版
-    auto msg_ref_vel = std::make_shared<geometry_msgs::msg::TwistStamped>();
-    msg_ref_vel->header.stamp = this->now();
-    msg_ref_vel->header.frame_id = "base_link";
-    msg_ref_vel->twist.linear.x = linear_vel;
-    msg_ref_vel->twist.angular.z = angular_vel;
-    publisher_ref_vel->publish(*msg_ref_vel);
 
 /*従動輪制御*/
     // 目標舵角の生成
     double delta = 0.0;
-    if(std::abs(linear_vel) > 0.1) delta = steering_angle;
+    if(std::abs(linear_vel) > 0.1) delta = cmd_steering;
 
     // モータ制御
     double motor_pos = 0.0;
@@ -204,6 +190,11 @@ void ChassisDriver::_subscriber_callback_restart(const std_msgs::msg::Empty::Sha
     odom_x = 0.0;
     odom_y = 0.0;
     odom_yaw = 0.0;
+
+    // ODriveのAxis Stateをクローズドループに設定（axis_requested_state: 8）
+    auto request = std::make_shared<odrive_can::srv::AxisState::Request>();
+    request->axis_requested_state = 8;
+    odrive_axis_client_->async_send_request(request);
     RCLCPP_INFO(this->get_logger(), "再起動");
 }
 

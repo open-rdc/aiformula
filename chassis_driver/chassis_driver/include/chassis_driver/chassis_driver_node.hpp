@@ -2,12 +2,12 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include <geometry_msgs/msg/twist.hpp>
-#include <geometry_msgs/msg/twist_stamped.hpp>
 #include <geometry_msgs/msg/twist_with_covariance_stamped.hpp>
 #include <std_msgs/msg/empty.hpp>
 #include <std_msgs/msg/float64_multi_array.hpp>
 #include <nav_msgs/msg/odometry.hpp>
 #include "socketcan_interface_msg/msg/socketcan_if.hpp"
+#include "steered_drive_msg/msg/steered_drive.hpp"
 #include "base/velplanner.hpp"
 #include "utilities/position_pid.hpp"
 #include "odrive_can/msg/control_message.hpp"
@@ -26,7 +26,7 @@ public:
     explicit ChassisDriver(const std::string& name_space, const rclcpp::NodeOptions& options = rclcpp::NodeOptions());
 
 private:
-    rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr _subscription_vel;
+    rclcpp::Subscription<steered_drive_msg::msg::SteeredDrive>::SharedPtr _subscription_vel;
     rclcpp::Subscription<std_msgs::msg::Empty>::SharedPtr _subscription_restart;
     rclcpp::Subscription<socketcan_interface_msg::msg::SocketcanIF>::SharedPtr _subscription_caster_orientation;
     rclcpp::Subscription<socketcan_interface_msg::msg::SocketcanIF>::SharedPtr _subscription_caster_rotation;
@@ -34,7 +34,7 @@ private:
     rclcpp::Subscription<geometry_msgs::msg::TwistWithCovarianceStamped>::SharedPtr _subscription_bodyvel;
     rclcpp::TimerBase::SharedPtr _pub_timer;
 
-    void _subscriber_callback_vel(const geometry_msgs::msg::Twist::SharedPtr msg);
+    void _subscriber_callback_vel(const steered_drive_msg::msg::SteeredDrive::SharedPtr msg);
     void _subscriber_callback_restart(const std_msgs::msg::Empty::SharedPtr msg);
     void _subscriber_callback_caster_orientation(const socketcan_interface_msg::msg::SocketcanIF::SharedPtr msg);
     void _subscriber_callback_caster_rotation(const socketcan_interface_msg::msg::SocketcanIF::SharedPtr msg);
@@ -45,7 +45,6 @@ private:
     static double normalize_angle(double angle);
 
     rclcpp::Publisher<socketcan_interface_msg::msg::SocketcanIF>::SharedPtr publisher_can;
-    rclcpp::Publisher<geometry_msgs::msg::TwistStamped>::SharedPtr publisher_ref_vel;
     rclcpp::Publisher<odrive_can::msg::ControlMessage>::SharedPtr publisher_odrive;
     rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr publisher_caster_data;
     rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr publisher_odom;
@@ -76,7 +75,7 @@ private:
     const double caster_wheel_radius;
 
     // 変数
-    double steering_angle = 0.0;
+    double cmd_steering = 0.0;
     double caster_orientation = 0.0;
     geometry_msgs::msg::Twist current_body_vel;
     // キャスター回転角関連変数
