@@ -35,7 +35,7 @@ PurePursuitGlobal::PurePursuitGlobal(const std::string& name_space, const rclcpp
         qos_,
         std::bind(&PurePursuitGlobal::autonomous_callback, this, std::placeholders::_1)
     );
-    publisher_vel_ = this->create_publisher<ackermann_msgs::msg::AckermannDrive>("cmd_vel", qos_);
+    publisher_vel_ = this->create_publisher<steered_drive_msg::msg::SteeredDrive>("cmd_vel", qos_);
     publisher_self_pose_ = this->create_publisher<geometry_msgs::msg::PoseStamped>(
         "/path_tracker/self_pose",
         qos_
@@ -159,7 +159,7 @@ void PurePursuitGlobal::timer_callback(){
     publisher_self_pose_->publish(self_pose_msg);
     publisher_target_pose_->publish(target_pose_msg);
 
-    ackermann_msgs::msg::AckermannDrive command;
+    steered_drive_msg::msg::SteeredDrive command;
 
     if (distance < 1e-6) {
         publisher_vel_->publish(command);
@@ -174,7 +174,7 @@ void PurePursuitGlobal::timer_callback(){
     const double steer_angle = std::atan2(2.0 * wheelbase_ * std::sin(alpha), lookahead_distance);
     const double steer_angle_clamped = std::clamp(steer_angle, -caster_max_angle_rad_, caster_max_angle_rad_);
 
-    command.speed = linear_velocity;
+    command.velocity = linear_velocity;
     command.steering_angle = steer_angle_clamped;
     publisher_vel_->publish(command);
 }
