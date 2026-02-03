@@ -19,7 +19,7 @@ steering_max_angle(dtor(get_parameter("steering_max.pos").as_double()))
         std::bind(&Controller::_subscriber_callback_joy, this, std::placeholders::_1)
     );
 
-    publisher_vel = this->create_publisher<geometry_msgs::msg::Twist>("cmd_vel", _qos);
+    publisher_vel = this->create_publisher<steered_drive_msg::msg::SteeredDrive>("cmd_vel", _qos);
     publisher_restart = this->create_publisher<std_msgs::msg::Empty>("restart", _qos);
     publisher_autonomous = this->create_publisher<std_msgs::msg::Bool>("autonomous", _qos);
 
@@ -42,9 +42,9 @@ void Controller::_subscriber_callback_joy(const sensor_msgs::msg::Joy::SharedPtr
     }
     // 手動の場合、速度指令値を送る
     if(!is_autonomous){
-        auto msg_vel = std::make_shared<geometry_msgs::msg::Twist>();
-        msg_vel->linear.x = linear_max_vel * msg->axes[static_cast<int>(Axes::L_y)];
-        msg_vel->angular.z = steering_max_angle * msg->axes[static_cast<int>(Axes::R_x)];
+        auto msg_vel = std::make_shared<steered_drive_msg::msg::SteeredDrive>();
+        msg_vel->velocity = linear_max_vel * msg->axes[static_cast<int>(Axes::L_y)];
+        msg_vel->steering_angle = steering_max_angle * msg->axes[static_cast<int>(Axes::R_x)];
         publisher_vel->publish(*msg_vel);
     }
 

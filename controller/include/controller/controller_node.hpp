@@ -2,11 +2,11 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/joy.hpp>
-#include <geometry_msgs/msg/twist.hpp>
 #include <std_msgs/msg/empty.hpp>
 #include <std_msgs/msg/bool.hpp>
 #include <std_msgs/msg/char.hpp>
 #include "socketcan_interface_msg/msg/socketcan_if.hpp"
+#include "steered_drive_msg/msg/steered_drive.hpp"
 
 #include "utilities/utils.hpp"
 #include "controller/visibility_control.h"
@@ -26,7 +26,7 @@ private:
 
     void _subscriber_callback_joy(const sensor_msgs::msg::Joy::SharedPtr msg);
 
-    rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr publisher_vel;
+    rclcpp::Publisher<steered_drive_msg::msg::SteeredDrive>::SharedPtr publisher_vel;
     rclcpp::Publisher<std_msgs::msg::Empty>::SharedPtr publisher_restart;
     rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr publisher_autonomous;
 
