@@ -24,6 +24,8 @@ is_reverse_right(get_parameter("reverse_right_flag").as_bool()),
 caster_max_count(get_parameter("caster.max_count").as_int()),
 caster_gear_ratio(get_parameter("caster.gear_ratio").as_double()),
 caster_wheel_radius(this->get_parameter("caster.wheel_radius").as_double()),
+reel_radius(this->get_parameter("caster.reel_radius").as_double()),
+steering_radius(this->get_parameter("caster.steering_radius").as_double()),
 
 linear_limit(DBL_MAX,
 get_parameter("linear_max.vel").as_double(),
@@ -71,6 +73,11 @@ drive_pid(get_parameter("interval_ms").as_int())
 
     // ODriveのAxis Stateサービスクライアント作成
     odrive_axis_client_ = this->create_client<odrive_can::srv::AxisState>("/odrive_axis0/request_axis_state");
+
+    // ODriveのAxis Stateをクローズドループに設定（axis_requested_state: 8）
+    auto request = std::make_shared<odrive_can::srv::AxisState::Request>();
+    request->axis_requested_state = 8;
+    odrive_axis_client_->async_send_request(request);
 
     _pub_timer = this->create_wall_timer(
         std::chrono::milliseconds(interval_ms),
@@ -138,6 +145,11 @@ void ChassisDriver::_publisher_callback(){
         if(std::isnan(angular_vel)) angular_vel = 0.0;
     }
 
+    // 停止指令時
+    if(mode == Mode::stop || mode == Mode::stay){
+        this->send_rpm(0.0, 0.0);
+        return;
+    }
 /*従動輪制御*/
     // 目標舵角の生成
     double delta = 0.0;
@@ -145,12 +157,12 @@ void ChassisDriver::_publisher_callback(){
 
     // モータ制御
     double motor_pos = 0.0;
-    if(delta > dtor(1.0)){
-        motor_pos = -1.0 * (delta + dtor(5.0));
+    double winding_length = 0.02;
+    if(std::abs(delta) > dtor(1.0)){
+        // winding_length = -1.0*std::abs(steering_radius * std::sin(delta));
+        winding_length = 0.0;
     }
-    else if(delta < dtor(-1.0)){
-        motor_pos = -1.0 * (delta - dtor(5.0));
-    }
+    motor_pos = winding_length / reel_radius;
     // RCLCPP_INFO(this->get_logger(), "DEL:%.2f POS:%.2f ENC:%.2f", rtod(delta), rtod(motor_pos), rtod(caster_orientation));
 
     // ODriveにトルク指令を送信
@@ -168,10 +180,6 @@ void ChassisDriver::_publisher_callback(){
     publisher_caster_data->publish(caster_data_msg);
 
 /*駆動輪制御*/
-    if(mode == Mode::stop || mode == Mode::stay){
-        this->send_rpm(0.0, 0.0);
-        return;
-    }
     const double angular_command = drive_pid.cycle(caster_orientation, delta) * (current_body_vel.linear.x*current_body_vel.linear.x);
     RCLCPP_INFO(this->get_logger(), "ANG_CMD: %.2f", rtod(angular_command));
     send_rpm(linear_vel, angular_command);
@@ -191,10 +199,6 @@ void ChassisDriver::_subscriber_callback_restart(const std_msgs::msg::Empty::Sha
     odom_y = 0.0;
     odom_yaw = 0.0;
 
-    // ODriveのAxis Stateをクローズドループに設定（axis_requested_state: 8）
-    auto request = std::make_shared<odrive_can::srv::AxisState::Request>();
-    request->axis_requested_state = 8;
-    odrive_axis_client_->async_send_request(request);
     RCLCPP_INFO(this->get_logger(), "再起動");
 }
 

@@ -73,6 +73,8 @@ private:
     const int caster_max_count;
     const double caster_gear_ratio;
     const double caster_wheel_radius;
+    const double reel_radius;
+    const double steering_radius;
 
     // 変数
     double cmd_steering = 0.0;
@@ -94,7 +96,7 @@ private:
         cmd,
         stay,
         stop
-    } mode = Mode::stay;
+    } mode = Mode::stop;
 
 };
 
