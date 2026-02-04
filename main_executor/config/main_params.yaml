@@ -14,7 +14,7 @@ launch: #起動パラメータ
       jer: 0.0
     # 舵角  位置[deg]
     steering_max :
-      pos : 15.0
+      pos : 7.0
 
     tread : 0.6
     wheelbase : 0.8
@@ -38,9 +38,9 @@ chassis_driver_node:
       reel_radius : 0.02 # [m]
       steering_radius : 0.032 # [m]
     drive_pid:
-      p_gain : 10.0
+      p_gain : 6.0
       i_gain : 0.0
-      d_gain : 2.0
+      d_gain : 5.0
 
 socketcan_interface_node:
   ros__parameters:
