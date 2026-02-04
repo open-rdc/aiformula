@@ -26,7 +26,7 @@ caster_max_angle_rad_(get_parameter("steering_max.pos").as_double() * 0.01745329
         _qos,
         std::bind(&PurePursuit::autonomous_callback, this, std::placeholders::_1)
     );
-    publisher_vel = this->create_publisher<ackermann_msgs::msg::AckermannDrive>("cmd_vel", _qos);
+    publisher_vel = this->create_publisher<steered_drive_msg::msg::SteeredDrive>("cmd_vel", _qos);
 
     RCLCPP_INFO(this->get_logger(), "PurePursuit node has been initialized. lookahead_distance: %.2f", lookahead_distance);
 }
@@ -40,7 +40,7 @@ void PurePursuit::_subscriber_callback_path(const nav_msgs::msg::Path::SharedPtr
         return;
     }
 
-    ackermann_msgs::msg::AckermannDrive command;
+    steered_drive_msg::msg::SteeredDrive command;
 
     if (!msg || msg->poses.empty()) {
         RCLCPP_WARN_THROTTLE(
@@ -85,7 +85,7 @@ void PurePursuit::_subscriber_callback_path(const nav_msgs::msg::Path::SharedPtr
     const double steer_angle = std::atan2(2.0 * wheelbase_ * std::sin(alpha), lookahead_distance);
     const double steer_angle_clamped = std::clamp(steer_angle, -caster_max_angle_rad_, caster_max_angle_rad_);
 
-    command.speed = linear_velocity;
+    command.velocity = linear_velocity;
     command.steering_angle = steer_angle_clamped;
     publisher_vel->publish(command);
 }

@@ -1,6 +1,6 @@
 #pragma once
 
-#include <ackermann_msgs/msg/ackermann_drive.hpp>
+#include <steered_drive_msg/msg/steered_drive.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <geometry_msgs/msg/twist.hpp>
@@ -34,7 +34,7 @@ private:
     rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr subscription_autonomous_;
     void autonomous_callback(const std_msgs::msg::Bool::SharedPtr msg);
 
-    rclcpp::Publisher<ackermann_msgs::msg::AckermannDrive>::SharedPtr publisher_vel_;
+    rclcpp::Publisher<steered_drive_msg::msg::SteeredDrive>::SharedPtr publisher_vel_;
     rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr publisher_self_pose_;
     rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr publisher_target_pose_;
 
