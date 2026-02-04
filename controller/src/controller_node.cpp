@@ -24,7 +24,7 @@ steering_max_angle(dtor(get_parameter("steering_max.pos").as_double()))
     publisher_autonomous = this->create_publisher<std_msgs::msg::Bool>("autonomous", _qos);
 
     // 駆動系に電源が行っている可能性もあるのでリスタートする
-    publisher_restart->publish(*std::make_shared<std_msgs::msg::Empty>());
+    // publisher_restart->publish(*std::make_shared<std_msgs::msg::Empty>());
 }
 
 void Controller::_subscriber_callback_joy(const sensor_msgs::msg::Joy::SharedPtr msg){
