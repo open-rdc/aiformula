@@ -24,6 +24,29 @@ controller_node:
   ros__parameters:
     linear_max_vel : 5.0  #[m/s]
 
+frenet_planner_node:
+  ros__parameters:
+    # 時間パラメータ
+    dt : 0.2               # [s] 軌道の時間離散化間隔
+    # 速度パラメータ
+    d_t_s : 0.1         # [double] 速度サンプリングの割合
+    n_s_sample : 0    # [int] 縦方向サンプリング数
+    # 衝突判定
+    safety_margin : 0.0  # [m] 障害物からの安全マージン
+    # コスト関数の重み
+    k_jerk : 1.0          # Jerkペナルティ
+    k_time : 1.0          # 時間ペナルティ
+    k_d : 1.0             # 目標横位置ペナルティ
+    k_s_dot : 1.0         # 目標速度ペナルティ
+
+    k_lat : 1.0           # 横方向
+    k_lon : 3.0           # 縦方向
+
+pure_pursuit_node:
+  ros__parameters:
+    lookahead_distance : 2.0
+    curvature_gain : 5.0
+
 chassis_driver_node:
   ros__parameters:
     interval_ms : 2
@@ -45,27 +68,3 @@ chassis_driver_node:
 socketcan_interface_node:
   ros__parameters:
     if_name : "can_main"
-
-
-# 経路追従・追従
-pure_pursuit_node:
-  ros__parameters:
-
-    lookahead_distance : 2.0
-path_publisher_node:
-  ros__parameters:
-    interval_ms : 1000
-    path_file_name : "precourse"
-
-gnssnav_follower_node:
-  ros__parameters:
-    debug_flag : false
-    interval_ms : 50
-    lookahead_gain : 1.0
-    p_gain : 1.5
-    i_gain : 0.5
-    d_gain : 0.2
-    min_lookahead_distance : 3.0
-    max_linear_vel : 2.0
-    max_angular_vel : 1.57
-    laps : 3

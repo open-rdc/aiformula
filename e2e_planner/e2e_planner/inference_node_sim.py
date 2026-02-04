@@ -1,6 +1,6 @@
 import rclpy
 from rclpy.node import Node
-from sensor_msgs.msg import Image, PointCloud2
+from sensor_msgs.msg import Image
 from nav_msgs.msg import Path
 from geometry_msgs.msg import PoseStamped, Pose, Point
 from cv_bridge import CvBridge
@@ -12,9 +12,7 @@ from pathlib import Path as FilePath
 from rclpy.qos import qos_profile_system_default, qos_profile_sensor_data
 from ament_index_python.packages import get_package_share_directory
 from scipy.interpolate import splprep, splev
-from typing import Optional, Tuple, TYPE_CHECKING
-if TYPE_CHECKING:
-    from .zed_sdk import ZedSdk
+from typing import Optional, Tuple
 
 try:
     import pyzed.sl as sl
@@ -36,7 +34,7 @@ class InferenceNode(Node):
 
         self.declare_parameter('model_name', 'model.pt')
         self.declare_parameter('interval_ms', 100)
-        self.declare_parameter('sdk_flag', True)
+        self.declare_parameter('sdk_flag', False)
         self.declare_parameter('debug_mode', True)
 
         model_path = self.get_parameter('model_name').value
@@ -47,7 +45,9 @@ class InferenceNode(Node):
         self.bridge = CvBridge()
         self.device = torch.device('cuda')
         self.latest_image = None
-        self.zed: Optional["ZedSdk"] = None
+        self.zed_camera: Optional[sl.Camera] = None
+        self.zed_image: Optional[sl.Mat] = None
+        self.zed_runtime_params: Optional[sl.RuntimeParameters] = None
 
         package_share_directory = get_package_share_directory('e2e_planner')
         weight_path = os.path.join(package_share_directory, 'weights', model_path)
@@ -62,30 +62,56 @@ class InferenceNode(Node):
 
         self.yolop_processor = YOLOPv2Processor(yolop_weight_path, self.device)
 
-        self.sub = self.create_subscription(Image, '/zed/zed_node/left/image_rect_color', self.image_callback, qos_profile_sensor_data)
         if self.sdk_flag_:
             if not ZED_SDK_AVAILABLE:
                 self.get_logger().error('ZED SDK not available. Install pyzed package.')
                 raise RuntimeError('ZED SDK not available')
-            from .zed_sdk import ZedSdk
-            self.zed = ZedSdk(self.get_logger())
+            self._initialize_zed_camera()
         else:
             self.sub = self.create_subscription(Image, '/zed/zed_node/rgb/image_rect_color', self.image_callback, qos_profile_sensor_data)
 
         self.pub_raw = self.create_publisher(Path, 'e2e_planner/path_raw', qos_profile_system_default)
         self.pub = self.create_publisher(Path, 'e2e_planner/path', qos_profile_system_default)
-        self.pub_pointcloud = self.create_publisher(PointCloud2, '/zed/zed_node/pointcloud', qos_profile_sensor_data)
-        
+
         if self.debug_mode_:
             self.pub_debug_image = self.create_publisher(Image, 'e2e_planner/debug_image', qos_profile_system_default)
             self.get_logger().info('Debug mode enabled: publishing preprocessed images to e2e_planner/debug_image')
 
         self.timer = self.create_timer(interval_ms / 1000.0, self.timer_callback)
 
-    def preprocess_image(self, image: np.ndarray) -> Tuple[torch.Tensor, np.ndarray]:
-        bgr_image = cv2.cvtColor(image, cv2.COLOR_BGRA2BGR)
+    def _initialize_zed_camera(self) -> None:
+        self.zed_camera = sl.Camera()
+        init_params = sl.InitParameters()
+        init_params.camera_resolution = sl.RESOLUTION.SVGA
+        init_params.camera_fps = 30
 
-        mask = self.yolop_processor.process_image(bgr_image, (64, 48))
+        err = self.zed_camera.open(init_params)
+        if err != sl.ERROR_CODE.SUCCESS:
+            self.get_logger().error(f'Failed to open ZED camera: {err}')
+            raise RuntimeError(f'Failed to open ZED camera: {err}')
+
+        self.zed_image = sl.Mat()
+        self.zed_runtime_params = sl.RuntimeParameters()
+        self.get_logger().info('ZED camera initialized successfully')
+
+    def _capture_image_from_zed(self) -> Optional[np.ndarray]:
+        if self.zed_camera.grab(self.zed_runtime_params) == sl.ERROR_CODE.SUCCESS:
+            self.zed_camera.retrieve_image(self.zed_image, sl.VIEW.LEFT)
+            image = self.zed_image.get_data()
+            # Resize image to half size
+            height, width = image.shape[:2]
+            resized_image = cv2.resize(image, (width // 2, height // 2))
+            return resized_image
+        return None
+
+    def preprocess_image(self, image: np.ndarray) -> Tuple[torch.Tensor, np.ndarray]:
+
+        if self.sdk_flag_:
+            bgr_image = cv2.cvtColor(image, cv2.COLOR_BGRA2BGR)
+            mask = self.yolop_processor.process_image(bgr_image, (64, 48))
+        else:
+            mask = ((image[:, :, 2] > 200) & (image[:, :, 0] < 50) & (image[:, :, 1] < 50)).astype(np.uint8)
+            mask = cv2.resize(mask, (64, 48))
 
         mask_normalized = mask.astype(np.float32)
         tensor = torch.from_numpy(mask_normalized).unsqueeze(0).unsqueeze(0)
@@ -96,19 +122,13 @@ class InferenceNode(Node):
 
     def timer_callback(self) -> None:
         if self.sdk_flag_:
-            if self.zed is None or not self.zed.grab():
-                return
-            cv_image = self.zed.get_image()
+            cv_image = self._capture_image_from_zed()
             if cv_image is None:
                 return
             from std_msgs.msg import Header
             header = Header()
             header.stamp = self.get_clock().now().to_msg()
             header.frame_id = 'base_link'
-
-            pointcloud_msg = self.zed.get_pointcloud(header)
-            if pointcloud_msg is not None:
-                self.pub_pointcloud.publish(pointcloud_msg)
         else:
             if self.latest_image is None:
                 return
@@ -116,7 +136,6 @@ class InferenceNode(Node):
             header = self.latest_image.header
 
         input_tensor, mask = self.preprocess_image(cv_image)
-
         if self.debug_mode_:
             resized_input = cv2.resize(cv2.cvtColor(cv_image, cv2.COLOR_BGRA2BGR), (64, 48))
             resized_input[mask == 1] = [0, 0, 255]

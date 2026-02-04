@@ -7,7 +7,8 @@ package_name = 'e2e_planner'
 setup(
     name=package_name,
     version='0.0.1',
-    packages=[package_name],
+    packages=[package_name, 'util'],
+    package_dir={'util': 'scripts/util'},
     data_files=[
         ('share/ament_index/resource_index/packages',
             ['resource/' + package_name]),
@@ -25,6 +26,7 @@ setup(
     entry_points={
         'console_scripts': [
             'inference_node = e2e_planner.inference_node:main',
+            'inference_node_sim.py = e2e_planner.inference_node_sim:main',
         ],
     },
 )

@@ -14,7 +14,6 @@ from typing import Tuple
 from tqdm import tqdm
 from schedulefree import RAdamScheduleFree
 from network import Network
-from util.slit_aug import augment
 
 IMAGE_WIDTH = 64
 IMAGE_HEIGHT = 48
@@ -24,39 +23,36 @@ NUM_WAYPOINTS = 10
 class E2EDataset(Dataset):
     def __init__(self, dataset_path: Path):
         self.dataset_path = dataset_path
-        self.images_dir = dataset_path / 'images'
+        self.mask_images_dir = dataset_path / 'mask_images'
         self.path_dir = dataset_path / 'path'
-        self.image_files = sorted(list(self.images_dir.glob('*.png')))
+        self.mask_files = sorted(list(self.mask_images_dir.glob('*.png')))
 
     def __len__(self) -> int:
-        return len(self.image_files)*3
+        return len(self.mask_files)
 
     def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
-        original_idx = idx // 3
-        aug_type = idx % 3
+        mask_file = self.mask_files[idx]
+        csv_file = self.path_dir / f'{mask_file.stem}.csv'
 
-        image_file = self.image_files[original_idx]
-        csv_file = self.path_dir / f'{image_file.stem}.csv'
-
-        image = cv2.imread(str(image_file), cv2.IMREAD_UNCHANGED)
+        mask_bgr = cv2.imread(str(mask_file), cv2.IMREAD_COLOR)
 
         with open(csv_file, 'r') as f:
             reader = csv.DictReader(f)
             waypoints = [[float(row['x']), float(row['y'])] for row in reader]
 
-        augmented_data = augment(image, waypoints)
-        cropped_image, rotated_waypoints = augmented_data[aug_type]
+        mask_binary = ((mask_bgr[:, :, 2] > 200) & (mask_bgr[:, :, 0] < 50) & (mask_bgr[:, :, 1] < 50)).astype(np.uint8)
 
-        cropped_image = image[:, 40:440]
-        cropped_image = cv2.resize(cropped_image, (IMAGE_WIDTH, IMAGE_HEIGHT))
-        cropped_image = cropped_image.astype(np.float32) / 255.0
-        cropped_image = torch.from_numpy(cropped_image).permute(2, 0, 1)
+        cropped_mask = mask_binary[:, 40:440]
+        resized_mask = cv2.resize(cropped_mask, (IMAGE_WIDTH, IMAGE_HEIGHT), interpolation=cv2.INTER_NEAREST)
 
-        waypoints_tensor = torch.tensor(rotated_waypoints, dtype=torch.float32).flatten()
+        mask_normalized = resized_mask.astype(np.float32)
+        mask_tensor = torch.from_numpy(mask_normalized).unsqueeze(0)
+
+        waypoints_tensor = torch.tensor(waypoints, dtype=torch.float32).flatten()
         waypoints_tensor[0::2] = waypoints_tensor[0::2] / 5.0 - 1.0
         waypoints_tensor[1::2] = (waypoints_tensor[1::2] + 3.0) / 3.0 - 1.0
 
-        return cropped_image, waypoints_tensor
+        return mask_tensor, waypoints_tensor
 
 class Config:
     def __init__(self, config_path: Path, package_root: Path):

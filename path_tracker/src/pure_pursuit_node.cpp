@@ -12,21 +12,35 @@ PurePursuit::PurePursuit(const rclcpp::NodeOptions& options) : PurePursuit("", o
 PurePursuit::PurePursuit(const std::string& name_space, const rclcpp::NodeOptions& options)
 : rclcpp::Node("pure_pursuit_node", name_space, options),
 linear_max_vel(get_parameter("linear_max.vel").as_double()),
-angular_max_vel(get_parameter("angular_max.vel").as_double()),
-lookahead_distance(get_parameter("lookahead_distance").as_double())
+lookahead_distance(get_parameter("lookahead_distance").as_double()),
+wheelbase_(get_parameter("wheelbase").as_double()),
+caster_max_angle_rad_(get_parameter("steering_max.pos").as_double() * 0.017453292519943295)
 {
     _subscription_path = this->create_subscription<nav_msgs::msg::Path>(
-        "e2e_planner/path",
+        "/frenet_planner/path",
         _qos,
         std::bind(&PurePursuit::_subscriber_callback_path, this, std::placeholders::_1)
     );
-    publisher_vel = this->create_publisher<geometry_msgs::msg::Twist>("cmd_vel", _qos);
+    _subscription_autonomous = this->create_subscription<std_msgs::msg::Bool>(
+        "/autonomous",
+        _qos,
+        std::bind(&PurePursuit::autonomous_callback, this, std::placeholders::_1)
+    );
+    publisher_vel = this->create_publisher<ackermann_msgs::msg::AckermannDrive>("cmd_vel", _qos);
 
     RCLCPP_INFO(this->get_logger(), "PurePursuit node has been initialized. lookahead_distance: %.2f", lookahead_distance);
 }
 
+void PurePursuit::autonomous_callback(const std_msgs::msg::Bool::SharedPtr msg){
+    autonomous_flag_ = msg->data;
+}
+
 void PurePursuit::_subscriber_callback_path(const nav_msgs::msg::Path::SharedPtr msg){
-    geometry_msgs::msg::Twist command;
+    if (!autonomous_flag_) {
+        return;
+    }
+
+    ackermann_msgs::msg::AckermannDrive command;
 
     if (!msg || msg->poses.empty()) {
         RCLCPP_WARN_THROTTLE(
@@ -66,13 +80,13 @@ void PurePursuit::_subscriber_callback_path(const nav_msgs::msg::Path::SharedPtr
     const double safe_lookahead = std::max(lookahead_distance, 1e-3);
     const double linear_scale = std::clamp(distance / safe_lookahead, 0.0, 1.0);
     const double linear_velocity = std::clamp(linear_max_vel * linear_scale, 0.0, linear_max_vel);
-    const double curvature = (20.0 * target_y) / (distance * distance);  // Pure pursuit curvature.
-    double angular_velocity = linear_velocity * curvature;
+    
+    const double alpha = std::atan2(target_y, target_x);
+    const double steer_angle = std::atan2(2.0 * wheelbase_ * std::sin(alpha), lookahead_distance);
+    const double steer_angle_clamped = std::clamp(steer_angle, -caster_max_angle_rad_, caster_max_angle_rad_);
 
-    angular_velocity = std::clamp(angular_velocity, -angular_max_vel, angular_max_vel);
-
-    command.linear.x = linear_velocity;
-    command.angular.z = angular_velocity;
+    command.speed = linear_velocity;
+    command.steering_angle = steer_angle_clamped;
     publisher_vel->publish(command);
 }
 

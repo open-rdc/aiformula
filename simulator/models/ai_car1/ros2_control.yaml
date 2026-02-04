@@ -1,0 +1,11 @@
+controller_manager:
+  ros__parameters:
+    update_rate: 100
+    caster_yaw_position_controller:
+      type: position_controllers/JointGroupPositionController
+
+caster_yaw_position_controller:
+  ros__parameters:
+    joints:
+      - caster_yaw_wheel
+    interface_name: position
