@@ -22,7 +22,7 @@ launch: #起動パラメータ
 
 controller_node:
   ros__parameters:
-    linear_max_vel : 1.0  #[m/s]
+    linear_max_vel : 5.0  #[m/s]
 
 chassis_driver_node:
   ros__parameters:
@@ -35,8 +35,10 @@ chassis_driver_node:
       max_count : 16384
       gear_ratio : 0.59090909090909
       wheel_radius : 0.12 # [m]
+      reel_radius : 0.02 # [m]
+      steering_radius : 0.032 # [m]
     drive_pid:
-      p_gain : 20.0
+      p_gain : 10.0
       i_gain : 0.0
       d_gain : 2.0
 
