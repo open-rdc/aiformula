@@ -19,7 +19,6 @@ launch: #起動パラメータ
     tread : 0.6
     wheelbase : 0.8
 
-
 controller_node:
   ros__parameters:
     linear_max_vel : 5.0  #[m/s]
@@ -46,6 +45,7 @@ pure_pursuit_node:
   ros__parameters:
     lookahead_distance : 5.0
     curvature_gain : 5.0
+    steered_gain : 2.0
 
 chassis_driver_node:
   ros__parameters:
