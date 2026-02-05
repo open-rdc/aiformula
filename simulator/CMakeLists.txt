@@ -27,7 +27,7 @@ install(
 
 install(
   PROGRAMS
-    scripts/ackermann_to_twist.py
+    scripts/steered_to_twist.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

@@ -8,7 +8,7 @@
   <license>TODO: License declaration</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
-  <exec_depend>ackermann_msgs</exec_depend>
+  <exec_depend>steered_drive_msg</exec_depend>
   <exec_depend>geometry_msgs</exec_depend>
   <exec_depend>std_msgs</exec_depend>
   <exec_depend>gz_ros2_control</exec_depend>

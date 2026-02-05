@@ -48,9 +48,9 @@ def generate_launch_description():
         ]
     )
 
-    ackermann_to_twist = Node(
+    steered_to_twist = Node(
         package='simulator',
-        executable='ackermann_to_twist.py',
+        executable='steered_to_twist.py',
         output='screen',
         parameters=[{
             'input_topic': '/cmd_vel',
@@ -107,7 +107,7 @@ def generate_launch_description():
             launch_arguments=[
                 ('gz_args', [world_file_path, ' -r'])]
         ),
-        ackermann_to_twist,
+        steered_to_twist,
         bridge,
         robot_state_publisher,
         TimerAction(

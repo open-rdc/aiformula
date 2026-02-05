@@ -5,14 +5,14 @@ import math
 import rclpy
 from rclpy.node import Node
 
-from ackermann_msgs.msg import AckermannDrive
 from geometry_msgs.msg import Twist
 from std_msgs.msg import Float64MultiArray
+from steered_drive_msg.msg import SteeredDrive
 
 
-class AckermannToTwist(Node):
+class SteeredToTwist(Node):
     def __init__(self) -> None:
-        super().__init__('ackermann_to_twist')
+        super().__init__('steered_to_twist')
 
         self.declare_parameter('wheel_base', 0.8)
         self.declare_parameter('input_topic', '/cmd_vel')
@@ -32,10 +32,10 @@ class AckermannToTwist(Node):
 
         self._pub = self.create_publisher(Twist, output_topic, 10)
         self._caster_pub = self.create_publisher(Float64MultiArray, caster_topic, 10)
-        self._sub = self.create_subscription(AckermannDrive, input_topic, self.cmd_callback, 10)
+        self._sub = self.create_subscription(SteeredDrive, input_topic, self.cmd_callback, 10)
 
-    def cmd_callback(self, msg: AckermannDrive) -> None:
-        linear_vel = float(msg.speed)
+    def cmd_callback(self, msg: SteeredDrive) -> None:
+        linear_vel = float(msg.velocity)
         steering_angle = float(msg.steering_angle)
 
         angular_vel = (linear_vel * math.tan(steering_angle)) / self._wheel_base
@@ -52,7 +52,7 @@ class AckermannToTwist(Node):
 
 def main() -> None:
     rclpy.init()
-    node = AckermannToTwist()
+    node = SteeredToTwist()
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:
