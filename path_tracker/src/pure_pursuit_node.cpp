@@ -17,7 +17,7 @@ wheelbase_(get_parameter("wheelbase").as_double()),
 caster_max_angle_rad_(get_parameter("steering_max.pos").as_double() * 0.017453292519943295)
 {
     _subscription_path = this->create_subscription<nav_msgs::msg::Path>(
-        "/frenet_planner/path",
+        "/e2e_planner/path",
         _qos,
         std::bind(&PurePursuit::_subscriber_callback_path, this, std::placeholders::_1)
     );
@@ -86,7 +86,7 @@ void PurePursuit::_subscriber_callback_path(const nav_msgs::msg::Path::SharedPtr
     const double steer_angle_clamped = std::clamp(steer_angle, -caster_max_angle_rad_, caster_max_angle_rad_);
 
     command.velocity = linear_velocity;
-    command.steering_angle = steer_angle_clamped;
+    command.steering_angle = steer_angle_clamped * 2.0;
     publisher_vel->publish(command);
 }
 

@@ -9,7 +9,7 @@ launch: #起動パラメータ
   ros__parameters:
     # 並進  速度[m/s],加速度[m/s^2],加減速度[-m/s^2],躍度[m/s^3]
     linear_max:
-      vel : 5.0
+      vel : 4.0
       acc: 5.0
       jer: 0.0
     # 舵角  位置[deg]
@@ -44,7 +44,7 @@ frenet_planner_node:
 
 pure_pursuit_node:
   ros__parameters:
-    lookahead_distance : 2.0
+    lookahead_distance : 5.0
     curvature_gain : 5.0
 
 chassis_driver_node:
