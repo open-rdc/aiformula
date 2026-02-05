@@ -13,6 +13,7 @@ PurePursuit::PurePursuit(const std::string& name_space, const rclcpp::NodeOption
 : rclcpp::Node("pure_pursuit_node", name_space, options),
 linear_max_vel(get_parameter("linear_max.vel").as_double()),
 lookahead_distance(get_parameter("lookahead_distance").as_double()),
+steered_gain(get_parameter("steered_gain").as_double()),
 wheelbase_(get_parameter("wheelbase").as_double()),
 caster_max_angle_rad_(get_parameter("steering_max.pos").as_double() * 0.017453292519943295)
 {
@@ -86,7 +87,7 @@ void PurePursuit::_subscriber_callback_path(const nav_msgs::msg::Path::SharedPtr
     const double steer_angle_clamped = std::clamp(steer_angle, -caster_max_angle_rad_, caster_max_angle_rad_);
 
     command.velocity = linear_velocity;
-    command.steering_angle = steer_angle_clamped * 2.0;
+    command.steering_angle = steer_angle_clamped * steered_gain;
     publisher_vel->publish(command);
 }
 

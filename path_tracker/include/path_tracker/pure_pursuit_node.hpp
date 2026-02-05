@@ -32,6 +32,7 @@ private:
 
     const double linear_max_vel;
     const double lookahead_distance;
+    const double steered_gain;
     const double wheelbase_;
     const double caster_max_angle_rad_;
 };
