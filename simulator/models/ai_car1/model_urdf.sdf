@@ -1,0 +1,610 @@
+<?xml version="1.0" ?>
+<sdf version="1.5">
+  <model name="ai_car1">
+  <self_collide>1</self_collide>
+  <pose>0 0 0 0 0 0</pose>
+
+  <!-- ignition plugin -->
+
+    <plugin filename="gz_ros2_control-system" name="gz_ros2_control::GazeboSimROS2ControlPlugin">
+      <parameters>/root/ros2_ws/install/simulator/share/simulator/config/caster.yaml</parameters>
+    </plugin>
+
+    <plugin
+      filename="libignition-gazebo-diff-drive-system.so"
+      name="ignition::gazebo::systems::DiffDrive">
+      <left_joint>left_wheel_joint</left_joint>
+      <right_joint>right_wheel_joint</right_joint>
+      <wheel_separation>0.6</wheel_separation>
+      <wheel_radius>0.124</wheel_radius>
+      <odom_publish_frequency>30</odom_publish_frequency>
+      <topic>cmd_vel</topic>
+      <odom_topic>odom</odom_topic>
+    </plugin>
+    <plugin
+        filename="libignition-gazebo-imu-system.so"
+        name="ignition::gazebo::systems::Imu">
+    </plugin>
+    <plugin
+        filename="ignition-gazebo-sensors-system"
+        name="ignition::gazebo::systems::Sensors">
+    </plugin>
+
+    <!-- chassis -->
+
+    <link name='chassis'>
+      <pose relative_to='__model__'>0 0 0.15 0 0 3.14</pose>
+
+      <inertial> <!--inertial properties of the link mass, inertia matix-->
+        <inertia>
+          <ixx>1.73333</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>4.56667</iyy>
+          <iyz>0</iyz>
+          <izz>4.56667</izz>
+        </inertia>
+        <mass>40.0</mass>
+      </inertial>
+
+      <visual name='visual'>
+        <geometry>
+        <!--let's add color to our link-->
+        <pose>0 0 0 0 0 3.14</pose>
+          <mesh>
+            <uri>package://simulator/models/ai_car1/meshes/AIF_body.dae</uri>
+          </mesh>
+        </geometry>
+      </visual>
+
+      <collision name='collision'>
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+        <pose>0 0 0 0 0 3.14</pose>
+          <mesh>
+            <uri>package://simulator/models/ai_car1/meshes/AIF_body.dae</uri>
+          </mesh>
+        </geometry>
+        <surface>
+          <contact>
+            <collide_bitmask>0x04</collide_bitmask>
+          </contact>
+        </surface>
+      </collision>
+    </link>
+
+    <link name='motor'>
+      <pose relative_to="chassis">0.7 0 0.33 0 0 0</pose>
+      <inertial>
+        <mass>1.0</mass>
+        <inertia>
+          <ixx>0.04778</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>0.04778</iyy>
+          <iyz>0</iyz>
+          <izz>0.07875</izz>
+        </inertia>
+      </inertial>
+
+      <visual name='visual'>
+        <geometry>
+        <!--let's add color to our link-->
+        <pose>0 0 0 0 0 0</pose>
+          <mesh>
+            <uri>package://simulator/models/ai_car1/meshes/motor.dae</uri>
+            <scale>0.001 0.001 0.001</scale>
+          </mesh>
+        </geometry>
+      </visual>
+      <collision name='collision'>
+        <geometry>
+        <pose>0 0 0 0 0 0</pose>
+          <mesh>
+	    <uri>package://simulator/models/ai_car1/meshes/motor.dae</uri>
+            <scale>0.001 0.001 0.001</scale>
+          </mesh>
+        </geometry>
+        <surface>
+          <contact>
+            <collide_bitmask>0x02</collide_bitmask>
+          </contact>
+        </surface>
+      </collision>
+    </link>
+
+    <link name='motor_spin'>
+      <pose relative_to="motor">0 0 0.022 0 0 0</pose>
+      <inertial>
+        <mass>0.5</mass>
+        <inertia>
+          <ixx>0.04778</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>0.04778</iyy>
+          <iyz>0</iyz>
+          <izz>0.07875</izz>
+        </inertia>
+      </inertial>
+
+      <visual name='visual'>
+        <geometry>
+        <!--let's add color to our link-->
+        <pose>0 0 0 0 0 0</pose>
+          <mesh>
+            <uri>package://simulator/models/ai_car1/meshes/motor_spin.dae</uri>
+            <scale>0.001 0.001 0.001</scale>
+          </mesh>
+        </geometry>
+	<material>
+          <ambient>1.0 1.0 0.0 1</ambient>   <!-- 環境光：黄色 -->
+          <diffuse>1.0 1.0 0.0 1</diffuse>   <!-- 拡散反射：黄色 -->
+          <specular>0.2 0.2 0.2 1</specular> <!-- 少し光沢 -->
+          <emissive>0 0 0 1</emissive>       <!-- 発光なし -->
+        </material>
+      </visual>
+      <collision name="fork_left_collision">
+        <pose>-0.037 -0.01509 -0.005 0 0 0.261</pose>
+        <geometry>
+          <box>
+            <size>0.017 0.01 0.01</size>
+          </box>
+        </geometry>
+        <surface>
+          <contact>
+            <collide_bitmask>0x01</collide_bitmask>
+          </contact>
+        </surface>
+      </collision>
+
+      <!-- 🔸 右アーム -->
+      <collision name="fork_right_collision">
+        <pose>-0.037 0.01509 -0.005 0 0 -0.261</pose>
+        <geometry>
+          <box>
+            <size>0.017 0.01 0.01</size>
+          </box>
+        </geometry>
+        <surface>
+          <contact>
+            <collide_bitmask>0x01</collide_bitmask>
+          </contact>
+        </surface>
+      </collision>
+
+      <!-- 🔸 背中（Uの底） -->
+      <collision name="fork_base_collision">
+        <pose>-0.0 0.0 -0.005 0 0 -0.261</pose>
+        <geometry>
+          <cylinder>
+            <radius>0.025</radius>
+            <length>0.005</length>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <collide_bitmask>0x01</collide_bitmask>
+          </contact>
+        </surface>
+      </collision>
+    </link>
+
+    <!-- left wheel -->
+
+    <link name='left_wheel'>
+      <pose relative_to="chassis">0 -0.3 0 1.57 0 1.57</pose>
+      <inertial>
+        <mass>7.0</mass>
+        <inertia>
+          <ixx>0.04778</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>0.04778</iyy>
+          <iyz>0</iyz>
+          <izz>0.07875</izz>
+        </inertia>
+      </inertial>
+
+      <visual name='visual'>
+        <geometry>
+        <!--let's add color to our link-->
+        <pose>0 -0.3 0 1.57 0 1.57</pose>
+          <mesh>
+            <uri>package://simulator/models/ai_car1/meshes/tire.dae</uri>
+            <scale>0.05 0.12 0.12</scale>
+          </mesh>
+        </geometry>
+      </visual>
+      <collision name='collision'>
+        <geometry>
+        <pose>0 -0.3 0 1.57 0 1.57</pose>
+          <mesh>
+            <uri>package://simulator/models/ai_car1/meshes/tire.dae</uri>
+            <scale>0.05 0.12 0.12</scale>
+          </mesh>
+        </geometry>
+        <surface>
+          <contact>
+            <collide_bitmask>0x01</collide_bitmask>
+          </contact>
+        </surface>
+      </collision>
+    </link>
+
+    <!-- right wheel -->
+
+    <link name='right_wheel'>
+      <pose relative_to="chassis">0 0.3 0 1.57 0 1.57</pose> <!--angles are in radian-->
+      <inertial>
+        <mass>7.0</mass>
+        <inertia>
+          <ixx>0.04778</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>0.04778</iyy>
+          <iyz>0</iyz>
+          <izz>0.07875</izz>
+        </inertia>
+      </inertial>
+
+      <visual name='visual'>
+        <geometry>
+        <!--let's add color to our link-->
+        <pose>0 0.3 0 1.57 0 1.57</pose>
+          <mesh>
+            <uri>package://simulator/models/ai_car1/meshes/tire.dae</uri>
+            <scale>0.05 0.12 0.12</scale>
+          </mesh>
+        </geometry>
+      </visual>
+
+      <collision name='collision'>
+        <geometry>
+        <pose>0 0.3 0 1.57 0 1.57</pose>
+          <mesh>
+            <uri>package://simulator/models/ai_car1/meshes/tire.dae</uri>
+            <scale>0.05 0.12 0.12</scale>
+          </mesh>
+        </geometry>
+        <surface>
+          <contact>
+            <collide_bitmask>0x01</collide_bitmask>
+          </contact>
+        </surface>
+      </collision>
+    </link>
+
+    <!-- caster wheel -->
+
+    <frame name="caster_frame" attached_to='chassis'>
+        <pose>0.8 0 0 0 0 1.57</pose>
+    </frame>
+
+    <link name='caster_yaw'>
+      <pose relative_to='caster_frame'>0 0.1 0.25 0 0 -1.57</pose>
+      <inertial>
+        <mass>0.7</mass>
+        <inertia>
+          <ixx>0.001</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>0.001</iyy>
+          <iyz>0</iyz>
+          <izz>0.001</izz>
+        </inertia>
+      </inertial>
+
+      <visual name='visual'>
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <mesh>
+            <uri>package://simulator/models/ai_car1/meshes/castor_yaw.dae</uri>
+            <scale>0.001 0.001 0.001</scale>
+          </mesh>
+        </geometry>
+        <material>
+          <ambient>1.0 0.0 0.0 1</ambient>   <!-- 環境光：黄色 -->
+          <diffuse>1.0 0.0 0.0 1</diffuse>   <!-- 拡散反射：黄色 -->
+          <specular>0.2 0.2 0.2 1</specular> <!-- 少し光沢 -->
+          <emissive>0 0 0 1</emissive>       <!-- 発光なし -->
+        </material>
+      </visual>
+
+      <!-- 🔸 左アーム -->
+      <collision name="caster_left_collision">
+        <pose>-0.04 -0.0045 0.097 0 0 0.175</pose>
+        <geometry>
+          <box>
+            <size>0.017 0.005 0.01</size>
+          </box>
+        </geometry>
+        <surface>
+          <contact>
+            <collide_bitmask>0x01</collide_bitmask>
+          </contact>
+        </surface>
+      </collision>
+
+      <!-- 🔸 右アーム -->
+      <collision name="caster_right_collision">
+        <pose>-0.04 0.0045 0.097 0 0 -0.175</pose>
+        <geometry>
+          <box>
+            <size>0.017 0.005 0.01</size>
+          </box>
+        </geometry>
+        <surface>
+          <contact>
+            <collide_bitmask>0x01</collide_bitmask>
+          </contact>
+        </surface>
+      </collision>
+
+      <!-- 🔸 中心柱 -->
+      <collision name="caster_center_collision">
+        <pose>0 0 0.0444 0 0 -0.261</pose>
+        <geometry>
+          <cylinder>
+            <radius>0.003</radius>
+            <length>0.09</length>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <collide_bitmask>0x01</collide_bitmask>
+          </contact>
+        </surface>
+      </collision>
+    </link>
+
+    <link name='caster'>
+      <pose relative_to='caster_yaw'>0.1 0.0 -0.25 0 0 1.57</pose>
+      <inertial>
+        <mass>1.0</mass>
+        <inertia>
+          <ixx>0.04778</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>0.04778</iyy>
+          <iyz>0</iyz>
+          <izz>0.07875</izz>
+        </inertia>
+      </inertial>
+
+      <visual name='visual'>
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <mesh>
+            <uri>package://simulator/models/ai_car1/meshes/tire.dae</uri>
+            <scale>0.1 0.1 0.1</scale>
+          </mesh>
+        </geometry>
+      </visual>
+
+      <collision name='collision'>
+        <geometry>
+          <mesh>
+            <uri>package://simulator/models/ai_car1/meshes/tire.dae</uri>
+            <scale>0.1 0.1 0.1</scale>
+          </mesh>
+        </geometry>
+        <surface>
+          <contact>
+            <collide_bitmask>0x01</collide_bitmask>
+          </contact>
+        </surface>
+      </collision>
+    </link>
+
+    <!-- joint config -->
+
+    <joint name='motor_joint' type='fixed'>
+      <parent>chassis</parent>
+      <child>motor</child>
+    </joint>
+
+    <joint name='motor_spin_joint' type='revolute'>
+      <parent>motor</parent>
+      <child>motor_spin</child>
+      <axis>
+        <xyz expressed_in='__model__'>0 0 1</xyz>
+        <limit>
+	  <lower>-6.283</lower>
+	  <upper>6.283</upper>
+	  <effort>9.4</effort>
+        </limit>
+        <dynamics>
+          <friction>0.9</friction>  <!-- 静止摩擦 -->
+        </dynamics>
+      </axis>
+    </joint>
+
+    <joint name='left_wheel_joint' type='revolute'>
+      <pose relative_to='left_wheel'/>
+      <parent>chassis</parent>
+      <child>left_wheel</child>
+      <axis>
+        <xyz expressed_in='__model__'>0 1 0</xyz>
+        <limit>
+          <effort>9.4</effort>
+        </limit>
+        <dynamics>
+          <friction>0.9</friction>  <!-- 静止摩擦 -->
+        </dynamics>
+      </axis>
+    </joint>
+
+    <joint name='right_wheel_joint' type='revolute'>
+      <pose relative_to='right_wheel'/>
+      <parent>chassis</parent>
+      <child>right_wheel</child>
+      <axis>
+        <xyz expressed_in='__model__'>0 1 0</xyz>
+        <limit>
+          <effort>9.4</effort>
+        </limit>
+        <dynamics>
+          <friction>0.9</friction>  <!-- 静止摩擦 -->
+        </dynamics>
+      </axis>
+    </joint>
+
+    <joint name='caster_yaw_wheel' type='revolute'>
+      <parent>chassis</parent>
+      <child>caster_yaw</child>
+      <axis>
+        <xyz expressed_in='__model__'>0 0 1</xyz>
+        <limit>
+          <lower>-0.48</lower>
+          <upper>0.48</upper>
+        </limit>
+        <dynamics>
+          <damping>10.0</damping>
+          <spring_stiffness>12.0</spring_stiffness>
+          <spring_reference>0.0</spring_reference>
+        </dynamics>
+      </axis>
+    </joint>
+
+    <joint name='caster_pitch_joint' type='revolute'>
+      <parent>caster_yaw</parent>
+      <child>caster</child>
+      <axis>
+        <xyz expressed_in='__model__'>0 1 0</xyz>
+        <dynamics>
+          <damping>0.01</damping>
+        </dynamics>
+      </axis>
+    </joint>
+
+    <!-- imu sensor -->
+
+    <joint name="imu_joint" type="fixed">
+      <parent>chassis</parent>
+      <child>imu_link</child>
+      <pose>-0.032 0 0.068 0 0 0</pose>
+      <axis>
+        <xyz>0 0 1</xyz>
+      </axis>
+    </joint>
+
+    <link name="imu_link">
+      <sensor name="imu_sensor" type="imu">
+        <always_on>1</always_on>
+        <update_rate>20.0</update_rate> <!--Hz-->
+        <visualize>true</visualize>
+        <topic>imu_raw</topic>
+      </sensor>
+    </link>
+
+    <!-- camera image -->
+
+    <joint name="camera_joint" type="fixed">
+      <parent>chassis</parent>
+      <child>camera_link</child>
+      <pose>0.35 0 0.55 0 0 0</pose>
+      <axis>
+        <xyz>0 0 1</xyz>
+      </axis>
+    </joint>
+
+    <joint name="camera_rgb_joint" type="fixed">
+      <parent>camera_link</parent>
+      <child>camera_rgb_link</child>
+      <pose>0.35 0 0.55 0 0 0</pose>
+      <axis>
+        <xyz>0 0 1</xyz>
+      </axis>
+    </joint>
+
+    <joint name="camera_depth_joint" type="fixed">
+      <parent>camera_link</parent>
+      <child>camera_depth_link</child>
+      <pose>0.35 0 0.55 0 0 0</pose>
+      <axis>
+        <xyz>0 0 1</xyz>
+      </axis>
+    </joint>
+
+    <link name="camera_link">
+      <pose>0 0 0 0 0 0</pose>
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>1e-6</ixx>
+          <iyy>1e-6</iyy>
+          <izz>1e-6</izz>
+        </inertia>
+      </inertial>
+    </link>
+
+    <link name="camera_rgb_link">
+      <sensor name="camera_rgb_link" type="camera">
+        <update_rate>60.0</update_rate>
+        <always_on>true</always_on>
+        <ignition_frame_id>camera_rgb_link</ignition_frame_id>
+        <pose>0.35 0 0.55 0 0 0</pose>
+        <topic>image_raw</topic>
+        <camera name="camera">
+          <horizontal_fov>1.91986</horizontal_fov>
+          <vertical_fov>1.39626</vertical_fov>
+          <image>
+             <width>480</width>
+             <height>300</height>
+             <format>R8G8B8</format>
+          </image>
+          <clip>
+            <near>0.02</near>
+            <far>300</far>
+          </clip>
+        </camera>
+      </sensor>
+    </link>
+
+    <link name="camera_depth_link">
+      <sensor name="camera_depth_link" type="depth">
+        <update_rate>60.0</update_rate>
+        <always_on>true</always_on>
+        <ignition_frame_id>camera_depth_link</ignition_frame_id>
+        <pose>0.35 0 0.55 0 0 0</pose>
+        <topic>depth_image_raw</topic>
+        <pointcloud>
+          <topic>depth_points</topic>
+        </pointcloud>
+        <camera name="camera">
+          <horizontal_fov>1.91986</horizontal_fov>
+          <vertical_fov>1.39626</vertical_fov>
+          <image>
+             <width>480</width>
+             <height>300</height>
+             <format>R8G8B8</format>
+          </image>
+          <clip>
+            <near>0.02</near>
+            <far>20</far>
+          </clip>
+        </camera>
+      </sensor>
+    </link>
+
+    <!-- GNSS sensor -->
+
+    <joint name="gps_joint" type="fixed">
+      <parent>chassis</parent>
+      <child>gps_link</child>
+      <pose>0 0 0 0 0 0</pose>
+      <axis>
+        <xyz>0 0 1</xyz>
+      </axis>
+    </joint>
+
+    <link name="gps_link">
+      <sensor name="gps_sensor" type="navsat">
+        <always_on>true</always_on>
+        <update_rate>1.0</update_rate>
+        <topic>navsat</topic>
+      </sensor>
+    </link>
+
+  </model>
+</sdf>

@@ -1,0 +1,74 @@
+<?xml version="1.0"?>
+<robot name="ai_car1_ros2_control">
+
+  <!-- base -->
+  <link name="chassis"/>
+  <link name="motor"/>
+  <link name="motor_spin"/>
+  <link name="caster_yaw"/>
+
+  <joint name="motor_joint" type="fixed">
+    <parent link="chassis"/>
+    <child link="motor"/>
+  </joint>
+
+  <!-- motor spin -->
+  <joint name="motor_spin_joint" type="revolute">
+    <parent link="motor"/>
+    <child link="motor_spin"/>
+    <axis xyz="0 0 1"/>
+    <limit
+    lower="-6.283"
+    upper="6.283"
+    effort="9.4"
+    velocity="10.0"/>
+  </joint>
+  
+  <!-- Gazebo / Ignition 拡張 -->
+  <gazebo reference="motor_spin_joint">
+    <dynamics>
+      <friction>0.9</friction>
+    </dynamics>
+  </gazebo>
+
+  <!-- caster yaw -->
+  <joint name="caster_yaw_wheel" type="revolute">
+    <parent link="chassis"/>
+    <child link="caster_yaw"/>
+    <axis xyz="0 0 1"/>
+    <limit
+      lower="-6.283"
+      upper="6.283"
+      effort="0.0"
+      velocity="1.0"/>
+    <dynamics damping="10.0"/>
+  </joint>
+  <!-- Gazebo / Ignition 拡張 -->
+  <gazebo reference="caster_yaw_wheel">
+    <dynamics>
+      <spring_reference>0.0</spring_reference>
+      <spring_stiffness>12.0</spring_stiffness>
+    </dynamics>
+  </gazebo>
+
+  <!-- ros2_control -->
+  <ros2_control name="GazeboSystem" type="system">
+    <hardware>
+      <plugin>gz_ros2_control/GazeboSimSystem</plugin>
+    </hardware>
+
+    <!-- motor spin -->
+    <joint name="motor_spin_joint">
+      <command_interface name="position"/>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+    </joint>
+
+    <!-- caster yaw (状態取得のみでもOK) -->
+    <joint name="caster_yaw_wheel">
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+    </joint>
+  </ros2_control>
+</robot>
+
