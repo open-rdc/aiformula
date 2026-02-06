@@ -1,7 +1,7 @@
 #pragma once
 
 #include <vector>
-#include <unordered_map>
+#include <unordered_set>
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <sensor_msgs/point_cloud2_iterator.hpp>
 #include <visualization_msgs/msg/marker_array.hpp>
@@ -51,6 +51,7 @@ private:
     };
 
     VoxelKey get_voxel_key(double x, double y, double z) const;
+    Obstacle voxel_center(const VoxelKey& key) const;
 };
 
 }  // namespace frenet_planner

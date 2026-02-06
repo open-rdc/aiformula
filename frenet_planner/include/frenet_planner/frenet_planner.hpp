@@ -191,11 +191,6 @@ private:
 
     RiskCalculator& risk_calculator_;
 
-    std::vector<FrenetTrajectory> generate_frenet_paths(
-        const VehicleState& current_state,
-        const nav_msgs::msg::Path::SharedPtr& reference_path,
-        const std::vector<Obstacle>& obstacles);
-
     FrenetTrajectory generate_lateral_trajectory(
         const VehicleState& current_state,
         double target_d,
@@ -206,15 +201,13 @@ private:
         double target_speed,
         double T);
 
-    void combine_trajectories(
-        std::vector<FrenetTrajectory>& frenet_paths,
-        const std::vector<FrenetTrajectory>& longitudinal_trajectories,
+    bool select_best_path(
         const VehicleState& current_state,
-        const ReferenceCurve& reference_curve,
-        size_t n_time_samples,
-        size_t n_lateral_samples,
-        size_t n_speed_samples,
-        const std::vector<Obstacle>& obstacles
+        const nav_msgs::msg::Path::SharedPtr& reference_path,
+        const std::vector<Obstacle>& obstacles,
+        FrenetTrajectory& best_path,
+        size_t& total_count,
+        size_t& valid_count
     );
 
     void get_frenet_state(

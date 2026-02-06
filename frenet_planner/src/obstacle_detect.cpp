@@ -14,6 +14,15 @@ ObstacleDetector::VoxelKey ObstacleDetector::get_voxel_key(double x, double y, d
     return key;
 }
 
+Obstacle ObstacleDetector::voxel_center(const VoxelKey& key) const {
+    Obstacle obs;
+    obs.x = (static_cast<double>(key.x) + 0.5) * voxel_size_;
+    obs.y = (static_cast<double>(key.y) + 0.5) * voxel_size_;
+    obs.s = 0.0;
+    obs.d = 0.0;
+    return obs;
+}
+
 std::vector<Obstacle> ObstacleDetector::detect_obstacles(
     const sensor_msgs::msg::PointCloud2::SharedPtr pointcloud
 ) {
@@ -22,7 +31,12 @@ std::vector<Obstacle> ObstacleDetector::detect_obstacles(
     }
 
     std::vector<Obstacle> obstacles;
-    std::unordered_map<VoxelKey, Obstacle, VoxelKeyHash> voxel_map;
+    std::unordered_set<VoxelKey, VoxelKeyHash> voxel_set;
+    size_t point_count = static_cast<size_t>(pointcloud->width) * static_cast<size_t>(pointcloud->height);
+    if (point_count == 0 && pointcloud->point_step > 0) {
+        point_count = pointcloud->data.size() / pointcloud->point_step;
+    }
+    voxel_set.reserve(point_count);
 
     sensor_msgs::PointCloud2ConstIterator<float> iter_x(*pointcloud, "x");
     sensor_msgs::PointCloud2ConstIterator<float> iter_y(*pointcloud, "y");
@@ -34,22 +48,12 @@ std::vector<Obstacle> ObstacleDetector::detect_obstacles(
         double obs_z = *iter_z;
 
         VoxelKey voxel_key = get_voxel_key(obs_x, obs_y, obs_z);
-        if (voxel_map.find(voxel_key) != voxel_map.end()) {
-            continue;
-        }
-
-        Obstacle obs;
-        obs.x = obs_x;
-        obs.y = obs_y;
-        obs.s = 0.0;
-        obs.d = 0.0;
-
-        voxel_map[voxel_key] = obs;
+        voxel_set.insert(voxel_key);
     }
 
-    obstacles.reserve(voxel_map.size());
-    for (const auto& pair : voxel_map) {
-        obstacles.push_back(pair.second);
+    obstacles.reserve(voxel_set.size());
+    for (const auto& key : voxel_set) {
+        obstacles.push_back(voxel_center(key));
     }
 
     return obstacles;

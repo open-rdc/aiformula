@@ -40,33 +40,26 @@ nav_msgs::msg::Path FrenetPlanner::plan_local_path(
 
     VehicleState current_state;
     get_frenet_state(reference_path, current_twist, current_state);
-    std::vector<FrenetTrajectory> frenet_paths = generate_frenet_paths(
-        current_state, reference_path, obstacles);
-
-    int valid_count = 0;
-    for (auto& fp : frenet_paths) {
-        fp.cost = risk_calculator_.calculate_cost(fp, obstacles);
-        valid_count++;
-    }
-
-    RCLCPP_INFO(rclcpp::get_logger("frenet_planner"),
-        "Valid paths: %d / %zu", valid_count, frenet_paths.size());
-
-    auto best_path = std::min_element(
-        frenet_paths.begin(),
-        frenet_paths.end(),
-        [](const FrenetTrajectory& a, const FrenetTrajectory& b) {
-            if (!a.valid) return false;
-            if (!b.valid) return true;
-            return a.cost < b.cost;
-        }
+    FrenetTrajectory best_path;
+    size_t total_count = 0;
+    size_t valid_count = 0;
+    const bool has_best = select_best_path(
+        current_state,
+        reference_path,
+        obstacles,
+        best_path,
+        total_count,
+        valid_count
     );
 
-    if (best_path != frenet_paths.end() && best_path->valid) {
+    RCLCPP_INFO(rclcpp::get_logger("frenet_planner"),
+        "Valid paths: %zu / %zu", valid_count, total_count);
+
+    if (has_best && best_path.valid) {
         RCLCPP_INFO(rclcpp::get_logger("frenet_planner"),
             "Best path found with %zu points, cost=%.2f",
-            best_path->points.size(), best_path->cost);
-        for (const auto& point : best_path->points) {
+            best_path.points.size(), best_path.cost);
+        for (const auto& point : best_path.points) {
             geometry_msgs::msg::PoseStamped pose;
             pose.header = local_path.header;
             pose.pose.position.x = point.x;
@@ -82,15 +75,56 @@ nav_msgs::msg::Path FrenetPlanner::plan_local_path(
     return local_path;
 }
 
-std::vector<FrenetTrajectory> FrenetPlanner::generate_frenet_paths(
+FrenetTrajectory FrenetPlanner::generate_longitudinal_trajectory(
+    const VehicleState& current_state,
+    double target_speed,
+    double T) {
+    FrenetTrajectory trajectory;
+    trajectory.valid = true;
+
+    size_t n_points = static_cast<size_t>(T / dt_) + 1;
+    trajectory.t.reserve(n_points);
+    trajectory.s.reserve(n_points);
+    trajectory.s_dot.reserve(n_points);
+    trajectory.s_ddot.reserve(n_points);
+    trajectory.s_dddot.reserve(n_points);
+
+    QuarticPolynomial lon_qp(
+        current_state.s,
+        current_state.s_dot,
+        current_state.s_ddot,
+        target_speed,
+        0.0,
+        T
+    );
+
+    for (double t = 0.0; t <= T; t += dt_) {
+        trajectory.t.push_back(t);
+        trajectory.s.push_back(lon_qp.calc_point(t));
+        trajectory.s_dot.push_back(lon_qp.calc_first_derivative(t));
+        trajectory.s_ddot.push_back(lon_qp.calc_second_derivative(t));
+        trajectory.s_dddot.push_back(lon_qp.calc_third_derivative(t));
+    }
+
+    trajectory.cost = 0.0;
+
+    return trajectory;
+}
+
+bool FrenetPlanner::select_best_path(
     const VehicleState& current_state,
     const nav_msgs::msg::Path::SharedPtr& reference_path,
-    const std::vector<Obstacle>& obstacles) {
+    const std::vector<Obstacle>& obstacles,
+    FrenetTrajectory& best_path,
+    size_t& total_count,
+    size_t& valid_count
+) {
     std::vector<FrenetTrajectory> longitudinal_trajectories;
-    std::vector<FrenetTrajectory> frenet_paths;
+    total_count = 0;
+    valid_count = 0;
 
     if (!reference_path || reference_path->poses.size() < 2) {
-        return frenet_paths;
+        return false;
     }
 
     std::vector<double> ref_x;
@@ -132,70 +166,11 @@ std::vector<FrenetTrajectory> FrenetPlanner::generate_frenet_paths(
         }
     }
 
-    combine_trajectories(
-        frenet_paths,
-        longitudinal_trajectories,
-        current_state,
-        reference_curve,
-        n_time_samples,
-        n_lateral_samples,
-        n_speed_samples,
-        obstacles
-    );
-
-    return frenet_paths;
-}
-
-FrenetTrajectory FrenetPlanner::generate_longitudinal_trajectory(
-    const VehicleState& current_state,
-    double target_speed,
-    double T) {
-    FrenetTrajectory trajectory;
-    trajectory.valid = true;
-
-    size_t n_points = static_cast<size_t>(T / dt_) + 1;
-    trajectory.t.reserve(n_points);
-    trajectory.s.reserve(n_points);
-    trajectory.s_dot.reserve(n_points);
-    trajectory.s_ddot.reserve(n_points);
-    trajectory.s_dddot.reserve(n_points);
-
-    QuarticPolynomial lon_qp(
-        current_state.s,
-        current_state.s_dot,
-        current_state.s_ddot,
-        target_speed,
-        0.0,
-        T
-    );
-
-    for (double t = 0.0; t <= T; t += dt_) {
-        trajectory.t.push_back(t);
-        trajectory.s.push_back(lon_qp.calc_point(t));
-        trajectory.s_dot.push_back(lon_qp.calc_first_derivative(t));
-        trajectory.s_ddot.push_back(lon_qp.calc_second_derivative(t));
-        trajectory.s_dddot.push_back(lon_qp.calc_third_derivative(t));
-    }
-
-    trajectory.cost = 0.0;
-
-    return trajectory;
-}
-
-void FrenetPlanner::combine_trajectories(
-    std::vector<FrenetTrajectory>& frenet_paths,
-    const std::vector<FrenetTrajectory>& longitudinal_trajectories,
-    const VehicleState& current_state,
-    const ReferenceCurve& reference_curve,
-    size_t n_time_samples,
-    size_t n_lateral_samples,
-    size_t n_speed_samples,
-    const std::vector<Obstacle>& obstacles
-) {
-    frenet_paths.reserve(n_time_samples * n_lateral_samples * n_speed_samples);
     const bool has_obstacles = !obstacles.empty();
     const double collision_threshold = robot_radius_ + safety_margin_;
     const double collision_threshold_sq = collision_threshold * collision_threshold;
+    bool has_best = false;
+    double best_cost = std::numeric_limits<double>::max();
 
     for (size_t i = 0; i < n_time_samples; ++i) {
         const size_t lon_base = i * n_speed_samples;
@@ -203,6 +178,7 @@ void FrenetPlanner::combine_trajectories(
         for (size_t j = 0; j < n_lateral_samples; ++j) {
             const double target_d = -max_road_width_left_ + static_cast<double>(j) * d_road_width_;
             for (size_t k = 0; k < n_speed_samples; ++k) {
+                total_count++;
                 const auto& lon = longitudinal_trajectories[lon_base + k];
 
                 if (lon.t.empty()) {
@@ -283,10 +259,18 @@ void FrenetPlanner::combine_trajectories(
                 }
 
                 fp.valid = true;
-                frenet_paths.push_back(std::move(fp));
+                fp.cost = risk_calculator_.calculate_cost(fp, obstacles);
+                valid_count++;
+                if (fp.cost < best_cost) {
+                    best_cost = fp.cost;
+                    best_path = std::move(fp);
+                    has_best = true;
+                }
             }
         }
     }
+
+    return has_best;
 }
 
 FrenetTrajectory FrenetPlanner::generate_lateral_trajectory(
