@@ -18,7 +18,7 @@ wheelbase_(get_parameter("wheelbase").as_double()),
 caster_max_angle_rad_(get_parameter("steering_max.pos").as_double() * 0.017453292519943295)
 {
     _subscription_path = this->create_subscription<nav_msgs::msg::Path>(
-        "/e2e_planner/path",
+        "/frenet_planner/path",
         _qos,
         std::bind(&PurePursuit::_subscriber_callback_path, this, std::placeholders::_1)
     );
