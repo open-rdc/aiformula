@@ -75,6 +75,7 @@ private:
     const double caster_wheel_radius;
     const double reel_radius;
     const double steering_radius;
+    const double preload_length;
 
     // 変数
     double cmd_steering = 0.0;

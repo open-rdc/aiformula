@@ -26,6 +26,7 @@ caster_gear_ratio(get_parameter("caster.gear_ratio").as_double()),
 caster_wheel_radius(this->get_parameter("caster.wheel_radius").as_double()),
 reel_radius(this->get_parameter("caster.reel_radius").as_double()),
 steering_radius(this->get_parameter("caster.steering_radius").as_double()),
+preload_length(this->get_parameter("caster.preload_length").as_double()),
 
 linear_limit(DBL_MAX,
 get_parameter("linear_max.vel").as_double(),
@@ -133,13 +134,6 @@ void ChassisDriver::_publisher_callback(){
     // 速度計画機の参照
     linear_planner.cycle();
     const double linear_vel = linear_planner.vel();
-    // 角速度の計算
-    double angular_vel = 0.0;
-    if(std::abs(linear_vel) > 0.1){
-        angular_vel = (linear_vel * std::tan(cmd_steering)) / wheelbase;
-        if(std::isnan(angular_vel)) angular_vel = 0.0;
-    }
-
     // 停止指令時
     if(mode == Mode::stop || mode == Mode::stay){
         this->send_rpm(0.0, 0.0);
@@ -152,8 +146,10 @@ void ChassisDriver::_publisher_callback(){
 
     // モータ制御
     double motor_pos = 0.0;
-    double winding_length = 0.02;
+    double winding_length = preload_length;
+    bool cornering_flag = false;
     if(std::abs(delta) > dtor(1.0)){
+        cornering_flag = true;
         // winding_length = -1.0*std::abs(steering_radius * std::sin(delta));
         winding_length = 0.0;
     }
@@ -175,7 +171,8 @@ void ChassisDriver::_publisher_callback(){
     publisher_caster_data->publish(caster_data_msg);
 
 /*駆動輪制御*/
-    const double angular_command = drive_pid.cycle(caster_orientation, delta) * (current_body_vel.linear.x*current_body_vel.linear.x);
+    // 直進時にはプリロードがかかるため，トルク差は0にする
+    const double angular_command = (cornering_flag ? 1 : 0) * drive_pid.cycle(caster_orientation, delta) * (current_body_vel.linear.x*current_body_vel.linear.x);
     // RCLCPP_INFO(this->get_logger(), "ANG_CMD: %.2f", rtod(angular_command));
     send_rpm(linear_vel, angular_command);
 }
