@@ -27,6 +27,7 @@ caster_wheel_radius(this->get_parameter("caster.wheel_radius").as_double()),
 reel_radius(this->get_parameter("caster.reel_radius").as_double()),
 steering_radius(this->get_parameter("caster.steering_radius").as_double()),
 preload_length(this->get_parameter("caster.preload_length").as_double()),
+preload_gain(this->get_parameter("caster.preload_gain").as_double()),
 
 linear_limit(DBL_MAX,
 get_parameter("linear_max.vel").as_double(),
@@ -143,6 +144,7 @@ void ChassisDriver::_publisher_callback(){
     // 目標舵角の生成
     double delta = 0.0;
     if(std::abs(linear_vel) > 0.1) delta = cmd_steering;
+    const double body_vel_squared = current_body_vel.linear.x * current_body_vel.linear.x;
 
     // モータ制御
     double motor_pos = 0.0;
@@ -150,8 +152,8 @@ void ChassisDriver::_publisher_callback(){
     bool cornering_flag = false;
     if(std::abs(delta) > dtor(1.0)){
         cornering_flag = true;
-        // winding_length = -1.0*std::abs(steering_radius * std::sin(delta));
-        winding_length = 0.0;
+        winding_length = std::abs(steering_radius * std::sin(caster_orientation)) * preload_gain * body_vel_squared;
+        winding_length = constrain(winding_length, 0.0, preload_length);
     }
     motor_pos = winding_length / reel_radius;
     // RCLCPP_INFO(this->get_logger(), "DEL:%.2f POS:%.2f ENC:%.2f", rtod(delta), rtod(motor_pos), rtod(caster_orientation));
@@ -172,7 +174,7 @@ void ChassisDriver::_publisher_callback(){
 
 /*駆動輪制御*/
     // 直進時にはプリロードがかかるため，トルク差は0にする
-    const double angular_command = (cornering_flag ? 1 : 0) * drive_pid.cycle(caster_orientation, delta) * (current_body_vel.linear.x*current_body_vel.linear.x);
+    const double angular_command = (cornering_flag ? 1 : 0) * drive_pid.cycle(caster_orientation, delta) * body_vel_squared;
     // RCLCPP_INFO(this->get_logger(), "ANG_CMD: %.2f", rtod(angular_command));
     send_rpm(linear_vel, angular_command);
 }

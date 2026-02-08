@@ -38,6 +38,7 @@ chassis_driver_node:
       reel_radius : 0.02 # [m]
       steering_radius : 0.032 # [m]
       preload_length : 0.02 # [m]
+      preload_gain : 0.1
     drive_pid:
       p_gain : 6.0
       i_gain : 0.0
