@@ -84,10 +84,10 @@ void PurePursuit::_subscriber_callback_path(const nav_msgs::msg::Path::SharedPtr
     
     const double alpha = std::atan2(target_y, target_x);
     const double steer_angle = std::atan2(2.0 * wheelbase_ * std::sin(alpha), lookahead_distance);
-    const double steer_angle_clamped = std::clamp(steer_angle, -caster_max_angle_rad_, caster_max_angle_rad_);
+    const double steer_angle_clamped = std::clamp(steer_angle * steered_gain, -caster_max_angle_rad_, caster_max_angle_rad_);
 
     command.velocity = linear_velocity;
-    command.steering_angle = steer_angle_clamped * steered_gain;
+    command.steering_angle = steer_angle_clamped;
     publisher_vel->publish(command);
 }
 
