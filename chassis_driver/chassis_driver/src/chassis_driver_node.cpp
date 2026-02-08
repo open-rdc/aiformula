@@ -74,11 +74,6 @@ drive_pid(get_parameter("interval_ms").as_int())
     // ODriveのAxis Stateサービスクライアント作成
     odrive_axis_client_ = this->create_client<odrive_can::srv::AxisState>("/odrive_axis0/request_axis_state");
 
-    // ODriveのAxis Stateをクローズドループに設定（axis_requested_state: 8）
-    auto request = std::make_shared<odrive_can::srv::AxisState::Request>();
-    request->axis_requested_state = 8;
-    odrive_axis_client_->async_send_request(request);
-
     _pub_timer = this->create_wall_timer(
         std::chrono::milliseconds(interval_ms),
         [this] { _publisher_callback(); }
@@ -181,7 +176,7 @@ void ChassisDriver::_publisher_callback(){
 
 /*駆動輪制御*/
     const double angular_command = drive_pid.cycle(caster_orientation, delta) * (current_body_vel.linear.x*current_body_vel.linear.x);
-    RCLCPP_INFO(this->get_logger(), "ANG_CMD: %.2f", rtod(angular_command));
+    // RCLCPP_INFO(this->get_logger(), "ANG_CMD: %.2f", rtod(angular_command));
     send_rpm(linear_vel, angular_command);
 }
 
@@ -190,6 +185,11 @@ void ChassisDriver::_subscriber_callback_restart(const std_msgs::msg::Empty::Sha
 
     velplanner::Physics_t physics_zero(0.0, 0.0, 0.0);
     linear_planner.current(physics_zero);
+
+    // ODriveのAxis Stateをクローズドループに設定（axis_requested_state: 8）
+    auto request = std::make_shared<odrive_can::srv::AxisState::Request>();
+    request->axis_requested_state = 8;
+    odrive_axis_client_->async_send_request(request);
 
     caster_rotation_initialized = false;
     caster_rotation_count = 0;

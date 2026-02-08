@@ -9,6 +9,3 @@ launch:
     -
       name: "node_id"
       value: 24
-    -
-      name: "interface"
-      value: "can_sub"
