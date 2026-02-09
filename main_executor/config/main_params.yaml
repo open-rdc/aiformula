@@ -1,9 +1,9 @@
 launch: #起動パラメータ
   ros__parameters:
-    joy: false
-    vectornav : false
-    odrive : false
-    socketcan : false
+    joy: true
+    vectornav : true
+    odrive : true
+    socketcan : true
 
 /**:  #ワイルドカード(ここのパラメータは全ノードから読める: <名前に注意>)
   ros__parameters:
@@ -14,7 +14,7 @@ launch: #起動パラメータ
       jer: 0.0
     # 舵角  位置[deg]
     steering_max :
-      pos : 7.0
+      pos : 10.0
 
     tread : 0.6
     wheelbase : 0.8
@@ -37,12 +37,12 @@ chassis_driver_node:
       wheel_radius : 0.12 # [m]
       reel_radius : 0.02 # [m]
       steering_radius : 0.032 # [m]
-      preload_length : 0.02 # [m]
+      preload_length : 0.03 # [m]
       preload_gain : 0.1
     drive_pid:
-      p_gain : 6.0
+      p_gain : 5.0
       i_gain : 0.0
-      d_gain : 5.0
+      d_gain : 0.1
 
 socketcan_interface_node:
   ros__parameters:
