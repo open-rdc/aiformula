@@ -17,6 +17,7 @@ public:
         double k_jerk,
         double k_time,
         double k_d,
+        double k_d_s,
         double k_s_dot,
         double k_lat,
         double k_lon,
@@ -32,6 +33,7 @@ private:
     double k_jerk_;
     double k_time_;
     double k_d_;
+    double k_d_s_;
     double k_s_dot_;
     double k_lateral_ = 1.0;
     double k_longitudinal_ = 1.0;

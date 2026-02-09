@@ -28,6 +28,7 @@ FrenetPlannerNode::FrenetPlannerNode(const std::string& name_space, const rclcpp
         get_parameter("k_jerk").as_double(),
         get_parameter("k_time").as_double(),
         get_parameter("k_d").as_double(),
+        get_parameter("k_d_s").as_double(),
         get_parameter("k_s_dot").as_double(),
         get_parameter("k_lat").as_double(),
         get_parameter("k_lon").as_double(),

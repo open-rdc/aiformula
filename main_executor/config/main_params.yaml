@@ -36,6 +36,7 @@ frenet_planner_node:
     k_jerk : 1.0          # Jerkペナルティ
     k_time : 1.0          # 時間ペナルティ
     k_d : 1.0             # 目標横位置ペナルティ
+    k_d_s : 1.0           # 終端の経路平行（d_s）ペナルティ
     k_s_dot : 1.0         # 目標速度ペナルティ
 
     k_lat : 1.0           # 横方向

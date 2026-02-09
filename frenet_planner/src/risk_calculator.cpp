@@ -9,6 +9,7 @@ RiskCalculator::RiskCalculator()
     : k_jerk_(0.0),
       k_time_(0.0),
       k_d_(0.0),
+      k_d_s_(0.0),
       k_s_dot_(0.0),
       target_speed_(0.0) {
 }
@@ -17,6 +18,7 @@ void RiskCalculator::set_parameters(
     double k_jerk,
     double k_time,
     double k_d,
+    double k_d_s,
     double k_s_dot,
     double k_lat,
     double k_lon,
@@ -25,6 +27,7 @@ void RiskCalculator::set_parameters(
     k_jerk_ = k_jerk;
     k_time_ = k_time;
     k_d_ = k_d;
+    k_d_s_ = k_d_s;
     k_s_dot_ = k_s_dot;
     k_lateral_ = k_lat;
     k_longitudinal_ = k_lon;
@@ -42,7 +45,8 @@ double RiskCalculator::calculate_cost(
         return std::numeric_limits<double>::max();
     }
 
-    if (trajectory.t.empty() || trajectory.s.empty() || trajectory.d.empty() || trajectory.s_dot.empty()) {
+    if (trajectory.t.empty() || trajectory.s.empty() || trajectory.d.empty() ||
+        trajectory.s_dot.empty() || trajectory.d_s.empty()) {
         RCLCPP_ERROR(rclcpp::get_logger("frenet_planner"),
             "calculate_cost: Missing Frenet samples!");
         return std::numeric_limits<double>::max();
@@ -60,10 +64,12 @@ double RiskCalculator::calculate_cost(
 
     const double T = trajectory.t.back();
     const double d_end = trajectory.d.back();
+    const double d_s_end = trajectory.d_s.back();
     const double v_end = trajectory.s_dot.back();
     const double ds = target_speed_ - v_end;
 
-    const double cd = k_jerk_ * lateral_jerk_sum + k_time_ * T + k_d_ * d_end * d_end;
+    const double cd = k_jerk_ * lateral_jerk_sum + k_time_ * T +
+        k_d_ * d_end * d_end + k_d_s_ * d_s_end * d_s_end;
     const double cv = k_jerk_ * longitudinal_jerk_sum + k_time_ * T + k_s_dot_ * ds * ds;
 
     return k_lateral_ * cd + k_longitudinal_ * cv;
