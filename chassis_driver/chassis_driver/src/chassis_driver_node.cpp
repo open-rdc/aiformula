@@ -26,6 +26,8 @@ caster_gear_ratio(get_parameter("caster.gear_ratio").as_double()),
 caster_wheel_radius(this->get_parameter("caster.wheel_radius").as_double()),
 reel_radius(this->get_parameter("caster.reel_radius").as_double()),
 steering_radius(this->get_parameter("caster.steering_radius").as_double()),
+preload_length(this->get_parameter("caster.preload_length").as_double()),
+preload_gain(this->get_parameter("caster.preload_gain").as_double()),
 
 linear_limit(DBL_MAX,
 get_parameter("linear_max.vel").as_double(),
@@ -73,11 +75,6 @@ drive_pid(get_parameter("interval_ms").as_int())
 
     // ODriveのAxis Stateサービスクライアント作成
     odrive_axis_client_ = this->create_client<odrive_can::srv::AxisState>("/odrive_axis0/request_axis_state");
-
-    // ODriveのAxis Stateをクローズドループに設定（axis_requested_state: 8）
-    auto request = std::make_shared<odrive_can::srv::AxisState::Request>();
-    request->axis_requested_state = 8;
-    odrive_axis_client_->async_send_request(request);
 
     _pub_timer = this->create_wall_timer(
         std::chrono::milliseconds(interval_ms),
@@ -138,13 +135,6 @@ void ChassisDriver::_publisher_callback(){
     // 速度計画機の参照
     linear_planner.cycle();
     const double linear_vel = linear_planner.vel();
-    // 角速度の計算
-    double angular_vel = 0.0;
-    if(std::abs(linear_vel) > 0.1){
-        angular_vel = (linear_vel * std::tan(cmd_steering)) / wheelbase;
-        if(std::isnan(angular_vel)) angular_vel = 0.0;
-    }
-
     // 停止指令時
     if(mode == Mode::stop || mode == Mode::stay){
         this->send_rpm(0.0, 0.0);
@@ -153,15 +143,22 @@ void ChassisDriver::_publisher_callback(){
 /*従動輪制御*/
     // 目標舵角の生成
     double delta = 0.0;
-    if(std::abs(linear_vel) > 0.1) delta = cmd_steering;
+    bool driving_flag = false;
+    if(std::abs(linear_vel) > 0.1){
+        delta = cmd_steering;
+        driving_flag = true;
+    }
+    const double body_vel_squared = current_body_vel.linear.x * current_body_vel.linear.x;
 
     // モータ制御
     double motor_pos = 0.0;
-    double winding_length = 0.02;
-    if(std::abs(delta) > dtor(1.0)){
-        // winding_length = -1.0*std::abs(steering_radius * std::sin(delta));
-        winding_length = 0.0;
+    bool straight_flag = false;
+    double winding_length = std::abs(steering_radius * std::sin(caster_orientation)) * preload_gain * body_vel_squared;
+    if(std::abs(delta) < dtor(1.0) && driving_flag){
+        straight_flag = true;
+        winding_length = preload_length;
     }
+    winding_length = constrain(winding_length, 0.0, preload_length);
     motor_pos = winding_length / reel_radius;
     // RCLCPP_INFO(this->get_logger(), "DEL:%.2f POS:%.2f ENC:%.2f", rtod(delta), rtod(motor_pos), rtod(caster_orientation));
 
@@ -180,8 +177,9 @@ void ChassisDriver::_publisher_callback(){
     publisher_caster_data->publish(caster_data_msg);
 
 /*駆動輪制御*/
-    const double angular_command = drive_pid.cycle(caster_orientation, delta) * (current_body_vel.linear.x*current_body_vel.linear.x);
-    RCLCPP_INFO(this->get_logger(), "ANG_CMD: %.2f", rtod(angular_command));
+    // 直進時にはプリロードがかかるため，トルク差は0にする
+    const double angular_command = (straight_flag ? 0 : 1) * drive_pid.cycle(caster_orientation, delta) * body_vel_squared;
+    // RCLCPP_INFO(this->get_logger(), "ANG_CMD: %.2f", rtod(angular_command));
     send_rpm(linear_vel, angular_command);
 }
 
@@ -190,6 +188,11 @@ void ChassisDriver::_subscriber_callback_restart(const std_msgs::msg::Empty::Sha
 
     velplanner::Physics_t physics_zero(0.0, 0.0, 0.0);
     linear_planner.current(physics_zero);
+
+    // ODriveのAxis Stateをクローズドループに設定（axis_requested_state: 8）
+    auto request = std::make_shared<odrive_can::srv::AxisState::Request>();
+    request->axis_requested_state = 8;
+    odrive_axis_client_->async_send_request(request);
 
     caster_rotation_initialized = false;
     caster_rotation_count = 0;
