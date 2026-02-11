@@ -51,7 +51,8 @@ class ZedSdk:
             return None
 
         y = points[:, 1]
-        in_range = (y >= -0.2) & (y <= 0.2)
+        x = points[:, 0]
+        in_range = (y >= -0.0) & (y <= 0.2) & (x <= 5.0) & (x >= -5.0)
         points = points[in_range]
         if points.size == 0:
             return None
