@@ -15,7 +15,6 @@ from scipy.interpolate import splprep, splev
 from typing import Tuple
 from .zed_sdk import ZedSdk
 
-import pyzed.sl as sl
 from util.yolop_processor import YOLOPv2Processor
 
 def denormalize_waypoints(normalized: np.ndarray) -> np.ndarray:
@@ -38,6 +37,8 @@ class InferenceNode(Node):
         self.device = torch.device('cuda')
         self.zed = None
 
+        self.sim_flag = False
+
         package_share_directory = get_package_share_directory('e2e_planner')
         weight_path = os.path.join(package_share_directory, 'weights', model_path)
         yolop_weight_path = FilePath(package_share_directory) / 'weights' / 'yolopv2.pt'
@@ -50,7 +51,7 @@ class InferenceNode(Node):
             self.model = None
 
         self.yolop_processor = YOLOPv2Processor(yolop_weight_path, self.device)
-        self.zed = ZedSdk(self.get_logger())
+        self.zed = ZedSdk(self, self.sim_flag)
 
         self.pub_raw = self.create_publisher(Path, 'e2e_planner/path_raw', qos_profile_system_default)
         self.pub = self.create_publisher(Path, 'e2e_planner/path', qos_profile_system_default)
@@ -61,9 +62,12 @@ class InferenceNode(Node):
         self.timer = self.create_timer(interval_ms / 1000.0, self.timer_callback)
 
     def preprocess_image(self, image: np.ndarray) -> Tuple[torch.Tensor, np.ndarray]:
-        bgr_image = cv2.cvtColor(image, cv2.COLOR_BGRA2BGR)
-
-        mask = self.yolop_processor.process_image(bgr_image, (64, 48))
+        if self.sim_flag:
+            mask = ((image[:, :, 2] > 200) & (image[:, :, 0] < 50) & (image[:, :, 1] < 50)).astype(np.uint8)
+            mask = cv2.resize(mask, (64, 48))
+        else:
+            bgr_image = cv2.cvtColor(image, cv2.COLOR_BGRA2BGR)
+            mask = self.yolop_processor.process_image(bgr_image, (64, 48))
 
         mask_normalized = mask.astype(np.float32)
         tensor = torch.from_numpy(mask_normalized).unsqueeze(0).unsqueeze(0)
