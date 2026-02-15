@@ -1,6 +1,6 @@
-/**:
-  history: keep_all
+/obstacle_markers:
+  history: keep_last
   depth: 0  # Keep allはdepthの設定を無視しますが、明示的に0を設定
-  reliability: reliable
-  durability: transient_local
+  reliability: best_effort
+  durability: volatile
 
