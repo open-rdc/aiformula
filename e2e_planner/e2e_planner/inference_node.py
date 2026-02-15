@@ -105,11 +105,11 @@ class InferenceNode(Node):
         output_denormalized = denormalize_waypoints(output_normalized)
         output_denormalized_tensor = torch.from_numpy(output_denormalized).unsqueeze(0)
 
-        path_raw_msg = self.create_path_from_output(output_denormalized_tensor, header)
-        self.pub_raw.publish(path_raw_msg)
+        # path_raw_msg = self.create_path_from_output(output_denormalized_tensor, header)
+        # self.pub_raw.publish(path_raw_msg)
 
-        path_smooth_msg = self.apply_bspline_smoothing(output_denormalized_tensor, header)
-        self.pub.publish(path_smooth_msg)
+        # path_smooth_msg = self.apply_bspline_smoothing(output_denormalized_tensor, header)
+        # self.pub.publish(path_smooth_msg)
 
     def apply_bspline_smoothing(self, output: torch.Tensor, header) -> Path:
         waypoints = output.cpu().numpy().reshape(-1, 2)

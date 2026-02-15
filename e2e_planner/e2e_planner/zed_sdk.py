@@ -47,8 +47,13 @@ class ZedSdk:
 
         init_params = sl.InitParameters()
         init_params.camera_resolution = sl.RESOLUTION.SVGA
-        init_params.camera_fps = 30
+        init_params.camera_fps = 15
         init_params.coordinate_units = sl.UNIT.METER
+
+        # depth init
+        init_params.depth_mode = sl.DEPTH_MODE.NEURAL
+        init_params.depth_minimum_distance = 0.5
+        init_params.depth_maximum_distance = 7.0
 
         err = self._camera.open(init_params)
         if err != sl.ERROR_CODE.SUCCESS:
@@ -57,6 +62,7 @@ class ZedSdk:
         self._image = sl.Mat()
         self._pointcloud = sl.Mat()
         self._runtime = sl.RuntimeParameters()
+        self._runtime.confidence_threshold = 10
 
         self._logger.info('ZED camera initialized successfully')
 
@@ -102,17 +108,17 @@ class ZedSdk:
         valid = finite & non_nan
         points = points[valid]
 
-        x = points[:, 0]
-        in_range = (x >= -3.0) & (x <= 3.0)
-        points = points[in_range]
+        # x = points[:, 0]
+        # in_range = (x >= -3.0) & (x <= 3.0)
+        # points = points[in_range]
 
         y = points[:, 1]
-        in_range = (y >= 0.2) & (y <= 0.4)
+        in_range = (y >= 0.0) & (y <= 0.2)
         points = points[in_range]
 
-        z = points[:, 2]
-        in_range = (z<=7)
-        points = points[in_range]
+        # z = points[:, 2]
+        # in_range = (z<=7)
+        # points = points[in_range]
 
         # if points.size == 0:
         #     return None

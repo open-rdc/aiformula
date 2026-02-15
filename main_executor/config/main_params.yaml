@@ -2,26 +2,26 @@ launch: #起動パラメータ
   ros__parameters:
     joy: true
     vectornav : true
-    odrive : false
+    odrive : true
     socketcan : true
 
 /**:  #ワイルドカード(ここのパラメータは全ノードから読める: <名前に注意>)
   ros__parameters:
     # 並進  速度[m/s],加速度[m/s^2],加減速度[-m/s^2],躍度[m/s^3]
     linear_max:
-      vel : 4.0
+      vel : 3.0
       acc: 5.0
       jer: 0.0
     # 舵角  位置[deg]
     steering_max :
-      pos : 7.0
+      pos : 8.0
 
     tread : 0.6
     wheelbase : 0.8
 
 controller_node:
   ros__parameters:
-    linear_max_vel : 5.0  #[m/s]
+    linear_max_vel : 2.0  #[m/s]
 
 frenet_planner_node:
   ros__parameters:
@@ -31,7 +31,7 @@ frenet_planner_node:
     d_t_s : 0.1         # [double] 速度サンプリングの割合
     n_s_sample : 0    # [int] 縦方向サンプリング数
     # 衝突判定
-    safety_margin : 0.0  # [m] 障害物からの安全マージン
+    safety_margin : 0.2  # [m] 障害物からの安全マージン
     # コスト関数の重み
     k_jerk : 1.0          # Jerkペナルティ
     k_time : 1.0          # 時間ペナルティ
