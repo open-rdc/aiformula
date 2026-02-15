@@ -14,7 +14,7 @@ from sensor_msgs.msg import Imu
 class PathGenerator(Node):
     def __init__(self) -> None:
         super().__init__("path_generator")
-        self.publisher = self.create_publisher(Path, "/frenet_planner/path", 10)
+        self.publisher = self.create_publisher(Path, "/e2e_planner/path", 10)
         self.imu_sub = self.create_subscription(Imu, "/vectornav/imu", self.imu_callback, 10)
         self.timer = self.create_timer(0.1, self.timer_callback)  # 10 Hz
         self.base_points = [(float(x), 0.0) for x in range(0, 11)]
