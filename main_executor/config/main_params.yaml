@@ -61,10 +61,12 @@ chassis_driver_node:
       wheel_radius : 0.12 # [m]
       reel_radius : 0.02 # [m]
       steering_radius : 0.032 # [m]
+      preload_length : 0.03 # [m]
+      preload_gain : 0.1
     drive_pid:
-      p_gain : 6.0
+      p_gain : 5.0
       i_gain : 0.0
-      d_gain : 5.0
+      d_gain : 0.1
 
 socketcan_interface_node:
   ros__parameters:
