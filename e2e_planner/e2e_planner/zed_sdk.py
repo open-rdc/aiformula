@@ -53,7 +53,7 @@ class ZedSdk:
         # depth init
         init_params.depth_mode = sl.DEPTH_MODE.NEURAL
         init_params.depth_minimum_distance = 0.5
-        init_params.depth_maximum_distance = 7.0
+        init_params.depth_maximum_distance = 10.0
 
         err = self._camera.open(init_params)
         if err != sl.ERROR_CODE.SUCCESS:
@@ -62,7 +62,8 @@ class ZedSdk:
         self._image = sl.Mat()
         self._pointcloud = sl.Mat()
         self._runtime = sl.RuntimeParameters()
-        self._runtime.confidence_threshold = 10
+        self._runtime.confidence_threshold = 20
+        self._runtime.texture_confidence_threshold = 100
 
         self._logger.info('ZED camera initialized successfully')
 
@@ -113,7 +114,7 @@ class ZedSdk:
         # points = points[in_range]
 
         y = points[:, 1]
-        in_range = (y >= 0.0) & (y <= 0.2)
+        in_range = (y >= 0.0) & (y <= 0.5)
         points = points[in_range]
 
         # z = points[:, 2]
