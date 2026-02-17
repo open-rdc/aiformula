@@ -23,7 +23,7 @@ class ZedRosMsg:
 
     def image_callback(self, msg: Image) -> None:
         self.latest_image = msg
-        
+
 
 class ZedSdk:
     def __init__(self, node: Node, sim_flag: bool) -> None:
@@ -44,11 +44,16 @@ class ZedSdk:
         import pyzed.sl as sl
         self._sl = sl
         self._camera = sl.Camera()
-        
+
         init_params = sl.InitParameters()
         init_params.camera_resolution = sl.RESOLUTION.SVGA
-        init_params.camera_fps = 30
+        init_params.camera_fps = 15
         init_params.coordinate_units = sl.UNIT.METER
+
+        # depth init
+        init_params.depth_mode = sl.DEPTH_MODE.NEURAL
+        init_params.depth_minimum_distance = 0.5
+        init_params.depth_maximum_distance = 10.0
 
         err = self._camera.open(init_params)
         if err != sl.ERROR_CODE.SUCCESS:
@@ -57,6 +62,8 @@ class ZedSdk:
         self._image = sl.Mat()
         self._pointcloud = sl.Mat()
         self._runtime = sl.RuntimeParameters()
+        self._runtime.confidence_threshold = 20
+        self._runtime.texture_confidence_threshold = 100
 
         self._logger.info('ZED camera initialized successfully')
 
@@ -102,22 +109,29 @@ class ZedSdk:
         valid = finite & non_nan
         points = points[valid]
 
+        # x = points[:, 0]
+        # in_range = (x >= -3.0) & (x <= 3.0)
+        # points = points[in_range]
+
         y = points[:, 1]
-        x = points[:, 0]
-        in_range = (y >= -0.0) & (y <= 0.2) & (x <= 5.0) & (x >= -5.0)
+        in_range = (y >= 0.0) & (y <= 0.5)
         points = points[in_range]
-        
-        if points.size == 0:
-            return None
-        min_idx = np.argmin(points[:, 2])
-        min_x = points[min_idx, 0]
-        min_z = points[min_idx, 2]
-        in_range = (np.abs(points[:, 0] - min_x) <= 0.5) & (np.abs(points[:, 2] - min_z) <= 0.5)
-        points = points[in_range]
+
+        # z = points[:, 2]
+        # in_range = (z<=7)
+        # points = points[in_range]
+
+        # if points.size == 0:
+        #     return None
+        # min_idx = np.argmin(points[:, 2])
+        # min_x = points[min_idx, 0]
+        # min_z = points[min_idx, 2]
+        # in_range = (np.abs(points[:, 0] - min_x) <= 0.5) & (np.abs(points[:, 2] - min_z) <= 0.5)
+        # points = points[in_range]
 
         if points.size == 0:
             return None
-        
+
         if points.shape[0] > 1024:
             indices = np.random.choice(points.shape[0], 1024, replace=False)
             points = points[indices]

@@ -356,8 +356,8 @@ void FrenetPlanner::get_frenet_state(const nav_msgs::msg::Path::SharedPtr& path,
     const double nx = -ty;
     const double ny = tx;
 
-    const double vx = current_twist.linear.x;
-    const double vy = current_twist.linear.y;
+    const double vx = std::abs(current_twist.linear.x);
+    const double vy = 0.0;
 
     state.s_dot = vx * tx + vy * ty;
     state.d_dot = vx * nx + vy * ny;
