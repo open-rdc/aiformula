@@ -1,6 +1,7 @@
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Image, PointCloud2
+from std_msgs.msg import Header
 from nav_msgs.msg import Path
 from geometry_msgs.msg import PoseStamped, Pose, Point
 from cv_bridge import CvBridge
@@ -60,6 +61,7 @@ class InferenceNode(Node):
         self.get_logger().info('Debug mode enabled: publishing preprocessed images to e2e_planner/debug_image')
 
         self.timer = self.create_timer(interval_ms / 1000.0, self.timer_callback)
+        self.pcl_timer = self.create_timer(1.0 / 50.0, self.pcl_publisher_callback)
 
     def preprocess_image(self, image: np.ndarray) -> Tuple[torch.Tensor, np.ndarray]:
         if self.sim_flag:
@@ -79,16 +81,9 @@ class InferenceNode(Node):
         cv_image = self.zed.get_image()
         if cv_image is None:
             return
-        from std_msgs.msg import Header
         header = Header()
         header.stamp = self.get_clock().now().to_msg()
         header.frame_id = 'base_link'
-
-        pointcloud_msg = self.zed.get_pointcloud(header)
-        if pointcloud_msg is None:
-            pointcloud_msg = PointCloud2()
-            pointcloud_msg.header = header
-        self.pub_pointcloud.publish(pointcloud_msg)
 
         input_tensor, mask = self.preprocess_image(cv_image)
 
@@ -110,6 +105,19 @@ class InferenceNode(Node):
 
         path_smooth_msg = self.apply_bspline_smoothing(output_denormalized_tensor, header)
         self.pub.publish(path_smooth_msg)
+
+    def pcl_publisher_callback(self) -> None:
+        if self.zed is None or not self.zed.grab():
+            return
+        header = Header()
+        header.stamp = self.get_clock().now().to_msg()
+        header.frame_id = 'base_link'
+
+        pointcloud_msg = self.zed.get_pointcloud(header)
+        if pointcloud_msg is None:
+            pointcloud_msg = PointCloud2()
+            pointcloud_msg.header = header
+        self.pub_pointcloud.publish(pointcloud_msg)
 
     def apply_bspline_smoothing(self, output: torch.Tensor, header) -> Path:
         waypoints = output.cpu().numpy().reshape(-1, 2)
