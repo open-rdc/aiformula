@@ -58,20 +58,12 @@ FrenetPlannerNode::FrenetPlannerNode(const std::string& name_space, const rclcpp
 }
 
 void FrenetPlannerNode::pointcloud_callback(const sensor_msgs::msg::PointCloud2::SharedPtr msg){
-    pointcloud_ = nullptr;
     pointcloud_ = msg;
-}
 
-void FrenetPlannerNode::velocity_body_callback(const geometry_msgs::msg::TwistWithCovarianceStamped::SharedPtr msg){
-    current_twist_ = msg->twist.twist;
-}
-
-void FrenetPlannerNode::path_callback(const nav_msgs::msg::Path::SharedPtr msg){
-    if (msg->poses.empty()) {
+    if (!global_path_ || global_path_->poses.empty()) {
         return;
     }
 
-    global_path_ = msg;
     std::vector<Obstacle> obstacles;
     obstacles = obstacle_detector_.detect_obstacles(pointcloud_);
 
@@ -84,6 +76,18 @@ void FrenetPlannerNode::path_callback(const nav_msgs::msg::Path::SharedPtr msg){
     auto marker_array = obstacle_detector_.obstacles_to_marker_array(obstacles, global_path_->header.frame_id, this->now());
     pub_obstacle_markers_->publish(marker_array);
     pub_local_path_->publish(*local_path_);
+}
+
+void FrenetPlannerNode::velocity_body_callback(const geometry_msgs::msg::TwistWithCovarianceStamped::SharedPtr msg){
+    current_twist_ = msg->twist.twist;
+}
+
+void FrenetPlannerNode::path_callback(const nav_msgs::msg::Path::SharedPtr msg){
+    if (msg->poses.empty()) {
+        return;
+    }
+
+    global_path_ = msg;
 }
 
 }  // namespace frenet_planner
