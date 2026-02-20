@@ -47,11 +47,13 @@ class ZedSdk:
 
         init_params = sl.InitParameters()
         init_params.camera_resolution = sl.RESOLUTION.SVGA
-        init_params.camera_fps = 15
+        init_params.camera_fps = 30
         init_params.coordinate_units = sl.UNIT.METER
 
         # depth init
         init_params.depth_mode = sl.DEPTH_MODE.NEURAL
+        # init_params.depth_mode = sl.DEPTH_MODE.PERFORMANCE
+        # init_params.depth_mode = sl.DEPTH_MODE.ULTRA
         init_params.depth_minimum_distance = 0.5
         init_params.depth_maximum_distance = 10.0
 
@@ -96,7 +98,7 @@ class ZedSdk:
             points_list = [point for point in point_cloud2.read_points(msg, field_names=('x', 'y', 'z', 'rgb'), skip_nans=True)]
             pointcloud = np.array(points_list, dtype=[('x', np.float32), ('y', np.float32), ('z', np.float32), ('rgba', np.float32)])
         else:
-            self._camera.retrieve_measure(self._pointcloud, self._sl.MEASURE.XYZRGBA)
+            self._camera.retrieve_measure(self._pointcloud, self._sl.MEASURE.XYZRGBA, self._sl.MEM.CPU)
             pointcloud = self._pointcloud.get_data()
         filtered_pcl = self.filtered_pointcloud(header, pointcloud)
         return filtered_pcl

@@ -1,5 +1,7 @@
 import rclpy
 from rclpy.node import Node
+from rclpy.callback_groups import ReentrantCallbackGroup
+from rclpy.executors import MultiThreadedExecutor
 from sensor_msgs.msg import Image, PointCloud2
 from std_msgs.msg import Header
 from nav_msgs.msg import Path
@@ -38,6 +40,8 @@ class InferenceNode(Node):
         self.device = torch.device('cuda')
         self.zed = None
 
+        self.cv_image = None
+
         self.sim_flag = False
 
         package_share_directory = get_package_share_directory('e2e_planner')
@@ -60,8 +64,19 @@ class InferenceNode(Node):
         self.pub_debug_image = self.create_publisher(Image, 'e2e_planner/debug_image', qos_profile_system_default)
         self.get_logger().info('Debug mode enabled: publishing preprocessed images to e2e_planner/debug_image')
 
-        self.timer = self.create_timer(interval_ms / 1000.0, self.timer_callback)
-        self.pcl_timer = self.create_timer(1.0 / 50.0, self.pcl_publisher_callback)
+        self.torch_cb_group = ReentrantCallbackGroup()
+        self.zed_cb_group = ReentrantCallbackGroup()
+
+        self.torch_timer = self.create_timer(
+            interval_ms / 1000.0,
+            self.torch_callback,
+            callback_group=self.torch_cb_group,
+        )
+        self.zed_timer = self.create_timer(
+            10.0 / 1000.0,
+            self.zed_sensor_callback,
+            callback_group=self.zed_cb_group,
+        )
 
     def preprocess_image(self, image: np.ndarray) -> Tuple[torch.Tensor, np.ndarray]:
         if self.sim_flag:
@@ -75,19 +90,16 @@ class InferenceNode(Node):
         tensor = torch.from_numpy(mask_normalized).unsqueeze(0).unsqueeze(0)
         return tensor.to(self.device), mask
 
-    def timer_callback(self) -> None:
-        if self.zed is None or not self.zed.grab():
-            return
-        cv_image = self.zed.get_image()
-        if cv_image is None:
+    def torch_callback(self) -> None:
+        if self.cv_image is None:
             return
         header = Header()
         header.stamp = self.get_clock().now().to_msg()
         header.frame_id = 'base_link'
 
-        input_tensor, mask = self.preprocess_image(cv_image)
+        input_tensor, mask = self.preprocess_image(self.cv_image)
 
-        resized_input = cv2.resize(cv2.cvtColor(cv_image, cv2.COLOR_BGRA2BGR), (64, 48))
+        resized_input = cv2.resize(cv2.cvtColor(self.cv_image, cv2.COLOR_BGRA2BGR), (64, 48))
         resized_input[mask == 1] = [0, 0, 255]
         debug_msg = self.bridge.cv2_to_imgmsg(resized_input, encoding='bgr8')
         debug_msg.header = header
@@ -106,9 +118,12 @@ class InferenceNode(Node):
         path_smooth_msg = self.apply_bspline_smoothing(output_denormalized_tensor, header)
         self.pub.publish(path_smooth_msg)
 
-    def pcl_publisher_callback(self) -> None:
+    def zed_sensor_callback(self) -> None:
         if self.zed is None or not self.zed.grab():
             return
+
+        self.cv_image = self.zed.get_image()
+
         header = Header()
         header.stamp = self.get_clock().now().to_msg()
         header.frame_id = 'base_link'
@@ -154,7 +169,9 @@ class InferenceNode(Node):
 def main(args=None) -> None:
     rclpy.init(args=args)
     node = InferenceNode()
-    rclpy.spin(node)
+    executor = MultiThreadedExecutor(num_threads=2)
+    executor.add_node(node)
+    executor.spin()
     node.destroy_node()
     rclpy.shutdown()
 
