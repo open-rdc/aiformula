@@ -9,7 +9,7 @@ launch: #起動パラメータ
   ros__parameters:
     # 並進  速度[m/s],加速度[m/s^2],加減速度[-m/s^2],躍度[m/s^3]
     linear_max:
-      vel : 5.5
+      vel : 4.0
       acc: 5.0
       jer: 0.0
     # 舵角  位置[deg]
@@ -21,7 +21,7 @@ launch: #起動パラメータ
 
 controller_node:
   ros__parameters:
-    linear_max_vel : 2.0  #[m/s]
+    linear_max_vel : 3.0  #[m/s]
 
 frenet_planner_node:
   ros__parameters:
@@ -31,7 +31,7 @@ frenet_planner_node:
     d_t_s : 0.1         # [double] 速度サンプリングの割合
     n_s_sample : 0    # [int] 縦方向サンプリング数
     # 衝突判定
-    safety_margin : 0.2  # [m] 障害物からの安全マージン
+    safety_margin : 0.05  # [m] 障害物からの安全マージン
     # コスト関数の重み
     k_jerk : 1.0          # Jerkペナルティ
     k_time : 1.0          # 時間ペナルティ
@@ -46,7 +46,7 @@ pure_pursuit_node:
   ros__parameters:
     lookahead_distance : 5.0
     curvature_gain : 5.0
-    steered_gain : 2.0
+    steered_gain : 1.8
 
 chassis_driver_node:
   ros__parameters:
@@ -64,7 +64,7 @@ chassis_driver_node:
       preload_length : 0.03 # [m]
       preload_gain : 0.1
     drive_pid:
-      p_gain : 5.0
+      p_gain : 3.0
       i_gain : 0.0
       d_gain : 0.1
 
