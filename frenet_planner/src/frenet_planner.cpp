@@ -138,7 +138,7 @@ bool FrenetPlanner::select_best_path(
     ReferenceCurve reference_curve(ref_x, ref_y);
 
     double max_s_available = reference_curve.max_s();
-    double min_t = 0.8 * max_s_available / target_speed_;
+    double min_t = 0.95 * max_s_available / target_speed_;
     double max_t = max_s_available / target_speed_;
 
     double max_t_for_path = max_s_available / std::max(1e-3, target_speed_);
