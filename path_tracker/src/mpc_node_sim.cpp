@@ -1,19 +1,21 @@
 #include "path_tracker/mpc_node_sim.hpp"
 #include <algorithm>
 #include <cmath>
+#include <std_msgs/msg/float64.hpp>
+#include <std_msgs/msg/float64_multi_array.hpp>
 #include <tf2/utils.h>
-#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 
 namespace path_tracker {
 
 MPCNodeSim::MPCNodeSim(const rclcpp::NodeOptions &options)
-    : Node("mpc_node_sim", options), dt_(0.1), horizon_(15), max_v_(2.0),
+    : Node("mpc_node_sim", options), dt_(0.1), horizon_(40), max_v_(2.0),
       max_accel_(2.0), max_delta_rate_(5), goal_tolerance_(0.1), L_(0.8),
-      m_(71.5), I_(7.72) {
+      m_(71.5), I_(8.5587) {
   // パラメータの宣言とデフォルト値の設定
   dt_ = this->declare_parameter("dt", 0.1);
-  horizon_ = this->declare_parameter("horizon", 15);
-  max_v_ = this->declare_parameter("max_v", 4.0); // 参照用
+  horizon_ = this->declare_parameter("horizon", 40);
+  max_v_ = this->declare_parameter("max_v", 2.0); // 参照用
   max_accel_ = this->declare_parameter("max_accel", 2.0);
   max_delta_rate_ = this->declare_parameter("max_delta_rate", 5);
   velocity_gain_ = this->declare_parameter("velocity_gain", 1.0);
@@ -23,7 +25,7 @@ MPCNodeSim::MPCNodeSim(const rclcpp::NodeOptions &options)
   // モデルパラメータ
   L_ = this->declare_parameter("wheelbase", 0.8);
   m_ = this->declare_parameter("mass", 71.5);
-  I_ = this->declare_parameter("inertia", 7.72);
+  I_ = this->declare_parameter("inertia", 8.5587);
 
   // サブスクライバとパブリッシャの設定
   sub_path_ = this->create_subscription<nav_msgs::msg::Path>(
@@ -43,6 +45,10 @@ MPCNodeSim::MPCNodeSim(const rclcpp::NodeOptions &options)
   sub_odom_ = this->create_subscription<nav_msgs::msg::Odometry>(
       "/odom", 10,
       std::bind(&MPCNodeSim::on_odom_received, this, std::placeholders::_1));
+  sub_steering_ = this->create_subscription<std_msgs::msg::Float64MultiArray>(
+      "/caster_data", 10,
+      std::bind(&MPCNodeSim::on_steering_received, this,
+                std::placeholders::_1));
 
   pub_cmd_vel_ =
       this->create_publisher<geometry_msgs::msg::Twist>("cmd_vel", 10);
@@ -133,35 +139,47 @@ void MPCNodeSim::on_path_received(const nav_msgs::msg::Path::SharedPtr msg) {
 //     // ローパスフィルタを適用して振動を低減 (alpha=0.3)
 //     latest_delta_ = 0.7 * latest_delta_ + 0.3 * raw_delta;
 //   }
+//     latest_delta_ = 0.7 * latest_delta_ + 0.3 * raw_delta;
+//   }
 // }
+
+void MPCNodeSim::on_steering_received(
+    const std_msgs::msg::Float64MultiArray::SharedPtr msg) {
+  // caster_data[0]は純粋なステアリング角(delta)
+  // motor_spin_angleはオフセットや反転が含まれるため使用しない
+  if (!msg->data.empty()) {
+    latest_delta_ = msg->data[0];
+  }
+}
 
 void MPCNodeSim::on_odom_received(
     const nav_msgs::msg::Odometry::SharedPtr msg) {
   double raw_v = msg->twist.twist.linear.x;
   // Use weaker filter for simulation or keep same
-  latest_v_ = 0.9 * latest_v_ + 0.1 * raw_v;
+  latest_v_ = 0.5 * latest_v_ + 0.5 * raw_v;
 
-  // Simulator Odom is CCW+, convert to Right+ (CW+)
-  latest_w_ = -msg->twist.twist.angular.z;
+  // Simulator Odom is CCW+ (Standard), keep as is.
+  latest_w_ = msg->twist.twist.angular.z;
 
   // Derive Steering Angle (delta) from v and w
   // tan(delta) = w * L / v
-  if (std::abs(latest_v_) > 0.1) {
-    // latest_w_ is CW, latest_v_ is forward. Delta should be positive for Right
-    // turn. If w is positive (Right), delta should be positive.
-    double raw_delta = std::atan(latest_w_ * L_ / latest_v_);
+  // if (std::abs(latest_v_) > 0.1) {
+  //   // latest_w_ is CCW (Left), latest_v_ is forward. Delta should be
+  //   positive
+  //   // for Left turn.
+  //   double raw_delta = std::atan(latest_w_ * L_ / latest_v_);
 
-    // Clamp to reasonable range
-    if (raw_delta > 0.6)
-      raw_delta = 0.6;
-    if (raw_delta < -0.6)
-      raw_delta = -0.6;
+  //   // Clamp to reasonable range
+  //   if (raw_delta > 0.6)
+  //     raw_delta = 0.6;
+  //   if (raw_delta < -0.6)
+  //     raw_delta = -0.6;
 
-    latest_delta_ = 0.7 * latest_delta_ + 0.3 * raw_delta;
-  } else {
-    // If stopped, maintain last or zero.
-    latest_delta_ = 0.0;
-  }
+  //   latest_delta_ = 0.1 * latest_delta_ + 0.9 * raw_delta;
+  // } else {
+  //   // If stopped, maintain last or zero.
+  //   latest_delta_ = 0.0;
+  // }
 
   // Dead Reckoning (Odometry Integration)
   // Preserving original logic to maintain coordinate system consistency
@@ -325,7 +343,7 @@ void MPCNodeSim::control_loop() {
 
     geometry_msgs::msg::Twist cmd;
     cmd.linear.x = target_v;
-    // Right+ Throughout: omegaは右旋回正、現在すべての系で右旋回正として統一
+    // Standard ROS (Left+): Target omega is directly used.
     cmd.angular.z = target_omega;
     pub_cmd_vel_->publish(cmd);
 

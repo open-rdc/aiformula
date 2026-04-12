@@ -10,6 +10,7 @@
 #include <nav_msgs/msg/path.hpp>
 #include <optional>
 #include <rclcpp/rclcpp.hpp>
+#include <std_msgs/msg/float64.hpp>
 #include <std_msgs/msg/float64_multi_array.hpp>
 #include <vector>
 
@@ -38,9 +39,11 @@ private:
   //     const geometry_msgs::msg::TwistWithCovarianceStamped::SharedPtr msg);
   // void
   // on_caster_received(const std_msgs::msg::Float64MultiArray::SharedPtr msg);
-
   void on_odom_received(
       const nav_msgs::msg::Odometry::SharedPtr msg); // For Simulator
+
+  void
+  on_steering_received(const std_msgs::msg::Float64MultiArray::SharedPtr msg);
 
   void control_loop();
 
@@ -61,6 +64,8 @@ private:
   // rclcpp::Subscription<std_msgs::msg::Float64MultiArray>::SharedPtr
   // sub_caster_;
   rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr sub_odom_; // For Sim
+  rclcpp::Subscription<std_msgs::msg::Float64MultiArray>::SharedPtr
+      sub_steering_; // For Sim
   rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr pub_cmd_vel_;
   rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr
       pub_estimated_pose_;

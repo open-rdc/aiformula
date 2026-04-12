@@ -23,7 +23,7 @@ def generate_launch_description():
         parameters=[{
             'velocity_gain': 1.0,
             'steer_gain': 1.0,
-            'max_v': 4.0,
+            'max_v': 2.0,
             'max_accel': 2.0,
             'goal_tolerance': 0.1
         }]

@@ -31,9 +31,10 @@ class InferenceNode(Node):
         model_path = os.path.join(pkg_share, 'weights', model_name)
 
         self.bridge = CvBridge()
-        self.sub = self.create_subscription(Image, '/image_raw', self.image_callback, qos_profile_sensor_data)
+        self.sub = self.create_subscription(Image, '/yolopv2/image/ll_seg_mask', self.image_callback, qos_profile_sensor_data)
         self.pub_raw = self.create_publisher(Path, 'e2e_planner/path_raw', qos_profile_system_default)
         self.pub = self.create_publisher(Path, 'e2e_planner/path', qos_profile_system_default)
+        # self.pub_debug = self.create_publisher(Image, 'e2e_planner/debug_binarized', qos_profile_system_default)
         self.get_logger().info('InferenceNode initialized. Waiting for images...')
 
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -47,7 +48,7 @@ class InferenceNode(Node):
 
     def preprocess_image(self, image: np.ndarray) -> torch.Tensor:
         image = image[:, 40:440]
-        resized = cv2.resize(image, (64, 48))
+        resized = cv2.resize(image, (64, 48), interpolation=cv2.INTER_NEAREST)
         normalized = resized.astype(np.float32) / 255.0
         if len(normalized.shape) == 2:
             normalized = np.expand_dims(normalized, axis=2)
@@ -62,10 +63,15 @@ class InferenceNode(Node):
     def timer_callback(self) -> None:
         if self.latest_image is None:   return
 
-        cv_image = self.bridge.imgmsg_to_cv2(self.latest_image, desired_encoding='bgr8')
-        gray_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
-        gray_image = np.expand_dims(gray_image, axis=2)
-        input_tensor = self.preprocess_image(gray_image)
+        # YOLOP output is mono8 (0 or 255)
+        mask = self.bridge.imgmsg_to_cv2(self.latest_image, desired_encoding='mono8')
+        
+        # Determine stats just in case
+        min_val, max_val, _, _ = cv2.minMaxLoc(mask)
+        if max_val == 0:
+             self.get_logger().warning('Received empty mask (all black)!', throttle_duration_sec=2.0)
+
+        input_tensor = self.preprocess_image(mask)
 
         with torch.no_grad():
             output = self.model(input_tensor)
