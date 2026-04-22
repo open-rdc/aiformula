@@ -4,7 +4,7 @@
   <name>main_executor</name>
   <version>0.0.0</version>
   <description>TODO: Package description</description>
-  <maintainer email="s24s1037hw@s.chibakoudai.jp">KazumaFujino</maintainer>
+  <maintainer email="hogehoge@gmail.com">cmos</maintainer>
   <license>TODO: License declaration</license>
 
   <build_depend>rclcpp</build_depend>
@@ -14,7 +14,8 @@
   <depend>socketcan_interface</depend>
   <depend>controller</depend>
   <depend>chassis_driver</depend>
-  <depend>cybergear_interface</depend>
+  <depend>frenet_planner</depend>
+  <depend>path_tracker</depend>
   <depend>gnssnav</depend>
 
   <buildtool_depend>ament_cmake</buildtool_depend>

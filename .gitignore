@@ -2,6 +2,7 @@
 *.log
 *.urdf
 *.pyc
+*.pt
 
 #ディレクトリで指定
 bin/

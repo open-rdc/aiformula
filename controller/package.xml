@@ -10,13 +10,14 @@
   <buildtool_depend>ament_cmake_ros</buildtool_depend>
 
   <depend>rclcpp</depend>
+  <depend>ackermann_msgs</depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>
   <depend>std_msgs</depend>
-  <depend>geometry_msgs</depend>
   <depend>sensor_msgs</depend>
   <depend>socketcan_interface_msg</depend>
+  <depend>steered_drive_msg</depend>
   <depend>utilities</depend>
 
   <export>

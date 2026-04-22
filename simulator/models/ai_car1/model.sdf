@@ -11,18 +11,44 @@
       <left_joint>left_wheel_joint</left_joint>
       <right_joint>right_wheel_joint</right_joint>
       <wheel_separation>0.6</wheel_separation>
-      <wheel_radius>0.1</wheel_radius>
-      <odom_publish_frequency>0.1</odom_publish_frequency>
-      <topic>cmd_vel</topic>
+      <wheel_radius>0.124</wheel_radius>
+      <odom_publish_frequency>30</odom_publish_frequency>
+      <topic>cmd_vel_twist</topic>
+      <odom_topic>odom</odom_topic>
+    </plugin>
+    <plugin
+      filename="gz_ros2_control-system"
+      name="gz_ros2_control::GazeboSimROS2ControlPlugin">
+      <robot_param>robot_description</robot_param>
+      <robot_param_node>robot_state_publisher</robot_param_node>
+      <parameters>/tmp/simulator_ai_car1_ros2_control.yaml</parameters>
+      <controller_manager_name>controller_manager</controller_manager_name>
+      <ros>
+        <remapping>/caster_yaw_position_controller/commands:=/cmd_caster</remapping>
+      </ros>
     </plugin>
     <plugin
         filename="libignition-gazebo-imu-system.so"
         name="ignition::gazebo::systems::Imu">
     </plugin>
     <plugin
-        filename="ignition-gazebo-sensors-system"
+        filename="libignition-gazebo-sensors-system.so"
         name="ignition::gazebo::systems::Sensors">
     </plugin>
+
+    <ros2_control name="gz_ros2_control" type="system">
+      <hardware>
+        <plugin>gz_ros2_control/GazeboSimSystem</plugin>
+      </hardware>
+      <joint name="caster_yaw_wheel">
+        <command_interface name="position">
+          <param name="min">-0.26</param>
+          <param name="max">0.26</param>
+        </command_interface>
+        <state_interface name="position"/>
+        <state_interface name="velocity"/>
+      </joint>
+    </ros2_control>
 
     <!-- chassis -->
 
@@ -38,7 +64,7 @@
           <iyz>0</iyz>
           <izz>4.56667</izz>
         </inertia>
-        <mass>30.0</mass>
+        <mass>40.0</mass>
       </inertial>
 
       <visual name='visual'>
@@ -89,13 +115,13 @@
         </geometry>
       </visual>
       <collision name='collision'>
-          <geometry>
-          <pose>0 -0.3 0 1.57 0 1.57</pose>
-            <mesh>
-              <uri>package://simulator/models/ai_car1/meshes/tire.dae</uri>
-              <scale>0.05 0.12 0.12</scale>
-            </mesh>
-          </geometry>
+        <geometry>
+        <pose>0 -0.3 0 1.57 0 1.57</pose>
+          <mesh>
+            <uri>package://simulator/models/ai_car1/meshes/tire.dae</uri>
+            <scale>0.05 0.12 0.12</scale>
+          </mesh>
+        </geometry>
       </collision>
     </link>
 
@@ -143,10 +169,25 @@
         <pose>0.8 0 0 0 0 1.57</pose>
     </frame>
 
-    <link name='caster'>
+    <link name='caster_yaw'>
       <pose relative_to='caster_frame'/>
       <inertial>
-        <mass>10.0</mass>
+        <mass>5.0</mass>
+        <inertia>
+          <ixx>0.001</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>0.001</iyy>
+          <iyz>0</iyz>
+          <izz>0.001</izz>
+        </inertia>
+      </inertial>
+    </link>
+
+    <link name='caster'>
+      <pose relative_to='caster_yaw'/>
+      <inertial>
+        <mass>1.0</mass>
         <inertia>
           <ixx>0.04778</ixx>
           <ixy>0</ixy>
@@ -184,11 +225,13 @@
       <parent>chassis</parent>
       <child>left_wheel</child>
       <axis>
-        <xyz expressed_in='__model__'>0 1 0</xyz> <!--can be defined as any frame or even arbitrary frames-->
+        <xyz expressed_in='__model__'>0 1 0</xyz>
         <limit>
-          <lower>-1.79769e+308</lower>    <!--negative infinity-->
-          <upper>1.79769e+308</upper>     <!--positive infinity-->
+          <effort>84.4</effort>
         </limit>
+        <dynamics>
+          <friction>0.9</friction>  <!-- 静止摩擦 -->
+        </dynamics>
       </axis>
     </joint>
 
@@ -199,21 +242,40 @@
       <axis>
         <xyz expressed_in='__model__'>0 1 0</xyz>
         <limit>
-          <lower>-1.79769e+308</lower>    <!--negative infinity-->
-          <upper>1.79769e+308</upper>     <!--positive infinity-->
+          <effort>84.4</effort>
         </limit>
+        <dynamics>
+          <friction>0.9</friction>  <!-- 静止摩擦 -->
+        </dynamics>
       </axis>
     </joint>
 
-    <joint name='caster_wheel' type='revolute'>
+    <joint name='caster_yaw_wheel' type='revolute'>
       <parent>chassis</parent>
+      <child>caster_yaw</child>
+      <axis>
+        <xyz expressed_in='__model__'>0 0 1</xyz>
+        <limit>
+          <lower>-0.26</lower>
+          <upper>0.26</upper>
+          <effort>1000000.0</effort>
+        </limit>
+        <dynamics>
+          <damping>10.0</damping>
+          <spring_stiffness>12.0</spring_stiffness>
+          <spring_reference>0.0</spring_reference>
+        </dynamics>
+      </axis>
+    </joint>
+
+    <joint name='caster_pitch_joint' type='revolute'>
+      <parent>caster_yaw</parent>
       <child>caster</child>
       <axis>
         <xyz expressed_in='__model__'>0 1 0</xyz>
-        <limit>
-          <lower>-0.523599</lower>   <!--可動域制限<-30[deg]-->
-          <upper>0.523599</upper>
-        </limit>
+        <dynamics>
+          <damping>0.01</damping>
+        </dynamics>
       </axis>
     </joint>
 
@@ -265,6 +327,7 @@
         <xyz>0 0 1</xyz>
       </axis>
     </joint>
+
 
     <link name="camera_link">
       <pose>0 0 0 0 0 0</pose>
@@ -341,7 +404,7 @@
     <link name="gps_link">
       <sensor name="gps_sensor" type="navsat">
         <always_on>true</always_on>
-        <update_rate>1.0</update_rate>
+        <update_rate>5.0</update_rate>
         <topic>navsat</topic>
       </sensor>
     </link>

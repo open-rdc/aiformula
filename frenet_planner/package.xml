@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>frenet_planner</name>
+  <version>0.0.0</version>
+  <description>Frenet planner library node (no tracking) for local path generation.</description>
+  <maintainer email="s21c1135sc@chibatech.ac.jp">kyo yamashita</maintainer>
+  <license>MIT</license>
+
+  <buildtool_depend>ament_cmake_auto</buildtool_depend>
+
+  <depend>rclcpp</depend>
+  <depend>geometry_msgs</depend>
+  <depend>nav_msgs</depend>
+  <depend>sensor_msgs</depend>
+  <depend>std_msgs</depend>
+  <depend>visualization_msgs</depend>
+  <depend>Eigen3</depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
