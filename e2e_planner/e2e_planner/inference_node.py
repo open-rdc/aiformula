@@ -37,7 +37,7 @@ class InferenceNode(Node):
         interval_ms = self.get_parameter('interval_ms').value
 
         self.bridge = CvBridge()
-        self.device = torch.device('cuda')
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.zed = None
 
         self.cv_image = None

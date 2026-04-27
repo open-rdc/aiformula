@@ -43,7 +43,7 @@ class InferenceNode(Node):
         self.debug_mode_ = self.get_parameter('debug_mode').value
 
         self.bridge = CvBridge()
-        self.device = torch.device('cuda')
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.latest_image = None
         self.zed_camera: Optional[sl.Camera] = None
         self.zed_image: Optional[sl.Mat] = None
@@ -61,6 +61,11 @@ class InferenceNode(Node):
             self.model = None
 
         self.yolop_processor = YOLOPv2Processor(yolop_weight_path, self.device)
+        # JITコンパイルを起動時に済ませる（初回推論が12秒かかるため）
+        self.get_logger().info('Warming up YOLOP (JIT compile)...')
+        dummy = np.zeros((300, 480, 3), dtype=np.uint8)
+        self.yolop_processor.process_image(dummy, (64, 48))
+        self.get_logger().info('YOLOP warmup done.')
 
         if self.sdk_flag_:
             if not ZED_SDK_AVAILABLE:
@@ -68,7 +73,7 @@ class InferenceNode(Node):
                 raise RuntimeError('ZED SDK not available')
             self._initialize_zed_camera()
         else:
-            self.sub = self.create_subscription(Image, '/zed/zed_node/rgb/image_rect_color', self.image_callback, qos_profile_sensor_data)
+            self.sub = self.create_subscription(Image, '/image_raw', self.image_callback, qos_profile_sensor_data)
 
         self.pub_raw = self.create_publisher(Path, 'e2e_planner/path_raw', qos_profile_system_default)
         self.pub = self.create_publisher(Path, 'e2e_planner/path', qos_profile_system_default)
@@ -105,13 +110,12 @@ class InferenceNode(Node):
         return None
 
     def preprocess_image(self, image: np.ndarray) -> Tuple[torch.Tensor, np.ndarray]:
-
         if self.sdk_flag_:
             bgr_image = cv2.cvtColor(image, cv2.COLOR_BGRA2BGR)
-            mask = self.yolop_processor.process_image(bgr_image, (64, 48))
         else:
-            mask = ((image[:, :, 2] > 200) & (image[:, :, 0] < 50) & (image[:, :, 1] < 50)).astype(np.uint8)
-            mask = cv2.resize(mask, (64, 48))
+            bgr_image = image
+
+        mask = self.yolop_processor.process_image(bgr_image, (64, 48))
 
         mask_normalized = mask.astype(np.float32)
         tensor = torch.from_numpy(mask_normalized).unsqueeze(0).unsqueeze(0)
@@ -132,12 +136,13 @@ class InferenceNode(Node):
         else:
             if self.latest_image is None:
                 return
-            cv_image = self.bridge.imgmsg_to_cv2(self.latest_image, desired_encoding='bgra8')
+            cv_image = self.bridge.imgmsg_to_cv2(self.latest_image, desired_encoding='bgr8')
             header = self.latest_image.header
 
         input_tensor, mask = self.preprocess_image(cv_image)
         if self.debug_mode_:
-            resized_input = cv2.resize(cv2.cvtColor(cv_image, cv2.COLOR_BGRA2BGR), (64, 48))
+            bgr_for_debug = cv2.cvtColor(cv_image, cv2.COLOR_BGRA2BGR) if self.sdk_flag_ else cv_image
+            resized_input = cv2.resize(bgr_for_debug, (64, 48))
             resized_input[mask == 1] = [0, 0, 255]
             debug_msg = self.bridge.cv2_to_imgmsg(resized_input, encoding='bgr8')
             debug_msg.header = header
