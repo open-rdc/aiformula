@@ -17,8 +17,8 @@
       <odom_topic>odom</odom_topic>
     </plugin>
     <plugin
-      filename="gz_ros2_control-system"
-      name="gz_ros2_control::GazeboSimROS2ControlPlugin">
+      filename="libign_ros2_control-system.so"
+      name="ign_ros2_control::IgnitionROS2ControlPlugin">
       <robot_param>robot_description</robot_param>
       <robot_param_node>robot_state_publisher</robot_param_node>
       <parameters>/tmp/simulator_ai_car1_ros2_control.yaml</parameters>

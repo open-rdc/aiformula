@@ -26,20 +26,20 @@ def generate_launch_description():
     ])
 
     bridge = Node(
-        package='ros_gz_bridge',
+        package='ros_ign_bridge',
         executable='parameter_bridge',
         arguments=[
             # RGB camera (color image only)
-            '/camera_info@sensor_msgs/msg/CameraInfo@gz.msgs.CameraInfo',
-            '/image_raw@sensor_msgs/msg/Image@gz.msgs.Image',
+            '/camera_info@sensor_msgs/msg/CameraInfo@ignition.msgs.CameraInfo',
+            '/image_raw@sensor_msgs/msg/Image@ignition.msgs.Image',
             # Depth camera (depth image and point cloud only)
-            '/depth_image_raw/depth_image@sensor_msgs/msg/Image@gz.msgs.Image',
-            '/depth_image_raw/points@sensor_msgs/msg/PointCloud2@gz.msgs.PointCloudPacked',
+            '/depth_image_raw/depth_image@sensor_msgs/msg/Image@ignition.msgs.Image',
+            '/depth_image_raw/points@sensor_msgs/msg/PointCloud2@ignition.msgs.PointCloudPacked',
             # Other sensors
-            '/odom@nav_msgs/msg/Odometry@gz.msgs.Odometry',
-            '/navsat@sensor_msgs/msg/NavSatFix@gz.msgs.NavSat',
-            '/imu_raw@sensor_msgs/msg/Imu@gz.msgs.IMU',
-            '/cmd_vel_twist@geometry_msgs/msg/Twist@gz.msgs.Twist'],
+            '/odom@nav_msgs/msg/Odometry@ignition.msgs.Odometry',
+            '/navsat@sensor_msgs/msg/NavSatFix@ignition.msgs.NavSat',
+            '/imu_raw@sensor_msgs/msg/Imu@ignition.msgs.IMU',
+            '/cmd_vel_twist@geometry_msgs/msg/Twist@ignition.msgs.Twist'],
         output='screen',
         remappings=[
             ('/depth_image', '/zed/zed_node/depth/depth_registered'),
@@ -88,7 +88,7 @@ def generate_launch_description():
 
     caster_yaw_position_spawner = Node(
         package='controller_manager',
-        executable='spawner',
+        executable='spawner.py',
         arguments=[
             'caster_yaw_position_controller',
             '--controller-manager',
@@ -103,9 +103,9 @@ def generate_launch_description():
         world_arg,
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource([os.path.join(
-                get_package_share_directory('ros_gz_sim'), 'launch'), '/gz_sim.launch.py']),
+                get_package_share_directory('ros_ign_gazebo'), 'launch'), '/ign_gazebo.launch.py']),
             launch_arguments=[
-                ('gz_args', [world_file_path, ' -r'])]
+                ('ign_args', [world_file_path, ' -r'])]
         ),
         steered_to_twist,
         bridge,

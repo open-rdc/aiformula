@@ -23,8 +23,8 @@ import pandas as pd
 from pathlib import Path
 
 
-KEYFRAME_DIST = 0.3   # キーフレーム間の最小距離 [m]
-DECISION_LOOKAHEAD = 1.0  # 分岐点の何m手前からコマンドを出すか [m]
+KEYFRAME_DIST = 1.0   # キーフレーム間の最小距離 [m]
+DECISION_LOOKAHEAD = 4.0  # 分岐点の何m手前からコマンドを出すか [m]
 
 
 def dist2d(p1, p2):

@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/home/orne/miniconda3/envs/omnivla_foxy/bin/python3
 
 import math
 

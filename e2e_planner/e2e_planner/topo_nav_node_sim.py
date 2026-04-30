@@ -185,11 +185,28 @@ class TopoNavNodeSim(Node):
     # コールバック
     # ────────────────────────────────────────────────────────────
 
+    def _nearest_kf(self, x: float, y: float) -> int:
+        best, best_dist = 0, float('inf')
+        for i, kf in enumerate(self._keyframes):
+            d = math.hypot(kf['x'] - x, kf['y'] - y)
+            if d < best_dist:
+                best_dist, best = d, i
+        return best
+
     def _odom_cb(self, msg: Odometry) -> None:
         x = msg.pose.pose.position.x
         y = msg.pose.pose.position.y
         q = msg.pose.pose.orientation
         _, _, yaw = euler_from_quaternion([q.x, q.y, q.z, q.w])
+        if self._current_pose is None:
+            self._kf_idx = self._nearest_kf(x, y)
+            nearest_kf = self._keyframes[self._kf_idx]
+            dist = math.hypot(nearest_kf['x'] - x, nearest_kf['y'] - y)
+            self.get_logger().info(
+                f'初期KF設定: {self._kf_idx} (距離={dist:.2f} m, '
+                f'kf_pos=({nearest_kf["x"]:.2f},{nearest_kf["y"]:.2f}), '
+                f'robot_pos=({x:.2f},{y:.2f}))'
+            )
         self._current_pose = (x, y, yaw)
 
     def _image_cb(self, msg: Image) -> None:

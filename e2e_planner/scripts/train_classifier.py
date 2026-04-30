@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python3
 """
 ジャンクション分類器 (JunctionClassifier) のトレーニングスクリプト。
@@ -25,6 +26,7 @@ import csv
 import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader, random_split, ConcatDataset
+from torch.utils.tensorboard import SummaryWriter
 import cv2
 import pandas as pd
 import numpy as np
@@ -107,6 +109,7 @@ def train(
     batch_size: int = 32,
     lr: float = 1e-3,
     weight_file: str = 'junction_classifier.pt',
+    num_workers: int = 2,
 ) -> None:
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f'デバイス: {device}')
@@ -123,8 +126,8 @@ def train(
     train_ds, val_ds = random_split(combined, [n_train, n_val])
     print(f'Train: {n_train}  Val: {n_val}')
 
-    train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True, num_workers=2, drop_last=True)
-    val_loader = DataLoader(val_ds, batch_size=batch_size, shuffle=False, num_workers=2)
+    train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True, num_workers=num_workers, drop_last=True)
+    val_loader = DataLoader(val_ds, batch_size=batch_size, shuffle=False, num_workers=num_workers)
 
     model = JunctionClassifier().to(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
@@ -136,6 +139,11 @@ def train(
     weights_dir = package_root / 'weights'
     weights_dir.mkdir(exist_ok=True)
     weight_path = weights_dir / weight_file
+
+    writer = SummaryWriter(log_dir=str(package_root / 'runs' / 'junction_classifier'))
+    print(f'TensorBoard ログ: {package_root / "runs" / "junction_classifier"}')
+    print(f'TensorBoard 起動コマンド: tensorboard --logdir {package_root / "runs"}')
+    print('ブラウザで http://localhost:6006 を開いて進捗を確認できます')
 
     best_val_acc = 0.0
 
@@ -158,6 +166,7 @@ def train(
             pbar.set_postfix({'loss': f'{loss.item():.4f}'})
 
         scheduler.step()
+        train_loss = total_loss / len(train_loader)
         train_acc = train_correct / n_train
 
         model.eval()
@@ -170,6 +179,10 @@ def train(
                 val_correct += int((outputs.argmax(1) == labels).sum())
         val_acc = val_correct / n_val
 
+        writer.add_scalar('Loss/train', train_loss, epoch)
+        writer.add_scalar('Accuracy/train', train_acc, epoch)
+        writer.add_scalar('Accuracy/val', val_acc, epoch)
+
         marker = ' *' if val_acc > best_val_acc else ''
         print(f'Epoch {epoch:3d}: train_acc={train_acc:.3f}  val_acc={val_acc:.3f}{marker}')
 
@@ -178,31 +191,54 @@ def train(
             scripted = torch.jit.script(model)
             scripted.save(str(weight_path))
 
+    writer.close()
     print(f'\nトレーニング完了。最良バリデーション精度: {best_val_acc:.3f}')
     print(f'モデル保存先: {weight_path}')
 
 
 def main() -> None:
     import argparse
+    import yaml
+
+    script_dir = Path(__file__).parent
+    default_config = script_dir.parent / 'config' / 'train_classifier.yaml'
 
     parser = argparse.ArgumentParser(
         description='JunctionClassifier の学習',
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument('sessions', nargs='+', help='セッションディレクトリ (複数指定可)')
-    parser.add_argument('--epochs', type=int, default=50)
-    parser.add_argument('--batch-size', type=int, default=32)
-    parser.add_argument('--lr', type=float, default=1e-3)
-    parser.add_argument('--weight-file', default='junction_classifier.pt',
+    parser.add_argument('--config', default=str(default_config),
+                        help=f'コンフィグYAMLファイルのパス (デフォルト: {default_config})')
+    parser.add_argument('--epochs', type=int, default=None)
+    parser.add_argument('--batch-size', type=int, default=None)
+    parser.add_argument('--lr', type=float, default=None)
+    parser.add_argument('--num-workers', type=int, default=None)
+    parser.add_argument('--weight-file', default=None,
                         help='出力モデルファイル名 (weights/ 以下)')
     args = parser.parse_args()
+
+    cfg: dict = {}
+    config_path = Path(args.config)
+    if config_path.exists():
+        with open(config_path) as f:
+            cfg = yaml.safe_load(f) or {}
+        print(f'コンフィグ読み込み: {config_path}')
+    else:
+        print(f'警告: コンフィグファイルが見つかりません: {config_path}')
+
+    epochs = args.epochs if args.epochs is not None else cfg.get('epochs', 50)
+    batch_size = args.batch_size if args.batch_size is not None else cfg.get('batch_size', 32)
+    lr = args.lr if args.lr is not None else cfg.get('learning_rate', 1e-3)
+    num_workers = args.num_workers if args.num_workers is not None else cfg.get('num_workers', 2)
+    weight_file = args.weight_file if args.weight_file is not None else cfg.get('weight_file', 'junction_classifier.pt')
 
     for d in args.sessions:
         if not Path(d).exists():
             print(f'エラー: {d} が見つかりません')
             sys.exit(1)
 
-    train(args.sessions, args.epochs, args.batch_size, args.lr, args.weight_file)
+    train(args.sessions, epochs, batch_size, lr, weight_file, num_workers)
 
 
 if __name__ == '__main__':
