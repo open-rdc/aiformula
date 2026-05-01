@@ -6,6 +6,7 @@
 #include <vector>
 
 #include <Eigen/Core>
+#include <builtin_interfaces/msg/time.hpp>
 #include <cv_bridge/cv_bridge.h>
 #include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
 #include <geometry_msgs/msg/twist_with_covariance_stamped.hpp>
@@ -15,6 +16,7 @@
 #include <sensor_msgs/msg/nav_sat_fix.hpp>
 #include <visualization_msgs/msg/marker_array.hpp>
 
+#include "vectormap_matching/ekf_localizer.hpp"
 #include "vectormap_matching/icp_matching.hpp"
 #include "vectormap_matching/lane_pixel_to_point.hpp"
 #include "vectormap_matching/visibility_control.h"
@@ -49,8 +51,9 @@ private:
         const sensor_msgs::msg::NavSatFix& gnss_msg,
         const sensor_msgs::msg::Imu& imu_msg,
         geometry_msgs::msg::PoseWithCovarianceStamped& pose_out) const;
-    geometry_msgs::msg::PoseWithCovarianceStamped make_motion_predicted_pose(
+    geometry_msgs::msg::PoseWithCovarianceStamped update_ekf_with_raw_pose(
         const geometry_msgs::msg::PoseWithCovarianceStamped& raw_pose,
+        const sensor_msgs::msg::Imu& imu_msg,
         const geometry_msgs::msg::TwistWithCovarianceStamped& velocity_msg);
     bool is_valid_velocity_frame(const std::string& frame_id) const;
     static bool same_stamp(
@@ -63,6 +66,8 @@ private:
     geometry_msgs::msg::PoseWithCovarianceStamped make_localized_pose(
         const geometry_msgs::msg::PoseWithCovarianceStamped& initial_pose,
         const Eigen::Vector2d& correction) const;
+    geometry_msgs::msg::PoseWithCovarianceStamped update_ekf_with_icp_pose(
+        const geometry_msgs::msg::PoseWithCovarianceStamped& icp_pose);
     visualization_msgs::msg::MarkerArray make_lane_line_marker_array(
         const std::vector<Eigen::Vector2d>& base_points) const;
     visualization_msgs::msg::MarkerArray make_lane_line_map_marker_array(
@@ -77,7 +82,6 @@ private:
     const std::string raw_pose_topic_;
     const std::string velocity_topic_;
     const std::string imu_yaw_convention_;
-    const bool use_velocity_prediction_;
     const double map_origin_lat_;
     const double map_origin_lon_;
     const double map_yaw_from_east_;
@@ -91,6 +95,8 @@ private:
     const double output_yaw_variance_;
     const CameraModel camera_model_;
     const IcpMatcher icp_matcher_;
+    const EkfLocalizerConfig ekf_config_;
+    EkfLocalizer ekf_localizer_;
     const rclcpp::QoS qos_;
 
     std::shared_ptr<const IcpTargetMap> map_points_;
@@ -100,10 +106,12 @@ private:
     geometry_msgs::msg::TwistWithCovarianceStamped::SharedPtr latest_velocity_msg_;
     mutable std::mutex data_mutex_;
     GroundProjectionLUT ground_projection_lut_;
-    bool has_prediction_pose_;
-    builtin_interfaces::msg::Time prediction_anchor_stamp_;
-    rclcpp::Time prediction_stamp_;
-    geometry_msgs::msg::PoseWithCovarianceStamped prediction_pose_;
+    bool has_last_velocity_update_stamp_;
+    bool has_last_gnss_update_stamp_;
+    bool has_last_imu_update_stamp_;
+    builtin_interfaces::msg::Time last_velocity_update_stamp_;
+    builtin_interfaces::msg::Time last_gnss_update_stamp_;
+    builtin_interfaces::msg::Time last_imu_update_stamp_;
 
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr mask_subscription_;
     rclcpp::Subscription<vectormap_msgs::msg::VectorMap>::SharedPtr vector_map_subscription_;

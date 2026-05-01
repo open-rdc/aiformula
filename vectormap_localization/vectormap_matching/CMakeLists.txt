@@ -12,6 +12,7 @@ find_package(Eigen3 REQUIRED)
 find_package(OpenCV REQUIRED)
 
 ament_auto_add_library(vectormap_localization_node SHARED
+  src/ekf_localizer.cpp
   src/icp_matching.cpp
   src/lane_pixel_to_point.cpp
   src/map_odom_tf_node.cpp

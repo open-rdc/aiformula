@@ -89,6 +89,23 @@ IcpConfig make_icp_config(rclcpp::Node& node)
     return config;
 }
 
+EkfLocalizerConfig make_ekf_config(rclcpp::Node& node)
+{
+    EkfLocalizerConfig config;
+    config.initial_position_variance = node.get_parameter("ekf.initial_position_variance").as_double();
+    config.initial_yaw_variance = node.get_parameter("ekf.initial_yaw_variance").as_double();
+    config.initial_velocity_variance = node.get_parameter("ekf.initial_velocity_variance").as_double();
+    config.initial_yaw_rate_variance = node.get_parameter("ekf.initial_yaw_rate_variance").as_double();
+    config.process_position_variance = node.get_parameter("ekf.process_position_variance").as_double();
+    config.process_yaw_variance = node.get_parameter("ekf.process_yaw_variance").as_double();
+    config.process_velocity_variance = node.get_parameter("ekf.process_velocity_variance").as_double();
+    config.process_yaw_rate_variance = node.get_parameter("ekf.process_yaw_rate_variance").as_double();
+    config.gnss_position_variance = node.get_parameter("ekf.gnss_position_variance").as_double();
+    config.imu_yaw_variance = node.get_parameter("ekf.imu_yaw_variance").as_double();
+    config.icp_position_variance = node.get_parameter("ekf.icp_position_variance").as_double();
+    return config;
+}
+
 double yaw_from_quaternion(const geometry_msgs::msg::Quaternion& quaternion)
 {
     const double siny_cosp = 2.0 * (quaternion.w * quaternion.z + quaternion.x * quaternion.y);
@@ -160,7 +177,6 @@ VectormapLocalizationNode::VectormapLocalizationNode(
   raw_pose_topic_(get_parameter("raw_pose_topic").as_string()),
   velocity_topic_(get_parameter("velocity_topic").as_string()),
   imu_yaw_convention_(get_parameter("imu_yaw_convention").as_string()),
-  use_velocity_prediction_(get_parameter("use_velocity_prediction").as_bool()),
   map_origin_lat_(get_parameter("map_origin_geodetic.latitude").as_double()),
   map_origin_lon_(get_parameter("map_origin_geodetic.longitude").as_double()),
   map_yaw_from_east_(get_parameter("map_yaw_from_east").as_double()),
@@ -174,9 +190,12 @@ VectormapLocalizationNode::VectormapLocalizationNode(
   output_yaw_variance_(get_parameter("output_yaw_variance").as_double()),
   camera_model_(make_camera_model(*this)),
   icp_matcher_(make_icp_config(*this)),
+  ekf_config_(make_ekf_config(*this)),
+  ekf_localizer_(ekf_config_),
   qos_(rclcpp::QoS(10)),
-  has_prediction_pose_(false),
-  prediction_stamp_(0, 0, get_clock()->get_clock_type())
+  has_last_velocity_update_stamp_(false),
+  has_last_gnss_update_stamp_(false),
+  has_last_imu_update_stamp_(false)
 {
     if (update_period_ms_ <= 0) {
         throw std::invalid_argument("update_period_ms must be greater than 0");
@@ -385,8 +404,9 @@ bool VectormapLocalizationNode::gnss_to_map_pose(
     return true;
 }
 
-geometry_msgs::msg::PoseWithCovarianceStamped VectormapLocalizationNode::make_motion_predicted_pose(
+geometry_msgs::msg::PoseWithCovarianceStamped VectormapLocalizationNode::update_ekf_with_raw_pose(
     const geometry_msgs::msg::PoseWithCovarianceStamped& raw_pose,
+    const sensor_msgs::msg::Imu& imu_msg,
     const geometry_msgs::msg::TwistWithCovarianceStamped& velocity_msg)
 {
     if (!is_valid_velocity_frame(velocity_msg.header.frame_id)) {
@@ -395,45 +415,52 @@ geometry_msgs::msg::PoseWithCovarianceStamped VectormapLocalizationNode::make_mo
             velocity_msg.header.frame_id);
     }
     if (!std::isfinite(velocity_msg.twist.twist.linear.x) ||
-        !std::isfinite(velocity_msg.twist.twist.linear.y) ||
         !std::isfinite(velocity_msg.twist.twist.angular.z))
     {
         throw std::runtime_error("velocity_body twist contains non-finite values");
     }
-
-    if (!has_prediction_pose_ || !same_stamp(raw_pose.header.stamp, prediction_anchor_stamp_)) {
-        prediction_pose_ = raw_pose;
-        prediction_anchor_stamp_ = raw_pose.header.stamp;
-        prediction_stamp_ = rclcpp::Time(raw_pose.header.stamp, get_clock()->get_clock_type());
-        has_prediction_pose_ = true;
+    if (!std::isfinite(imu_msg.angular_velocity.z)) {
+        throw std::runtime_error("IMU angular_velocity.z is not finite");
     }
-
-    const double yaw = yaw_from_quaternion(raw_pose.pose.pose.orientation);
-    set_yaw(prediction_pose_.pose.pose.orientation, yaw);
 
     const rclcpp::Time velocity_stamp(velocity_msg.header.stamp, get_clock()->get_clock_type());
-    const double dt = (velocity_stamp - prediction_stamp_).seconds();
-    if (dt < 0.0) {
-        throw std::runtime_error("velocity_body timestamp is older than localization prediction state");
-    }
-    if (dt > 0.0) {
-        const double cos_yaw = std::cos(yaw);
-        const double sin_yaw = std::sin(yaw);
-        const double vx_body = velocity_msg.twist.twist.linear.x;
-        const double vy_body = velocity_msg.twist.twist.linear.y;
-        prediction_pose_.pose.pose.position.x += (cos_yaw * vx_body - sin_yaw * vy_body) * dt;
-        prediction_pose_.pose.pose.position.y += (sin_yaw * vx_body + cos_yaw * vy_body) * dt;
-        prediction_pose_.pose.pose.position.z = 0.0;
-        prediction_stamp_ = velocity_stamp;
-        prediction_pose_.header.stamp = velocity_msg.header.stamp;
+    const double raw_x = raw_pose.pose.pose.position.x;
+    const double raw_y = raw_pose.pose.pose.position.y;
+    const double raw_yaw = yaw_from_quaternion(raw_pose.pose.pose.orientation);
+    const double velocity = velocity_msg.twist.twist.linear.x;
+    const double yaw_rate = imu_msg.angular_velocity.z;
+
+    if (!ekf_localizer_.initialized()) {
+        ekf_localizer_.initialize(raw_x, raw_y, raw_yaw, velocity, yaw_rate, velocity_stamp);
+        has_last_velocity_update_stamp_ = true;
+        last_velocity_update_stamp_ = velocity_msg.header.stamp;
+        has_last_gnss_update_stamp_ = true;
+        last_gnss_update_stamp_ = raw_pose.header.stamp;
+        has_last_imu_update_stamp_ = true;
+        last_imu_update_stamp_ = imu_msg.header.stamp;
+        return ekf_localizer_.make_pose(this->now(), map_frame_id_);
+    } else if (
+        !has_last_velocity_update_stamp_ ||
+        !same_stamp(velocity_msg.header.stamp, last_velocity_update_stamp_))
+    {
+        ekf_localizer_.predict(velocity, yaw_rate, velocity_stamp);
+        has_last_velocity_update_stamp_ = true;
+        last_velocity_update_stamp_ = velocity_msg.header.stamp;
     }
 
-    prediction_pose_.header.frame_id = map_frame_id_;
-    prediction_pose_.pose.covariance.fill(0.0);
-    prediction_pose_.pose.covariance[0] = output_position_variance_;
-    prediction_pose_.pose.covariance[7] = output_position_variance_;
-    prediction_pose_.pose.covariance[35] = output_yaw_variance_;
-    return prediction_pose_;
+    if (!has_last_gnss_update_stamp_ || !same_stamp(raw_pose.header.stamp, last_gnss_update_stamp_)) {
+        ekf_localizer_.update_position(raw_x, raw_y, ekf_config_.gnss_position_variance);
+        has_last_gnss_update_stamp_ = true;
+        last_gnss_update_stamp_ = raw_pose.header.stamp;
+    }
+
+    if (!has_last_imu_update_stamp_ || !same_stamp(imu_msg.header.stamp, last_imu_update_stamp_)) {
+        ekf_localizer_.update_yaw(raw_yaw, ekf_config_.imu_yaw_variance);
+        has_last_imu_update_stamp_ = true;
+        last_imu_update_stamp_ = imu_msg.header.stamp;
+    }
+
+    return ekf_localizer_.make_pose(this->now(), map_frame_id_);
 }
 
 bool VectormapLocalizationNode::is_valid_velocity_frame(const std::string& frame_id) const
@@ -486,6 +513,16 @@ geometry_msgs::msg::PoseWithCovarianceStamped VectormapLocalizationNode::make_lo
     localized_pose.pose.covariance[7] = output_position_variance_;
     localized_pose.pose.covariance[35] = output_yaw_variance_;
     return localized_pose;
+}
+
+geometry_msgs::msg::PoseWithCovarianceStamped VectormapLocalizationNode::update_ekf_with_icp_pose(
+    const geometry_msgs::msg::PoseWithCovarianceStamped& icp_pose)
+{
+    ekf_localizer_.update_position(
+        icp_pose.pose.pose.position.x,
+        icp_pose.pose.pose.position.y,
+        ekf_config_.icp_position_variance);
+    return ekf_localizer_.make_pose(this->now(), map_frame_id_);
 }
 
 visualization_msgs::msg::MarkerArray VectormapLocalizationNode::make_lane_line_marker_array(
@@ -582,7 +619,7 @@ void VectormapLocalizationNode::timer_callback()
         map_points = map_points_;
     }
 
-    if (!gnss_msg || !imu_msg || (use_velocity_prediction_ && !velocity_msg)) {
+    if (!gnss_msg || !imu_msg || !velocity_msg) {
         RCLCPP_WARN_THROTTLE(
             this->get_logger(),
             *this->get_clock(),
@@ -603,10 +640,7 @@ void VectormapLocalizationNode::timer_callback()
         }
         raw_pose_publisher_->publish(raw_pose);
 
-        geometry_msgs::msg::PoseWithCovarianceStamped initial_pose = raw_pose;
-        if (use_velocity_prediction_) {
-            initial_pose = make_motion_predicted_pose(raw_pose, *velocity_msg);
-        }
+        const auto initial_pose = update_ekf_with_raw_pose(raw_pose, *imu_msg, *velocity_msg);
 
         if (!mask_image_msg || !map_points || map_points->empty()) {
             RCLCPP_WARN_THROTTLE(
@@ -614,6 +648,7 @@ void VectormapLocalizationNode::timer_callback()
                 *this->get_clock(),
                 2000,
                 "waiting for mask image and vector map");
+            localized_pose_publisher_->publish(initial_pose);
             return;
         }
 
@@ -647,6 +682,9 @@ void VectormapLocalizationNode::timer_callback()
             mask_threshold_,
             max_observed_points_);
         lane_line_publisher_->publish(make_lane_line_marker_array(base_points));
+        const auto raw_source_points = observed_points_in_initial_map(base_points, raw_pose);
+        lane_line_map_raw_publisher_->publish(
+            make_lane_line_map_marker_array(raw_source_points, "lane_line_map_raw", 1.0F, 1.0F, 0.0F));
         if (base_points.size() < min_observed_points_) {
             RCLCPP_WARN_THROTTLE(
                 this->get_logger(),
@@ -654,12 +692,11 @@ void VectormapLocalizationNode::timer_callback()
                 1000,
                 "not enough observed lane points: %zu",
                 base_points.size());
+            localized_pose_publisher_->publish(initial_pose);
             return;
         }
 
         const auto source_points = observed_points_in_initial_map(base_points, initial_pose);
-        lane_line_map_raw_publisher_->publish(
-            make_lane_line_map_marker_array(source_points, "lane_line_map_raw", 1.0F, 1.0F, 0.0F));
 
         const auto result = icp_matcher_.align_translation_only(source_points, *map_points);
         if (!result.converged) {
@@ -670,6 +707,7 @@ void VectormapLocalizationNode::timer_callback()
                 "ICP failed: correspondences=%zu, mean_error=%.3f",
                 result.correspondences,
                 result.mean_error);
+            localized_pose_publisher_->publish(initial_pose);
             return;
         }
 
@@ -682,7 +720,8 @@ void VectormapLocalizationNode::timer_callback()
             make_lane_line_map_marker_array(
                 corrected_points, "lane_line_map_corrected", 0.0F, 1.0F, 1.0F));
 
-        localized_pose_publisher_->publish(make_localized_pose(initial_pose, result.translation));
+        const auto icp_pose = make_localized_pose(initial_pose, result.translation);
+        localized_pose_publisher_->publish(update_ekf_with_icp_pose(icp_pose));
         RCLCPP_DEBUG(
             this->get_logger(),
             "localized correction=(%.3f, %.3f), correspondences=%zu, mean_error=%.3f",
