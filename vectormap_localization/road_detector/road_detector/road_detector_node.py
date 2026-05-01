@@ -22,8 +22,8 @@ class RoadDetectorNode(Node):
 
         self.declare_parameter('input_image_topic', '/zed/zed_node/rgb/image_rect_color')
         self.declare_parameter('output_mask_topic', '/yolop/mask_image')
-        self.declare_parameter('capture_width', 480)
-        self.declare_parameter('capture_height', 300)
+        self.declare_parameter('capture_width', 640)
+        self.declare_parameter('capture_height', 360)
         self.declare_parameter('visualize', False)
 
         self.input_image_topic = self.get_parameter('input_image_topic').value
