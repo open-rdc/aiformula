@@ -1,9 +1,9 @@
 launch: #起動パラメータ
   ros__parameters:
     joy: true
-    vectornav : true
-    odrive : true
-    socketcan : true
+    vectornav : false
+    odrive : false
+    socketcan : false
 
 /**:  #ワイルドカード(ここのパラメータは全ノードから読める: <名前に注意>)
   ros__parameters:
@@ -21,7 +21,7 @@ launch: #起動パラメータ
 
 controller_node:
   ros__parameters:
-    linear_max_vel : 3.0  #[m/s]
+    linear_max_vel : 2.0  #[m/s]
 
 frenet_planner_node:
   ros__parameters:
@@ -47,6 +47,120 @@ pure_pursuit_node:
     lookahead_distance : 5.0
     curvature_gain : 5.0
     steered_gain : 1.8
+
+vectormap_server_node:
+  ros__parameters:
+    map_path : "aiformula_course.osm"
+    publish_period_ms : 1000
+    earth_frame_id : "earth"
+    map_axis_convention : "image_x_right_y_up"
+    map_origin_pixel:
+      x : 0.0
+      y : 0.0
+    meter_per_pixel : 0.1739579
+    map_origin_geodetic:
+      latitude :  36.11313110136178
+      longitude: 139.98107529988687
+      altitude :   50.0
+    # map の +x 軸が East から何 rad だけ CCW に回転しているか [rad]
+    # front_view_extractor 式の +u 方向を ENU に投影して数値的に算出
+    map_yaw_from_east : 0.02686650
+
+vectormap_localization_node:
+  ros__parameters:
+    update_period_ms : 100
+    map_frame_id : "map"
+    localized_pose_topic : "/localization/pose"
+    raw_pose_topic : "/localization/pose_raw"
+    # VectorNav yaw is heading: 0 rad at North, positive counter-clockwise.
+    imu_yaw_convention : "heading_north_ccw"
+    # vectormap_server_node と同じ値を設定すること
+    map_origin_geodetic:
+      latitude :  36.11313110136178
+      longitude: 139.98107529988687
+      altitude :   50.0
+    map_yaw_from_east : 0.02686650
+    mask_threshold : 128
+    pixel_step : 4
+    max_observed_points : 2000
+    min_observed_points : 30
+    min_map_points : 30
+    map_sample_interval_m : 0.25
+    ground_plane_z_base : 0.0
+    min_ground_intersection_distance : 0.2
+    max_ground_intersection_distance : 30.0
+    output_position_variance : 0.25
+    output_yaw_variance : 0.1
+    camera:
+      # simulator/models/ai_car1/model.sdf: width=480, height=300, hfov=1.91986, vfov=1.39626
+      fx : 166.568
+      fy : 178.682
+      cx : 240.0
+      cy : 150.0
+    # 画像点をbase_linkへ変換するためのカメラ外部パラメータ
+    camera_to_base:
+      x : 0.35
+      y : 0.0
+      z : 0.67
+      roll : -1.57079632679
+      pitch : 0.0
+      yaw : -1.57079632679
+    icp:
+      max_iterations : 20
+      max_correspondence_distance : 1.5
+      convergence_translation_epsilon : 0.01
+      min_correspondences : 20
+
+odom_tf_node:
+  ros__parameters:
+    publish_period_ms : 20
+    odom_frame_id : "odom"
+    base_frame_id : "base_link"
+    imu_topic : "/vectornav/imu"
+    velocity_topic : "/vectornav/velocity_body"
+    odom_topic : "/localization/odom"
+    # VectorNav yaw is heading: 0 rad at North, positive counter-clockwise.
+    imu_yaw_convention : "heading_north_ccw"
+    max_integration_dt : 0.2
+
+map_odom_tf_node:
+  ros__parameters:
+    publish_period_ms    : 50          # 再送周期 [ms]（20 Hz）
+    stale_warn_timeout_s : 2.0         # キャッシュ更新が途絶えた場合の警告閾値 [s]
+    map_frame_id         : "map"
+    odom_frame_id        : "odom"
+    base_frame_id        : "base_link"
+    localized_pose_topic : "/localization/pose"
+
+vectormap_planner_node:
+  ros__parameters:
+    update_period_ms : 100
+    map_frame_id : "map"
+    base_frame_id : "base_link"
+    vector_map_topic : "/vector_map"
+    localization_pose_topic : "/localization/pose_raw"
+    velocity_topic : "/vectornav/velocity_body"
+    pointcloud_topic : "/zed/zed_node/pointcloud"
+    change_lane_topic : "/change_lane"
+    global_path_topic : "/planner/global_path"
+    local_path_topic : "/planner/local_path"
+    route_lanelet_ids : [301, 302, 303, 304, 305, 311, 313, 312, 314, 315, 309, 310]
+    # aiformula 2026 course: 301, 302, 303, 304, 305, 311, 313, 312, 314, 315, 309, 310
+    lane_change_direction : "left"
+    global_path_resample_interval_m : 0.2
+    local_path_length_m : 20.0
+    local_path_resample_interval_m : 0.2
+    max_centerline_connection_gap_m : 0.5
+    vehicle_width_m : 0.6
+    lane_change_length_m : 10.0
+    avoidance_detection_forward_distance_m : 15.0
+    avoidance_hard_margin_m : 0.2
+    avoidance_soft_margin_m : 0.3
+    envelope_buffer_margin_m : 0.2
+    avoidance_lateral_jerk_mps3 : 1.0
+    avoidance_min_velocity_mps : 0.5
+    max_avoidance_shift_m : 1.0
+    obstacle_pointcloud_step : 8
 
 chassis_driver_node:
   ros__parameters:
