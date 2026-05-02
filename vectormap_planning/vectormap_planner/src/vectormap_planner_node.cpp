@@ -48,7 +48,7 @@ VectormapPlannerNode::VectormapPlannerNode(
   local_path_topic_(get_parameter("local_path_topic").as_string()),
   route_lanelet_ids_param_(read_route_lanelet_ids(*this)),
   global_path_resample_interval_m_(get_parameter("global_path_resample_interval_m").as_double()),
-  local_path_length_m_(get_parameter("local_path_length_m").as_double()),
+  local_path_horizon_m_(get_parameter("local_path_horizon_m").as_double()),
   local_path_resample_interval_m_(get_parameter("local_path_resample_interval_m").as_double()),
   max_centerline_connection_gap_m_(get_parameter("max_centerline_connection_gap_m").as_double()),
   vehicle_width_m_(get_parameter("vehicle_width_m").as_double()),
@@ -60,6 +60,10 @@ VectormapPlannerNode::VectormapPlannerNode(
   avoidance_lateral_jerk_mps3_(get_parameter("avoidance_lateral_jerk_mps3").as_double()),
   avoidance_min_velocity_mps_(get_parameter("avoidance_min_velocity_mps").as_double()),
   max_avoidance_shift_m_(get_parameter("max_avoidance_shift_m").as_double()),
+  frenet_collision_check_margin_m_(get_parameter("frenet_collision_check_margin_m").as_double()),
+  frenet_weight_lateral_offset_(get_parameter("frenet_weight_lateral_offset").as_double()),
+  frenet_weight_lateral_change_(get_parameter("frenet_weight_lateral_change").as_double()),
+  frenet_weight_avoidance_shift_(get_parameter("frenet_weight_avoidance_shift").as_double()),
   obstacle_pointcloud_step_(get_parameter("obstacle_pointcloud_step").as_int()),
   qos_(rclcpp::QoS(10)),
   global_path_ready_(false),
@@ -84,8 +88,8 @@ VectormapPlannerNode::VectormapPlannerNode(
     if (global_path_resample_interval_m_ <= 0.0 || local_path_resample_interval_m_ <= 0.0) {
         throw std::invalid_argument("path resample intervals must be greater than 0");
     }
-    if (local_path_length_m_ <= local_path_resample_interval_m_) {
-        throw std::invalid_argument("local_path_length_m must be greater than local_path_resample_interval_m");
+    if (local_path_horizon_m_ <= local_path_resample_interval_m_) {
+        throw std::invalid_argument("local_path_horizon_m must be greater than local_path_resample_interval_m");
     }
     if (max_centerline_connection_gap_m_ < 0.0 || vehicle_width_m_ <= 0.0 || lane_change_length_m_ <= 0.0) {
         throw std::invalid_argument("geometry parameters are invalid");
@@ -94,6 +98,10 @@ VectormapPlannerNode::VectormapPlannerNode(
         avoidance_lateral_jerk_mps3_ <= 0.0 ||
         avoidance_min_velocity_mps_ <= 0.0 ||
         max_avoidance_shift_m_ <= 0.0 ||
+        frenet_collision_check_margin_m_ <= 0.0 ||
+        frenet_weight_lateral_offset_ < 0.0 ||
+        frenet_weight_lateral_change_ < 0.0 ||
+        frenet_weight_avoidance_shift_ < 0.0 ||
         obstacle_pointcloud_step_ <= 0)
     {
         throw std::invalid_argument("avoidance parameters are invalid");
@@ -193,16 +201,18 @@ void VectormapPlannerNode::timer_callback()
         }
 
         const Point2D ego{latest_pose_->pose.pose.position.x, latest_pose_->pose.pose.position.y};
-        const double current_s_normalized = project_to_path(ego).s;
-        double current_s = current_s_normalized;
+        const FrenetPoint ego_frenet_normalized = project_to_path(ego);
+        double current_s = ego_frenet_normalized.s;
         if (route_is_loop_ &&
             lane_change_state_ == LaneChangeState::Executing &&
-            current_s_normalized < lane_change_start_s_)
+            ego_frenet_normalized.s < lane_change_start_s_)
         {
-            current_s += max_path_s();
+            current_s = ego_frenet_normalized.s + max_path_s();
         }
+        const FrenetPoint ego_frenet{current_s, ego_frenet_normalized.d};
 
         double obstacle_s = std::numeric_limits<double>::quiet_NaN();
+        double obstacle_d = std::numeric_limits<double>::quiet_NaN();
         double avoidance_shift = 0.0;
         const bool has_obstacle = latest_pointcloud_ && find_static_obstacle(
             current_s,
@@ -210,39 +220,30 @@ void VectormapPlannerNode::timer_callback()
             *latest_pose_,
             *latest_pointcloud_,
             obstacle_s,
+            obstacle_d,
             avoidance_shift);
 
-        local_points = generate_local_path(current_s);
-        if (has_obstacle) {
-            const double speed = latest_velocity_ ?
-                std::hypot(
-                    latest_velocity_->twist.twist.linear.x,
-                    latest_velocity_->twist.twist.linear.y) :
-                avoidance_min_velocity_mps_;
-            const double planning_speed = std::max(speed, avoidance_min_velocity_mps_);
-            const double longitudinal_distance =
-                4.0 * planning_speed * std::cbrt(0.5 * std::abs(avoidance_shift) / avoidance_lateral_jerk_mps3_);
-            const double shift_start_s = std::max(current_s, obstacle_s - longitudinal_distance);
-            const double shift_end_s = std::max(shift_start_s + local_path_resample_interval_m_, obstacle_s - 0.5);
-            const double return_start_s = obstacle_s + 2.0;
-            const double return_end_s = return_start_s + longitudinal_distance;
-            local_points = sample_shifted_path(
-                current_s,
-                route_is_loop_ ? current_s + local_path_length_m_ : std::min(current_s + local_path_length_m_, max_path_s()),
-                active_lane_offset_m_,
-                lane_change_start_s_,
-                lane_change_end_s_,
-                lane_change_start_offset_m_,
-                lane_change_target_offset_m_,
-                obstacle_s,
-                avoidance_shift,
-                shift_start_s,
-                shift_end_s,
-                return_start_s,
-                return_end_s);
-        }
+        const double speed = latest_velocity_ ?
+            std::hypot(
+                latest_velocity_->twist.twist.linear.x,
+                latest_velocity_->twist.twist.linear.y) :
+            avoidance_min_velocity_mps_;
+        local_points = generate_local_path(
+            ego_frenet,
+            has_obstacle,
+            FrenetObstacle{obstacle_s, obstacle_d},
+            avoidance_shift,
+            std::max(speed, avoidance_min_velocity_mps_));
     }
 
+    if (local_points.empty()) {
+        RCLCPP_WARN_THROTTLE(
+            get_logger(),
+            *get_clock(),
+            1000,
+            "local path is empty; skip publishing");
+        return;
+    }
     local_path_publisher_->publish(make_path_message(local_points, now()));
 }
 

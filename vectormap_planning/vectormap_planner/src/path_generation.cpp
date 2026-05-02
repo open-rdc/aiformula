@@ -4,6 +4,7 @@
 #include <cmath>
 #include <limits>
 #include <stdexcept>
+#include <utility>
 
 namespace vectormap_planner
 {
@@ -68,50 +69,104 @@ nav_msgs::msg::Path VectormapPlannerNode::make_path_message(
 }
 
 std::vector<VectormapPlannerNode::PathPoint> VectormapPlannerNode::generate_local_path(
-    const double current_s)
+    const FrenetPoint& ego_frenet,
+    const bool has_obstacle,
+    const FrenetObstacle& obstacle,
+    const double avoidance_shift,
+    const double speed_mps)
 {
-    double start_offset = active_lane_offset_m_;
-    double end_offset = active_lane_offset_m_;
+    const double current_s = ego_frenet.s;
+    double target_offset = active_lane_offset_m_;
+    double lane_start_offset = active_lane_offset_m_;
+    double lane_end_offset = active_lane_offset_m_;
     double start_s = lane_change_start_s_;
     double end_s = lane_change_end_s_;
     if (lane_change_state_ == LaneChangeState::Executing && current_s >= lane_change_end_s_) {
         active_lane_offset_m_ = lane_change_target_offset_m_;
         lane_change_state_ = LaneChangeState::Idle;
-        start_offset = active_lane_offset_m_;
-        end_offset = active_lane_offset_m_;
+        target_offset = active_lane_offset_m_;
+        lane_start_offset = active_lane_offset_m_;
+        lane_end_offset = active_lane_offset_m_;
         start_s = current_s;
         end_s = current_s;
         RCLCPP_INFO(get_logger(), "lane change completed: active_offset=%.3f", active_lane_offset_m_);
     } else if (lane_change_state_ == LaneChangeState::Executing) {
-        start_offset = lane_change_start_offset_m_;
-        end_offset = lane_change_target_offset_m_;
+        target_offset = lane_change_target_offset_m_;
+        lane_start_offset = lane_change_start_offset_m_;
+        lane_end_offset = lane_change_target_offset_m_;
     }
 
-    return sample_shifted_path(
-        current_s,
-        route_is_loop_ ? current_s + local_path_length_m_ : std::min(current_s + local_path_length_m_, max_path_s()),
-        active_lane_offset_m_,
-        start_s,
-        end_s,
-        start_offset,
-        end_offset,
-        std::numeric_limits<double>::quiet_NaN(),
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0);
+    const double path_end_s =
+        route_is_loop_ ? current_s + local_path_horizon_m_ : std::min(current_s + local_path_horizon_m_, max_path_s());
+    if (path_end_s <= current_s + EPSILON) {
+        return {};
+    }
+
+    double avoidance_start_s = 0.0;
+    double avoidance_end_s = 0.0;
+    double avoidance_return_start_s = 0.0;
+    double avoidance_return_end_s = 0.0;
+    if (has_obstacle) {
+        const double longitudinal_distance =
+            4.0 * speed_mps * std::cbrt(0.5 * std::abs(avoidance_shift) / avoidance_lateral_jerk_mps3_);
+        avoidance_start_s = std::max(current_s, obstacle.s - longitudinal_distance);
+        avoidance_end_s = std::max(avoidance_start_s + local_path_resample_interval_m_, obstacle.s - 0.5);
+        avoidance_return_start_s = obstacle.s + 2.0;
+        avoidance_return_end_s = avoidance_return_start_s + longitudinal_distance;
+    }
+
+    std::vector<double> candidate_shifts;
+    candidate_shifts.reserve(3U);
+    candidate_shifts.push_back(has_obstacle ? avoidance_shift : 0.0);
+    if (has_obstacle) {
+        candidate_shifts.push_back(-avoidance_shift);
+        candidate_shifts.push_back(0.0);
+    }
+
+    double best_cost = std::numeric_limits<double>::max();
+    std::vector<PathPoint> best_path;
+    for (const double candidate_shift : candidate_shifts) {
+        auto candidate = sample_frenet_path(
+            current_s,
+            path_end_s,
+            ego_frenet.d,
+            start_s,
+            end_s,
+            lane_start_offset,
+            lane_end_offset,
+            target_offset,
+            obstacle,
+            candidate_shift,
+            avoidance_start_s,
+            avoidance_end_s,
+            avoidance_return_start_s,
+            avoidance_return_end_s);
+        if (candidate.empty()) {
+            continue;
+        }
+        if (has_obstacle && !is_collision_free(candidate, obstacle)) {
+            continue;
+        }
+        const double cost = evaluate_frenet_candidate(candidate, target_offset, candidate_shift);
+        if (cost < best_cost) {
+            best_cost = cost;
+            best_path = std::move(candidate);
+        }
+    }
+
+    return best_path;
 }
 
-std::vector<VectormapPlannerNode::PathPoint> VectormapPlannerNode::sample_shifted_path(
+std::vector<VectormapPlannerNode::PathPoint> VectormapPlannerNode::sample_frenet_path(
     const double start_s,
     const double end_s,
-    const double base_offset,
+    const double start_d,
     const double lane_change_start_s,
     const double lane_change_end_s,
     const double lane_change_start_offset,
     const double lane_change_end_offset,
-    const double avoidance_obstacle_s,
+    const double fallback_target_offset,
+    const FrenetObstacle& obstacle,
     const double avoidance_shift,
     const double avoidance_start_s,
     const double avoidance_end_s,
@@ -124,15 +179,19 @@ std::vector<VectormapPlannerNode::PathPoint> VectormapPlannerNode::sample_shifte
     }
     points.reserve(static_cast<std::size_t>(std::ceil((end_s - start_s) / local_path_resample_interval_m_)) + 2U);
 
+    const double convergence_length = std::min(5.0, std::max(local_path_resample_interval_m_, end_s - start_s));
     for (double s = start_s; s < end_s; s += local_path_resample_interval_m_) {
         const auto base_point = path_point_at_s(s);
-        double offset = base_offset;
+        double target_offset = fallback_target_offset;
         if (lane_change_end_s > lane_change_start_s && s >= lane_change_start_s) {
             const double t = std::clamp((s - lane_change_start_s) / (lane_change_end_s - lane_change_start_s), 0.0, 1.0);
-            offset = lane_change_start_offset +
+            target_offset = lane_change_start_offset +
                 smooth_step(t) * (lane_change_end_offset - lane_change_start_offset);
         }
-        if (std::isfinite(avoidance_obstacle_s)) {
+
+        const double converge_t = std::clamp((s - start_s) / convergence_length, 0.0, 1.0);
+        double offset = start_d + smooth_step(converge_t) * (target_offset - start_d);
+        if (std::isfinite(obstacle.s)) {
             if (s >= avoidance_start_s && s < avoidance_end_s) {
                 const double t = std::clamp((s - avoidance_start_s) / (avoidance_end_s - avoidance_start_s), 0.0, 1.0);
                 offset += smooth_step(t) * avoidance_shift;
@@ -155,9 +214,72 @@ std::vector<VectormapPlannerNode::PathPoint> VectormapPlannerNode::sample_shifte
             base_point.lanelet_id});
     }
 
-    const auto base_point = path_point_at_s(end_s);
-    points.push_back(PathPoint{end_s, base_point.x, base_point.y, base_point.yaw, base_point.lanelet_id});
+    if (!points.empty() && end_s - points.back().s > EPSILON) {
+        const auto base_point = path_point_at_s(end_s);
+        const double offset = points.back().s < end_s ? project_to_path(Point2D{points.back().x, points.back().y}).d : start_d;
+        points.push_back(PathPoint{
+            end_s,
+            base_point.x - std::sin(base_point.yaw) * offset,
+            base_point.y + std::cos(base_point.yaw) * offset,
+            base_point.yaw,
+            base_point.lanelet_id});
+    }
+
+    for (std::size_t i = 1U; i < points.size(); ++i) {
+        const double dx = points[i].x - points[i - 1U].x;
+        const double dy = points[i].y - points[i - 1U].y;
+        if (std::hypot(dx, dy) > EPSILON) {
+            points[i - 1U].yaw = std::atan2(dy, dx);
+        }
+    }
+    if (points.size() >= 2U) {
+        points.back().yaw = points[points.size() - 2U].yaw;
+    }
     return points;
+}
+
+bool VectormapPlannerNode::is_collision_free(
+    const std::vector<PathPoint>& candidate,
+    const FrenetObstacle& obstacle) const
+{
+    if (!std::isfinite(obstacle.s) || !std::isfinite(obstacle.d)) {
+        return true;
+    }
+    const double longitudinal_margin = std::max(0.5, local_path_resample_interval_m_ * 2.0);
+    const double lateral_margin =
+        vehicle_width_m_ * 0.5 + avoidance_hard_margin_m_ + envelope_buffer_margin_m_ + frenet_collision_check_margin_m_;
+    for (const auto& point : candidate) {
+        if (std::abs(point.s - obstacle.s) > longitudinal_margin) {
+            continue;
+        }
+        const FrenetPoint frenet = project_to_path(Point2D{point.x, point.y});
+        if (std::abs(frenet.d - obstacle.d) <= lateral_margin) {
+            return false;
+        }
+    }
+    return true;
+}
+
+double VectormapPlannerNode::evaluate_frenet_candidate(
+    const std::vector<PathPoint>& candidate,
+    const double target_offset,
+    const double avoidance_shift) const
+{
+    if (candidate.empty()) {
+        return std::numeric_limits<double>::max();
+    }
+
+    double lateral_change_sum = 0.0;
+    double previous_d = project_to_path(Point2D{candidate.front().x, candidate.front().y}).d;
+    for (std::size_t i = 1U; i < candidate.size(); ++i) {
+        const double d = project_to_path(Point2D{candidate[i].x, candidate[i].y}).d;
+        lateral_change_sum += std::abs(d - previous_d);
+        previous_d = d;
+    }
+    const double final_d = previous_d;
+    return frenet_weight_lateral_offset_ * std::abs(final_d - target_offset) +
+        frenet_weight_lateral_change_ * lateral_change_sum +
+        frenet_weight_avoidance_shift_ * std::abs(avoidance_shift);
 }
 
 VectormapPlannerNode::FrenetPoint VectormapPlannerNode::project_to_path(const Point2D& point) const

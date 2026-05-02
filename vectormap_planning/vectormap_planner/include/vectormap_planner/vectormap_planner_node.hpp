@@ -63,6 +63,12 @@ public:
         double d;
     };
 
+    struct FrenetObstacle
+    {
+        double s;
+        double d;
+    };
+
     enum class LaneChangeState
     {
         Idle,
@@ -85,21 +91,34 @@ private:
     nav_msgs::msg::Path make_path_message(
         const std::vector<PathPoint>& points,
         const rclcpp::Time& stamp) const;
-    std::vector<PathPoint> generate_local_path(double current_s);
-    std::vector<PathPoint> sample_shifted_path(
+    std::vector<PathPoint> generate_local_path(
+        const FrenetPoint& ego_frenet,
+        bool has_obstacle,
+        const FrenetObstacle& obstacle,
+        double avoidance_shift,
+        double speed_mps);
+    std::vector<PathPoint> sample_frenet_path(
         double start_s,
         double end_s,
-        double base_offset,
+        double start_d,
         double lane_change_start_s,
         double lane_change_end_s,
         double lane_change_start_offset,
         double lane_change_end_offset,
-        double avoidance_obstacle_s,
+        double fallback_target_offset,
+        const FrenetObstacle& obstacle,
         double avoidance_shift,
         double avoidance_start_s,
         double avoidance_end_s,
         double avoidance_return_start_s,
         double avoidance_return_end_s) const;
+    bool is_collision_free(
+        const std::vector<PathPoint>& candidate,
+        const FrenetObstacle& obstacle) const;
+    double evaluate_frenet_candidate(
+        const std::vector<PathPoint>& candidate,
+        double target_offset,
+        double avoidance_shift) const;
 
     FrenetPoint project_to_path(const Point2D& point) const;
     PathPoint path_point_at_s(double s) const;
@@ -113,6 +132,7 @@ private:
         const geometry_msgs::msg::PoseWithCovarianceStamped& current_pose,
         const sensor_msgs::msg::PointCloud2& pointcloud,
         double& obstacle_s,
+        double& obstacle_d,
         double& avoidance_shift);
 
     static double smooth_step(double t);
@@ -131,7 +151,7 @@ private:
     const std::string local_path_topic_;
     const std::vector<int64_t> route_lanelet_ids_param_;
     const double global_path_resample_interval_m_;
-    const double local_path_length_m_;
+    const double local_path_horizon_m_;
     const double local_path_resample_interval_m_;
     const double max_centerline_connection_gap_m_;
     const double vehicle_width_m_;
@@ -143,6 +163,10 @@ private:
     const double avoidance_lateral_jerk_mps3_;
     const double avoidance_min_velocity_mps_;
     const double max_avoidance_shift_m_;
+    const double frenet_collision_check_margin_m_;
+    const double frenet_weight_lateral_offset_;
+    const double frenet_weight_lateral_change_;
+    const double frenet_weight_avoidance_shift_;
     const int obstacle_pointcloud_step_;
     const rclcpp::QoS qos_;
 

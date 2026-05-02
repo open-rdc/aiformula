@@ -26,6 +26,7 @@ bool VectormapPlannerNode::find_static_obstacle(
     const geometry_msgs::msg::PoseWithCovarianceStamped& current_pose,
     const sensor_msgs::msg::PointCloud2& pointcloud,
     double& obstacle_s,
+    double& obstacle_d,
     double& avoidance_shift)
 {
     if (pointcloud.width == 0U || pointcloud.height == 0U) {
@@ -95,7 +96,7 @@ bool VectormapPlannerNode::find_static_obstacle(
     }
 
     obstacle_s = best_s;
-    const double obstacle_d = d_sum / static_cast<double>(d_count);
+    obstacle_d = d_sum / static_cast<double>(d_count);
     const double shift_sign = obstacle_d >= base_offset ? -1.0 : 1.0;
     const double required_shift =
         std::min(max_avoidance_shift_m_, vehicle_width_m_ * 0.5 + avoidance_hard_margin_m_ + avoidance_soft_margin_m_);
