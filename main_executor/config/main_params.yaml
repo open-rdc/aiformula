@@ -70,8 +70,10 @@ vectormap_localization_node:
   ros__parameters:
     update_period_ms : 100
     map_frame_id : "map"
+    base_frame_id : "base_link"
     localized_pose_topic : "/localization/pose"
     raw_pose_topic : "/localization/pose_raw"
+    velocity_topic : "/vectornav/velocity_body"
     # VectorNav yaw is heading: 0 rad at North, positive counter-clockwise.
     imu_yaw_convention : "heading_north_ccw"
     # vectormap_server_node と同じ値を設定すること
@@ -110,6 +112,18 @@ vectormap_localization_node:
       max_correspondence_distance : 1.5
       convergence_translation_epsilon : 0.01
       min_correspondences : 5
+    ekf:
+      initial_position_variance : 1.0
+      initial_yaw_variance : 0.3
+      initial_velocity_variance : 1.0
+      initial_yaw_rate_variance : 0.5
+      process_position_variance : 0.2
+      process_yaw_variance : 0.05
+      process_velocity_variance : 0.5
+      process_yaw_rate_variance : 0.2
+      gnss_position_variance : 0.5
+      imu_yaw_variance : 0.05
+      icp_position_variance : 0.15
 
 odom_tf_node:
   ros__parameters:
