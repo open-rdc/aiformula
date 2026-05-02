@@ -12,7 +12,7 @@
 #include <nav_msgs/msg/path.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
-#include <std_msgs/msg/bool.hpp>
+#include <std_msgs/msg/empty.hpp>
 #include <vectormap_msgs/msg/lane_connection.hpp>
 #include <vectormap_msgs/msg/lanelet.hpp>
 #include <vectormap_msgs/msg/line_string.hpp>
@@ -80,13 +80,17 @@ private:
     void pose_callback(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg);
     void velocity_callback(const geometry_msgs::msg::TwistWithCovarianceStamped::SharedPtr msg);
     void pointcloud_callback(const sensor_msgs::msg::PointCloud2::SharedPtr msg);
-    void change_lane_callback(const std_msgs::msg::Bool::SharedPtr msg);
+    void lane_switch_flag_callback(const std_msgs::msg::Empty::SharedPtr msg);
     void timer_callback();
 
     void build_global_path_once(const vectormap_msgs::msg::VectorMap& map_msg);
     void build_adjacency(
         const std::unordered_map<uint64_t, vectormap_msgs::msg::Lanelet>& lanelet_by_id);
-    void start_lane_change(double current_s, uint64_t current_lanelet_id);
+    void start_lane_switch(double current_s, uint64_t current_lanelet_id);
+    void start_lane_offset_transition(
+        double current_s,
+        double target_offset,
+        const std::string& reason);
 
     nav_msgs::msg::Path make_path_message(
         const std::vector<PathPoint>& points,
@@ -141,12 +145,11 @@ private:
     const int update_period_ms_;
     const std::string map_frame_id_;
     const std::string base_frame_id_;
-    const std::string lane_change_direction_;
     const std::string vector_map_topic_;
     const std::string localization_pose_topic_;
     const std::string velocity_topic_;
     const std::string pointcloud_topic_;
-    const std::string change_lane_topic_;
+    const std::string lane_switch_trigger_topic_;
     const std::string global_path_topic_;
     const std::string local_path_topic_;
     const std::vector<int64_t> route_lanelet_ids_param_;
@@ -172,7 +175,6 @@ private:
 
     bool global_path_ready_;
     bool route_is_loop_;
-    bool previous_change_lane_signal_;
     LaneChangeState lane_change_state_;
     double active_lane_offset_m_;
     double lane_change_start_s_;
@@ -196,7 +198,7 @@ private:
     rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr pose_subscription_;
     rclcpp::Subscription<geometry_msgs::msg::TwistWithCovarianceStamped>::SharedPtr velocity_subscription_;
     rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr pointcloud_subscription_;
-    rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr change_lane_subscription_;
+    rclcpp::Subscription<std_msgs::msg::Empty>::SharedPtr lane_switch_flag_subscription_;
     rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr global_path_publisher_;
     rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr local_path_publisher_;
     rclcpp::TimerBase::SharedPtr timer_;

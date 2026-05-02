@@ -15,23 +15,51 @@ constexpr double EPSILON = 1.0e-6;
 
 }  // namespace
 
-void VectormapPlannerNode::start_lane_change(const double current_s, const uint64_t current_lanelet_id)
+void VectormapPlannerNode::start_lane_switch(const double current_s, const uint64_t current_lanelet_id)
+{
+    if (std::abs(active_lane_offset_m_) > EPSILON) {
+        start_lane_offset_transition(current_s, 0.0, "return_to_route_lane");
+        return;
+    }
+
+    const bool has_left = left_adjacent_lanelet_by_id_.find(current_lanelet_id) != left_adjacent_lanelet_by_id_.end();
+    const bool has_right = right_adjacent_lanelet_by_id_.find(current_lanelet_id) != right_adjacent_lanelet_by_id_.end();
+    if (has_left && has_right) {
+        RCLCPP_ERROR(
+            get_logger(),
+            "lane switch rejected: both left and right adjacent lanelets exist from %lu; expected two-lane route",
+            current_lanelet_id);
+        return;
+    }
+    if (!has_left && !has_right) {
+        RCLCPP_WARN(get_logger(), "lane switch rejected: no adjacent lanelet from %lu", current_lanelet_id);
+        return;
+    }
+
+    const bool to_left = has_left;
+    const double target_offset = adjacent_lane_offset(current_lanelet_id, to_left);
+    if (!std::isfinite(target_offset) || std::abs(target_offset) <= EPSILON) {
+        RCLCPP_WARN(get_logger(), "lane switch rejected: adjacent lane offset is invalid");
+        return;
+    }
+
+    start_lane_offset_transition(current_s, target_offset, "switch_to_adjacent_lane");
+}
+
+void VectormapPlannerNode::start_lane_offset_transition(
+    const double current_s,
+    const double target_offset,
+    const std::string& reason)
 {
     if (lane_change_state_ == LaneChangeState::Executing) {
-        RCLCPP_WARN(get_logger(), "lane change request ignored because another lane change is executing");
+        RCLCPP_WARN(get_logger(), "lane switch request ignored because another lane change is executing");
         return;
     }
-
-    const bool to_left = lane_change_direction_ == "left";
-    const auto& adjacency = to_left ? left_adjacent_lanelet_by_id_ : right_adjacent_lanelet_by_id_;
-    if (adjacency.find(current_lanelet_id) == adjacency.end()) {
-        RCLCPP_WARN(get_logger(), "lane change rejected: no adjacent lanelet from %lu", current_lanelet_id);
-        return;
+    if (!std::isfinite(target_offset)) {
+        throw std::runtime_error("lane switch target offset must be finite");
     }
-
-    const double target_offset = adjacent_lane_offset(current_lanelet_id, to_left);
-    if (std::abs(target_offset) <= EPSILON) {
-        RCLCPP_WARN(get_logger(), "lane change rejected: adjacent lane offset is zero");
+    if (std::abs(target_offset - active_lane_offset_m_) <= EPSILON) {
+        RCLCPP_WARN(get_logger(), "lane switch request ignored because target offset is already active");
         return;
     }
 
@@ -42,9 +70,9 @@ void VectormapPlannerNode::start_lane_change(const double current_s, const uint6
     lane_change_target_offset_m_ = target_offset;
     RCLCPP_INFO(
         get_logger(),
-        "lane change started: lanelet=%lu direction=%s target_offset=%.3f",
-        current_lanelet_id,
-        lane_change_direction_.c_str(),
+        "lane switch started: reason=%s start_offset=%.3f target_offset=%.3f",
+        reason.c_str(),
+        lane_change_start_offset_m_,
         lane_change_target_offset_m_);
 }
 
@@ -404,12 +432,12 @@ double VectormapPlannerNode::adjacent_lane_offset(const uint64_t lanelet_id, con
     const auto& adjacency = to_left ? left_adjacent_lanelet_by_id_ : right_adjacent_lanelet_by_id_;
     const auto adjacent_it = adjacency.find(lanelet_id);
     if (adjacent_it == adjacency.end()) {
-        return 0.0;
+        return std::numeric_limits<double>::quiet_NaN();
     }
 
     const auto target_it = lanelet_centerline_points_by_id_.find(adjacent_it->second);
     if (target_it == lanelet_centerline_points_by_id_.end() || target_it->second.empty()) {
-        return 0.0;
+        return std::numeric_limits<double>::quiet_NaN();
     }
 
     double offset_sum = 0.0;
@@ -422,7 +450,7 @@ double VectormapPlannerNode::adjacent_lane_offset(const uint64_t lanelet_id, con
         }
     }
     if (count == 0U) {
-        return to_left ? 2.0 : -2.0;
+        return std::numeric_limits<double>::quiet_NaN();
     }
     return offset_sum / static_cast<double>(count);
 }

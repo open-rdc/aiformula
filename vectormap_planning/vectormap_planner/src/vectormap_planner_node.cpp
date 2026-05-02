@@ -38,12 +38,11 @@ VectormapPlannerNode::VectormapPlannerNode(
   update_period_ms_(get_parameter("update_period_ms").as_int()),
   map_frame_id_(get_parameter("map_frame_id").as_string()),
   base_frame_id_(get_parameter("base_frame_id").as_string()),
-  lane_change_direction_(get_parameter("lane_change_direction").as_string()),
   vector_map_topic_(get_parameter("vector_map_topic").as_string()),
   localization_pose_topic_(get_parameter("localization_pose_topic").as_string()),
   velocity_topic_(get_parameter("velocity_topic").as_string()),
   pointcloud_topic_(get_parameter("pointcloud_topic").as_string()),
-  change_lane_topic_(get_parameter("change_lane_topic").as_string()),
+  lane_switch_trigger_topic_(get_parameter("lane_switch_trigger_topic").as_string()),
   global_path_topic_(get_parameter("global_path_topic").as_string()),
   local_path_topic_(get_parameter("local_path_topic").as_string()),
   route_lanelet_ids_param_(read_route_lanelet_ids(*this)),
@@ -68,7 +67,6 @@ VectormapPlannerNode::VectormapPlannerNode(
   qos_(rclcpp::QoS(10)),
   global_path_ready_(false),
   route_is_loop_(false),
-  previous_change_lane_signal_(false),
   lane_change_state_(LaneChangeState::Idle),
   active_lane_offset_m_(0.0),
   lane_change_start_s_(0.0),
@@ -82,8 +80,15 @@ VectormapPlannerNode::VectormapPlannerNode(
     if (map_frame_id_.empty() || base_frame_id_.empty()) {
         throw std::invalid_argument("frame id parameters must not be empty");
     }
-    if (lane_change_direction_ != "left" && lane_change_direction_ != "right") {
-        throw std::invalid_argument("lane_change_direction must be left or right");
+    if (vector_map_topic_.empty() ||
+        localization_pose_topic_.empty() ||
+        velocity_topic_.empty() ||
+        pointcloud_topic_.empty() ||
+        lane_switch_trigger_topic_.empty() ||
+        global_path_topic_.empty() ||
+        local_path_topic_.empty())
+    {
+        throw std::invalid_argument("topic parameters must not be empty");
     }
     if (global_path_resample_interval_m_ <= 0.0 || local_path_resample_interval_m_ <= 0.0) {
         throw std::invalid_argument("path resample intervals must be greater than 0");
@@ -123,10 +128,10 @@ VectormapPlannerNode::VectormapPlannerNode(
         pointcloud_topic_,
         qos_,
         std::bind(&VectormapPlannerNode::pointcloud_callback, this, std::placeholders::_1));
-    change_lane_subscription_ = create_subscription<std_msgs::msg::Bool>(
-        change_lane_topic_,
+    lane_switch_flag_subscription_ = create_subscription<std_msgs::msg::Empty>(
+        lane_switch_trigger_topic_,
         qos_,
-        std::bind(&VectormapPlannerNode::change_lane_callback, this, std::placeholders::_1));
+        std::bind(&VectormapPlannerNode::lane_switch_flag_callback, this, std::placeholders::_1));
 
     global_path_publisher_ = create_publisher<nav_msgs::msg::Path>(global_path_topic_, qos_);
     local_path_publisher_ = create_publisher<nav_msgs::msg::Path>(local_path_topic_, qos_);
@@ -168,22 +173,25 @@ void VectormapPlannerNode::pointcloud_callback(const sensor_msgs::msg::PointClou
     latest_pointcloud_ = msg;
 }
 
-void VectormapPlannerNode::change_lane_callback(const std_msgs::msg::Bool::SharedPtr msg)
+void VectormapPlannerNode::lane_switch_flag_callback(const std_msgs::msg::Empty::SharedPtr msg)
 {
     if (!msg) {
-        throw std::runtime_error("change_lane message must not be null");
+        throw std::runtime_error("lane switch flag message must not be null");
     }
 
     std::lock_guard<std::mutex> lock(data_mutex_);
-    const bool rising_edge = msg->data && !previous_change_lane_signal_;
-    previous_change_lane_signal_ = msg->data;
-    if (!rising_edge || !global_path_ready_ || !latest_pose_) {
+    if (!global_path_ready_ || !latest_pose_) {
+        RCLCPP_WARN_THROTTLE(
+            get_logger(),
+            *get_clock(),
+            2000,
+            "lane switch request ignored: waiting for vector map route and localization pose");
         return;
     }
 
     const Point2D ego{latest_pose_->pose.pose.position.x, latest_pose_->pose.pose.position.y};
     const FrenetPoint frenet = project_to_path(ego);
-    start_lane_change(frenet.s, lanelet_at_s(frenet.s));
+    start_lane_switch(frenet.s, lanelet_at_s(frenet.s));
 }
 
 void VectormapPlannerNode::timer_callback()
