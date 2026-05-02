@@ -13,6 +13,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <std_msgs/msg/empty.hpp>
+#include <std_msgs/msg/string.hpp>
 #include <vectormap_msgs/msg/lane_connection.hpp>
 #include <vectormap_msgs/msg/lanelet.hpp>
 #include <vectormap_msgs/msg/line_string.hpp>
@@ -69,6 +70,13 @@ public:
         double d;
     };
 
+    struct RouteEdge
+    {
+        uint64_t to_lanelet_id;
+        uint8_t turn_direction;
+        double cost;
+    };
+
     enum class LaneChangeState
     {
         Idle,
@@ -81,9 +89,22 @@ private:
     void velocity_callback(const geometry_msgs::msg::TwistWithCovarianceStamped::SharedPtr msg);
     void pointcloud_callback(const sensor_msgs::msg::PointCloud2::SharedPtr msg);
     void lane_switch_flag_callback(const std_msgs::msg::Empty::SharedPtr msg);
+    void nav_cmd_callback(const std_msgs::msg::String::SharedPtr msg);
     void timer_callback();
 
     void build_global_path_once(const vectormap_msgs::msg::VectorMap& map_msg);
+    void build_route_from_lanelet_ids(const std::vector<uint64_t>& route_lanelet_ids);
+    void rebuild_route_from_lanelet(uint64_t start_lanelet_id, const std::string& reason);
+    void request_route_rebuild(const std::string& reason);
+    bool rebuild_route_from_pose(const Point2D& ego, const std::string& reason);
+    std::vector<uint64_t> build_route_sequence_from_graph(
+        uint64_t start_lanelet_id,
+        std::size_t& fallback_count) const;
+    uint64_t select_next_lanelet(
+        uint64_t from_lanelet_id,
+        uint8_t requested_turn,
+        uint8_t& selected_turn,
+        bool& used_fallback) const;
     void build_adjacency(
         const std::unordered_map<uint64_t, vectormap_msgs::msg::Lanelet>& lanelet_by_id);
     void start_lane_switch(double current_s, uint64_t current_lanelet_id);
@@ -129,7 +150,10 @@ private:
     double max_path_s() const;
     double normalize_path_s(double s) const;
     uint64_t lanelet_at_s(double s) const;
+    uint64_t find_nearest_lanelet_from_pose(const Point2D& point) const;
     double adjacent_lane_offset(uint64_t lanelet_id, bool to_left) const;
+    uint8_t parse_nav_cmd(const std::string& command) const;
+    std::string turn_direction_to_string(uint8_t turn_direction) const;
     bool find_static_obstacle(
         double current_s,
         double base_offset,
@@ -150,9 +174,12 @@ private:
     const std::string velocity_topic_;
     const std::string pointcloud_topic_;
     const std::string lane_switch_trigger_topic_;
+    const std::string nav_cmd_topic_;
+    const std::string default_nav_cmd_;
     const std::string global_path_topic_;
     const std::string local_path_topic_;
     const std::vector<int64_t> route_lanelet_ids_param_;
+    const std::vector<std::string> nav_cmd_fallback_order_param_;
     const double global_path_resample_interval_m_;
     const double local_path_horizon_m_;
     const double local_path_resample_interval_m_;
@@ -171,10 +198,18 @@ private:
     const double frenet_weight_lateral_change_;
     const double frenet_weight_avoidance_shift_;
     const int obstacle_pointcloud_step_;
+    const int route_lookahead_lanelet_count_;
     const rclcpp::QoS qos_;
 
     bool global_path_ready_;
     bool route_is_loop_;
+    bool pending_route_rebuild_;
+    bool lane_switch_completed_;
+    std::string pending_route_rebuild_reason_;
+    uint64_t route_version_;
+    uint64_t route_start_lanelet_id_;
+    uint8_t last_nav_cmd_turn_;
+    std::vector<uint8_t> nav_cmd_fallback_order_;
     LaneChangeState lane_change_state_;
     double active_lane_offset_m_;
     double lane_change_start_s_;
@@ -185,7 +220,9 @@ private:
     std::string path_frame_id_;
     std::vector<PathPoint> global_samples_;
     std::vector<LaneletRange> lanelet_ranges_;
+    std::unordered_map<uint64_t, vectormap_msgs::msg::Lanelet> lanelet_by_id_;
     std::unordered_map<uint64_t, std::vector<Point2D>> lanelet_centerline_points_by_id_;
+    std::unordered_map<uint64_t, std::vector<RouteEdge>> connection_edges_by_from_lanelet_id_;
     std::unordered_map<uint64_t, uint64_t> left_adjacent_lanelet_by_id_;
     std::unordered_map<uint64_t, uint64_t> right_adjacent_lanelet_by_id_;
 
@@ -199,6 +236,7 @@ private:
     rclcpp::Subscription<geometry_msgs::msg::TwistWithCovarianceStamped>::SharedPtr velocity_subscription_;
     rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr pointcloud_subscription_;
     rclcpp::Subscription<std_msgs::msg::Empty>::SharedPtr lane_switch_flag_subscription_;
+    rclcpp::Subscription<std_msgs::msg::String>::SharedPtr nav_cmd_subscription_;
     rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr global_path_publisher_;
     rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr local_path_publisher_;
     rclcpp::TimerBase::SharedPtr timer_;

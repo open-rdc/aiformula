@@ -24,6 +24,15 @@ std::vector<int64_t> read_route_lanelet_ids(rclcpp::Node& node)
     return route;
 }
 
+std::vector<std::string> read_nav_cmd_fallback_order(rclcpp::Node& node)
+{
+    const auto order = node.get_parameter("nav_cmd_fallback_order").as_string_array();
+    if (order.empty()) {
+        throw std::invalid_argument("nav_cmd_fallback_order must not be empty");
+    }
+    return order;
+}
+
 }  // namespace
 
 VectormapPlannerNode::VectormapPlannerNode(const rclcpp::NodeOptions& options)
@@ -43,9 +52,12 @@ VectormapPlannerNode::VectormapPlannerNode(
   velocity_topic_(get_parameter("velocity_topic").as_string()),
   pointcloud_topic_(get_parameter("pointcloud_topic").as_string()),
   lane_switch_trigger_topic_(get_parameter("lane_switch_trigger_topic").as_string()),
+  nav_cmd_topic_(get_parameter("nav_cmd_topic").as_string()),
+  default_nav_cmd_(get_parameter("default_nav_cmd").as_string()),
   global_path_topic_(get_parameter("global_path_topic").as_string()),
   local_path_topic_(get_parameter("local_path_topic").as_string()),
   route_lanelet_ids_param_(read_route_lanelet_ids(*this)),
+  nav_cmd_fallback_order_param_(read_nav_cmd_fallback_order(*this)),
   global_path_resample_interval_m_(get_parameter("global_path_resample_interval_m").as_double()),
   local_path_horizon_m_(get_parameter("local_path_horizon_m").as_double()),
   local_path_resample_interval_m_(get_parameter("local_path_resample_interval_m").as_double()),
@@ -64,9 +76,16 @@ VectormapPlannerNode::VectormapPlannerNode(
   frenet_weight_lateral_change_(get_parameter("frenet_weight_lateral_change").as_double()),
   frenet_weight_avoidance_shift_(get_parameter("frenet_weight_avoidance_shift").as_double()),
   obstacle_pointcloud_step_(get_parameter("obstacle_pointcloud_step").as_int()),
+  route_lookahead_lanelet_count_(get_parameter("route_lookahead_lanelet_count").as_int()),
   qos_(rclcpp::QoS(10)),
   global_path_ready_(false),
   route_is_loop_(false),
+  pending_route_rebuild_(false),
+  lane_switch_completed_(false),
+  pending_route_rebuild_reason_(""),
+  route_version_(0U),
+  route_start_lanelet_id_(0U),
+  last_nav_cmd_turn_(vectormap_msgs::msg::LaneConnection::TURN_STRAIGHT),
   lane_change_state_(LaneChangeState::Idle),
   active_lane_offset_m_(0.0),
   lane_change_start_s_(0.0),
@@ -85,6 +104,7 @@ VectormapPlannerNode::VectormapPlannerNode(
         velocity_topic_.empty() ||
         pointcloud_topic_.empty() ||
         lane_switch_trigger_topic_.empty() ||
+        nav_cmd_topic_.empty() ||
         global_path_topic_.empty() ||
         local_path_topic_.empty())
     {
@@ -111,6 +131,14 @@ VectormapPlannerNode::VectormapPlannerNode(
     {
         throw std::invalid_argument("avoidance parameters are invalid");
     }
+    if (route_lookahead_lanelet_count_ < 3) {
+        throw std::invalid_argument("route_lookahead_lanelet_count must be at least 3");
+    }
+    last_nav_cmd_turn_ = parse_nav_cmd(default_nav_cmd_);
+    nav_cmd_fallback_order_.reserve(nav_cmd_fallback_order_param_.size());
+    for (const auto& command : nav_cmd_fallback_order_param_) {
+        nav_cmd_fallback_order_.push_back(parse_nav_cmd(command));
+    }
 
     vector_map_subscription_ = create_subscription<vectormap_msgs::msg::VectorMap>(
         vector_map_topic_,
@@ -132,6 +160,10 @@ VectormapPlannerNode::VectormapPlannerNode(
         lane_switch_trigger_topic_,
         qos_,
         std::bind(&VectormapPlannerNode::lane_switch_flag_callback, this, std::placeholders::_1));
+    nav_cmd_subscription_ = create_subscription<std_msgs::msg::String>(
+        nav_cmd_topic_,
+        qos_,
+        std::bind(&VectormapPlannerNode::nav_cmd_callback, this, std::placeholders::_1));
 
     global_path_publisher_ = create_publisher<nav_msgs::msg::Path>(global_path_topic_, qos_);
     local_path_publisher_ = create_publisher<nav_msgs::msg::Path>(local_path_topic_, qos_);
@@ -194,6 +226,42 @@ void VectormapPlannerNode::lane_switch_flag_callback(const std_msgs::msg::Empty:
     start_lane_switch(frenet.s, lanelet_at_s(frenet.s));
 }
 
+void VectormapPlannerNode::nav_cmd_callback(const std_msgs::msg::String::SharedPtr msg)
+{
+    if (!msg) {
+        throw std::runtime_error("nav_cmd message must not be null");
+    }
+
+    uint8_t requested_turn = vectormap_msgs::msg::LaneConnection::TURN_UNKNOWN;
+    try {
+        requested_turn = parse_nav_cmd(msg->data);
+    } catch (const std::invalid_argument& error) {
+        RCLCPP_ERROR(get_logger(), "%s", error.what());
+        return;
+    }
+    std::lock_guard<std::mutex> lock(data_mutex_);
+    last_nav_cmd_turn_ = requested_turn;
+    if (!global_path_ready_ || !latest_pose_) {
+        RCLCPP_WARN_THROTTLE(
+            get_logger(),
+            *get_clock(),
+            2000,
+            "nav_cmd accepted but route rebuild is pending: waiting for vector map route and localization pose");
+        return;
+    }
+    if (lane_change_state_ == LaneChangeState::Executing || std::abs(active_lane_offset_m_) > 1.0e-6) {
+        request_route_rebuild("nav_cmd");
+        RCLCPP_WARN(
+            get_logger(),
+            "nav_cmd accepted and route rebuild is pending because lane switch offset is active");
+        return;
+    }
+
+    const Point2D ego{latest_pose_->pose.pose.position.x, latest_pose_->pose.pose.position.y};
+    rebuild_route_from_pose(ego, "nav_cmd");
+    global_path_publisher_->publish(make_path_message(global_samples_, now()));
+}
+
 void VectormapPlannerNode::timer_callback()
 {
     std::vector<PathPoint> local_points;
@@ -209,7 +277,27 @@ void VectormapPlannerNode::timer_callback()
         }
 
         const Point2D ego{latest_pose_->pose.pose.position.x, latest_pose_->pose.pose.position.y};
-        const FrenetPoint ego_frenet_normalized = project_to_path(ego);
+        if (pending_route_rebuild_ &&
+            lane_change_state_ == LaneChangeState::Idle &&
+            std::abs(active_lane_offset_m_) <= 1.0e-6)
+        {
+            rebuild_route_from_pose(ego, pending_route_rebuild_reason_);
+            global_path_publisher_->publish(make_path_message(global_samples_, now()));
+            pending_route_rebuild_ = false;
+            pending_route_rebuild_reason_.clear();
+        }
+        FrenetPoint ego_frenet_normalized = project_to_path(ego);
+        const uint64_t current_lanelet_id = lanelet_at_s(ego_frenet_normalized.s);
+        if (current_lanelet_id != 0U &&
+            current_lanelet_id != route_start_lanelet_id_ &&
+            lane_change_state_ == LaneChangeState::Idle &&
+            std::abs(active_lane_offset_m_) <= 1.0e-6)
+        {
+            rebuild_route_from_lanelet(current_lanelet_id, "lanelet_crossing");
+            global_path_publisher_->publish(make_path_message(global_samples_, now()));
+            ego_frenet_normalized = project_to_path(ego);
+        }
+
         double current_s = ego_frenet_normalized.s;
         if (route_is_loop_ &&
             lane_change_state_ == LaneChangeState::Executing &&
@@ -242,6 +330,24 @@ void VectormapPlannerNode::timer_callback()
             FrenetObstacle{obstacle_s, obstacle_d},
             avoidance_shift,
             std::max(speed, avoidance_min_velocity_mps_));
+        if (lane_switch_completed_) {
+            rebuild_route_from_pose(ego, pending_route_rebuild_ ? pending_route_rebuild_reason_ : "lane_switch_completed");
+            active_lane_offset_m_ = 0.0;
+            lane_change_start_offset_m_ = 0.0;
+            lane_change_target_offset_m_ = 0.0;
+            pending_route_rebuild_ = false;
+            pending_route_rebuild_reason_.clear();
+            lane_switch_completed_ = false;
+            global_path_publisher_->publish(make_path_message(global_samples_, now()));
+
+            const FrenetPoint rebuilt_frenet = project_to_path(ego);
+            local_points = generate_local_path(
+                rebuilt_frenet,
+                has_obstacle,
+                FrenetObstacle{obstacle_s, obstacle_d},
+                avoidance_shift,
+                std::max(speed, avoidance_min_velocity_mps_));
+        }
     }
 
     if (local_points.empty()) {

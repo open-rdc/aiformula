@@ -112,6 +112,7 @@ std::vector<VectormapPlannerNode::PathPoint> VectormapPlannerNode::generate_loca
     if (lane_change_state_ == LaneChangeState::Executing && current_s >= lane_change_end_s_) {
         active_lane_offset_m_ = lane_change_target_offset_m_;
         lane_change_state_ = LaneChangeState::Idle;
+        lane_switch_completed_ = true;
         target_offset = active_lane_offset_m_;
         lane_start_offset = active_lane_offset_m_;
         lane_end_offset = active_lane_offset_m_;
