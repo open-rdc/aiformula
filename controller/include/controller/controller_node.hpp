@@ -5,6 +5,8 @@
 #include <std_msgs/msg/empty.hpp>
 #include <std_msgs/msg/bool.hpp>
 #include <std_msgs/msg/char.hpp>
+#include <std_msgs/msg/string.hpp>
+#include <string>
 #include "socketcan_interface_msg/msg/socketcan_if.hpp"
 #include "steered_drive_msg/msg/steered_drive.hpp"
 
@@ -25,10 +27,13 @@ private:
     rclcpp::Subscription<sensor_msgs::msg::Joy>::SharedPtr _subscription_joy;
 
     void _subscriber_callback_joy(const sensor_msgs::msg::Joy::SharedPtr msg);
+    void publish_nav_cmd(const std::string& command);
 
     rclcpp::Publisher<steered_drive_msg::msg::SteeredDrive>::SharedPtr publisher_vel;
     rclcpp::Publisher<std_msgs::msg::Empty>::SharedPtr publisher_restart;
     rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr publisher_autonomous;
+    rclcpp::Publisher<std_msgs::msg::String>::SharedPtr publisher_nav_cmd;
+    rclcpp::Publisher<std_msgs::msg::Empty>::SharedPtr publisher_lane_switch_flag;
 
     rclcpp::QoS _qos = rclcpp::QoS(10);
 
@@ -39,6 +44,13 @@ private:
 
     utils::UpEdge upedge_share;
     utils::UpEdge upedge_options;
+    utils::UpEdge upedge_cross;
+    utils::UpEdge upedge_l1;
+    utils::UpEdge upedge_r1;
+    utils::UpEdge upedge_l2;
+    utils::DownEdge downedge_l1;
+    utils::DownEdge downedge_r1;
+    utils::DownEdge downedge_l2;
 
     enum class Axes{
         L_x,
