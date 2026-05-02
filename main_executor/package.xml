@@ -18,6 +18,7 @@
   <depend>path_tracker</depend>
   <depend>utilities</depend>
   <depend>vectormap_matching</depend>
+  <depend>vectormap_control</depend>
   <depend>vectormap_planner</depend>
   <depend>vectormap_server</depend>
   <depend>gnssnav</depend>

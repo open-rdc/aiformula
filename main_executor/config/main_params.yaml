@@ -9,7 +9,7 @@ launch: #起動パラメータ
   ros__parameters:
     # 並進  速度[m/s],加速度[m/s^2],加減速度[-m/s^2],躍度[m/s^3]
     linear_max:
-      vel : 4.0
+      vel : 3.0
       acc: 5.0
       jer: 0.0
     # 舵角  位置[deg]
@@ -152,7 +152,7 @@ vectormap_planner_node:
     map_frame_id : "map"
     base_frame_id : "base_link"
     vector_map_topic : "/vector_map"
-    localization_pose_topic : "/localization/pose_raw"
+    localization_pose_topic : "/localization/pose"
     velocity_topic : "/vectornav/velocity_body"
     pointcloud_topic : "/zed/zed_node/pointcloud"
     change_lane_topic : "/change_lane"
@@ -162,7 +162,7 @@ vectormap_planner_node:
     # aiformula 2026 course: 301, 302, 303, 304, 305, 311, 313, 312, 314, 315, 309, 310
     lane_change_direction : "left"
     global_path_resample_interval_m : 0.2
-    local_path_length_m : 20.0
+    local_path_horizon_m : 15.0
     local_path_resample_interval_m : 0.2
     max_centerline_connection_gap_m : 0.5
     vehicle_width_m : 0.6
@@ -174,7 +174,23 @@ vectormap_planner_node:
     avoidance_lateral_jerk_mps3 : 1.0
     avoidance_min_velocity_mps : 0.5
     max_avoidance_shift_m : 1.0
+    frenet_collision_check_margin_m : 0.2
+    frenet_weight_lateral_offset : 1.0
+    frenet_weight_lateral_change : 0.2
+    frenet_weight_avoidance_shift : 0.1
     obstacle_pointcloud_step : 8
+
+vectormap_pure_pursuit_node:
+  ros__parameters:
+    path_topic : "/planner/local_path"
+    pose_topic : "/localization/pose"
+    autonomous_topic : "/autonomous"
+    cmd_vel_topic : "/cmd_vel"
+    target_pose_topic : "/vectormap_control/target_pose"
+    map_frame_id : "map"
+    base_frame_id : "base_link"
+    lookahead_distance : 5.0
+    steered_gain : 1.8
 
 chassis_driver_node:
   ros__parameters:

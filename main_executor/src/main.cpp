@@ -7,6 +7,7 @@
 #include "vectormap_matching/map_odom_tf_node.hpp"
 #include "vectormap_matching/odom_tf_node.hpp"
 #include "vectormap_matching/vectormap_localization_node.hpp"
+#include "vectormap_control/vectormap_pure_pursuit_node.hpp"
 #include "vectormap_planner/vectormap_planner_node.hpp"
 #include "vectormap_server/vectormap_server_node.hpp"
 
@@ -30,6 +31,8 @@ int main(int argc, char * argv[]){
     auto map_odom_tf_node = std::make_shared<vectormap_matching::MapOdomTfNode>(nodes_option);
     auto vectormap_planner_node =
         std::make_shared<vectormap_planner::VectormapPlannerNode>(nodes_option);
+    auto vectormap_pure_pursuit_node =
+        std::make_shared<vectormap_control::VectormapPurePursuitNode>(nodes_option);
 
     exec.add_node(controller_node);
     exec.add_node(chassis_driver_node);
@@ -40,6 +43,7 @@ int main(int argc, char * argv[]){
     exec.add_node(odom_tf_node);
     exec.add_node(map_odom_tf_node);
     exec.add_node(vectormap_planner_node);
+    exec.add_node(vectormap_pure_pursuit_node);
 
     exec.spin();
     rclcpp::shutdown();
