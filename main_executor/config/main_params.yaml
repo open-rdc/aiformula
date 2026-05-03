@@ -146,30 +146,42 @@ map_odom_tf_node:
     base_frame_id        : "base_link"
     localized_pose_topic : "/localization/pose"
 
-vectormap_planner_node:
+vectormap_global_planner_node:
   ros__parameters:
     update_period_ms : 100
     map_frame_id : "map"
     base_frame_id : "base_link"
     vector_map_topic : "/vector_map"
     localization_pose_topic : "/localization/pose"
-    velocity_topic : "/vectornav/velocity_body"
-    pointcloud_topic : "/zed/zed_node/pointcloud"
-    lane_switch_trigger_topic : "/flag"
     nav_cmd_topic : "/planning/nav_cmd"
     default_nav_cmd : "straight"
     nav_cmd_fallback_order : ["straight", "left", "right"]
     global_path_topic : "/planner/global_path"
-    local_path_topic : "/planner/local_path"
     route_lanelet_ids : [301, 302, 303, 304, 305, 311, 313, 312, 314, 315, 309, 310]
     # aiformula 2026 course: 301, 302, 303, 304, 305, 311, 313, 312, 314, 315, 309, 310
     global_path_resample_interval_m : 0.2
+    max_centerline_connection_gap_m : 0.5
+    route_lookahead_lanelet_count : 3
+
+local_planner_server_node:
+  ros__parameters:
+    local_planner_plugin : "local_planner::VectormapFrenetPlugin"
+    update_period_ms : 100
+    map_frame_id : "map"
+    base_frame_id : "base_link"
+    global_path_topic : "/planner/global_path"
+    local_path_topic : "/planner/local_path"
+    vector_map_topic : "/vector_map"
+    localization_pose_topic : "/localization/pose"
+    velocity_topic : "/vectornav/velocity_body"
+    pointcloud_topic : "/zed/zed_node/pointcloud"
+    lane_switch_trigger_topic : "/flag"
+    # VectormapFrenetPlugin params
     local_path_horizon_m : 15.0
     local_path_resample_interval_m : 0.2
     max_centerline_connection_gap_m : 0.5
     vehicle_width_m : 0.6
     lane_change_length_m : 10.0
-    route_lookahead_lanelet_count : 3
     avoidance_detection_forward_distance_m : 15.0
     avoidance_hard_margin_m : 0.2
     avoidance_soft_margin_m : 0.3
