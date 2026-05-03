@@ -30,9 +30,18 @@ target_include_directories(pure_pursuit_global_node PUBLIC
 target_compile_definitions(pure_pursuit_node PRIVATE "PATH_TRACKER_BUILDING_LIBRARY")
 target_compile_definitions(pure_pursuit_global_node PRIVATE "PATH_TRACKER_BUILDING_LIBRARY")
 
+ament_auto_add_executable(pure_pursuit_sim
+  src/pure_pursuit_sim_main.cpp
+)
+target_link_libraries(pure_pursuit_sim pure_pursuit_node)
+
 install(
-  DIRECTORY include/
+  DIRECTORY include/ launch/
   DESTINATION include
+)
+install(
+  DIRECTORY launch/
+  DESTINATION share/${PROJECT_NAME}/launch
 )
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)

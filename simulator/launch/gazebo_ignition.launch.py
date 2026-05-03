@@ -30,16 +30,16 @@ def generate_launch_description():
         executable='parameter_bridge',
         arguments=[
             # RGB camera (color image only)
-            '/camera_info@sensor_msgs/msg/CameraInfo@gz.msgs.CameraInfo',
-            '/image_raw@sensor_msgs/msg/Image@gz.msgs.Image',
+            '/camera_info@sensor_msgs/msg/CameraInfo@ignition.msgs.CameraInfo',
+            '/image_raw@sensor_msgs/msg/Image@ignition.msgs.Image',
             # Depth camera (depth image and point cloud only)
-            '/depth_image_raw/depth_image@sensor_msgs/msg/Image@gz.msgs.Image',
-            '/depth_image_raw/points@sensor_msgs/msg/PointCloud2@gz.msgs.PointCloudPacked',
+            '/depth_image_raw/depth_image@sensor_msgs/msg/Image@ignition.msgs.Image',
+            '/depth_image_raw/points@sensor_msgs/msg/PointCloud2@ignition.msgs.PointCloudPacked',
             # Other sensors
-            '/odom@nav_msgs/msg/Odometry@gz.msgs.Odometry',
-            '/navsat@sensor_msgs/msg/NavSatFix@gz.msgs.NavSat',
-            '/imu_raw@sensor_msgs/msg/Imu@gz.msgs.IMU',
-            '/cmd_vel_twist@geometry_msgs/msg/Twist@gz.msgs.Twist'],
+            '/odom@nav_msgs/msg/Odometry@ignition.msgs.Odometry',
+            '/navsat@sensor_msgs/msg/NavSatFix@ignition.msgs.NavSat',
+            '/imu_raw@sensor_msgs/msg/Imu@ignition.msgs.IMU',
+            '/cmd_vel_twist@geometry_msgs/msg/Twist@ignition.msgs.Twist'],
         output='screen',
         remappings=[
             ('/depth_image', '/zed/zed_node/depth/depth_registered'),

@@ -4,7 +4,7 @@ import cv2
 import numpy as np
 import torch
 from pathlib import Path
-from typing import Tuple
+from typing import Optional, Tuple
 
 
 class YOLOPv2Processor:
@@ -40,13 +40,32 @@ class YOLOPv2Processor:
 
         return img, r, (dw, dh)
 
-    def lane_line_mask(self, ll = None):
-        ll_seg_mask = torch.nn.functional.interpolate(ll, scale_factor=2, mode='bilinear')
-        ll_seg_mask = torch.round(ll_seg_mask).squeeze(1)
-        ll_seg_mask = ll_seg_mask.int().squeeze().cpu().numpy()
-        return ll_seg_mask
+    def lane_line_mask(self, ll: torch.Tensor) -> np.ndarray:
+        if ll.shape[1] == 1:
+            ll_seg_mask = (ll[:, 0] > 0.5).int()
+        else:
+            ll_seg_mask = torch.argmax(ll, dim=1).int()
+        return ll_seg_mask.squeeze().cpu().numpy()
 
-    def process_image(self, image: np.ndarray, target_size: Tuple[int, int]) -> np.ndarray:
+    def _restore_original_size(
+        self,
+        mask: np.ndarray,
+        original_shape: Tuple[int, int],
+        ratio: float,
+        pad: Tuple[float, float],
+    ) -> np.ndarray:
+        original_h, original_w = original_shape
+        pad_left, pad_top = pad
+        top = max(int(round(pad_top - 0.1)), 0)
+        left = max(int(round(pad_left - 0.1)), 0)
+        unpad_h = int(round(original_h * ratio))
+        unpad_w = int(round(original_w * ratio))
+
+        unpadded = mask[top:top + unpad_h, left:left + unpad_w]
+        return cv2.resize(unpadded, (original_w, original_h), interpolation=cv2.INTER_NEAREST)
+
+    def process_image(self, image: np.ndarray, target_size: Optional[Tuple[int, int]] = None) -> np.ndarray:
+        original_shape = image.shape[:2]
         img_resized, ratio, (pad_left, pad_top) = self.letterbox(image, self.input_shape)
 
         img = img_resized.astype(np.float32) / 255.0
@@ -57,11 +76,18 @@ class YOLOPv2Processor:
             [pred, anchor_grid], seg, ll = outputs
 
         ll_seg_mask = self.lane_line_mask(ll)
-
-        resized_mask = cv2.resize(
+        original_mask = self._restore_original_size(
             ll_seg_mask,
+            original_shape,
+            ratio,
+            (pad_left, pad_top),
+        )
+
+        if target_size is None:
+            return original_mask
+
+        return cv2.resize(
+            original_mask,
             target_size,
             interpolation=cv2.INTER_NEAREST
         )
-
-        return resized_mask

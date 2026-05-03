@@ -39,13 +39,14 @@ private:
 
     utils::UpEdge upedge_share;
     utils::UpEdge upedge_options;
+    utils::UpEdge upedge_ps;
 
     enum class Axes{
         L_x,
         L_y,
-        L2,
         R_x,
         R_y,
+        L2,
         R2,
         left_and_right,
         up_and_down

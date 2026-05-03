@@ -17,8 +17,13 @@ steered_gain(get_parameter("steered_gain").as_double()),
 wheelbase_(get_parameter("wheelbase").as_double()),
 caster_max_angle_rad_(get_parameter("steering_max.pos").as_double() * 0.017453292519943295)
 {
+    std::string path_topic = "/frenet_planner/path";
+    if (!this->get_parameter("path_topic", path_topic)) {
+        path_topic = this->declare_parameter<std::string>("path_topic", path_topic);
+    }
+
     _subscription_path = this->create_subscription<nav_msgs::msg::Path>(
-        "/frenet_planner/path",
+        path_topic,
         _qos,
         std::bind(&PurePursuit::_subscriber_callback_path, this, std::placeholders::_1)
     );
@@ -29,7 +34,18 @@ caster_max_angle_rad_(get_parameter("steering_max.pos").as_double() * 0.01745329
     );
     publisher_vel = this->create_publisher<steered_drive_msg::msg::SteeredDrive>("cmd_vel", _qos);
 
-    RCLCPP_INFO(this->get_logger(), "PurePursuit node has been initialized. lookahead_distance: %.2f", lookahead_distance);
+    double publish_hz = this->declare_parameter<double>("publish_hz", 50.0);
+    _publish_timer = this->create_wall_timer(
+        std::chrono::duration<double>(1.0 / publish_hz),
+        std::bind(&PurePursuit::_publish_timer_callback, this)
+    );
+
+    RCLCPP_INFO(
+        this->get_logger(),
+        "PurePursuit node has been initialized. path_topic: %s, lookahead_distance: %.2f",
+        path_topic.c_str(),
+        lookahead_distance
+    );
 }
 
 void PurePursuit::autonomous_callback(const std_msgs::msg::Bool::SharedPtr msg){
@@ -37,10 +53,6 @@ void PurePursuit::autonomous_callback(const std_msgs::msg::Bool::SharedPtr msg){
 }
 
 void PurePursuit::_subscriber_callback_path(const nav_msgs::msg::Path::SharedPtr msg){
-    if (!autonomous_flag_) {
-        return;
-    }
-
     steered_drive_msg::msg::SteeredDrive command;
 
     if (!msg || msg->poses.empty()) {
@@ -50,7 +62,8 @@ void PurePursuit::_subscriber_callback_path(const nav_msgs::msg::Path::SharedPtr
             2000,
             "Received empty path. Publishing zero velocity."
         );
-        publisher_vel->publish(command);
+        last_command_ = command;
+        has_command_ = true;
         return;
     }
 
@@ -74,21 +87,30 @@ void PurePursuit::_subscriber_callback_path(const nav_msgs::msg::Path::SharedPtr
     const double distance = std::hypot(target_x, target_y);
 
     if (distance < 1e-6) {
-        publisher_vel->publish(command);
+        last_command_ = command;
+        has_command_ = true;
         return;
     }
 
     const double safe_lookahead = std::max(lookahead_distance, 1e-3);
     const double linear_scale = std::clamp(distance / safe_lookahead, 0.0, 1.0);
     const double linear_velocity = std::clamp(linear_max_vel * linear_scale, 0.0, linear_max_vel);
-    
+
     const double alpha = std::atan2(target_y, target_x);
     const double steer_angle = std::atan2(2.0 * wheelbase_ * std::sin(alpha), lookahead_distance);
     const double steer_angle_clamped = std::clamp(steer_angle * steered_gain, -caster_max_angle_rad_, caster_max_angle_rad_);
 
     command.velocity = linear_velocity;
     command.steering_angle = steer_angle_clamped;
-    publisher_vel->publish(command);
+    last_command_ = command;
+    has_command_ = true;
+}
+
+void PurePursuit::_publish_timer_callback() {
+    if (!autonomous_flag_ || !has_command_) {
+        return;
+    }
+    publisher_vel->publish(last_command_);
 }
 
 

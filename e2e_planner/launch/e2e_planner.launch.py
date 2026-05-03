@@ -7,9 +7,11 @@ def launch_setup(context, *args, **kwargs):
     sim_flag = LaunchConfiguration('sim_flag').perform(context)
 
     if sim_flag.lower() == 'true':
-        executable_name = 'inference_node_sim.py'
+        executable_name = 'inference_node_sim'
+        model_name = 'e2e_model.pt'
     else:
         executable_name = 'inference_node'
+        model_name = 'e2e_model.pt'
 
     inference_node = Node(
         package='e2e_planner',
@@ -17,8 +19,15 @@ def launch_setup(context, *args, **kwargs):
         name='inference_node',
         output='screen',
         parameters=[{
-            'model_name': 'e2e_model.pt',
-            'interval_ms': 100,
+            'model_name': model_name,
+            'interval_ms': 50,
+            'default_command': 1,
+            'use_place_recognition': True,
+            'placenet_model_name': 'placenet.pt',
+            'topomap_dir_name': 'topomap',
+            'placenet_delta': 10.0,
+            'placenet_window_lower': -1,
+            'placenet_window_upper': 2,
         }]
     )
 

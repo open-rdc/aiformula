@@ -20,3 +20,7 @@ simulator_old/
 
 
 #例外ファイルを指定
+zed-ros2-wrapper/
+
+#トポマップデータ (環境依存のため除外)
+e2e_planner/config/topomap/
