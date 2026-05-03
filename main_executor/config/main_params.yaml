@@ -9,19 +9,20 @@ launch: #起動パラメータ
   ros__parameters:
     # 並進  速度[m/s],加速度[m/s^2],加減速度[-m/s^2],躍度[m/s^3]
     linear_max:
-      vel : 5.0
+      vel : 2.0
       acc: 5.0
       jer: 0.0
     # 舵角  位置[deg]
     steering_max :
-      pos : 40.0
+      pos : 7.0
 
     tread : 0.6
     wheelbase : 0.8
+    use_frenet_planner : false
 
 controller_node:
   ros__parameters:
-    linear_max_vel : 5.0  #[m/s]
+    linear_max_vel : 3.0  #[m/s]
 
 frenet_planner_node:
   ros__parameters:
@@ -44,6 +45,7 @@ frenet_planner_node:
 
 pure_pursuit_node:
   ros__parameters:
+    path_topic : "/e2e_planner/path"
     lookahead_distance : 5.0
     curvature_gain : 5.0
     steered_gain : 1.8
