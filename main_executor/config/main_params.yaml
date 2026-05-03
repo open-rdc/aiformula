@@ -155,18 +155,21 @@ vectormap_planner_node:
     localization_pose_topic : "/localization/pose"
     velocity_topic : "/vectornav/velocity_body"
     pointcloud_topic : "/zed/zed_node/pointcloud"
-    change_lane_topic : "/change_lane"
+    lane_switch_trigger_topic : "/flag"
+    nav_cmd_topic : "/planning/nav_cmd"
+    default_nav_cmd : "straight"
+    nav_cmd_fallback_order : ["straight", "left", "right"]
     global_path_topic : "/planner/global_path"
     local_path_topic : "/planner/local_path"
     route_lanelet_ids : [301, 302, 303, 304, 305, 311, 313, 312, 314, 315, 309, 310]
     # aiformula 2026 course: 301, 302, 303, 304, 305, 311, 313, 312, 314, 315, 309, 310
-    lane_change_direction : "left"
     global_path_resample_interval_m : 0.2
     local_path_horizon_m : 15.0
     local_path_resample_interval_m : 0.2
     max_centerline_connection_gap_m : 0.5
     vehicle_width_m : 0.6
     lane_change_length_m : 10.0
+    route_lookahead_lanelet_count : 3
     avoidance_detection_forward_distance_m : 15.0
     avoidance_hard_margin_m : 0.2
     avoidance_soft_margin_m : 0.3
@@ -180,17 +183,19 @@ vectormap_planner_node:
     frenet_weight_avoidance_shift : 0.1
     obstacle_pointcloud_step : 8
 
-vectormap_pure_pursuit_node:
+vectormap_controller_server_node:
   ros__parameters:
-    path_topic : "/planner/local_path"
-    pose_topic : "/localization/pose"
-    autonomous_topic : "/autonomous"
-    cmd_vel_topic : "/cmd_vel"
-    target_pose_topic : "/vectormap_control/target_pose"
-    map_frame_id : "map"
-    base_frame_id : "base_link"
+    controller_plugin  : "vectormap_control::PurePursuitPlugin"
+    path_topic         : "/planner/local_path"
+    pose_topic         : "/localization/pose"
+    autonomous_topic   : "/autonomous"
+    cmd_vel_topic      : "/cmd_vel"
+    target_pose_topic  : "/vectormap_control/target_pose"
+    map_frame_id       : "map"
+    base_frame_id      : "base_link"
+    # PurePursuitPlugin params (linear_max.*, steering_max.*, wheelbase は /** から継承)
     lookahead_distance : 5.0
-    steered_gain : 1.8
+    steered_gain       : 1.8
 
 chassis_driver_node:
   ros__parameters:
