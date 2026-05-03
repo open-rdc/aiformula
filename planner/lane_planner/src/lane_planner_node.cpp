@@ -56,6 +56,7 @@ LanePlannerNode::LanePlannerNode(
   nav_cmd_fallback_order_param_(read_nav_cmd_fallback_order(*this)),
   global_path_resample_interval_m_(get_parameter("global_path_resample_interval_m").as_double()),
   max_centerline_connection_gap_m_(get_parameter("max_centerline_connection_gap_m").as_double()),
+  off_route_distance_threshold_m_(get_parameter("off_route_distance_threshold_m").as_double()),
   route_lookahead_lanelet_count_(get_parameter("route_lookahead_lanelet_count").as_int()),
   qos_(rclcpp::QoS(10)),
   global_path_ready_(false),
@@ -82,6 +83,9 @@ LanePlannerNode::LanePlannerNode(
     }
     if (max_centerline_connection_gap_m_ < 0.0) {
         throw std::invalid_argument("max_centerline_connection_gap_m must be non-negative");
+    }
+    if (off_route_distance_threshold_m_ <= 0.0) {
+        throw std::invalid_argument("off_route_distance_threshold_m must be greater than 0");
     }
     if (route_lookahead_lanelet_count_ < 3) {
         throw std::invalid_argument("route_lookahead_lanelet_count must be at least 3");
@@ -185,28 +189,30 @@ void LanePlannerNode::timer_callback()
         return;
     }
 
-    const uint64_t current_lanelet_id = find_nearest_lanelet_from_pose(ego);
+    const auto [current_lanelet_id, distance] = find_nearest_lanelet_within_route(ego);
     if (current_lanelet_id == 0U) {
         return;
     }
 
+    if (distance > off_route_distance_threshold_m_) {
+        // Vehicle has deviated beyond the threshold from all route lanelets
+        rebuild_route_from_pose(ego, "out_of_route");
+        global_path_publisher_->publish(make_global_path_message(now()));
+        return;
+    }
+
+    // Search is confined to current_route_lanelet_ids_, so route_it is always valid
     const auto route_it = std::find(
         current_route_lanelet_ids_.begin(),
         current_route_lanelet_ids_.end(),
         current_lanelet_id);
 
-    if (route_it == current_route_lanelet_ids_.end()) {
-        // Vehicle is not on any planned lanelet
-        rebuild_route_from_lanelet(current_lanelet_id, "out_of_route");
+    // Rebuild only when the vehicle reaches the last lanelet in the route
+    const std::size_t remaining = static_cast<std::size_t>(
+        std::distance(route_it, current_route_lanelet_ids_.end()));
+    if (remaining == 1U) {
+        rebuild_route_from_lanelet(current_lanelet_id, "lookahead_extension");
         global_path_publisher_->publish(make_global_path_message(now()));
-    } else {
-        // Rebuild only when the vehicle reaches the last lanelet in the route
-        const std::size_t remaining = static_cast<std::size_t>(
-            std::distance(route_it, current_route_lanelet_ids_.end()));
-        if (remaining == 1U) {
-            rebuild_route_from_lanelet(current_lanelet_id, "lookahead_extension");
-            global_path_publisher_->publish(make_global_path_message(now()));
-        }
     }
 }
 

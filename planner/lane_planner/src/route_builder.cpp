@@ -449,6 +449,36 @@ uint64_t LanePlannerNode::find_nearest_lanelet_from_pose(
     return best_lanelet_id;
 }
 
+std::pair<uint64_t, double> LanePlannerNode::find_nearest_lanelet_within_route(
+    const Point2D& point) const
+{
+    uint64_t best_lanelet_id = 0U;
+    double best_distance_sq = std::numeric_limits<double>::max();
+    for (const uint64_t lanelet_id : current_route_lanelet_ids_) {
+        const auto centerline_it = lanelet_centerline_points_by_id_.find(lanelet_id);
+        if (centerline_it == lanelet_centerline_points_by_id_.end() ||
+            centerline_it->second.size() < 2U)
+        {
+            continue;
+        }
+        const auto& centerline_points = centerline_it->second;
+        for (std::size_t i = 1U; i < centerline_points.size(); ++i) {
+            const double distance_sq = point_segment_distance_sq(
+                point,
+                centerline_points[i - 1U],
+                centerline_points[i]);
+            if (distance_sq < best_distance_sq) {
+                best_distance_sq = distance_sq;
+                best_lanelet_id = lanelet_id;
+            }
+        }
+    }
+    const double distance = best_lanelet_id != 0U
+        ? std::sqrt(best_distance_sq)
+        : std::numeric_limits<double>::max();
+    return {best_lanelet_id, distance};
+}
+
 uint64_t LanePlannerNode::lanelet_at_s(const double s) const
 {
     if (lanelet_ranges_.empty()) {

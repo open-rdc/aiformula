@@ -82,6 +82,7 @@ private:
         uint8_t& selected_turn,
         bool& used_fallback) const;
     uint64_t find_nearest_lanelet_from_pose(const Point2D& point) const;
+    std::pair<uint64_t, double> find_nearest_lanelet_within_route(const Point2D& point) const;
     uint64_t lanelet_at_s(double s) const;
     double normalize_path_s(double s) const;
     uint8_t parse_nav_cmd(const std::string& command) const;
@@ -101,6 +102,7 @@ private:
     const std::vector<std::string> nav_cmd_fallback_order_param_;
     const double global_path_resample_interval_m_;
     const double max_centerline_connection_gap_m_;
+    const double off_route_distance_threshold_m_;
     const int route_lookahead_lanelet_count_;
     const rclcpp::QoS qos_;
 
