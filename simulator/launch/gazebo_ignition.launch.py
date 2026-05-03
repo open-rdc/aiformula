@@ -26,7 +26,7 @@ def generate_launch_description():
     ])
 
     bridge = Node(
-        package='ros_ign_bridge',
+        package='ros_gz_bridge',
         executable='parameter_bridge',
         arguments=[
             # RGB camera (color image only)
@@ -88,7 +88,7 @@ def generate_launch_description():
 
     caster_yaw_position_spawner = Node(
         package='controller_manager',
-        executable='spawner.py',
+        executable='spawner',
         arguments=[
             'caster_yaw_position_controller',
             '--controller-manager',
@@ -103,9 +103,9 @@ def generate_launch_description():
         world_arg,
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource([os.path.join(
-                get_package_share_directory('ros_ign_gazebo'), 'launch'), '/ign_gazebo.launch.py']),
+                get_package_share_directory('ros_gz_sim'), 'launch'), '/gz_sim.launch.py']),
             launch_arguments=[
-                ('ign_args', [world_file_path, ' -r'])]
+                ('gz_args', [world_file_path, ' -r'])]
         ),
         steered_to_twist,
         bridge,

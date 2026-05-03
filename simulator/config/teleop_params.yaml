@@ -2,6 +2,6 @@
   ros__parameters:
     require_enable_button: false
     axis_linear.x: 1
-    axis_angular.yaw: 3
+    axis_angular.yaw: 2
     scale_linear.x: 7.0
     scale_angular.yaw: 7.0
