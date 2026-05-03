@@ -1,4 +1,4 @@
-#include "vectormap_matching/icp_matching.hpp"
+#include "vectormap_localization/icp_matching.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -6,7 +6,7 @@
 #include <stdexcept>
 #include <utility>
 
-namespace vectormap_matching
+namespace vectormap_localization
 {
 
 IcpTargetMap::IcpTargetMap(std::vector<Eigen::Vector2d> points)
@@ -185,4 +185,4 @@ IcpResult IcpMatcher::align_translation_only(
     return {true, translation, last_correspondences, last_mean_error};
 }
 
-}  // namespace vectormap_matching
+}  // namespace vectormap_localization

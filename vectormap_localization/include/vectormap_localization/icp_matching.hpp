@@ -6,7 +6,7 @@
 
 #include <Eigen/Core>
 
-namespace vectormap_matching
+namespace vectormap_localization
 {
 
 struct IcpConfig
@@ -76,4 +76,4 @@ private:
     IcpConfig config_;
 };
 
-}  // namespace vectormap_matching
+}  // namespace vectormap_localization

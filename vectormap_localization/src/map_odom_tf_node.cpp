@@ -1,4 +1,4 @@
-#include "vectormap_matching/map_odom_tf_node.hpp"
+#include "vectormap_localization/map_odom_tf_node.hpp"
 
 #include <cmath>
 #include <stdexcept>
@@ -6,7 +6,7 @@
 #include <tf2/exceptions.h>
 #include <tf2/time.h>
 
-namespace vectormap_matching
+namespace vectormap_localization
 {
 namespace
 {
@@ -157,4 +157,4 @@ void MapOdomTfNode::timer_callback()
     tf_broadcaster_->sendTransform(transform);
 }
 
-}  // namespace vectormap_matching
+}  // namespace vectormap_localization

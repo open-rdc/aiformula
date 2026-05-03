@@ -6,7 +6,7 @@
 #include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
 #include <rclcpp/rclcpp.hpp>
 
-namespace vectormap_matching
+namespace vectormap_localization
 {
 
 struct EkfLocalizerConfig
@@ -57,4 +57,4 @@ private:
     bool initialized_;
 };
 
-}  // namespace vectormap_matching
+}  // namespace vectormap_localization

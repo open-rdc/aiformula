@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(vectormap_matching)
+project(vectormap_localization)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
@@ -20,7 +20,7 @@ ament_auto_add_library(vectormap_localization_node SHARED
   src/vectormap_localization_node.cpp
 )
 target_compile_features(vectormap_localization_node PUBLIC c_std_99 cxx_std_17)
-target_compile_definitions(vectormap_localization_node PRIVATE "VECTORMAP_MATCHING_BUILDING_LIBRARY")
+target_compile_definitions(vectormap_localization_node PRIVATE "VECTORMAP_LOCALIZATION_BUILDING_LIBRARY")
 target_include_directories(vectormap_localization_node PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>

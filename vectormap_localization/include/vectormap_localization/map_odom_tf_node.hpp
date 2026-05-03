@@ -11,18 +11,18 @@
 #include <tf2_ros/transform_broadcaster.h>
 #include <tf2_ros/transform_listener.h>
 
-#include "vectormap_matching/visibility_control.h"
+#include "vectormap_localization/visibility_control.h"
 
-namespace vectormap_matching
+namespace vectormap_localization
 {
 
 class MapOdomTfNode : public rclcpp::Node
 {
 public:
-    VECTORMAP_MATCHING_PUBLIC
+    VECTORMAP_LOCALIZATION_PUBLIC
     explicit MapOdomTfNode(const rclcpp::NodeOptions& options = rclcpp::NodeOptions());
 
-    VECTORMAP_MATCHING_PUBLIC
+    VECTORMAP_LOCALIZATION_PUBLIC
     explicit MapOdomTfNode(
         const std::string& name_space,
         const rclcpp::NodeOptions& options = rclcpp::NodeOptions());
@@ -52,4 +52,4 @@ private:
     rclcpp::TimerBase::SharedPtr timer_;
 };
 
-}  // namespace vectormap_matching
+}  // namespace vectormap_localization

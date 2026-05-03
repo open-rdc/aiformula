@@ -1,11 +1,11 @@
-#include "vectormap_matching/lane_pixel_to_point.hpp"
+#include "vectormap_localization/lane_pixel_to_point.hpp"
 
 #include <cmath>
 #include <stdexcept>
 
 #include <Eigen/Geometry>
 
-namespace vectormap_matching
+namespace vectormap_localization
 {
 
 Eigen::Matrix3d rotation_matrix_from_rpy(const double roll, const double pitch, const double yaw)
@@ -113,4 +113,4 @@ std::vector<Eigen::Vector2d> lane_pixels_to_base_points(
     return base_points;
 }
 
-}  // namespace vectormap_matching
+}  // namespace vectormap_localization

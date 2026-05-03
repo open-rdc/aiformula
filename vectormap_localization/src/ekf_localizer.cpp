@@ -1,11 +1,11 @@
-#include "vectormap_matching/ekf_localizer.hpp"
+#include "vectormap_localization/ekf_localizer.hpp"
 
 #include <cmath>
 #include <stdexcept>
 
 #include <Eigen/LU>
 
-namespace vectormap_matching
+namespace vectormap_localization
 {
 
 EkfLocalizer::EkfLocalizer(const EkfLocalizerConfig& config)
@@ -219,4 +219,4 @@ void EkfLocalizer::validate_variance(
     }
 }
 
-}  // namespace vectormap_matching
+}  // namespace vectormap_localization

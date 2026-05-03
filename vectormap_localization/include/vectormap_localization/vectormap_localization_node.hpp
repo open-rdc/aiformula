@@ -16,22 +16,22 @@
 #include <sensor_msgs/msg/nav_sat_fix.hpp>
 #include <visualization_msgs/msg/marker_array.hpp>
 
-#include "vectormap_matching/ekf_localizer.hpp"
-#include "vectormap_matching/icp_matching.hpp"
-#include "vectormap_matching/lane_pixel_to_point.hpp"
-#include "vectormap_matching/visibility_control.h"
+#include "vectormap_localization/ekf_localizer.hpp"
+#include "vectormap_localization/icp_matching.hpp"
+#include "vectormap_localization/lane_pixel_to_point.hpp"
+#include "vectormap_localization/visibility_control.h"
 #include "vectormap_msgs/msg/vector_map.hpp"
 
-namespace vectormap_matching
+namespace vectormap_localization
 {
 
 class VectormapLocalizationNode : public rclcpp::Node
 {
 public:
-    VECTORMAP_MATCHING_PUBLIC
+    VECTORMAP_LOCALIZATION_PUBLIC
     explicit VectormapLocalizationNode(const rclcpp::NodeOptions& options = rclcpp::NodeOptions());
 
-    VECTORMAP_MATCHING_PUBLIC
+    VECTORMAP_LOCALIZATION_PUBLIC
     explicit VectormapLocalizationNode(
         const std::string& name_space,
         const rclcpp::NodeOptions& options = rclcpp::NodeOptions());
@@ -126,4 +126,4 @@ private:
     rclcpp::TimerBase::SharedPtr timer_;
 };
 
-}  // namespace vectormap_matching
+}  // namespace vectormap_localization

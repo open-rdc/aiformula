@@ -7,7 +7,7 @@
 #include <Eigen/Core>
 #include <opencv2/core.hpp>
 
-namespace vectormap_matching
+namespace vectormap_localization
 {
 
 struct CameraModel
@@ -56,4 +56,4 @@ std::vector<Eigen::Vector2d> lane_pixels_to_base_points(
 
 Eigen::Matrix3d rotation_matrix_from_rpy(double roll, double pitch, double yaw);
 
-}  // namespace vectormap_matching
+}  // namespace vectormap_localization

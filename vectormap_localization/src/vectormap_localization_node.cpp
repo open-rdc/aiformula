@@ -1,4 +1,4 @@
-#include "vectormap_matching/vectormap_localization_node.hpp"
+#include "vectormap_localization/vectormap_localization_node.hpp"
 
 #include <algorithm>
 #include <array>
@@ -15,7 +15,7 @@
 
 #include "vectormap_msgs/msg/line_string.hpp"
 
-namespace vectormap_matching
+namespace vectormap_localization
 {
 namespace
 {
@@ -233,7 +233,7 @@ VectormapLocalizationNode::VectormapLocalizationNode(
     }
 
     mask_subscription_ = this->create_subscription<sensor_msgs::msg::Image>(
-        "/yolop/mask_image",
+        "/perception/lane_mask",
         qos_,
         std::bind(&VectormapLocalizationNode::mask_callback, this, std::placeholders::_1));
     vector_map_subscription_ = this->create_subscription<vectormap_msgs::msg::VectorMap>(
@@ -739,4 +739,4 @@ void VectormapLocalizationNode::timer_callback()
     }
 }
 
-}  // namespace vectormap_matching
+}  // namespace vectormap_localization

@@ -1,9 +1,9 @@
-#include "vectormap_matching/odom_tf_node.hpp"
+#include "vectormap_localization/odom_tf_node.hpp"
 
 #include <cmath>
 #include <stdexcept>
 
-namespace vectormap_matching
+namespace vectormap_localization
 {
 namespace
 {
@@ -262,4 +262,4 @@ double OdomTfNode::normalize_angle(double angle)
     return angle;
 }
 
-}  // namespace vectormap_matching
+}  // namespace vectormap_localization
