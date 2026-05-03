@@ -8,7 +8,7 @@ def launch_setup(context, *args, **kwargs):
 
     if sim_flag.lower() == 'true':
         executable_name = 'inference_node_sim'
-        model_name = 'e2e_model (2).pt'
+        model_name = 'e2e_model.pt'
     else:
         executable_name = 'inference_node'
         model_name = 'e2e_model.pt'
@@ -20,7 +20,7 @@ def launch_setup(context, *args, **kwargs):
         output='screen',
         parameters=[{
             'model_name': model_name,
-            'interval_ms': 100,
+            'interval_ms': 50,
             'default_command': 1,
             'use_place_recognition': True,
             'placenet_model_name': 'placenet.pt',

@@ -22,15 +22,21 @@ def color_mask_to_binary(mask_image: np.ndarray) -> np.ndarray:
     if mask_image.ndim == 2:
         return (mask_image > 0).astype(np.uint8)
 
-    return (
+    red_mask = (
         (mask_image[:, :, 2] > 200)
         & (mask_image[:, :, 0] < 50)
         & (mask_image[:, :, 1] < 50)
-    ).astype(np.uint8)
+    )
+    bright_mask = mask_image.max(axis=2) > 127
+    return (red_mask | bright_mask).astype(np.uint8)
 
 
 def preprocess_lane_mask(mask: np.ndarray) -> np.ndarray:
     binary_mask = color_mask_to_binary(mask)
+    height, width = binary_mask.shape[:2]
+    if height < PLACENET_CROP_SIZE or width < PLACENET_CROP_SIZE:
+        return cv2.resize(binary_mask, MODEL_INPUT_SIZE, interpolation=cv2.INTER_NEAREST)
+
     cropped_mask = center_square_crop(binary_mask)
     return cv2.resize(cropped_mask, MODEL_INPUT_SIZE, interpolation=cv2.INTER_NEAREST)
 

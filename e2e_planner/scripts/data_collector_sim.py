@@ -4,17 +4,19 @@
 ジョイコンで走行しながら左折/右折/道なりのラベルを付けてRGB画像を保存する。
 
 ボタンマッピング:
-  buttons[1] = 右折 (right)
-  buttons[2] = 左折 (left)
+  buttons[7] = 右折 (right)
+  buttons[6] = 左折 (left)
   ボタン未押下 = 道なり (straight)
 
 録画操作:
-  buttons[0] = 録画開始/停止トグル
+  buttons[2] = 録画開始/停止トグル
 
 保存形式:
-  ~/ros2_ws/dataset/session_YYYYMMDD_HHMMSS/
-    images/000001.jpg  ...  (RGB 480x300)
-    data.csv           (frame_id, image, timestamp, x, y, yaw, label)
+  e2e_planner/data/YYYYMMDD_HHMMSS_dataset/
+    images/00001.png
+    path/00001.csv       (x, y)
+    commands/00001.csv   (command)
+    pointclouds/
 """
 
 import rclpy
@@ -24,12 +26,13 @@ from nav_msgs.msg import Odometry
 from cv_bridge import CvBridge
 import cv2
 import numpy as np
-import os
 import csv
+import copy
 import math
-from datetime import datetime
+import time
 from pathlib import Path
-from typing import Optional
+from collections import deque
+from typing import Deque, List, Optional, Tuple
 def euler_from_quaternion(q):
     x, y, z, w = q
     siny_cosp = 2.0 * (w * z + x * y)
@@ -37,42 +40,54 @@ def euler_from_quaternion(q):
     return 0.0, 0.0, math.atan2(siny_cosp, cosy_cosp)
 from rclpy.qos import qos_profile_sensor_data, qos_profile_system_default
 
-LABEL_STRAIGHT = 0
-LABEL_RIGHT    = 1
-LABEL_LEFT     = 2
-LABEL_NAMES    = {0: 'straight', 1: 'right', 2: 'left'}
+SAMPLE_INTERVAL = 0.2
+WAYPOINT_INTERVAL = 0.5
+NUM_WAYPOINTS = 10
 
-BTN_RECORD   = 0
-BTN_RIGHT    = 1
-BTN_LEFT     = 2
+LABEL_ROADSIDE = 0
+LABEL_STRAIGHT = 1
+LABEL_LEFT     = 2
+LABEL_RIGHT    = 3
+LABEL_NAMES    = {0: 'roadside', 1: 'straight', 2: 'left', 3: 'right'}
+
+BTN_RECORD   = 2
+BTN_RIGHT    = 7
+BTN_LEFT     = 6
+
+
+class Sample:
+    def __init__(self, image: np.ndarray, timestamp: float, reference_odom: Tuple[float, float, float], command: int):
+        self.image = image
+        self.timestamp = timestamp
+        self.reference_odom = reference_odom
+        self.command = command
+        self.waypoints: List[Tuple[float, float]] = []
+        self.target_times = [timestamp + WAYPOINT_INTERVAL * (i + 1) for i in range(NUM_WAYPOINTS)]
 
 
 class DataCollectorSim(Node):
     def __init__(self) -> None:
         super().__init__('data_collector_sim')
 
-        self.declare_parameter('save_dir', str(Path.home() / 'ros2_ws' / 'dataset'))
+        package_root = Path(__file__).parent.parent
+        self.declare_parameter('save_dir', str(package_root / 'data'))
         self.declare_parameter('image_topic', '/image_raw')
         self.declare_parameter('odom_topic', '/odom')
         self.declare_parameter('joy_topic', '/joy')
-        self.declare_parameter('save_interval_sec', 0.2)  # 5Hz
+        self.declare_parameter('save_interval_sec', SAMPLE_INTERVAL)  # 5Hz
 
-        save_base = Path(self.get_parameter('save_dir').value)
-        session_name = 'session_' + datetime.now().strftime('%Y%m%d_%H%M%S')
-        self.session_dir = save_base / session_name
-        self.image_dir = self.session_dir / 'images'
+        self.save_base_dir = Path(self.get_parameter('save_dir').value)
 
         self.bridge = CvBridge()
         self.latest_image: Optional[np.ndarray] = None
-        self.latest_odom: Optional[tuple] = None  # (x, y, yaw)
+        self.latest_odom: Optional[Tuple[float, float, float]] = None
         self.current_label: int = LABEL_STRAIGHT
         self.recording: bool = False
-        self.frame_id: int = 0
-        self.last_save_time: float = 0.0
+        self.last_sample_time: Optional[float] = None
         self.prev_btn_record: int = 0
-
-        self.csv_file = None
-        self.csv_writer = None
+        self.samples: List[Sample] = []
+        self.odom_history: Deque[Tuple[float, Tuple[float, float, float]]] = deque()
+        self.collected_data: List[Tuple[np.ndarray, List[Tuple[float, float]], int]] = []
 
         image_topic = self.get_parameter('image_topic').value
         odom_topic = self.get_parameter('odom_topic').value
@@ -86,7 +101,7 @@ class DataCollectorSim(Node):
         self.sub_joy = self.create_subscription(
             Joy, joy_topic, self.joy_callback, qos_profile_system_default)
 
-        self.timer = self.create_timer(self.save_interval, self.save_callback)
+        self.timer = self.create_timer(0.1, self.timer_callback)
 
         self.get_logger().info('Data collector ready.')
         self.get_logger().info(f'  buttons[{BTN_RECORD}]: 録画開始/停止')
@@ -129,55 +144,116 @@ class DataCollectorSim(Node):
             self._stop_recording()
 
     def _start_recording(self) -> None:
-        self.image_dir.mkdir(parents=True, exist_ok=True)
-        csv_path = self.session_dir / 'data.csv'
-        self.csv_file = open(csv_path, 'w', newline='')
-        self.csv_writer = csv.writer(self.csv_file)
-        self.csv_writer.writerow(
-            ['frame_id', 'image', 'timestamp', 'x', 'y', 'yaw', 'label', 'label_name'])
         self.recording = True
-        self.frame_id = 0
-        self.get_logger().info(f'録画開始: {self.session_dir}')
+        self.last_sample_time = None
+        self.samples.clear()
+        self.odom_history.clear()
+        self.get_logger().info('録画開始')
 
     def _stop_recording(self) -> None:
         self.recording = False
-        if self.csv_file:
-            self.csv_file.close()
-            self.csv_file = None
         self.get_logger().info(
-            f'録画停止。保存フレーム数: {self.frame_id}  保存先: {self.session_dir}')
+            f'録画停止。収集済みサンプル数: {len(self.collected_data)}')
 
-    def save_callback(self) -> None:
+    def timer_callback(self) -> None:
         if not self.recording:
             return
         if self.latest_image is None or self.latest_odom is None:
             return
 
-        now = self.get_clock().now().nanoseconds / 1e9
-        if now - self.last_save_time < self.save_interval * 0.9:
+        current_time = time.time()
+        self.odom_history.append((current_time, copy.deepcopy(self.latest_odom)))
+
+        if self.last_sample_time is None or current_time - self.last_sample_time >= self.save_interval:
+            self.samples.append(
+                Sample(copy.deepcopy(self.latest_image), current_time, copy.deepcopy(self.latest_odom), self.current_label)
+            )
+            self.last_sample_time = current_time
+
+        for sample in self.samples:
+            self.collect_waypoints_for_sample(sample)
+
+        completed_samples = [sample for sample in self.samples if len(sample.waypoints) == NUM_WAYPOINTS]
+        for sample in completed_samples:
+            self.collected_data.append((sample.image, sample.waypoints, sample.command))
+            if len(self.collected_data) % 50 == 0:
+                self.get_logger().info(
+                    f'サンプル {len(self.collected_data)}  ラベル={LABEL_NAMES[sample.command]}')
+
+        self.samples = [sample for sample in self.samples if len(sample.waypoints) < NUM_WAYPOINTS]
+        self.cleanup_odom_history()
+
+    def collect_waypoints_for_sample(self, sample: Sample) -> None:
+        for i in range(len(sample.waypoints), NUM_WAYPOINTS):
+            odom = self.find_closest_odom(sample.target_times[i])
+            if odom is None:
+                break
+            sample.waypoints.append(self.transform_to_robot_frame(sample.reference_odom, odom))
+
+    def find_closest_odom(self, target_time: float) -> Optional[Tuple[float, float, float]]:
+        for t, odom in self.odom_history:
+            if t >= target_time:
+                return odom
+        return None
+
+    def cleanup_odom_history(self) -> None:
+        if not self.samples or not self.odom_history:
             return
-        self.last_save_time = now
+        incomplete_samples = [s for s in self.samples if len(s.waypoints) < NUM_WAYPOINTS]
+        if not incomplete_samples:
+            return
+        min_target_time = min(sample.target_times[len(sample.waypoints)] for sample in incomplete_samples)
+        while self.odom_history and self.odom_history[0][0] < min_target_time:
+            self.odom_history.popleft()
 
-        self.frame_id += 1
-        filename = f'{self.frame_id:06d}.jpg'
-        image_path = self.image_dir / filename
-        cv2.imwrite(str(image_path), self.latest_image)
+    def transform_to_robot_frame(
+        self,
+        reference_odom: Tuple[float, float, float],
+        current_odom: Tuple[float, float, float],
+    ) -> Tuple[float, float]:
+        x0, y0, yaw0 = reference_odom
+        x, y, _ = current_odom
+        dx = x - x0
+        dy = y - y0
+        x_robot = math.cos(yaw0) * dx + math.sin(yaw0) * dy
+        y_robot = -math.sin(yaw0) * dx + math.cos(yaw0) * dy
+        return x_robot, y_robot
 
-        x, y, yaw = self.latest_odom
-        self.csv_writer.writerow([
-            self.frame_id,
-            f'images/{filename}',
-            now,
-            round(x, 4), round(y, 4), round(yaw, 4),
-            self.current_label,
-            LABEL_NAMES[self.current_label],
-        ])
+    def save_data(self) -> None:
+        if len(self.collected_data) == 0:
+            self.get_logger().info('保存するデータがありません')
+            return
 
-        # 視覚フィードバック
-        if self.frame_id % 50 == 0:
-            self.get_logger().info(
-                f'フレーム {self.frame_id}  ラベル={LABEL_NAMES[self.current_label]}'
-                f'  pos=({x:.2f},{y:.2f})')
+        timestamp = time.strftime('%Y%m%d_%H%M%S')
+        dataset_dir = self.save_base_dir / f'{timestamp}_dataset'
+        images_dir = dataset_dir / 'images'
+        path_dir = dataset_dir / 'path'
+        commands_dir = dataset_dir / 'commands'
+        pointclouds_dir = dataset_dir / 'pointclouds'
+
+        images_dir.mkdir(parents=True, exist_ok=True)
+        path_dir.mkdir(parents=True, exist_ok=True)
+        commands_dir.mkdir(parents=True, exist_ok=True)
+        pointclouds_dir.mkdir(parents=True, exist_ok=True)
+
+        for idx, (image, waypoints, command) in enumerate(self.collected_data, start=1):
+            image_path = images_dir / f'{idx:05d}.png'
+            waypoints_path = path_dir / f'{idx:05d}.csv'
+            command_path = commands_dir / f'{idx:05d}.csv'
+
+            cv2.imwrite(str(image_path), image)
+
+            with open(str(waypoints_path), 'w', newline='') as csvfile:
+                csv_writer = csv.writer(csvfile)
+                csv_writer.writerow(['x', 'y'])
+                for x, y in waypoints:
+                    csv_writer.writerow([x, y])
+
+            with open(str(command_path), 'w', newline='') as csvfile:
+                csv_writer = csv.writer(csvfile)
+                csv_writer.writerow([command])
+
+        self.get_logger().info(f'保存完了: {len(self.collected_data)} samples -> {dataset_dir}')
 
     def destroy_node(self) -> None:
         if self.recording:
@@ -193,6 +269,7 @@ def main(args=None) -> None:
     except KeyboardInterrupt:
         pass
     finally:
+        node.save_data()
         node.destroy_node()
         rclpy.shutdown()
 

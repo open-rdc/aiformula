@@ -40,11 +40,12 @@ class YOLOPv2Processor:
 
         return img, r, (dw, dh)
 
-    def lane_line_mask(self, ll = None):
-        ll_seg_mask = torch.nn.functional.interpolate(ll, scale_factor=2, mode='bilinear')
-        ll_seg_mask = torch.round(ll_seg_mask).squeeze(1)
-        ll_seg_mask = ll_seg_mask.int().squeeze().cpu().numpy()
-        return ll_seg_mask
+    def lane_line_mask(self, ll: torch.Tensor) -> np.ndarray:
+        if ll.shape[1] == 1:
+            ll_seg_mask = (ll[:, 0] > 0.5).int()
+        else:
+            ll_seg_mask = torch.argmax(ll, dim=1).int()
+        return ll_seg_mask.squeeze().cpu().numpy()
 
     def _restore_original_size(
         self,

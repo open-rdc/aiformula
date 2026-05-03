@@ -70,9 +70,15 @@ class InferenceNode(Node):
         if os.path.exists(weight_path):
             self.model = torch.jit.load(weight_path, map_location=self.device)
             self.model.eval()
+            self.model_uses_command = self._model_uses_command(self.model)
+            if not self.model_uses_command:
+                self.get_logger().warn(
+                    'Loaded model accepts only image input; navigation command will be ignored.'
+                )
         else:
             self.get_logger().warn(f'Model file not found: {weight_path}')
             self.model = None
+            self.model_uses_command = False
 
         self.yolop_processor = YOLOPv2Processor(yolop_weight_path, self.device)
         self.place_recognition = None
@@ -122,6 +128,18 @@ class InferenceNode(Node):
         command_idx = min(max(command_idx, 0), 3)
         command_tensor[0, command_idx] = 1.0
         return command_tensor
+
+    def _model_uses_command(self, model) -> bool:
+        try:
+            schema = str(model.forward.schema)
+        except RuntimeError:
+            return True
+        return 'Tensor cmd' in schema or 'Tensor command' in schema
+
+    def run_model(self, input_tensor: torch.Tensor, command_tensor: torch.Tensor) -> torch.Tensor:
+        if self.model_uses_command:
+            return self.model(input_tensor, command_tensor)
+        return self.model(input_tensor)
 
     def preprocess_placenet_image(self, image: np.ndarray) -> torch.Tensor:
         bgr_image = self._to_bgr(image)
@@ -173,7 +191,7 @@ class InferenceNode(Node):
         self.pub_debug_image.publish(debug_msg)
 
         with torch.no_grad():
-            output = self.model(input_tensor, command_tensor)
+            output = self.run_model(input_tensor, command_tensor)
 
         output_normalized = output.cpu().numpy().flatten()
         output_denormalized = denormalize_waypoints(output_normalized)

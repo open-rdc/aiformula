@@ -51,9 +51,9 @@ class DataCollectionNode(Node):
         super().__init__('data_collection_node')
 
         self.declare_parameter('sdk_flag', True)
-        self.declare_parameter('toggle_button_index', 0)
-        self.declare_parameter('left_button_index', 4)
-        self.declare_parameter('right_button_index', 5)
+        self.declare_parameter('toggle_button_index', 2)
+        self.declare_parameter('left_button_index', 6)
+        self.declare_parameter('right_button_index', 7)
         self.sdk_flag_ = self.get_parameter('sdk_flag').value
         self.toggle_button_index = int(self.get_parameter('toggle_button_index').value)
         self.left_button_index = int(self.get_parameter('left_button_index').value)
@@ -96,7 +96,7 @@ class DataCollectionNode(Node):
         self.create_timer(0.1, self.timer_callback)
 
         self.get_logger().info(
-            'Create data ready: A toggles collection, L1 labels left, R1 labels right'
+            'Create data ready: buttons[2] toggles collection, buttons[6] labels left, buttons[7] labels right'
         )
 
     def _initialize_zed_camera(self) -> None:
