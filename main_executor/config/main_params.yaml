@@ -4,6 +4,7 @@ launch: #起動パラメータ
     vectornav : false
     odrive : false
     socketcan : false
+    zed : false
 
 /**:  #ワイルドカード(ここのパラメータは全ノードから読める: <名前に注意>)
   ros__parameters:
@@ -18,6 +19,15 @@ launch: #起動パラメータ
 
     tread : 0.6
     wheelbase : 0.8
+
+zed_wrapper_node:
+  ros__parameters:
+    grab_fps             : 15
+    resolution           : "HD720"
+    depth_mode           : "NEURAL"
+    confidence_threshold : 50
+    serial_number        : 0        # 0 = auto-select
+    camera_frame_id      : "zed_left_camera_frame"
 
 controller_node:
   ros__parameters:
@@ -174,7 +184,7 @@ local_planner_server_node:
     vector_map_topic : "/vector_map"
     localization_pose_topic : "/localization/pose"
     velocity_topic : "/vectornav/velocity_body"
-    pointcloud_topic : "/zed/zed_node/pointcloud"
+    pointcloud_topic : "/zed/zed_node/point_cloud"
     lane_switch_trigger_topic : "/flag"
     # VectormapFrenetPlugin params
     local_path_horizon_m : 15.0

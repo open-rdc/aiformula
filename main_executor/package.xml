@@ -17,10 +17,11 @@
   <depend>frenet_planner</depend>
   <depend>path_tracker</depend>
   <depend>utilities</depend>
-  <depend>vectormap_matching</depend>
+  <depend>vectormap_localization</depend>
   <depend>vectormap_control</depend>
   <depend>vectormap_global_planner</depend>
   <depend>local_planner</depend>
+  <depend>zed_wrapper</depend>
   <depend>vectormap_server</depend>
   <depend>gnssnav</depend>
 
