@@ -106,10 +106,8 @@ private:
     geometry_msgs::msg::TwistWithCovarianceStamped::SharedPtr latest_velocity_msg_;
     mutable std::mutex data_mutex_;
     GroundProjectionLUT ground_projection_lut_;
-    bool has_last_velocity_update_stamp_;
     bool has_last_gnss_update_stamp_;
     bool has_last_imu_update_stamp_;
-    builtin_interfaces::msg::Time last_velocity_update_stamp_;
     builtin_interfaces::msg::Time last_gnss_update_stamp_;
     builtin_interfaces::msg::Time last_imu_update_stamp_;
 

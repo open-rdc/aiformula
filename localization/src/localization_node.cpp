@@ -193,7 +193,6 @@ LocalizationNode::LocalizationNode(
   ekf_config_(make_ekf_config(*this)),
   ekf_localizer_(ekf_config_),
   qos_(rclcpp::QoS(10)),
-  has_last_velocity_update_stamp_(false),
   has_last_gnss_update_stamp_(false),
   has_last_imu_update_stamp_(false)
 {
@@ -316,6 +315,27 @@ void LocalizationNode::velocity_callback(
 
     std::lock_guard<std::mutex> lock(data_mutex_);
     latest_velocity_msg_ = msg;
+
+    if (!ekf_localizer_.initialized() || !latest_imu_msg_) {
+        return;
+    }
+    if (!std::isfinite(latest_imu_msg_->angular_velocity.z)) {
+        RCLCPP_WARN_THROTTLE(
+            get_logger(), *get_clock(), 1000,
+            "IMU angular_velocity.z is not finite, skipping EKF predict");
+        return;
+    }
+    const rclcpp::Time stamp(msg->header.stamp, get_clock()->get_clock_type());
+    try {
+        ekf_localizer_.predict(
+            msg->twist.twist.linear.x,
+            latest_imu_msg_->angular_velocity.z,
+            stamp);
+    } catch (const std::exception& error) {
+        RCLCPP_WARN_THROTTLE(
+            get_logger(), *get_clock(), 1000,
+            "EKF predict skipped: %s", error.what());
+    }
 }
 
 void LocalizationNode::rebuild_map_points(const vectormap_msgs::msg::VectorMap& map_msg)
@@ -423,29 +443,21 @@ geometry_msgs::msg::PoseWithCovarianceStamped LocalizationNode::update_ekf_with_
         throw std::runtime_error("IMU angular_velocity.z is not finite");
     }
 
-    const rclcpp::Time velocity_stamp(velocity_msg.header.stamp, get_clock()->get_clock_type());
     const double raw_x = raw_pose.pose.pose.position.x;
     const double raw_y = raw_pose.pose.pose.position.y;
     const double raw_yaw = yaw_from_quaternion(raw_pose.pose.pose.orientation);
-    const double velocity = velocity_msg.twist.twist.linear.x;
-    const double yaw_rate = imu_msg.angular_velocity.z;
 
     if (!ekf_localizer_.initialized()) {
-        ekf_localizer_.initialize(raw_x, raw_y, raw_yaw, velocity, yaw_rate, velocity_stamp);
-        has_last_velocity_update_stamp_ = true;
-        last_velocity_update_stamp_ = velocity_msg.header.stamp;
+        const rclcpp::Time velocity_stamp(velocity_msg.header.stamp, get_clock()->get_clock_type());
+        ekf_localizer_.initialize(
+            raw_x, raw_y, raw_yaw,
+            velocity_msg.twist.twist.linear.x, imu_msg.angular_velocity.z,
+            velocity_stamp);
         has_last_gnss_update_stamp_ = true;
         last_gnss_update_stamp_ = raw_pose.header.stamp;
         has_last_imu_update_stamp_ = true;
         last_imu_update_stamp_ = imu_msg.header.stamp;
         return ekf_localizer_.make_pose(this->now(), map_frame_id_);
-    } else if (
-        !has_last_velocity_update_stamp_ ||
-        !same_stamp(velocity_msg.header.stamp, last_velocity_update_stamp_))
-    {
-        ekf_localizer_.predict(velocity, yaw_rate, velocity_stamp);
-        has_last_velocity_update_stamp_ = true;
-        last_velocity_update_stamp_ = velocity_msg.header.stamp;
     }
 
     if (!has_last_gnss_update_stamp_ || !same_stamp(raw_pose.header.stamp, last_gnss_update_stamp_)) {
@@ -640,7 +652,11 @@ void LocalizationNode::timer_callback()
         }
         raw_pose_publisher_->publish(raw_pose);
 
-        const auto initial_pose = update_ekf_with_raw_pose(raw_pose, *imu_msg, *velocity_msg);
+        geometry_msgs::msg::PoseWithCovarianceStamped initial_pose;
+        {
+            std::lock_guard<std::mutex> lock(data_mutex_);
+            initial_pose = update_ekf_with_raw_pose(raw_pose, *imu_msg, *velocity_msg);
+        }
 
         if (!mask_image_msg || !map_points || map_points->empty()) {
             RCLCPP_WARN_THROTTLE(
@@ -721,7 +737,10 @@ void LocalizationNode::timer_callback()
                 corrected_points, "lane_line_map_corrected", 0.0F, 1.0F, 1.0F));
 
         const auto icp_pose = make_localized_pose(initial_pose, result.translation);
-        localized_pose_publisher_->publish(update_ekf_with_icp_pose(icp_pose));
+        {
+            std::lock_guard<std::mutex> lock(data_mutex_);
+            localized_pose_publisher_->publish(update_ekf_with_icp_pose(icp_pose));
+        }
         RCLCPP_DEBUG(
             this->get_logger(),
             "localized correction=(%.3f, %.3f), correspondences=%zu, mean_error=%.3f",
