@@ -28,15 +28,26 @@ steering_max_angle(dtor(get_parameter("steering_max.pos").as_double()))
 }
 
 void Controller::_subscriber_callback_joy(const sensor_msgs::msg::Joy::SharedPtr msg){
+    const auto share_idx = static_cast<int>(Buttons::Share);
+    const auto options_idx = static_cast<int>(Buttons::Options);
+    const auto ps_idx = static_cast<int>(Buttons::PS);
+
     // 自動か手動か
-    if(upedge_share(msg->buttons[static_cast<int>(Buttons::Share)])){
+    if(share_idx < static_cast<int>(msg->buttons.size()) && upedge_share(msg->buttons[share_idx])){
         auto msg_autonomous = std::make_shared<std_msgs::msg::Bool>();
         msg_autonomous->data = is_autonomous = !is_autonomous;
         publisher_autonomous->publish(*msg_autonomous);
         RCLCPP_INFO(this->get_logger(), "自動フラグ : %d", msg_autonomous->data);
     }
+    // PSボタン(buttons[10])で自動走行モードへ移行し、Pure Pursuitを有効化
+    if(ps_idx < static_cast<int>(msg->buttons.size()) && upedge_ps(msg->buttons[ps_idx])){
+        auto msg_autonomous = std::make_shared<std_msgs::msg::Bool>();
+        msg_autonomous->data = is_autonomous = !is_autonomous;
+        publisher_autonomous->publish(*msg_autonomous);
+        RCLCPP_INFO(this->get_logger(), is_autonomous ? "自動走行モードへ切替: Pure Pursuit 有効" : "手動走行モードへ切替");
+    }
     // リスタート
-    if(upedge_options(msg->buttons[static_cast<int>(Buttons::Options)])){
+    if(options_idx < static_cast<int>(msg->buttons.size()) && upedge_options(msg->buttons[options_idx])){
         publisher_restart->publish(*std::make_shared<std_msgs::msg::Empty>());
         RCLCPP_INFO(this->get_logger(), "再稼働");
     }
