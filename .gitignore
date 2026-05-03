@@ -17,6 +17,9 @@ log/
 
 simulator_old/
 #ファイル名で指定
-
+AGENTS.md
+CLAUDE.md
+.codex
+project.md
 
 #例外ファイルを指定

@@ -42,9 +42,12 @@ def generate_launch_description():
             '/cmd_vel_twist@geometry_msgs/msg/Twist@gz.msgs.Twist'],
         output='screen',
         remappings=[
+            ('/image_raw', '/zed/zed_node/rgb/image_rect_color'),
             ('/depth_image', '/zed/zed_node/depth/depth_registered'),
+            ('/navsat', '/vectornav/gnss'),
             ('/depth_image_raw/points', '/zed/zed_node/pointcloud'),
-            ('/imu_raw', '/vectornav/imu')
+            # /imu_raw は convert_sim_to_vectornav_pose.py が yaw オフセットを適用して
+            # /vectornav/imu へ再配信するため、bridge ではリマップしない
         ]
     )
 
@@ -56,6 +59,28 @@ def generate_launch_description():
             'input_topic': '/cmd_vel',
             'output_topic': '/cmd_vel_twist',
             'wheel_base': 0.8,
+        }]
+    )
+
+    convert_vectornav_pose = Node(
+        package='simulator',
+        executable='convert_sim_to_vectornav_pose.py',
+        output='screen',
+        parameters=[{
+            # /imu_raw から /vectornav/imu へ変換するときのyaw補正。
+            # /vectornav/imuのyawは実機同様に北基準headingとして扱い，
+            # localization/odom側でROS ENU yawへ変換する。
+            'yaw_offset_deg': -176.0,
+            'imu_frame_id': 'base_link',
+        }]
+    )
+
+    convert_vectornav_velocity_body = Node(
+        package='simulator',
+        executable='convert_sim_to_vectornav_velocity_body.py',
+        output='screen',
+        parameters=[{
+            'body_frame_id': 'base_link',
         }]
     )
 
@@ -108,6 +133,8 @@ def generate_launch_description():
                 ('gz_args', [world_file_path, ' -r'])]
         ),
         steered_to_twist,
+        convert_vectornav_pose,
+        convert_vectornav_velocity_body,
         bridge,
         robot_state_publisher,
         TimerAction(

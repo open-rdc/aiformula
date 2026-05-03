@@ -16,6 +16,13 @@
   <depend>chassis_driver</depend>
   <depend>frenet_planner</depend>
   <depend>path_tracker</depend>
+  <depend>utilities</depend>
+  <depend>localization</depend>
+  <depend>motion_control</depend>
+  <depend>lane_planner</depend>
+  <depend>local_planner</depend>
+  <depend>zed_wrapper</depend>
+  <depend>vectormap_server</depend>
   <depend>gnssnav</depend>
 
   <buildtool_depend>ament_cmake</buildtool_depend>

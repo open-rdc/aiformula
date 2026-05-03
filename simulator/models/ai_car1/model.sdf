@@ -304,7 +304,7 @@
     <joint name="camera_joint" type="fixed">
       <parent>chassis</parent>
       <child>camera_link</child>
-      <pose>0.35 0 0.55 0 0 0</pose>
+      <pose>0 0 0 0 0 0</pose>
       <axis>
         <xyz>0 0 1</xyz>
       </axis>
@@ -313,7 +313,7 @@
     <joint name="camera_rgb_joint" type="fixed">
       <parent>camera_link</parent>
       <child>camera_rgb_link</child>
-      <pose>0.35 0 0.55 0 0 0</pose>
+      <pose>0 0 0 0 0 0</pose>
       <axis>
         <xyz>0 0 1</xyz>
       </axis>
@@ -322,7 +322,7 @@
     <joint name="camera_depth_joint" type="fixed">
       <parent>camera_link</parent>
       <child>camera_depth_link</child>
-      <pose>0.35 0 0.55 0 0 0</pose>
+      <pose>0 0 0 0 0 0</pose>
       <axis>
         <xyz>0 0 1</xyz>
       </axis>
@@ -330,7 +330,7 @@
 
 
     <link name="camera_link">
-      <pose>0 0 0 0 0 0</pose>
+      <pose relative_to="chassis">0.055 0.0 0.54 0.0 0.0 -3.14</pose>
       <inertial>
         <mass>0.01</mass>
         <inertia>
@@ -342,18 +342,19 @@
     </link>
 
     <link name="camera_rgb_link">
+      <pose relative_to="camera_link">0 0 0 0 0 0</pose>
       <sensor name="camera_rgb_link" type="camera">
         <update_rate>60.0</update_rate>
         <always_on>true</always_on>
         <ignition_frame_id>camera_rgb_link</ignition_frame_id>
-        <pose>0.35 0 0.55 0 0 0</pose>
+        <pose>0 0 0 0 0 0</pose>
         <topic>image_raw</topic>
         <camera name="camera">
-          <horizontal_fov>1.91986</horizontal_fov>
-          <vertical_fov>1.39626</vertical_fov>
+          <horizontal_fov>1.82861281254</horizontal_fov>
+          <vertical_fov>1.26187565183</vertical_fov>
           <image>
-             <width>480</width>
-             <height>300</height>
+             <width>640</width>
+             <height>360</height>
              <format>R8G8B8</format>
           </image>
           <clip>
@@ -365,21 +366,22 @@
     </link>
 
     <link name="camera_depth_link">
+      <pose relative_to="camera_link">0 0 0 0 0 0</pose>
       <sensor name="camera_depth_link" type="depth">
         <update_rate>60.0</update_rate>
         <always_on>true</always_on>
         <ignition_frame_id>camera_depth_link</ignition_frame_id>
-        <pose>0.35 0 0.55 0 0 0</pose>
+        <pose>0 0 0 0 0 0</pose>
         <topic>depth_image_raw</topic>
         <pointcloud>
           <topic>depth_points</topic>
         </pointcloud>
         <camera name="camera">
-          <horizontal_fov>1.91986</horizontal_fov>
-          <vertical_fov>1.39626</vertical_fov>
+          <horizontal_fov>1.82861281254</horizontal_fov>
+          <vertical_fov>1.26187565183</vertical_fov>
           <image>
-             <width>480</width>
-             <height>300</height>
+             <width>640</width>
+             <height>360</height>
              <format>R8G8B8</format>
           </image>
           <clip>
