@@ -108,7 +108,7 @@ private:
     bool route_is_loop_;
     bool pending_route_rebuild_;
     std::string pending_route_rebuild_reason_;
-    uint64_t route_start_lanelet_id_;
+    std::vector<uint64_t> current_route_lanelet_ids_;
     uint8_t last_nav_cmd_turn_;
     std::vector<uint8_t> nav_cmd_fallback_order_;
 

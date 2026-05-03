@@ -62,7 +62,6 @@ LanePlannerNode::LanePlannerNode(
   route_is_loop_(false),
   pending_route_rebuild_(false),
   pending_route_rebuild_reason_(""),
-  route_start_lanelet_id_(0U),
   last_nav_cmd_turn_(vectormap_msgs::msg::LaneConnection::TURN_STRAIGHT)
 {
     if (update_period_ms_ <= 0) {
@@ -187,9 +186,27 @@ void LanePlannerNode::timer_callback()
     }
 
     const uint64_t current_lanelet_id = find_nearest_lanelet_from_pose(ego);
-    if (current_lanelet_id != 0U && current_lanelet_id != route_start_lanelet_id_) {
-        rebuild_route_from_lanelet(current_lanelet_id, "lanelet_crossing");
+    if (current_lanelet_id == 0U) {
+        return;
+    }
+
+    const auto route_it = std::find(
+        current_route_lanelet_ids_.begin(),
+        current_route_lanelet_ids_.end(),
+        current_lanelet_id);
+
+    if (route_it == current_route_lanelet_ids_.end()) {
+        // Vehicle is not on any planned lanelet
+        rebuild_route_from_lanelet(current_lanelet_id, "out_of_route");
         global_path_publisher_->publish(make_global_path_message(now()));
+    } else {
+        // Rebuild only when the vehicle reaches the last lanelet in the route
+        const std::size_t remaining = static_cast<std::size_t>(
+            std::distance(route_it, current_route_lanelet_ids_.end()));
+        if (remaining == 1U) {
+            rebuild_route_from_lanelet(current_lanelet_id, "lookahead_extension");
+            global_path_publisher_->publish(make_global_path_message(now()));
+        }
     }
 }
 

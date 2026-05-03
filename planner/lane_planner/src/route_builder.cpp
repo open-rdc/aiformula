@@ -249,7 +249,7 @@ void LanePlannerNode::build_route_from_lanelet_ids(
     }
     global_samples_.push_back(
         interpolate_raw_path(route_points, raw_s, raw_s.back(), lanelet_at_s(raw_s.back())));
-    route_start_lanelet_id_ = first_lanelet_id;
+    current_route_lanelet_ids_ = route_lanelet_ids;
 }
 
 void LanePlannerNode::rebuild_route_from_lanelet(
