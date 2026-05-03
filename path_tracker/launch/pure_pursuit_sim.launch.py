@@ -15,6 +15,7 @@ def generate_launch_description():
             'wheelbase': 0.8,
             'steering_max.pos': 30.0,
             'linear_max.vel': 1.0,
+            'publish_hz': 50.0,
         }],
         remappings=[
             ('/frenet_planner/path', '/e2e_planner/path'),

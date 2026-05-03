@@ -25,10 +25,14 @@ private:
     void autonomous_callback(const std_msgs::msg::Bool::SharedPtr msg);
 
     rclcpp::Publisher<steered_drive_msg::msg::SteeredDrive>::SharedPtr publisher_vel;
+    rclcpp::TimerBase::SharedPtr _publish_timer;
+    void _publish_timer_callback();
 
     rclcpp::QoS _qos = rclcpp::QoS(10);
 
     bool autonomous_flag_ = false;
+    steered_drive_msg::msg::SteeredDrive last_command_;
+    bool has_command_ = false;
 
     const double linear_max_vel;
     const double lookahead_distance;
