@@ -21,6 +21,13 @@ def launch_setup(context, *args, **kwargs):
         parameters=[{
             'model_name': model_name,
             'interval_ms': 100,
+            'default_command': 1,
+            'use_place_recognition': True,
+            'placenet_model_name': 'placenet.pt',
+            'topomap_dir_name': 'topomap',
+            'placenet_delta': 10.0,
+            'placenet_window_lower': -1,
+            'placenet_window_upper': 2,
         }]
     )
 

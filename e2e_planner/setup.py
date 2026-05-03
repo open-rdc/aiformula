@@ -9,9 +9,9 @@ package_name = 'e2e_planner'
 setup(
     name=package_name,
     version='0.0.1',
-    packages=[package_name, 'util', 'e2e_collector'],
+    packages=[package_name, package_name + '.placenav', 'util', 'e2e_collector'],
     package_dir={
-        'util':          'scripts/util',
+        'util': 'scripts/util',
         'e2e_collector': 'scripts',
     },
     data_files=[
@@ -20,6 +20,8 @@ setup(
         ('share/' + package_name, ['package.xml']),
         (os.path.join('share', package_name, 'launch'), glob('launch/*.launch.py')),
         (os.path.join('share', package_name, 'config'), glob('config/*.yaml')),
+        (os.path.join('share', package_name, 'config', 'topomap'), glob('config/topomap/*.yaml')),
+        (os.path.join('share', package_name, 'config', 'topomap', 'images'), glob('config/topomap/images/*.png')),
         (os.path.join('share', package_name, 'weights'), glob('weights/*.pt')),
     ],
     install_requires=['setuptools'],
