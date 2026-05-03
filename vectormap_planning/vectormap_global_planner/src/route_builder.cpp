@@ -1,4 +1,4 @@
-#include "vectormap_planner/vectormap_planner_node.hpp"
+#include "vectormap_global_planner/vectormap_global_planner_node.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -7,7 +7,7 @@
 #include <unordered_map>
 #include <vector>
 
-namespace vectormap_planner
+namespace vectormap_global_planner
 {
 namespace
 {
@@ -16,15 +16,17 @@ using LineString = vectormap_msgs::msg::LineString;
 
 constexpr double EPSILON = 1.0e-6;
 
-double distance_2d(const VectormapPlannerNode::Point2D& a, const VectormapPlannerNode::Point2D& b)
+double distance_2d(
+    const VectormapGlobalPlannerNode::Point2D& a,
+    const VectormapGlobalPlannerNode::Point2D& b)
 {
     return std::hypot(a.x - b.x, a.y - b.y);
 }
 
 double point_segment_distance_sq(
-    const VectormapPlannerNode::Point2D& point,
-    const VectormapPlannerNode::Point2D& start,
-    const VectormapPlannerNode::Point2D& end)
+    const VectormapGlobalPlannerNode::Point2D& point,
+    const VectormapGlobalPlannerNode::Point2D& start,
+    const VectormapGlobalPlannerNode::Point2D& end)
 {
     const double vx = end.x - start.x;
     const double vy = end.y - start.y;
@@ -44,8 +46,8 @@ double point_segment_distance_sq(
     return dx * dx + dy * dy;
 }
 
-VectormapPlannerNode::PathPoint interpolate_raw_path(
-    const std::vector<VectormapPlannerNode::Point2D>& points,
+VectormapGlobalPlannerNode::PathPoint interpolate_raw_path(
+    const std::vector<VectormapGlobalPlannerNode::Point2D>& points,
     const std::vector<double>& s_values,
     const double target_s,
     const uint64_t lanelet_id)
@@ -70,15 +72,17 @@ VectormapPlannerNode::PathPoint interpolate_raw_path(
     const double x = start.x + ratio * (end.x - start.x);
     const double y = start.y + ratio * (end.y - start.y);
     const double yaw = std::atan2(end.y - start.y, end.x - start.x);
-    return VectormapPlannerNode::PathPoint{clamped_s, x, y, yaw, lanelet_id};
+    return VectormapGlobalPlannerNode::PathPoint{clamped_s, x, y, yaw, lanelet_id};
 }
 
 }  // namespace
 
-void VectormapPlannerNode::build_global_path_once(const vectormap_msgs::msg::VectorMap& map_msg)
+void VectormapGlobalPlannerNode::build_global_path_once(
+    const vectormap_msgs::msg::VectorMap& map_msg)
 {
     if (map_msg.header.frame_id != map_frame_id_) {
-        throw std::runtime_error("VectorMap frame_id must be " + map_frame_id_ + ", got " + map_msg.header.frame_id);
+        throw std::runtime_error(
+            "VectorMap frame_id must be " + map_frame_id_ + ", got " + map_msg.header.frame_id);
     }
 
     lanelet_by_id_.clear();
@@ -99,8 +103,6 @@ void VectormapPlannerNode::build_global_path_once(const vectormap_msgs::msg::Vec
         connection_edges_by_from_lanelet_id_[connection.from_lanelet_id].push_back(
             RouteEdge{connection.to_lanelet_id, connection.turn_direction, connection.cost});
     }
-
-    build_adjacency(lanelet_by_id_);
 
     lanelet_centerline_points_by_id_.clear();
     lanelet_centerline_points_by_id_.reserve(lanelet_by_id_.size());
@@ -144,7 +146,8 @@ void VectormapPlannerNode::build_global_path_once(const vectormap_msgs::msg::Vec
         route_is_loop_ ? "true" : "false");
 }
 
-void VectormapPlannerNode::build_route_from_lanelet_ids(const std::vector<uint64_t>& route_lanelet_ids)
+void VectormapGlobalPlannerNode::build_route_from_lanelet_ids(
+    const std::vector<uint64_t>& route_lanelet_ids)
 {
     if (route_lanelet_ids.empty()) {
         throw std::runtime_error("route lanelet sequence must not be empty");
@@ -161,7 +164,8 @@ void VectormapPlannerNode::build_route_from_lanelet_ids(const std::vector<uint64
         const uint64_t lanelet_id = route_lanelet_ids[route_index];
         const auto lanelet_it = lanelet_by_id_.find(lanelet_id);
         if (lanelet_it == lanelet_by_id_.end()) {
-            throw std::runtime_error("route lanelet id not found: " + std::to_string(lanelet_id));
+            throw std::runtime_error(
+                "route lanelet id not found: " + std::to_string(lanelet_id));
         }
 
         if (route_index + 1U < route_lanelet_ids.size()) {
@@ -176,7 +180,8 @@ void VectormapPlannerNode::build_route_from_lanelet_ids(const std::vector<uint64
                     }) != connections_it->second.end();
             if (!connected) {
                 throw std::runtime_error(
-                    "missing LaneConnection from " + std::to_string(lanelet_id) + " to " + std::to_string(next_id));
+                    "missing LaneConnection from " + std::to_string(lanelet_id) +
+                    " to " + std::to_string(next_id));
             }
         }
 
@@ -188,7 +193,8 @@ void VectormapPlannerNode::build_route_from_lanelet_ids(const std::vector<uint64
         if (!route_points.empty()) {
             const double gap = distance_2d(route_points.back(), centerline_points.front());
             if (gap > max_centerline_connection_gap_m_) {
-                throw std::runtime_error("centerline connection gap is too large: " + std::to_string(gap));
+                throw std::runtime_error(
+                    "centerline connection gap is too large: " + std::to_string(gap));
             }
         }
 
@@ -224,7 +230,8 @@ void VectormapPlannerNode::build_route_from_lanelet_ids(const std::vector<uint64
     if (route_is_loop_) {
         const double closing_gap = distance_2d(route_points.back(), route_points.front());
         if (closing_gap > max_centerline_connection_gap_m_) {
-            throw std::runtime_error("loop centerline closing gap is too large: " + std::to_string(closing_gap));
+            throw std::runtime_error(
+                "loop centerline closing gap is too large: " + std::to_string(closing_gap));
         }
         if (closing_gap > EPSILON) {
             accumulated_s += closing_gap;
@@ -235,16 +242,19 @@ void VectormapPlannerNode::build_route_from_lanelet_ids(const std::vector<uint64
     }
 
     global_samples_.clear();
-    global_samples_.reserve(static_cast<std::size_t>(std::ceil(raw_s.back() / global_path_resample_interval_m_)) + 2U);
+    global_samples_.reserve(
+        static_cast<std::size_t>(std::ceil(raw_s.back() / global_path_resample_interval_m_)) + 2U);
     for (double s = 0.0; s < raw_s.back(); s += global_path_resample_interval_m_) {
         global_samples_.push_back(interpolate_raw_path(route_points, raw_s, s, lanelet_at_s(s)));
     }
-    global_samples_.push_back(interpolate_raw_path(route_points, raw_s, raw_s.back(), lanelet_at_s(raw_s.back())));
+    global_samples_.push_back(
+        interpolate_raw_path(route_points, raw_s, raw_s.back(), lanelet_at_s(raw_s.back())));
     route_start_lanelet_id_ = first_lanelet_id;
-    ++route_version_;
 }
 
-void VectormapPlannerNode::rebuild_route_from_lanelet(const uint64_t start_lanelet_id, const std::string& reason)
+void VectormapGlobalPlannerNode::rebuild_route_from_lanelet(
+    const uint64_t start_lanelet_id,
+    const std::string& reason)
 {
     std::size_t fallback_count = 0U;
     const auto route_lanelet_ids = build_route_sequence_from_graph(start_lanelet_id, fallback_count);
@@ -265,7 +275,7 @@ void VectormapPlannerNode::rebuild_route_from_lanelet(const uint64_t start_lanel
     }
 }
 
-void VectormapPlannerNode::request_route_rebuild(const std::string& reason)
+void VectormapGlobalPlannerNode::request_route_rebuild(const std::string& reason)
 {
     pending_route_rebuild_ = true;
     if (pending_route_rebuild_reason_.empty()) {
@@ -275,7 +285,9 @@ void VectormapPlannerNode::request_route_rebuild(const std::string& reason)
     }
 }
 
-bool VectormapPlannerNode::rebuild_route_from_pose(const Point2D& ego, const std::string& reason)
+bool VectormapGlobalPlannerNode::rebuild_route_from_pose(
+    const Point2D& ego,
+    const std::string& reason)
 {
     const uint64_t start_lanelet_id = find_nearest_lanelet_from_pose(ego);
     if (start_lanelet_id == 0U) {
@@ -285,12 +297,16 @@ bool VectormapPlannerNode::rebuild_route_from_pose(const Point2D& ego, const std
     return true;
 }
 
-std::vector<uint64_t> VectormapPlannerNode::build_route_sequence_from_graph(
+std::vector<uint64_t> VectormapGlobalPlannerNode::build_route_sequence_from_graph(
     const uint64_t start_lanelet_id,
     std::size_t& fallback_count) const
 {
-    if (lanelet_centerline_points_by_id_.find(start_lanelet_id) == lanelet_centerline_points_by_id_.end()) {
-        throw std::runtime_error("route start lanelet centerline points are not available: " + std::to_string(start_lanelet_id));
+    if (lanelet_centerline_points_by_id_.find(start_lanelet_id) ==
+        lanelet_centerline_points_by_id_.end())
+    {
+        throw std::runtime_error(
+            "route start lanelet centerline points are not available: " +
+            std::to_string(start_lanelet_id));
     }
 
     fallback_count = 0U;
@@ -309,13 +325,20 @@ std::vector<uint64_t> VectormapPlannerNode::build_route_sequence_from_graph(
         if (next_lanelet_id == 0U || next_lanelet_id == start_lanelet_id) {
             break;
         }
-        if (std::find(route_lanelet_ids.begin(), route_lanelet_ids.end(), next_lanelet_id) != route_lanelet_ids.end()) {
-            RCLCPP_WARN(get_logger(), "route graph cycle detected at lanelet %lu; stop lookahead route generation", next_lanelet_id);
+        if (std::find(route_lanelet_ids.begin(), route_lanelet_ids.end(), next_lanelet_id) !=
+            route_lanelet_ids.end())
+        {
+            RCLCPP_WARN(
+                get_logger(),
+                "route graph cycle detected at lanelet %lu; stop lookahead route generation",
+                next_lanelet_id);
             break;
         }
         const auto next_centerline_it = lanelet_centerline_points_by_id_.find(next_lanelet_id);
         if (next_centerline_it == lanelet_centerline_points_by_id_.end()) {
-            throw std::runtime_error("selected lanelet centerline points are not available: " + std::to_string(next_lanelet_id));
+            throw std::runtime_error(
+                "selected lanelet centerline points are not available: " +
+                std::to_string(next_lanelet_id));
         }
         route_lanelet_ids.push_back(next_lanelet_id);
         if (used_fallback) {
@@ -326,7 +349,7 @@ std::vector<uint64_t> VectormapPlannerNode::build_route_sequence_from_graph(
     return route_lanelet_ids;
 }
 
-uint64_t VectormapPlannerNode::select_next_lanelet(
+uint64_t VectormapGlobalPlannerNode::select_next_lanelet(
     const uint64_t from_lanelet_id,
     const uint8_t requested_turn,
     uint8_t& selected_turn,
@@ -362,7 +385,9 @@ uint64_t VectormapPlannerNode::select_next_lanelet(
             continue;
         }
         const auto fallback_it = find_min_cost_edge(fallback_turn);
-        if (fallback_it != edges_it->second.end() && fallback_it->turn_direction == fallback_turn) {
+        if (fallback_it != edges_it->second.end() &&
+            fallback_it->turn_direction == fallback_turn)
+        {
             selected_turn = fallback_turn;
             used_fallback = true;
             return fallback_it->to_lanelet_id;
@@ -372,7 +397,7 @@ uint64_t VectormapPlannerNode::select_next_lanelet(
     return 0U;
 }
 
-uint8_t VectormapPlannerNode::parse_nav_cmd(const std::string& command) const
+uint8_t VectormapGlobalPlannerNode::parse_nav_cmd(const std::string& command) const
 {
     if (command == "straight") {
         return vectormap_msgs::msg::LaneConnection::TURN_STRAIGHT;
@@ -386,7 +411,8 @@ uint8_t VectormapPlannerNode::parse_nav_cmd(const std::string& command) const
     throw std::invalid_argument("nav_cmd must be straight, left, or right: " + command);
 }
 
-std::string VectormapPlannerNode::turn_direction_to_string(const uint8_t turn_direction) const
+std::string VectormapGlobalPlannerNode::turn_direction_to_string(
+    const uint8_t turn_direction) const
 {
     if (turn_direction == vectormap_msgs::msg::LaneConnection::TURN_STRAIGHT) {
         return "straight";
@@ -400,7 +426,8 @@ std::string VectormapPlannerNode::turn_direction_to_string(const uint8_t turn_di
     return "unknown";
 }
 
-uint64_t VectormapPlannerNode::find_nearest_lanelet_from_pose(const Point2D& point) const
+uint64_t VectormapGlobalPlannerNode::find_nearest_lanelet_from_pose(
+    const Point2D& point) const
 {
     uint64_t best_lanelet_id = 0U;
     double best_distance_sq = std::numeric_limits<double>::max();
@@ -422,24 +449,45 @@ uint64_t VectormapPlannerNode::find_nearest_lanelet_from_pose(const Point2D& poi
     return best_lanelet_id;
 }
 
-void VectormapPlannerNode::build_adjacency(
-    const std::unordered_map<uint64_t, Lanelet>& lanelet_by_id)
+uint64_t VectormapGlobalPlannerNode::lanelet_at_s(const double s) const
 {
-    left_adjacent_lanelet_by_id_.clear();
-    right_adjacent_lanelet_by_id_.clear();
-    for (const auto& [id, lanelet] : lanelet_by_id) {
-        for (const auto& [other_id, other] : lanelet_by_id) {
-            if (id == other_id) {
-                continue;
-            }
-            if (lanelet.left_line_id == other.right_line_id) {
-                left_adjacent_lanelet_by_id_[id] = other_id;
-            }
-            if (lanelet.right_line_id == other.left_line_id) {
-                right_adjacent_lanelet_by_id_[id] = other_id;
-            }
-        }
+    if (lanelet_ranges_.empty()) {
+        return 0U;
     }
+    const double normalized_s = normalize_path_s(s);
+    const auto it = std::find_if(
+        lanelet_ranges_.begin(),
+        lanelet_ranges_.end(),
+        [normalized_s](const LaneletRange& range) {
+            return normalized_s >= range.start_s && normalized_s <= range.end_s;
+        });
+    if (it != lanelet_ranges_.end()) {
+        return it->lanelet_id;
+    }
+    return lanelet_ranges_.back().lanelet_id;
 }
 
-}  // namespace vectormap_planner
+double VectormapGlobalPlannerNode::normalize_path_s(const double s) const
+{
+    double path_length = 0.0;
+    if (!global_samples_.empty()) {
+        path_length = global_samples_.back().s;
+    } else if (!lanelet_ranges_.empty()) {
+        path_length = lanelet_ranges_.back().end_s;
+    }
+
+    if (path_length <= EPSILON) {
+        return s;
+    }
+    if (!route_is_loop_) {
+        return std::clamp(s, 0.0, path_length);
+    }
+
+    double normalized = std::fmod(s, path_length);
+    if (normalized < 0.0) {
+        normalized += path_length;
+    }
+    return normalized;
+}
+
+}  // namespace vectormap_global_planner

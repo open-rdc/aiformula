@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(vectormap_planner)
+project(vectormap_global_planner)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
@@ -8,15 +8,13 @@ endif()
 find_package(ament_cmake_auto REQUIRED)
 ament_auto_find_build_dependencies()
 
-ament_auto_add_library(vectormap_planner_node SHARED
-  src/obstacle_planner.cpp
-  src/path_generation.cpp
+ament_auto_add_library(vectormap_global_planner_node SHARED
+  src/vectormap_global_planner_node.cpp
   src/route_builder.cpp
-  src/vectormap_planner_node.cpp
 )
-target_compile_features(vectormap_planner_node PUBLIC c_std_99 cxx_std_17)
-target_compile_definitions(vectormap_planner_node PRIVATE "VECTORMAP_PLANNER_BUILDING_LIBRARY")
-target_include_directories(vectormap_planner_node PUBLIC
+target_compile_features(vectormap_global_planner_node PUBLIC c_std_99 cxx_std_17)
+target_compile_definitions(vectormap_global_planner_node PRIVATE "VECTORMAP_GLOBAL_PLANNER_BUILDING_LIBRARY")
+target_include_directories(vectormap_global_planner_node PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
 )
