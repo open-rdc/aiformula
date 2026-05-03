@@ -103,6 +103,8 @@ EkfLocalizerConfig make_ekf_config(rclcpp::Node& node)
     config.gnss_position_variance = node.get_parameter("ekf.gnss_position_variance").as_double();
     config.imu_yaw_variance = node.get_parameter("ekf.imu_yaw_variance").as_double();
     config.icp_position_variance = node.get_parameter("ekf.icp_position_variance").as_double();
+    config.position_gate_dist = node.get_parameter("ekf.position_gate_dist").as_double();
+    config.yaw_gate_dist = node.get_parameter("ekf.yaw_gate_dist").as_double();
     return config;
 }
 
@@ -186,8 +188,6 @@ LocalizationNode::LocalizationNode(
   min_observed_points_(static_cast<std::size_t>(get_parameter("min_observed_points").as_int())),
   min_map_points_(static_cast<std::size_t>(get_parameter("min_map_points").as_int())),
   map_sample_interval_m_(get_parameter("map_sample_interval_m").as_double()),
-  output_position_variance_(get_parameter("output_position_variance").as_double()),
-  output_yaw_variance_(get_parameter("output_yaw_variance").as_double()),
   camera_model_(make_camera_model(*this)),
   icp_matcher_(make_icp_config(*this)),
   ekf_config_(make_ekf_config(*this)),
@@ -226,9 +226,6 @@ LocalizationNode::LocalizationNode(
     }
     if (map_sample_interval_m_ <= 0.0) {
         throw std::invalid_argument("map_sample_interval_m must be greater than 0");
-    }
-    if (output_position_variance_ <= 0.0 || output_yaw_variance_ <= 0.0) {
-        throw std::invalid_argument("output covariance parameters must be greater than 0");
     }
 
     mask_subscription_ = this->create_subscription<sensor_msgs::msg::Image>(
@@ -461,13 +458,21 @@ geometry_msgs::msg::PoseWithCovarianceStamped LocalizationNode::update_ekf_with_
     }
 
     if (!has_last_gnss_update_stamp_ || !same_stamp(raw_pose.header.stamp, last_gnss_update_stamp_)) {
-        ekf_localizer_.update_position(raw_x, raw_y, ekf_config_.gnss_position_variance);
+        if (!ekf_localizer_.update_position(raw_x, raw_y, ekf_config_.gnss_position_variance)) {
+            RCLCPP_WARN_THROTTLE(
+                get_logger(), *get_clock(), 1000,
+                "GNSS position update rejected by Mahalanobis gate (%.2f, %.2f)", raw_x, raw_y);
+        }
         has_last_gnss_update_stamp_ = true;
         last_gnss_update_stamp_ = raw_pose.header.stamp;
     }
 
     if (!has_last_imu_update_stamp_ || !same_stamp(imu_msg.header.stamp, last_imu_update_stamp_)) {
-        ekf_localizer_.update_yaw(raw_yaw, ekf_config_.imu_yaw_variance);
+        if (!ekf_localizer_.update_yaw(raw_yaw, ekf_config_.imu_yaw_variance)) {
+            RCLCPP_WARN_THROTTLE(
+                get_logger(), *get_clock(), 1000,
+                "IMU yaw update rejected by Mahalanobis gate (%.3f rad)", raw_yaw);
+        }
         has_last_imu_update_stamp_ = true;
         last_imu_update_stamp_ = imu_msg.header.stamp;
     }
@@ -509,31 +514,14 @@ std::vector<Eigen::Vector2d> LocalizationNode::observed_points_in_initial_map(
     return map_points;
 }
 
-geometry_msgs::msg::PoseWithCovarianceStamped LocalizationNode::make_localized_pose(
-    const geometry_msgs::msg::PoseWithCovarianceStamped& initial_pose,
-    const Eigen::Vector2d& correction) const
-{
-    geometry_msgs::msg::PoseWithCovarianceStamped localized_pose = initial_pose;
-    localized_pose.header.stamp = this->now();
-    localized_pose.header.frame_id = map_frame_id_;
-    localized_pose.pose.pose.position.x += correction.x();
-    localized_pose.pose.pose.position.y += correction.y();
-    localized_pose.pose.pose.position.z = 0.0;
-    set_yaw(localized_pose.pose.pose.orientation, yaw_from_quaternion(initial_pose.pose.pose.orientation));
-    localized_pose.pose.covariance.fill(0.0);
-    localized_pose.pose.covariance[0] = output_position_variance_;
-    localized_pose.pose.covariance[7] = output_position_variance_;
-    localized_pose.pose.covariance[35] = output_yaw_variance_;
-    return localized_pose;
-}
-
 geometry_msgs::msg::PoseWithCovarianceStamped LocalizationNode::update_ekf_with_icp_pose(
-    const geometry_msgs::msg::PoseWithCovarianceStamped& icp_pose)
+    const double x, const double y)
 {
-    ekf_localizer_.update_position(
-        icp_pose.pose.pose.position.x,
-        icp_pose.pose.pose.position.y,
-        ekf_config_.icp_position_variance);
+    if (!ekf_localizer_.update_position(x, y, ekf_config_.icp_position_variance)) {
+        RCLCPP_WARN_THROTTLE(
+            get_logger(), *get_clock(), 1000,
+            "ICP position update rejected by Mahalanobis gate (%.2f, %.2f)", x, y);
+    }
     return ekf_localizer_.make_pose(this->now(), map_frame_id_);
 }
 
@@ -647,7 +635,12 @@ void LocalizationNode::timer_callback()
                 this->get_logger(),
                 *this->get_clock(),
                 2000,
-                "GNSS fix not available, skipping localization");
+                "GNSS fix not available");
+            std::lock_guard<std::mutex> lock(data_mutex_);
+            if (ekf_localizer_.initialized()) {
+                localized_pose_publisher_->publish(
+                    ekf_localizer_.make_pose(this->now(), map_frame_id_));
+            }
             return;
         }
         raw_pose_publisher_->publish(raw_pose);
@@ -736,10 +729,11 @@ void LocalizationNode::timer_callback()
             make_lane_line_map_marker_array(
                 corrected_points, "lane_line_map_corrected", 0.0F, 1.0F, 1.0F));
 
-        const auto icp_pose = make_localized_pose(initial_pose, result.translation);
+        const double icp_x = initial_pose.pose.pose.position.x + result.translation.x();
+        const double icp_y = initial_pose.pose.pose.position.y + result.translation.y();
         {
             std::lock_guard<std::mutex> lock(data_mutex_);
-            localized_pose_publisher_->publish(update_ekf_with_icp_pose(icp_pose));
+            localized_pose_publisher_->publish(update_ekf_with_icp_pose(icp_x, icp_y));
         }
         RCLCPP_DEBUG(
             this->get_logger(),

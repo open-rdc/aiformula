@@ -26,6 +26,8 @@ EkfLocalizer::EkfLocalizer(const EkfLocalizerConfig& config)
     validate_variance(config_.gnss_position_variance, "ekf.gnss_position_variance");
     validate_variance(config_.imu_yaw_variance, "ekf.imu_yaw_variance");
     validate_variance(config_.icp_position_variance, "ekf.icp_position_variance");
+    validate_variance(config_.position_gate_dist, "ekf.position_gate_dist");
+    validate_variance(config_.yaw_gate_dist, "ekf.yaw_gate_dist");
 }
 
 bool EkfLocalizer::initialized() const
@@ -108,7 +110,7 @@ void EkfLocalizer::predict(
     stamp_ = stamp;
 }
 
-void EkfLocalizer::update_position(
+bool EkfLocalizer::update_position(
     const double x,
     const double y,
     const double variance)
@@ -129,6 +131,14 @@ void EkfLocalizer::update_position(
     const Eigen::Vector2d residual(x - state_(0), y - state_(1));
     const Eigen::Matrix2d innovation_covariance =
         observation * covariance_ * observation.transpose() + measurement_noise;
+
+    // Mahalanobis gate: reject outliers before applying update
+    const double mahalanobis_sq =
+        residual.transpose() * innovation_covariance.inverse() * residual;
+    if (std::sqrt(mahalanobis_sq) > config_.position_gate_dist) {
+        return false;
+    }
+
     const Eigen::Matrix<double, 5, 2> gain =
         covariance_ * observation.transpose() * innovation_covariance.inverse();
 
@@ -136,9 +146,10 @@ void EkfLocalizer::update_position(
     state_(2) = normalize_angle(state_(2));
     const Eigen::Matrix<double, 5, 5> identity = Eigen::Matrix<double, 5, 5>::Identity();
     covariance_ = (identity - gain * observation) * covariance_;
+    return true;
 }
 
-void EkfLocalizer::update_yaw(
+bool EkfLocalizer::update_yaw(
     const double yaw,
     const double variance)
 {
@@ -156,6 +167,13 @@ void EkfLocalizer::update_yaw(
     const double residual = normalize_angle(yaw - state_(2));
     const double innovation_covariance =
         (observation * covariance_ * observation.transpose())(0, 0) + variance;
+
+    // Mahalanobis gate: reject outliers before applying update
+    const double mahalanobis_sq = residual * residual / innovation_covariance;
+    if (std::sqrt(mahalanobis_sq) > config_.yaw_gate_dist) {
+        return false;
+    }
+
     const Eigen::Matrix<double, 5, 1> gain =
         covariance_ * observation.transpose() / innovation_covariance;
 
@@ -163,6 +181,7 @@ void EkfLocalizer::update_yaw(
     state_(2) = normalize_angle(state_(2));
     const Eigen::Matrix<double, 5, 5> identity = Eigen::Matrix<double, 5, 5>::Identity();
     covariance_ = (identity - gain * observation) * covariance_;
+    return true;
 }
 
 geometry_msgs::msg::PoseWithCovarianceStamped EkfLocalizer::make_pose(

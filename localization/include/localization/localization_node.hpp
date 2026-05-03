@@ -63,11 +63,7 @@ private:
     std::vector<Eigen::Vector2d> observed_points_in_initial_map(
         const std::vector<Eigen::Vector2d>& base_points,
         const geometry_msgs::msg::PoseWithCovarianceStamped& initial_pose) const;
-    geometry_msgs::msg::PoseWithCovarianceStamped make_localized_pose(
-        const geometry_msgs::msg::PoseWithCovarianceStamped& initial_pose,
-        const Eigen::Vector2d& correction) const;
-    geometry_msgs::msg::PoseWithCovarianceStamped update_ekf_with_icp_pose(
-        const geometry_msgs::msg::PoseWithCovarianceStamped& icp_pose);
+    geometry_msgs::msg::PoseWithCovarianceStamped update_ekf_with_icp_pose(double x, double y);
     visualization_msgs::msg::MarkerArray make_lane_line_marker_array(
         const std::vector<Eigen::Vector2d>& base_points) const;
     visualization_msgs::msg::MarkerArray make_lane_line_map_marker_array(
@@ -91,8 +87,6 @@ private:
     const std::size_t min_observed_points_;
     const std::size_t min_map_points_;
     const double map_sample_interval_m_;
-    const double output_position_variance_;
-    const double output_yaw_variance_;
     const CameraModel camera_model_;
     const IcpMatcher icp_matcher_;
     const EkfLocalizerConfig ekf_config_;
