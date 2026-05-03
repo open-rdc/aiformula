@@ -1,8 +1,0 @@
-<class_libraries>
-  <library path="pure_pursuit_plugin">
-    <class type="vectormap_control::PurePursuitPlugin"
-           base_class_type="vectormap_control::ControllerPlugin">
-      <description>Pure Pursuit controller plugin</description>
-    </class>
-  </library>
-</class_libraries>

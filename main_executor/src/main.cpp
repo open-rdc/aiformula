@@ -5,11 +5,11 @@
 #include "chassis_driver/chassis_driver_node.hpp"
 #include "frenet_planner/frenet_planner_node.hpp"
 #include "path_tracker/pure_pursuit_node.hpp"
-#include "vectormap_localization/map_odom_tf_node.hpp"
-#include "vectormap_localization/odom_tf_node.hpp"
-#include "vectormap_localization/vectormap_localization_node.hpp"
-#include "vectormap_control/vectormap_controller_server.hpp"
-#include "vectormap_global_planner/vectormap_global_planner_node.hpp"
+#include "localization/map_odom_tf_node.hpp"
+#include "localization/odom_tf_node.hpp"
+#include "localization/localization_node.hpp"
+#include "motion_control/controller_server.hpp"
+#include "lane_planner/lane_planner_node.hpp"
 #include "local_planner/local_planner_server.hpp"
 #include "vectormap_server/vectormap_server_node.hpp"
 
@@ -30,16 +30,16 @@ int main(int argc, char * argv[]){
     auto frenet_planner_node = std::make_shared<frenet_planner::FrenetPlannerNode>(nodes_option);
     auto path_tracker_node = std::make_shared<path_tracker::PurePursuit>(nodes_option);
     auto vectormap_server_node = std::make_shared<vectormap_server::VectormapServerNode>(nodes_option);
-    auto vectormap_localization_node =
-        std::make_shared<vectormap_localization::VectormapLocalizationNode>(nodes_option);
-    auto odom_tf_node = std::make_shared<vectormap_localization::OdomTfNode>(nodes_option);
-    auto map_odom_tf_node = std::make_shared<vectormap_localization::MapOdomTfNode>(nodes_option);
-    auto vectormap_global_planner_node =
-        std::make_shared<vectormap_global_planner::VectormapGlobalPlannerNode>(nodes_option);
+    auto localization_node =
+        std::make_shared<localization::LocalizationNode>(nodes_option);
+    auto odom_tf_node = std::make_shared<localization::OdomTfNode>(nodes_option);
+    auto map_odom_tf_node = std::make_shared<localization::MapOdomTfNode>(nodes_option);
+    auto lane_planner_node =
+        std::make_shared<lane_planner::LanePlannerNode>(nodes_option);
     auto local_planner_server_node =
         std::make_shared<local_planner::LocalPlannerServer>(nodes_option);
-    auto vectormap_controller_server_node =
-        std::make_shared<vectormap_control::VectormapControllerServer>(nodes_option);
+    auto controller_server_node =
+        std::make_shared<motion_control::ControllerServer>(nodes_option);
 
     if (use_zed) {
         exec.add_node(std::make_shared<zed_wrapper::ZedWrapperNode>(nodes_option));
@@ -49,12 +49,12 @@ int main(int argc, char * argv[]){
     // exec.add_node(frenet_planner_node);
     // exec.add_node(path_tracker_node);
     exec.add_node(vectormap_server_node);
-    exec.add_node(vectormap_localization_node);
+    exec.add_node(localization_node);
     exec.add_node(odom_tf_node);
     exec.add_node(map_odom_tf_node);
-    exec.add_node(vectormap_global_planner_node);
+    exec.add_node(lane_planner_node);
     exec.add_node(local_planner_server_node);
-    exec.add_node(vectormap_controller_server_node);
+    exec.add_node(controller_server_node);
 
     exec.spin();
     rclcpp::shutdown();

@@ -76,7 +76,7 @@ vectormap_server_node:
     # front_view_extractor 式の +u 方向を ENU に投影して数値的に算出
     map_yaw_from_east : 0.02686650
 
-vectormap_localization_node:
+localization_node:
   ros__parameters:
     update_period_ms : 100
     map_frame_id : "map"
@@ -156,7 +156,7 @@ map_odom_tf_node:
     base_frame_id        : "base_link"
     localized_pose_topic : "/localization/pose"
 
-vectormap_global_planner_node:
+lane_planner_node:
   ros__parameters:
     update_period_ms : 100
     map_frame_id : "map"
@@ -205,9 +205,9 @@ local_planner_server_node:
     frenet_weight_avoidance_shift : 0.1
     obstacle_pointcloud_step : 8
 
-vectormap_controller_server_node:
+controller_server_node:
   ros__parameters:
-    controller_plugin  : "vectormap_control::PurePursuitPlugin"
+    controller_plugin  : "motion_control::PurePursuitPlugin"
     path_topic         : "/planner/local_path"
     pose_topic         : "/localization/pose"
     autonomous_topic   : "/autonomous"
