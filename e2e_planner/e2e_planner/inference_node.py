@@ -1,3 +1,4 @@
+import argparse
 import rclpy
 from rclpy.node import Node
 from rclpy.callback_groups import ReentrantCallbackGroup
@@ -12,11 +13,12 @@ import torch
 from torchvision import transforms
 import numpy as np
 import os
+import sys
 from pathlib import Path as FilePath
 from rclpy.qos import qos_profile_system_default, qos_profile_sensor_data
 from ament_index_python.packages import get_package_share_directory
 from scipy.interpolate import splprep, splev
-from typing import Tuple
+from typing import Optional, Tuple
 from .zed_sdk import ZedSdk
 
 from e2e_planner.placenav.place_recognition import PlaceRecognition
@@ -30,11 +32,14 @@ def denormalize_waypoints(normalized: np.ndarray) -> np.ndarray:
     return denormalized
 
 class InferenceNode(Node):
-    def __init__(self) -> None:
+    def __init__(self, simulator_mode: bool = False) -> None:
         super().__init__('inference_node')
 
         self.declare_parameter('model_name', 'model.pt')
         self.declare_parameter('interval_ms', 100)
+        self.declare_parameter('sim_flag', simulator_mode)
+        self.declare_parameter('image_topic', '/image_raw')
+        self.declare_parameter('debug_mode', True)
         self.declare_parameter('default_command', 1)
         self.declare_parameter('use_place_recognition', False)
         self.declare_parameter('placenet_model_name', 'placenet.pt')
@@ -45,6 +50,9 @@ class InferenceNode(Node):
 
         model_path = self.get_parameter('model_name').value
         interval_ms = self.get_parameter('interval_ms').value
+        self.sim_flag = bool(self.get_parameter('sim_flag').value)
+        image_topic = self.get_parameter('image_topic').value
+        self.debug_mode = bool(self.get_parameter('debug_mode').value)
         self.command = int(self.get_parameter('default_command').value)
         self.use_place_recognition = bool(self.get_parameter('use_place_recognition').value)
         placenet_model_name = self.get_parameter('placenet_model_name').value
@@ -58,8 +66,7 @@ class InferenceNode(Node):
         self.zed = None
 
         self.cv_image = None
-
-        self.sim_flag = False
+        self.cv_header: Optional[Header] = None
 
         package_share_directory = get_package_share_directory('e2e_planner')
         weight_path = os.path.join(package_share_directory, 'weights', model_path)
@@ -105,27 +112,34 @@ class InferenceNode(Node):
             transforms.Resize((85, 85), antialias=True),
             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
         ])
-        self.zed = ZedSdk(self, self.sim_flag)
         self.create_subscription(UInt8, '/command', self.command_callback, qos_profile_system_default)
 
         self.pub_raw = self.create_publisher(Path, 'e2e_planner/path_raw', qos_profile_system_default)
         self.pub = self.create_publisher(Path, 'e2e_planner/path', qos_profile_system_default)
-        self.pub_pointcloud = self.create_publisher(PointCloud2, '/zed/zed_node/pointcloud', qos_profile_sensor_data)
-        self.pub_debug_image = self.create_publisher(Image, 'e2e_planner/debug_image', qos_profile_system_default)
-        self.get_logger().info('Debug mode enabled: publishing preprocessed images to e2e_planner/debug_image')
+        self.pub_pointcloud = None
+        if self.debug_mode:
+            self.pub_debug_image = self.create_publisher(Image, 'e2e_planner/debug_image', qos_profile_system_default)
+            self.get_logger().info('Debug mode enabled: publishing preprocessed images to e2e_planner/debug_image')
 
         self.torch_cb_group = ReentrantCallbackGroup()
         self.zed_cb_group = ReentrantCallbackGroup()
+
+        if self.sim_flag:
+            self.create_subscription(Image, image_topic, self.image_callback, qos_profile_sensor_data)
+            self.get_logger().info(f'Using simulator image topic: {image_topic}')
+        else:
+            self.zed = ZedSdk(self, self.sim_flag)
+            self.pub_pointcloud = self.create_publisher(PointCloud2, '/zed/zed_node/pointcloud', qos_profile_sensor_data)
+            self.zed_timer = self.create_timer(
+                10.0 / 1000.0,
+                self.zed_sensor_callback,
+                callback_group=self.zed_cb_group,
+            )
 
         self.torch_timer = self.create_timer(
             interval_ms / 1000.0,
             self.torch_callback,
             callback_group=self.torch_cb_group,
-        )
-        self.zed_timer = self.create_timer(
-            10.0 / 1000.0,
-            self.zed_sensor_callback,
-            callback_group=self.zed_cb_group,
         )
 
     def command_callback(self, msg: UInt8) -> None:
@@ -173,33 +187,38 @@ class InferenceNode(Node):
         return image
 
     def preprocess_image(self, image: np.ndarray) -> Tuple[torch.Tensor, np.ndarray]:
-        if self.sim_flag:
-            mask = ((image[:, :, 2] > 200) & (image[:, :, 0] < 50) & (image[:, :, 1] < 50)).astype(np.uint8)
-        else:
-            bgr_image = self._to_bgr(image)
-            if self.yolop_processor is None:
-                raise RuntimeError('YOLOPv2 processor is not available.')
-            mask = self.yolop_processor.process_image(bgr_image)
+        bgr_image = self._to_bgr(image)
+        if self.yolop_processor is None:
+            raise RuntimeError('YOLOPv2 processor is not available.')
+        mask = self.yolop_processor.process_image(bgr_image)
 
         mask_normalized = lane_mask_to_tensor_array(mask)
         tensor = torch.from_numpy(mask_normalized).unsqueeze(0).unsqueeze(0)
         return tensor.to(self.device), mask_normalized
 
+    def image_callback(self, msg: Image) -> None:
+        self.cv_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
+        self.cv_header = msg.header
+
     def torch_callback(self) -> None:
         if self.cv_image is None or self.model is None or self.yolop_processor is None:
             return
-        header = Header()
-        header.stamp = self.get_clock().now().to_msg()
-        header.frame_id = 'base_link'
+        if self.cv_header is None:
+            header = Header()
+            header.stamp = self.get_clock().now().to_msg()
+            header.frame_id = 'base_link'
+        else:
+            header = self.cv_header
 
         input_tensor, mask = self.preprocess_image(self.cv_image)
         command = self.recognize_command(self.cv_image)
         command_tensor = self.preprocess_command(command)
 
-        debug_image = overlay_lane_mask(self._to_bgr(self.cv_image), mask)
-        debug_msg = self.bridge.cv2_to_imgmsg(debug_image, encoding='bgr8')
-        debug_msg.header = header
-        self.pub_debug_image.publish(debug_msg)
+        if self.debug_mode:
+            debug_image = overlay_lane_mask(self._to_bgr(self.cv_image), mask)
+            debug_msg = self.bridge.cv2_to_imgmsg(debug_image, encoding='bgr8')
+            debug_msg.header = header
+            self.pub_debug_image.publish(debug_msg)
 
         with torch.no_grad():
             output = self.run_model(input_tensor, command_tensor)
@@ -219,6 +238,7 @@ class InferenceNode(Node):
             return
 
         self.cv_image = self.zed.get_image()
+        self.cv_header = None
 
         header = Header()
         header.stamp = self.get_clock().now().to_msg()
@@ -228,7 +248,8 @@ class InferenceNode(Node):
         if pointcloud_msg is None:
             pointcloud_msg = PointCloud2()
             pointcloud_msg.header = header
-        self.pub_pointcloud.publish(pointcloud_msg)
+        if self.pub_pointcloud is not None:
+            self.pub_pointcloud.publish(pointcloud_msg)
 
     def apply_bspline_smoothing(self, output: torch.Tensor, header) -> Path:
         waypoints = output.cpu().numpy().reshape(-1, 2)
@@ -262,9 +283,17 @@ class InferenceNode(Node):
         return path_msg
 
 
+def _parse_args(args):
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument('--sim', action='store_true', help='Use simulator image topic instead of ZED SDK')
+    source_args = sys.argv[1:] if args is None else list(args)
+    return parser.parse_known_args(source_args)
+
+
 def main(args=None) -> None:
-    rclpy.init(args=args)
-    node = InferenceNode()
+    cli_args, ros_args = _parse_args(args)
+    rclpy.init(args=[sys.argv[0], *ros_args])
+    node = InferenceNode(simulator_mode=cli_args.sim)
     executor = MultiThreadedExecutor(num_threads=2)
     executor.add_node(node)
     executor.spin()

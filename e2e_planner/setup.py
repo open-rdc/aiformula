@@ -36,8 +36,6 @@ setup(
             'data_collector     = e2e_collector.create_data:main',
             # 実機用ウェイポイント推論
             'inference_node     = e2e_planner.inference_node:main',
-            # シミュレーター用ウェイポイント推論 (旧)
-            'inference_node_sim = e2e_planner.inference_node_sim:main',
         ],
     },
 )

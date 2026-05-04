@@ -6,12 +6,9 @@ from launch_ros.actions import Node
 def launch_setup(context, *args, **kwargs):
     sim_flag = LaunchConfiguration('sim_flag').perform(context)
 
-    if sim_flag.lower() == 'true':
-        executable_name = 'inference_node_sim'
-        model_name = 'e2e_model.pt'
-    else:
-        executable_name = 'inference_node'
-        model_name = 'e2e_model.pt'
+    is_sim = sim_flag.lower() == 'true'
+    executable_name = 'inference_node'
+    model_name = 'e2e_model.pt'
 
     inference_node = Node(
         package='e2e_planner',
@@ -21,6 +18,9 @@ def launch_setup(context, *args, **kwargs):
         parameters=[{
             'model_name': model_name,
             'interval_ms': 50,
+            'sim_flag': is_sim,
+            'image_topic': '/image_raw',
+            'debug_mode': True,
             'default_command': 1,
             'use_place_recognition': False,
             'placenet_model_name': 'placenet.pt',
