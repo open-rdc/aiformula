@@ -41,7 +41,7 @@ class InferenceNode(Node):
         self.declare_parameter('model_name', 'model.pt')
         self.declare_parameter('interval_ms', 100)
         self.declare_parameter('default_command', 1)
-        self.declare_parameter('use_place_recognition', True)
+        self.declare_parameter('use_place_recognition', False)
         self.declare_parameter('placenet_model_name', 'placenet.pt')
         self.declare_parameter('topomap_dir_name', 'topomap')
         self.declare_parameter('placenet_delta', 10.0)
@@ -78,26 +78,41 @@ class InferenceNode(Node):
         if os.path.exists(weight_path):
             self.model = torch.jit.load(weight_path, map_location=self.device)
             self.model.eval()
+            self.model_uses_command = self._model_uses_command(self.model)
+            if not self.model_uses_command:
+                self.get_logger().warn(
+                    'Loaded model accepts only image input; navigation command will be ignored.'
+                )
         else:
             self.get_logger().warn(f'Model file not found: {weight_path}')
             self.model = None
+            self.model_uses_command = False
 
-        self.yolop_processor = YOLOPv2Processor(yolop_weight_path, self.device)
-        self.get_logger().info('Warming up YOLOP (JIT compile)...')
-        dummy = np.zeros((300, 480, 3), dtype=np.uint8)
-        self.yolop_processor.process_image(dummy)
-        self.get_logger().info('YOLOP warmup done.')
+        self.yolop_processor = None
+        if yolop_weight_path.exists():
+            self.yolop_processor = YOLOPv2Processor(yolop_weight_path, self.device)
+            self.get_logger().info('Warming up YOLOP (JIT compile)...')
+            dummy = np.zeros((300, 480, 3), dtype=np.uint8)
+            self.yolop_processor.process_image(dummy)
+            self.get_logger().info('YOLOP warmup done.')
+        else:
+            self.get_logger().warn(f'YOLOPv2 model not found: {yolop_weight_path}')
 
         self.place_recognition = None
         if self.use_place_recognition:
-            self.place_recognition = PlaceRecognition(
-                placenet_weight_path,
-                topomap_path,
-                device=self.device,
-                delta=self.placenet_delta,
-                window_lower=self.placenet_window_lower,
-                window_upper=self.placenet_window_upper,
-            )
+            if not placenet_weight_path.exists():
+                self.get_logger().warn(f'Place recognition model not found: {placenet_weight_path}')
+            elif not topomap_path.exists():
+                self.get_logger().warn(f'Topomap not found: {topomap_path}')
+            else:
+                self.place_recognition = PlaceRecognition(
+                    placenet_weight_path,
+                    topomap_path,
+                    device=self.device,
+                    delta=self.placenet_delta,
+                    window_lower=self.placenet_window_lower,
+                    window_upper=self.placenet_window_upper,
+                )
         self.placenet_transform = transforms.Compose([
             transforms.ToTensor(),
             transforms.Resize((85, 85), antialias=True),
@@ -157,6 +172,18 @@ class InferenceNode(Node):
         command_tensor[0, command_idx] = 1.0
         return command_tensor
 
+    def _model_uses_command(self, model) -> bool:
+        try:
+            schema = str(model.forward.schema)
+        except RuntimeError:
+            return True
+        return 'Tensor cmd' in schema or 'Tensor command' in schema
+
+    def run_model(self, input_tensor: torch.Tensor, command_tensor: torch.Tensor) -> torch.Tensor:
+        if self.model_uses_command:
+            return self.model(input_tensor, command_tensor)
+        return self.model(input_tensor)
+
     def preprocess_placenet_image(self, image: np.ndarray) -> torch.Tensor:
         bgr_image = self._to_bgr(image)
         cropped_image = center_square_crop(bgr_image)
@@ -181,6 +208,8 @@ class InferenceNode(Node):
 
     def preprocess_image(self, image: np.ndarray) -> Tuple[torch.Tensor, np.ndarray]:
         bgr_image = self._to_bgr(image)
+        if self.yolop_processor is None:
+            raise RuntimeError('YOLOPv2 processor is not available.')
         mask = self.yolop_processor.process_image(bgr_image)
 
         mask_normalized = lane_mask_to_tensor_array(mask)
@@ -191,7 +220,7 @@ class InferenceNode(Node):
         self.latest_image = msg
 
     def timer_callback(self) -> None:
-        if self.model is None:
+        if self.model is None or self.yolop_processor is None:
             return
 
         if self.sdk_flag_:
@@ -218,7 +247,7 @@ class InferenceNode(Node):
             self.pub_debug_image.publish(debug_msg)
 
         with torch.no_grad():
-            output = self.model(input_tensor, command_tensor)
+            output = self.run_model(input_tensor, command_tensor)
 
         output_normalized = output.cpu().numpy().flatten()
         output_denormalized = denormalize_waypoints(output_normalized)

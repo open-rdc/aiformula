@@ -46,7 +46,11 @@ def lane_mask_to_tensor_array(mask: np.ndarray) -> np.ndarray:
 
 
 def overlay_lane_mask(image_bgr: np.ndarray, processed_mask: np.ndarray) -> np.ndarray:
-    cropped_image = center_square_crop(image_bgr)
+    height, width = image_bgr.shape[:2]
+    if height < PLACENET_CROP_SIZE or width < PLACENET_CROP_SIZE:
+        cropped_image = image_bgr
+    else:
+        cropped_image = center_square_crop(image_bgr)
     debug_image = cv2.resize(cropped_image, MODEL_INPUT_SIZE, interpolation=cv2.INTER_AREA)
     debug_image[processed_mask == 1] = [0, 0, 255]
     return debug_image

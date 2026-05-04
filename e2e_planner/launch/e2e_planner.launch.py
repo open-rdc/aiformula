@@ -22,7 +22,7 @@ def launch_setup(context, *args, **kwargs):
             'model_name': model_name,
             'interval_ms': 50,
             'default_command': 1,
-            'use_place_recognition': True,
+            'use_place_recognition': False,
             'placenet_model_name': 'placenet.pt',
             'topomap_dir_name': 'topomap',
             'placenet_delta': 10.0,

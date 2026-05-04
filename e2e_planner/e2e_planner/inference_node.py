@@ -36,7 +36,7 @@ class InferenceNode(Node):
         self.declare_parameter('model_name', 'model.pt')
         self.declare_parameter('interval_ms', 100)
         self.declare_parameter('default_command', 1)
-        self.declare_parameter('use_place_recognition', True)
+        self.declare_parameter('use_place_recognition', False)
         self.declare_parameter('placenet_model_name', 'placenet.pt')
         self.declare_parameter('topomap_dir_name', 'topomap')
         self.declare_parameter('placenet_delta', 10.0)
@@ -80,17 +80,26 @@ class InferenceNode(Node):
             self.model = None
             self.model_uses_command = False
 
-        self.yolop_processor = YOLOPv2Processor(yolop_weight_path, self.device)
+        self.yolop_processor = None
+        if yolop_weight_path.exists():
+            self.yolop_processor = YOLOPv2Processor(yolop_weight_path, self.device)
+        else:
+            self.get_logger().warn(f'YOLOPv2 model not found: {yolop_weight_path}')
         self.place_recognition = None
         if self.use_place_recognition:
-            self.place_recognition = PlaceRecognition(
-                placenet_weight_path,
-                topomap_path,
-                device=self.device,
-                delta=self.placenet_delta,
-                window_lower=self.placenet_window_lower,
-                window_upper=self.placenet_window_upper,
-            )
+            if not placenet_weight_path.exists():
+                self.get_logger().warn(f'Place recognition model not found: {placenet_weight_path}')
+            elif not topomap_path.exists():
+                self.get_logger().warn(f'Topomap not found: {topomap_path}')
+            else:
+                self.place_recognition = PlaceRecognition(
+                    placenet_weight_path,
+                    topomap_path,
+                    device=self.device,
+                    delta=self.placenet_delta,
+                    window_lower=self.placenet_window_lower,
+                    window_upper=self.placenet_window_upper,
+                )
         self.placenet_transform = transforms.Compose([
             transforms.ToTensor(),
             transforms.Resize((85, 85), antialias=True),
@@ -168,6 +177,8 @@ class InferenceNode(Node):
             mask = ((image[:, :, 2] > 200) & (image[:, :, 0] < 50) & (image[:, :, 1] < 50)).astype(np.uint8)
         else:
             bgr_image = self._to_bgr(image)
+            if self.yolop_processor is None:
+                raise RuntimeError('YOLOPv2 processor is not available.')
             mask = self.yolop_processor.process_image(bgr_image)
 
         mask_normalized = lane_mask_to_tensor_array(mask)
@@ -175,7 +186,7 @@ class InferenceNode(Node):
         return tensor.to(self.device), mask_normalized
 
     def torch_callback(self) -> None:
-        if self.cv_image is None or self.model is None:
+        if self.cv_image is None or self.model is None or self.yolop_processor is None:
             return
         header = Header()
         header.stamp = self.get_clock().now().to_msg()
