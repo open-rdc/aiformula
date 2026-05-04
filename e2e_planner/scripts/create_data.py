@@ -4,7 +4,6 @@ import argparse
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Image, Joy, PointCloud2
-from std_msgs.msg import UInt8
 from geometry_msgs.msg import PoseWithCovarianceStamped
 from nav_msgs.msg import Odometry
 from cv_bridge import CvBridge
@@ -63,7 +62,6 @@ class DataCollectionNode(Node):
         self.declare_parameter('pose_topic', '/vectornav/pose')
         self.declare_parameter('odom_topic', '/odom')
         self.declare_parameter('joy_topic', '/joy')
-        self.declare_parameter('command_topic', '/command')
         self.declare_parameter('save_interval_sec', SAMPLE_INTERVAL)
         self.declare_parameter('toggle_button_index', 2)
         self.declare_parameter('left_button_index', 6)
@@ -77,7 +75,6 @@ class DataCollectionNode(Node):
         self.pose_topic = self.get_parameter('pose_topic').value
         self.odom_topic = self.get_parameter('odom_topic').value
         self.joy_topic = self.get_parameter('joy_topic').value
-        self.command_topic = self.get_parameter('command_topic').value
         self.save_interval = float(self.get_parameter('save_interval_sec').value)
         self.toggle_button_index = int(self.get_parameter('toggle_button_index').value)
         self.left_button_index = int(self.get_parameter('left_button_index').value)
@@ -118,8 +115,6 @@ class DataCollectionNode(Node):
             self.create_subscription(Odometry, self.odom_topic, self.odom_callback, qos_profile_sensor_data)
         else:
             self.create_subscription(PoseWithCovarianceStamped, self.pose_topic, self.pose_callback, qos_profile_sensor_data)
-        self.create_subscription(UInt8, self.command_topic, self.command_callback, 10)
-
         self.create_subscription(Joy, self.joy_topic, self.joy_callback, 10)
         self.create_timer(0.1, self.timer_callback)
 
@@ -179,9 +174,6 @@ class DataCollectionNode(Node):
 
     def pointcloud_callback(self, msg: PointCloud2) -> None:
         self.latest_pointcloud = msg
-
-    def command_callback(self, msg: UInt8) -> None:
-        self.latest_command = int(msg.data)
 
     def _convert_pointcloud2_to_array(self, pointcloud_msg: PointCloud2) -> np.ndarray:
         points_list = [[point[0], point[1], point[2], point[3]]
