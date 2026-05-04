@@ -5,7 +5,7 @@ from glob import glob
 package_name = 'e2e_planner'
 
 # scripts/ を e2e_collector パッケージとして公開し、
-# data_collector / data_collector_sim を ros2 run から実行可能にする
+# data_collector を ros2 run から実行可能にする
 setup(
     name=package_name,
     version='0.0.1',
@@ -34,8 +34,6 @@ setup(
         'console_scripts': [
             # 実機用データ収集 (ZED カメラ)
             'data_collector     = e2e_collector.create_data:main',
-            # シミュレーター用データ収集
-            'data_collector_sim = e2e_collector.data_collector_sim:main',
             # 実機用ウェイポイント推論
             'inference_node     = e2e_planner.inference_node:main',
             # シミュレーター用ウェイポイント推論 (旧)
