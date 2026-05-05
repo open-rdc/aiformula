@@ -1,5 +1,5 @@
 [submodule "vectornav"]
-	path = vectornav
+	path = sensing/vectornav
 	url = https://github.com/open-rdc/vectornav
 [submodule "socketcan_interface"]
 	path = socketcan_interface
