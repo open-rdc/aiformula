@@ -5,7 +5,7 @@ launch: #起動パラメータ
     odrive : false
     socketcan : false
     zed : false
-    sim : true
+    sim : false
 
 /**:  #ワイルドカード(ここのパラメータは全ノードから読める: <名前に注意>)
   ros__parameters:
@@ -24,11 +24,13 @@ launch: #起動パラメータ
 zed_wrapper_node:
   ros__parameters:
     grab_fps             : 15
-    resolution           : "HD720"
+    # ZED X：HD1200 / HD1080 / SVGA
+    resolution           : "HD1080"
+    # Depth mode：NONE / PERFORMANCE / QUALITY / ULTRA / NEURAL / NEURAL_PLUS
     depth_mode           : "NEURAL"
     confidence_threshold : 50
     serial_number        : 0        # 0 = auto-select
-    camera_frame_id      : "zed_left_camera_frame"
+    camera_frame_id      : "camera_depth_link"
 
 controller_node:
   ros__parameters:
