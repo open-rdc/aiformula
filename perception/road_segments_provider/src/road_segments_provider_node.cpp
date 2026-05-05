@@ -20,21 +20,15 @@ RoadSegmentsProviderNode::RoadSegmentsProviderNode(
     const std::string & name_space,
     const rclcpp::NodeOptions & options)
 : Node("road_segments_provider_node", name_space, options),
-    camera_info_topic_(declare_parameter<std::string>(
-        "camera_info_topic", "/zed/zed_node/rgb/camera_info")),
-    lane_mask_topic_(
-        declare_parameter<std::string>("lane_mask_topic", "/perception/lane_mask")),
-    da_mask_topic_(
-        declare_parameter<std::string>("da_mask_topic", "/perception/drivable_area_mask")),
-    road_segments_topic_(
-        declare_parameter<std::string>("road_segments_topic", "/perception/road_segments")),
-    camera_frame_id_(
-        declare_parameter<std::string>("camera_frame_id", "camera_link")),
-    base_frame_id_(
-        declare_parameter<std::string>("base_frame_id", "base_link")),
-    min_ground_x_m_(declare_parameter<double>("min_ground_x_m", 0.5)),
-    max_ground_x_m_(declare_parameter<double>("max_ground_x_m", 20.0)),
-    publish_markers_(declare_parameter<bool>("publish_markers", false)),
+    camera_info_topic_(get_parameter("camera_info_topic").as_string()),
+    lane_mask_topic_(get_parameter("lane_mask_topic").as_string()),
+    da_mask_topic_(get_parameter("da_mask_topic").as_string()),
+    road_segments_topic_(get_parameter("road_segments_topic").as_string()),
+    camera_frame_id_(get_parameter("camera_frame_id").as_string()),
+    base_frame_id_(get_parameter("base_frame_id").as_string()),
+    min_ground_x_m_(get_parameter("min_ground_x_m").as_double()),
+    max_ground_x_m_(get_parameter("max_ground_x_m").as_double()),
+    publish_markers_(get_parameter("publish_markers").as_bool()),
     tf_buffer_(get_clock()),
     tf_listener_(tf_buffer_)
 {
@@ -45,7 +39,7 @@ RoadSegmentsProviderNode::RoadSegmentsProviderNode(
 
     camera_info_sub_ = create_subscription<sensor_msgs::msg::CameraInfo>(
         camera_info_topic_,
-        rclcpp::QoS(1).transient_local(),
+        rclcpp::QoS(10),
         [this](const sensor_msgs::msg::CameraInfo::ConstSharedPtr & msg) {
             camera_info_callback(msg);
         });
