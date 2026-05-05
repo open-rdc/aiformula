@@ -9,8 +9,9 @@ find_package(ament_cmake_auto REQUIRED)
 ament_auto_find_build_dependencies()
 
 ament_auto_add_library(lane_planner_node SHARED
-  src/lane_planner_node.cpp
-  src/route_builder.cpp
+  src/lane_planner_server.cpp
+  src/plugins/vectormap_lane_planner_plugin.cpp
+  src/plugins/mapless_lane_planner_plugin.cpp
 )
 target_compile_features(lane_planner_node PUBLIC c_std_99 cxx_std_17)
 target_compile_definitions(lane_planner_node PRIVATE "LANE_PLANNER_BUILDING_LIBRARY")

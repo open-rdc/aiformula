@@ -43,6 +43,7 @@ private:
     LocalPlannerPlugin::SharedPtr plugin_;
 
     const int update_period_ms_;
+    const int global_path_timeout_ms_;
     const std::string global_path_topic_;
     const std::string local_path_topic_;
     const std::string vector_map_topic_;
@@ -55,6 +56,7 @@ private:
     geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr latest_pose_;
     geometry_msgs::msg::TwistWithCovarianceStamped::SharedPtr latest_velocity_;
     object_detection_msgs::msg::ObjectInfoArray::SharedPtr latest_objects_;
+    rclcpp::Time last_global_path_stamp_{0, 0, RCL_ROS_TIME};
     mutable std::mutex data_mutex_;
 
     rclcpp::Subscription<nav_msgs::msg::Path>::SharedPtr global_path_subscription_;
