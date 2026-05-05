@@ -21,6 +21,43 @@ def generate_launch_description():
     with open(config_file_path, 'r') as file:
         launch_params = yaml.safe_load(file)['launch']['ros__parameters']
 
+    use_sim_time = launch_params.get('sim', False)
+
+    # robot_state_publisher（URDF から TF を publish）
+    urdf_path = os.path.join(
+        get_package_share_directory('simulator'),
+        'models', 'ai_car1', 'model.urdf',
+    )
+    with open(urdf_path, 'r', encoding='utf-8') as f:
+        robot_description = f.read()
+
+    robot_state_publisher = Node(
+        package='robot_state_publisher',
+        executable='robot_state_publisher',
+        parameters=[{
+            'robot_description': robot_description,
+            'use_sim_time': use_sim_time,
+        }],
+        output='screen',
+    )
+
+    # カメラフレームの静的TF（chassis → ai_car1/camera_depth_link/camera_depth_link）
+    camera_tf = Node(
+        package='tf2_ros',
+        executable='static_transform_publisher',
+        arguments=[
+            '--x',     '0.055',
+            '--y',     '0.0',
+            '--z',     '0.54',
+            '--roll',  '0',
+            '--pitch', '0',
+            '--yaw',   '0',
+            '--frame-id',       'chassis',
+            '--child-frame-id', 'ai_car1/camera_depth_link/camera_depth_link',
+        ],
+        output='screen',
+    )
+
     # メイン実行機ノードの作成
     main_exec_node = Node(
         package = 'main_executor',
@@ -68,6 +105,8 @@ def generate_launch_description():
     if(launch_params['socketcan'] is True):
         launch_discription.add_action(socketcan_node)
 
+    launch_discription.add_action(robot_state_publisher)
+    launch_discription.add_action(camera_tf)
     launch_discription.add_action(main_exec_node)
 
     return launch_discription
