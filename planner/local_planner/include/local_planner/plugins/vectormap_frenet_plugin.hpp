@@ -11,8 +11,8 @@
 #include <geometry_msgs/msg/quaternion.hpp>
 #include <geometry_msgs/msg/twist_with_covariance_stamped.hpp>
 #include <nav_msgs/msg/path.hpp>
+#include <object_detection_msgs/msg/object_info_array.hpp>
 #include <rclcpp/rclcpp.hpp>
-#include <sensor_msgs/msg/point_cloud2.hpp>
 #include <vectormap_msgs/msg/vector_map.hpp>
 
 #include "local_planner/local_planner_plugin.hpp"
@@ -37,7 +37,7 @@ public:
     std::optional<nav_msgs::msg::Path> computeLocalPath(
         const geometry_msgs::msg::PoseWithCovarianceStamped & ego_pose,
         const geometry_msgs::msg::TwistWithCovarianceStamped & velocity,
-        const sensor_msgs::msg::PointCloud2 * pointcloud) override;
+        const object_detection_msgs::msg::ObjectInfoArray * objects) override;
 
 private:
     struct Point2D { double x; double y; };
@@ -81,8 +81,7 @@ private:
     bool find_static_obstacle(
         double current_s,
         double base_offset,
-        const geometry_msgs::msg::PoseWithCovarianceStamped & current_pose,
-        const sensor_msgs::msg::PointCloud2 & pointcloud,
+        const object_detection_msgs::msg::ObjectInfoArray & objects,
         double & obstacle_s,
         double & obstacle_d,
         double & avoidance_shift) const;
@@ -123,7 +122,6 @@ private:
     double frenet_weight_lateral_offset_{1.0};
     double frenet_weight_lateral_change_{0.2};
     double frenet_weight_avoidance_shift_{0.1};
-    int obstacle_pointcloud_step_{8};
     std::string map_frame_id_{"map"};
     std::string base_frame_id_{"base_link"};
 

@@ -21,7 +21,7 @@ LocalPlannerServer::LocalPlannerServer(
   vector_map_topic_(get_parameter("vector_map_topic").as_string()),
   localization_pose_topic_(get_parameter("localization_pose_topic").as_string()),
   velocity_topic_(get_parameter("velocity_topic").as_string()),
-  pointcloud_topic_(get_parameter("pointcloud_topic").as_string()),
+  objects_topic_(get_parameter("objects_topic").as_string()),
   lane_switch_trigger_topic_(get_parameter("lane_switch_trigger_topic").as_string()),
   qos_(rclcpp::QoS(10))
 {
@@ -33,7 +33,7 @@ LocalPlannerServer::LocalPlannerServer(
         vector_map_topic_.empty() ||
         localization_pose_topic_.empty() ||
         velocity_topic_.empty() ||
-        pointcloud_topic_.empty() ||
+        objects_topic_.empty() ||
         lane_switch_trigger_topic_.empty())
     {
         throw std::invalid_argument("topic parameters must not be empty");
@@ -62,10 +62,10 @@ LocalPlannerServer::LocalPlannerServer(
         velocity_topic_,
         qos_,
         std::bind(&LocalPlannerServer::velocity_callback, this, std::placeholders::_1));
-    pointcloud_subscription_ = create_subscription<sensor_msgs::msg::PointCloud2>(
-        pointcloud_topic_,
+    objects_subscription_ = create_subscription<object_detection_msgs::msg::ObjectInfoArray>(
+        objects_topic_,
         qos_,
-        std::bind(&LocalPlannerServer::pointcloud_callback, this, std::placeholders::_1));
+        std::bind(&LocalPlannerServer::objects_callback, this, std::placeholders::_1));
     lane_switch_flag_subscription_ = create_subscription<std_msgs::msg::Empty>(
         lane_switch_trigger_topic_,
         qos_,
@@ -114,10 +114,11 @@ void LocalPlannerServer::velocity_callback(
     latest_velocity_ = msg;
 }
 
-void LocalPlannerServer::pointcloud_callback(const sensor_msgs::msg::PointCloud2::SharedPtr msg)
+void LocalPlannerServer::objects_callback(
+    const object_detection_msgs::msg::ObjectInfoArray::SharedPtr msg)
 {
     std::lock_guard<std::mutex> lock(data_mutex_);
-    latest_pointcloud_ = msg;
+    latest_objects_ = msg;
 }
 
 void LocalPlannerServer::lane_switch_flag_callback(const std_msgs::msg::Empty::SharedPtr msg)
@@ -148,7 +149,7 @@ void LocalPlannerServer::timer_callback()
         result = plugin_->computeLocalPath(
             *latest_pose_,
             velocity,
-            latest_pointcloud_ ? latest_pointcloud_.get() : nullptr);
+            latest_objects_ ? latest_objects_.get() : nullptr);
     }
 
     if (!result) {

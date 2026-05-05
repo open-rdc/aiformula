@@ -7,7 +7,6 @@
 #include <utility>
 
 #include <pluginlib/class_list_macros.hpp>
-#include <sensor_msgs/point_cloud2_iterator.hpp>
 #include <vectormap_msgs/msg/lanelet.hpp>
 #include <vectormap_msgs/msg/line_string.hpp>
 
@@ -58,8 +57,6 @@ void VectormapFrenetPlugin::initialize(
         params->get_parameter("frenet_weight_lateral_change").get_value<double>();
     frenet_weight_avoidance_shift_ =
         params->get_parameter("frenet_weight_avoidance_shift").get_value<double>();
-    obstacle_pointcloud_step_ =
-        params->get_parameter("obstacle_pointcloud_step").get_value<int>();
     map_frame_id_ =
         params->get_parameter("map_frame_id").get_value<std::string>();
     base_frame_id_ =
@@ -74,8 +71,7 @@ void VectormapFrenetPlugin::initialize(
         avoidance_lateral_jerk_mps3_ <= 0.0 ||
         avoidance_min_velocity_mps_ <= 0.0 ||
         max_avoidance_shift_m_ <= 0.0 ||
-        frenet_collision_check_margin_m_ <= 0.0 ||
-        obstacle_pointcloud_step_ <= 0)
+        frenet_collision_check_margin_m_ <= 0.0)
     {
         throw std::invalid_argument("VectormapFrenetPlugin parameters are invalid");
     }
@@ -177,7 +173,7 @@ void VectormapFrenetPlugin::requestLaneChange()
 std::optional<nav_msgs::msg::Path> VectormapFrenetPlugin::computeLocalPath(
     const geometry_msgs::msg::PoseWithCovarianceStamped & ego_pose,
     const geometry_msgs::msg::TwistWithCovarianceStamped & velocity,
-    const sensor_msgs::msg::PointCloud2 * pointcloud)
+    const object_detection_msgs::msg::ObjectInfoArray * objects)
 {
     if (!global_path_ready_) {
         return std::nullopt;
@@ -202,11 +198,10 @@ std::optional<nav_msgs::msg::Path> VectormapFrenetPlugin::computeLocalPath(
     double obstacle_s = std::numeric_limits<double>::quiet_NaN();
     double obstacle_d = std::numeric_limits<double>::quiet_NaN();
     double avoidance_shift = 0.0;
-    const bool has_obstacle = pointcloud && find_static_obstacle(
+    const bool has_obstacle = objects && !objects->objects.empty() && find_static_obstacle(
         ego_frenet.s,
         active_lane_offset_m_,
-        ego_pose,
-        *pointcloud,
+        *objects,
         obstacle_s,
         obstacle_d,
         avoidance_shift);
@@ -547,66 +542,23 @@ double VectormapFrenetPlugin::evaluate_frenet_candidate(
 bool VectormapFrenetPlugin::find_static_obstacle(
     const double current_s,
     const double base_offset,
-    const geometry_msgs::msg::PoseWithCovarianceStamped& current_pose,
-    const sensor_msgs::msg::PointCloud2& pointcloud,
+    const object_detection_msgs::msg::ObjectInfoArray& objects,
     double& obstacle_s,
     double& obstacle_d,
     double& avoidance_shift) const
 {
-    if (pointcloud.width == 0U || pointcloud.height == 0U) {
-        return false;
-    }
-    if (pointcloud.header.frame_id != map_frame_id_ &&
-        pointcloud.header.frame_id != base_frame_id_)
-    {
-        RCLCPP_WARN_THROTTLE(
-            logger_,
-            *clock_,
-            2000,
-            "unsupported obstacle pointcloud frame_id: %s",
-            pointcloud.header.frame_id.c_str());
-        return false;
-    }
-
-    const double siny_cosp =
-        2.0 * (current_pose.pose.pose.orientation.w * current_pose.pose.pose.orientation.z +
-               current_pose.pose.pose.orientation.x * current_pose.pose.pose.orientation.y);
-    const double cosy_cosp =
-        1.0 - 2.0 * (current_pose.pose.pose.orientation.y * current_pose.pose.pose.orientation.y +
-                     current_pose.pose.pose.orientation.z * current_pose.pose.pose.orientation.z);
-    const double ego_yaw = std::atan2(siny_cosp, cosy_cosp);
-    const double cos_yaw = std::cos(ego_yaw);
-    const double sin_yaw = std::sin(ego_yaw);
-    const double ego_x = current_pose.pose.pose.position.x;
-    const double ego_y = current_pose.pose.pose.position.y;
     const double lateral_limit =
         vehicle_width_m_ * 0.5 + avoidance_hard_margin_m_ +
         avoidance_soft_margin_m_ + envelope_buffer_margin_m_;
-
     const double current_s_normalized = normalize_path_s(current_s);
+
     bool found = false;
     double best_s = std::numeric_limits<double>::max();
     double d_sum = 0.0;
     std::size_t d_count = 0U;
-    int skip_count = 0;
-    sensor_msgs::PointCloud2ConstIterator<float> iter_x(pointcloud, "x");
-    sensor_msgs::PointCloud2ConstIterator<float> iter_y(pointcloud, "y");
-    sensor_msgs::PointCloud2ConstIterator<float> iter_z(pointcloud, "z");
-    for (; iter_x != iter_x.end(); ++iter_x, ++iter_y, ++iter_z) {
-        if (skip_count++ % obstacle_pointcloud_step_ != 0) {
-            continue;
-        }
-        if (!std::isfinite(*iter_x) || !std::isfinite(*iter_y) || !std::isfinite(*iter_z)) {
-            continue;
-        }
 
-        Point2D map_point{*iter_x, *iter_y};
-        if (pointcloud.header.frame_id == base_frame_id_) {
-            map_point.x = ego_x + cos_yaw * (*iter_x) - sin_yaw * (*iter_y);
-            map_point.y = ego_y + sin_yaw * (*iter_x) + cos_yaw * (*iter_y);
-        }
-
-        const FrenetPoint frenet = project_to_path(map_point);
+    for (const auto& obj : objects.objects) {
+        const FrenetPoint frenet = project_to_path(Point2D{obj.x, obj.y});
         double delta_s = frenet.s - current_s_normalized;
         if (route_is_loop_ && delta_s < 0.0) {
             delta_s += max_path_s();
@@ -617,7 +569,6 @@ bool VectormapFrenetPlugin::find_static_obstacle(
         if (std::abs(frenet.d - base_offset) > lateral_limit) {
             continue;
         }
-
         found = true;
         best_s = std::min(best_s, current_s + delta_s);
         d_sum += frenet.d;

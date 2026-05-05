@@ -6,8 +6,8 @@
 #include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
 #include <geometry_msgs/msg/twist_with_covariance_stamped.hpp>
 #include <nav_msgs/msg/path.hpp>
+#include <object_detection_msgs/msg/object_info_array.hpp>
 #include <rclcpp/rclcpp.hpp>
-#include <sensor_msgs/msg/point_cloud2.hpp>
 #include <vectormap_msgs/msg/vector_map.hpp>
 
 namespace local_planner
@@ -33,7 +33,7 @@ public:
     virtual std::optional<nav_msgs::msg::Path> computeLocalPath(
         const geometry_msgs::msg::PoseWithCovarianceStamped & ego_pose,
         const geometry_msgs::msg::TwistWithCovarianceStamped & velocity,
-        const sensor_msgs::msg::PointCloud2 * pointcloud) = 0;
+        const object_detection_msgs::msg::ObjectInfoArray * objects) = 0;
 };
 
 }  // namespace local_planner
