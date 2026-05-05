@@ -21,6 +21,7 @@
   <depend>motion_control</depend>
   <depend>lane_planner</depend>
   <depend>local_planner</depend>
+  <depend>object_detector</depend>
   <depend>zed_wrapper</depend>
   <depend>vectormap_server</depend>
   <depend>gnssnav</depend>
