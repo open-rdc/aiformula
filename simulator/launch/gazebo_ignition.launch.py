@@ -45,7 +45,7 @@ def generate_launch_description():
             ('/image_raw', '/zed/zed_node/rgb/image_rect_color'),
             ('/depth_image', '/zed/zed_node/depth/depth_registered'),
             ('/navsat', '/vectornav/gnss'),
-            ('/depth_image_raw/points', '/zed/zed_node/pointcloud'),
+            ('/depth_image_raw/points', '/zed/zed_node/point_cloud'),
             # /imu_raw は convert_sim_to_vectornav_pose.py が yaw オフセットを適用して
             # /vectornav/imu へ再配信するため、bridge ではリマップしない
         ]
@@ -70,7 +70,6 @@ def generate_launch_description():
             # /imu_raw から /vectornav/imu へ変換するときのyaw補正。
             # /vectornav/imuのyawは実機同様に北基準headingとして扱い，
             # localization/odom側でROS ENU yawへ変換する。
-            'yaw_offset_deg': -176.0,
             'imu_frame_id': 'base_link',
         }]
     )
@@ -84,12 +83,6 @@ def generate_launch_description():
         }]
     )
 
-    urdf_path = os.path.join(
-        get_package_share_directory('simulator'),
-        'models',
-        'ai_car1',
-        'model.urdf',
-    )
     ros2_control_src = os.path.join(
         get_package_share_directory('simulator'),
         'models',
@@ -98,18 +91,6 @@ def generate_launch_description():
     )
     ros2_control_dst = '/tmp/simulator_ai_car1_ros2_control.yaml'
     shutil.copyfile(ros2_control_src, ros2_control_dst)
-    with open(urdf_path, 'r', encoding='utf-8') as urdf_file:
-        robot_description = urdf_file.read()
-
-    robot_state_publisher = Node(
-        package='robot_state_publisher',
-        executable='robot_state_publisher',
-        parameters=[{
-            'robot_description': robot_description,
-            'use_sim_time': True,
-        }],
-        output='screen',
-    )
 
     caster_yaw_position_spawner = Node(
         package='controller_manager',
@@ -136,7 +117,6 @@ def generate_launch_description():
         convert_vectornav_pose,
         convert_vectornav_velocity_body,
         bridge,
-        robot_state_publisher,
         TimerAction(
             period=2.0,
             actions=[caster_yaw_position_spawner],
