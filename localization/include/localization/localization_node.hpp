@@ -64,8 +64,6 @@ private:
         const std::vector<Eigen::Vector2d>& base_points,
         const geometry_msgs::msg::PoseWithCovarianceStamped& initial_pose) const;
     geometry_msgs::msg::PoseWithCovarianceStamped update_ekf_with_icp_pose(double x, double y);
-    visualization_msgs::msg::MarkerArray make_lane_line_marker_array(
-        const std::vector<Eigen::Vector2d>& base_points) const;
     visualization_msgs::msg::MarkerArray make_lane_line_map_marker_array(
         const std::vector<Eigen::Vector2d>& map_points,
         const std::string& ns,

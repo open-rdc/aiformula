@@ -257,7 +257,7 @@ LocalizationNode::LocalizationNode(
         raw_pose_topic_,
         qos_);
     lane_line_publisher_ =
-        this->create_publisher<visualization_msgs::msg::MarkerArray>("/detection/lane_line", qos_);
+        this->create_publisher<visualization_msgs::msg::MarkerArray>("/perception/lane_line", qos_);
     lane_line_map_raw_publisher_ =
         this->create_publisher<visualization_msgs::msg::MarkerArray>(
             "/detection/lane_line_map_raw", qos_);
@@ -370,7 +370,6 @@ void LocalizationNode::rebuild_map_points(const vectormap_msgs::msg::VectorMap& 
     auto target_map = std::make_shared<IcpTargetMap>(std::move(points));
     std::lock_guard<std::mutex> lock(data_mutex_);
     map_points_ = target_map;
-    RCLCPP_INFO(this->get_logger(), "rebuilt localization map points: %zu", target_map->size());
 }
 
 bool LocalizationNode::gnss_to_map_pose(
@@ -525,44 +524,6 @@ geometry_msgs::msg::PoseWithCovarianceStamped LocalizationNode::update_ekf_with_
     return ekf_localizer_.make_pose(this->now(), map_frame_id_);
 }
 
-visualization_msgs::msg::MarkerArray LocalizationNode::make_lane_line_marker_array(
-    const std::vector<Eigen::Vector2d>& base_points) const
-{
-    visualization_msgs::msg::MarkerArray marker_array;
-
-    visualization_msgs::msg::Marker delete_marker;
-    delete_marker.header.stamp = this->now();
-    delete_marker.header.frame_id = base_frame_id_;
-    delete_marker.action = visualization_msgs::msg::Marker::DELETEALL;
-    marker_array.markers.push_back(delete_marker);
-
-    visualization_msgs::msg::Marker points_marker;
-    points_marker.header = delete_marker.header;
-    points_marker.ns = "lane_line_base_link";
-    points_marker.id = 0;
-    points_marker.type = visualization_msgs::msg::Marker::POINTS;
-    points_marker.action = visualization_msgs::msg::Marker::ADD;
-    points_marker.pose.orientation.w = 1.0;
-    points_marker.scale.x = 0.08;
-    points_marker.scale.y = 0.08;
-    points_marker.color.r = 0.0F;
-    points_marker.color.g = 1.0F;
-    points_marker.color.b = 0.2F;
-    points_marker.color.a = 1.0F;
-    points_marker.points.reserve(base_points.size());
-
-    for (const auto& base_point : base_points) {
-        geometry_msgs::msg::Point point;
-        point.x = base_point.x();
-        point.y = base_point.y();
-        point.z = camera_model_.ground_plane_z_base;
-        points_marker.points.push_back(point);
-    }
-
-    marker_array.markers.push_back(std::move(points_marker));
-    return marker_array;
-}
-
 visualization_msgs::msg::MarkerArray LocalizationNode::make_lane_line_map_marker_array(
     const std::vector<Eigen::Vector2d>& map_points,
     const std::string& ns,
@@ -690,10 +651,16 @@ void LocalizationNode::timer_callback()
             ground_projection_lut_,
             mask_threshold_,
             max_observed_points_);
-        lane_line_publisher_->publish(make_lane_line_marker_array(base_points));
+
+        // EKF pose で map 座標に変換して publish（TF チェーン不要）
+        const auto source_points = observed_points_in_initial_map(base_points, initial_pose);
+        lane_line_publisher_->publish(
+            make_lane_line_map_marker_array(source_points, "lane_line", 0.0F, 1.0F, 0.2F));
+
         const auto raw_source_points = observed_points_in_initial_map(base_points, raw_pose);
         lane_line_map_raw_publisher_->publish(
             make_lane_line_map_marker_array(raw_source_points, "lane_line_map_raw", 1.0F, 1.0F, 0.0F));
+
         if (base_points.size() < min_observed_points_) {
             RCLCPP_WARN_THROTTLE(
                 this->get_logger(),
@@ -704,8 +671,6 @@ void LocalizationNode::timer_callback()
             localized_pose_publisher_->publish(initial_pose);
             return;
         }
-
-        const auto source_points = observed_points_in_initial_map(base_points, initial_pose);
 
         const auto result = icp_matcher_.align_translation_only(source_points, *map_points);
         if (!result.converged) {
