@@ -42,18 +42,14 @@ def generate_launch_description():
     )
 
     # カメラフレームの静的TF（chassis → ai_car1/camera_depth_link/camera_depth_link）
+    # Foxy uses positional args: x y z yaw pitch roll frame_id child_frame_id
     camera_tf = Node(
         package='tf2_ros',
         executable='static_transform_publisher',
         arguments=[
-            '--x',     '0.055',
-            '--y',     '0.0',
-            '--z',     '0.54',
-            '--roll',  '0',
-            '--pitch', '0',
-            '--yaw',   '0',
-            '--frame-id',       'chassis',
-            '--child-frame-id', 'ai_car1/camera_depth_link/camera_depth_link',
+            '0.055', '0.0', '0.54',
+            '0', '0', '0',
+            'chassis', 'ai_car1/camera_depth_link/camera_depth_link',
         ],
         output='screen',
     )
