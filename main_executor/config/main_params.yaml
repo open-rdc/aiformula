@@ -5,6 +5,7 @@ launch: #起動パラメータ
     odrive : false
     socketcan : false
     zed : false
+    sim : true
 
 /**:  #ワイルドカード(ここのパラメータは全ノードから読める: <名前に注意>)
   ros__parameters:
@@ -15,7 +16,7 @@ launch: #起動パラメータ
       jer: 0.0
     # 舵角  位置[deg]
     steering_max :
-      pos : 7.0
+      pos : 15.0
 
     tread : 0.6
     wheelbase : 0.8
@@ -101,8 +102,6 @@ localization_node:
     ground_plane_z_base : 0.0
     min_ground_intersection_distance : 0.2
     max_ground_intersection_distance : 30.0
-    output_position_variance : 0.25
-    output_yaw_variance : 0.1
     camera:
       # zedx: width=640, height=360
       fx : 246.55866667
@@ -127,13 +126,18 @@ localization_node:
       initial_yaw_variance : 0.3
       initial_velocity_variance : 1.0
       initial_yaw_rate_variance : 0.5
+      # 不確かさ
       process_position_variance : 0.2
       process_yaw_variance : 0.05
       process_velocity_variance : 0.5
       process_yaw_rate_variance : 0.2
+      # 信頼度
       gnss_position_variance : 0.5
       imu_yaw_variance : 0.05
       icp_position_variance : 0.15
+      # マハラノビスゲート閾値 (単位: sigma)
+      position_gate_dist : 10.0
+      yaw_gate_dist : 10.0
 
 odom_tf_node:
   ros__parameters:
@@ -171,6 +175,7 @@ lane_planner_node:
     # aiformula 2026 course: 301, 302, 303, 304, 305, 311, 313, 312, 314, 315, 309, 310
     global_path_resample_interval_m : 0.2
     max_centerline_connection_gap_m : 0.5
+    off_route_distance_threshold_m : 3.0
     route_lookahead_lanelet_count : 3
 
 local_planner_server_node:
@@ -184,7 +189,7 @@ local_planner_server_node:
     vector_map_topic : "/vector_map"
     localization_pose_topic : "/localization/pose"
     velocity_topic : "/vectornav/velocity_body"
-    pointcloud_topic : "/zed/zed_node/point_cloud"
+    objects_topic : "/perception/objects"
     lane_switch_trigger_topic : "/flag"
     # VectormapFrenetPlugin params
     local_path_horizon_m : 15.0
@@ -203,7 +208,17 @@ local_planner_server_node:
     frenet_weight_lateral_offset : 1.0
     frenet_weight_lateral_change : 0.2
     frenet_weight_avoidance_shift : 0.1
-    obstacle_pointcloud_step : 8
+
+object_detector_node:
+  ros__parameters:
+    map_frame_id : "map"
+    base_frame_id : "base_link"
+    ground_z_threshold_m : 0.1     # [m] 地面除去Zカット高さ（base_link frame z基準）
+    voxel_leaf_size_m : 0.1        # [m] ボクセルサイズ
+    cluster_tolerance_m : 0.5      # [m] クラスタリング距離閾値
+    min_cluster_size : 10
+    max_cluster_size : 1000
+    marker_height_m : 1.0          # [m] 可視化用Marker高さ
 
 controller_server_node:
   ros__parameters:
