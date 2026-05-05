@@ -93,11 +93,14 @@ class InferenceNode(Node):
         else:
             self.get_logger().warn(f'YOLOPv2 model not found: {yolop_weight_path}')
         self.place_recognition = None
+        self.placenet_transform = None
         if self.use_place_recognition:
             if not placenet_weight_path.exists():
                 self.get_logger().warn(f'Place recognition model not found: {placenet_weight_path}')
+                self.use_place_recognition = False
             elif not topomap_path.exists():
                 self.get_logger().warn(f'Topomap not found: {topomap_path}')
+                self.use_place_recognition = False
             else:
                 self.place_recognition = PlaceRecognition(
                     placenet_weight_path,
@@ -107,11 +110,11 @@ class InferenceNode(Node):
                     window_lower=self.placenet_window_lower,
                     window_upper=self.placenet_window_upper,
                 )
-        self.placenet_transform = transforms.Compose([
-            transforms.ToTensor(),
-            transforms.Resize((85, 85), antialias=True),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-        ])
+                self.placenet_transform = transforms.Compose([
+                    transforms.ToTensor(),
+                    transforms.Resize((85, 85), antialias=True),
+                    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+                ])
         self.create_subscription(UInt8, '/command', self.command_callback, qos_profile_system_default)
 
         self.pub_raw = self.create_publisher(Path, 'e2e_planner/path_raw', qos_profile_system_default)
