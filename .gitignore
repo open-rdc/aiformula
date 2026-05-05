@@ -24,3 +24,6 @@ zed-ros2-wrapper/
 
 #トポマップデータ (環境依存のため除外)
 e2e_planner/config/topomap/
+
+# 収集データセット
+e2e_planner/data/
