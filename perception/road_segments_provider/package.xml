@@ -1,16 +1,22 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>zed_wrapper</name>
+  <name>road_segments_provider</name>
   <version>0.0.0</version>
-  <description>ZED SDK wrapper node — publishes image and point cloud as ROS 2 msgs.</description>
-  <maintainer email="s25s1045sc@chibateck.ac.jp">Kyo Yamashita</maintainer>
+  <description>Converts YOLOPv2 segmentation masks to RoadSegments via IPM</description>
+  <maintainer email="s21c1135sc@s.chibakoudai.jp">Kyo Yamashita</maintainer>
   <license>MIT</license>
 
   <buildtool_depend>ament_cmake_auto</buildtool_depend>
 
+  <depend>cv_bridge</depend>
+  <depend>geometry_msgs</depend>
+  <depend>mapless_planning_msgs</depend>
+  <depend>message_filters</depend>
   <depend>rclcpp</depend>
   <depend>sensor_msgs</depend>
+  <depend>tf2_ros</depend>
+  <depend>visualization_msgs</depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>

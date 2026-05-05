@@ -9,7 +9,7 @@ import os
 from rclpy.qos import qos_profile_system_default
 from ament_index_python.packages import get_package_share_directory
 
-from .utils.utils import letterbox, lane_line_mask
+from .utils.utils import letterbox, lane_line_mask, driving_area_mask
 
 INPUT_SHAPE = (640, 640)
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -22,12 +22,14 @@ class RoadDetectorNode(Node):
 
         self.declare_parameter('input_image_topic', '/zed/zed_node/rgb/image_rect_color')
         self.declare_parameter('output_mask_topic', '/perception/lane_mask')
+        self.declare_parameter('output_drivable_area_topic', '/perception/drivable_area_mask')
         self.declare_parameter('capture_width', 640)
         self.declare_parameter('capture_height', 360)
         self.declare_parameter('visualize', False)
 
         self.input_image_topic = self.get_parameter('input_image_topic').value
         self.output_mask_topic = self.get_parameter('output_mask_topic').value
+        self.output_drivable_area_topic = self.get_parameter('output_drivable_area_topic').value
         self.capture_size = (
             int(self.get_parameter('capture_width').value),
             int(self.get_parameter('capture_height').value),
@@ -38,6 +40,7 @@ class RoadDetectorNode(Node):
             raise ValueError('capture_width and capture_height must be greater than 0')
 
         self.ll_seg_publisher = self.create_publisher(Image, self.output_mask_topic, qos_profile_system_default)
+        self.da_seg_publisher = self.create_publisher(Image, self.output_drivable_area_topic, qos_profile_system_default)
         self.image_subscription = self.create_subscription(
             Image,
             self.input_image_topic,
@@ -55,7 +58,8 @@ class RoadDetectorNode(Node):
         self.model.eval()
         self.logger.info('PyTorch model loaded successfully!')
         self.logger.info(f'Subscribed image topic: {self.input_image_topic}')
-        self.logger.info(f'Publishing mask topic: {self.output_mask_topic}')
+        self.logger.info(f'Publishing lane mask topic: {self.output_mask_topic}')
+        self.logger.info(f'Publishing drivable area mask topic: {self.output_drivable_area_topic}')
 
     def image_callback(self, msg):
         cv_img = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
@@ -72,26 +76,36 @@ class RoadDetectorNode(Node):
             outputs = self.model(img)
             [pred, anchor_grid], seg, ll = outputs
 
-        ll_seg_mask = lane_line_mask(ll)
-        ll_seg_mask = ll_seg_mask.astype(np.uint8)
+        ll_seg_mask = lane_line_mask(ll).astype(np.uint8)
+        da_seg_mask = driving_area_mask(seg).astype(np.uint8)
 
         ll_seg_resize_mask = cv2.resize(ll_seg_mask, (origin_shape[1], origin_shape[0]), interpolation=cv2.INTER_NEAREST)
+        da_seg_resize_mask = cv2.resize(da_seg_mask, (origin_shape[1], origin_shape[0]), interpolation=cv2.INTER_NEAREST)
 
-        self.ll_seg_publish(ll_seg_resize_mask)
+        stamp = msg.header.stamp
+        self.ll_seg_publish(ll_seg_resize_mask, stamp)
+        self.da_seg_publish(da_seg_resize_mask, stamp)
         if self.visualize_flag:
-            self.visualize(cv_img, ll_seg_resize_mask)
+            self.visualize(cv_img, ll_seg_resize_mask, da_seg_resize_mask)
 
-    def visualize(self, img, mask):
+    def visualize(self, img, ll_mask, da_mask):
         vis = img.copy()
-        vis[mask == 1] = [0, 0, 255]
+        vis[da_mask == 1] = (vis[da_mask == 1] * 0.5 + np.array([0, 255, 0]) * 0.5).astype(np.uint8)
+        vis[ll_mask == 1] = [0, 0, 255]
         cv2.imshow('road_detector', vis)
         cv2.waitKey(1)
 
-    def ll_seg_publish(self, ll_seg_mask):
+    def ll_seg_publish(self, ll_seg_mask, stamp):
         ll_seg_mask = (ll_seg_mask * 255).astype(np.uint8)
         ll_seg_msg = self.bridge.cv2_to_imgmsg(ll_seg_mask, encoding="mono8")
-        ll_seg_msg.header.stamp = self.get_clock().now().to_msg()
+        ll_seg_msg.header.stamp = stamp
         self.ll_seg_publisher.publish(ll_seg_msg)
+
+    def da_seg_publish(self, da_seg_mask, stamp):
+        da_seg_mask = (da_seg_mask * 255).astype(np.uint8)
+        da_seg_msg = self.bridge.cv2_to_imgmsg(da_seg_mask, encoding="mono8")
+        da_seg_msg.header.stamp = stamp
+        self.da_seg_publisher.publish(da_seg_msg)
 
 def main(args=None):
     rclpy.init(args=args)
