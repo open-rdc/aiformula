@@ -21,12 +21,9 @@ int main(int argc, char * argv[]){
     nodes_option.automatically_declare_parameters_from_overrides(true);
 
     // Read launch flags from the 'launch' node's parameters
-    const bool use_zed =
-        rclcpp::Node("launch", nodes_option).get_parameter("zed").as_bool();
-    const bool use_sim =
-        rclcpp::Node("launch", nodes_option).get_parameter("sim").as_bool();
+    const bool use_zed = rclcpp::Node("launch", nodes_option).get_parameter("zed").as_bool();
+    const bool use_sim = rclcpp::Node("launch", nodes_option).get_parameter("sim").as_bool();
 
-    // sim モード時は全ノードがシミュレータクロックを使うよう強制
     if (use_sim) {
         nodes_option.parameter_overrides({rclcpp::Parameter("use_sim_time", true)});
     }
@@ -42,8 +39,10 @@ int main(int argc, char * argv[]){
     auto controller_server_node = std::make_shared<motion_control::ControllerServer>(nodes_option);
     auto object_detector_node = std::make_shared<object_detector::ObjectDetectorNode>(nodes_option);
 
+    std::shared_ptr<zed_wrapper::ZedWrapperNode> zed_wrapper_node;
     if (use_zed) {
-        exec.add_node(std::make_shared<zed_wrapper::ZedWrapperNode>(nodes_option));
+        zed_wrapper_node = std::make_shared<zed_wrapper::ZedWrapperNode>(nodes_option);
+        exec.add_node(zed_wrapper_node);
     }
     exec.add_node(controller_node);
     exec.add_node(chassis_driver_node);
