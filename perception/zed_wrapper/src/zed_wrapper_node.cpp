@@ -20,19 +20,31 @@ struct ZedWrapperNode::Impl
 namespace
 {
 
+// ZED X が出力対応するセンサ解像度（HD720/VGA/HD2K は非対応）
 sl::RESOLUTION parse_resolution(const std::string & s)
 {
+    if (s == "HD1200") { return sl::RESOLUTION::HD1200; }
     if (s == "HD1080") { return sl::RESOLUTION::HD1080; }
-    if (s == "VGA")    { return sl::RESOLUTION::VGA; }
-    return sl::RESOLUTION::HD720;
+    if (s == "SVGA")   { return sl::RESOLUTION::SVGA; }
+    throw std::invalid_argument(
+        "ZedWrapperNode: unsupported resolution for ZED X: " + s);
 }
 
+// ZED SDK 4.X の DEPTH_MODE 全選択肢
 sl::DEPTH_MODE parse_depth_mode(const std::string & s)
 {
-    if (s == "QUALITY") { return sl::DEPTH_MODE::QUALITY; }
-    if (s == "ULTRA")   { return sl::DEPTH_MODE::ULTRA; }
-    return sl::DEPTH_MODE::PERFORMANCE;
+    if (s == "NONE")        { return sl::DEPTH_MODE::NONE; }
+    if (s == "PERFORMANCE") { return sl::DEPTH_MODE::PERFORMANCE; }
+    if (s == "QUALITY")     { return sl::DEPTH_MODE::QUALITY; }
+    if (s == "ULTRA")       { return sl::DEPTH_MODE::ULTRA; }
+    if (s == "NEURAL")      { return sl::DEPTH_MODE::NEURAL; }
+    if (s == "NEURAL_PLUS") { return sl::DEPTH_MODE::NEURAL_PLUS; }
+    throw std::invalid_argument(
+        "ZedWrapperNode: unsupported depth_mode: " + s);
 }
+
+// publish 解像度（ZED X 想定: 640x360 へリサイズ）
+const sl::Resolution kPublishResolution(640, 360);
 
 }  // namespace
 
@@ -107,9 +119,8 @@ void ZedWrapperNode::grab_callback()
 
     const rclcpp::Time stamp = now();
 
-    // Left RGB image (BGRA)
     sl::Mat left_image;
-    impl_->zed.retrieveImage(left_image, sl::VIEW::LEFT, sl::MEM::CPU);
+    impl_->zed.retrieveImage(left_image, sl::VIEW::LEFT, sl::MEM::CPU, kPublishResolution);
     {
         sensor_msgs::msg::Image msg;
         msg.header.stamp    = stamp;
@@ -161,9 +172,10 @@ void ZedWrapperNode::grab_callback()
 // --- camera info construction (called once after open) --------------------
 sensor_msgs::msg::CameraInfo ZedWrapperNode::build_camera_info()
 {
-    const sl::CameraInformation cam_info = impl_->zed.getCameraInformation();
+    // 取得サイズ（=publish サイズ）に合わせて intrinsics をスケール済みで取得
+    const sl::CameraInformation cam_info = impl_->zed.getCameraInformation(kPublishResolution);
     const auto & calib = cam_info.camera_configuration.calibration_parameters.left_cam;
-    const auto & res   = cam_info.camera_configuration.resolution;
+    const auto & res   = kPublishResolution;
 
     sensor_msgs::msg::CameraInfo msg;
     msg.header.frame_id  = camera_frame_id_;
