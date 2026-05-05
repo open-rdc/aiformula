@@ -6,6 +6,7 @@ launch: #起動パラメータ
     socketcan : false
     zed : false
     sim : false
+    mapless : false          # true: mapless planner, false: vectormap planner
 
 /**:  #ワイルドカード(ここのパラメータは全ノードから読める: <名前に注意>)
   ros__parameters:
@@ -162,28 +163,49 @@ map_odom_tf_node:
     base_frame_id        : "base_link"
     localized_pose_topic : "/localization/pose"
 
+road_segments_provider_node:
+  ros__parameters:
+    camera_info_topic    : "/zed/zed_node/rgb/camera_info"
+    lane_mask_topic      : "/perception/lane_mask"
+    da_mask_topic        : "/perception/drivable_area_mask"
+    road_segments_topic  : "/perception/road_segments"
+    camera_frame_id      : "camera_link"
+    base_frame_id        : "base_link"
+    min_ground_x_m       : 0.5   # [m] 最低前方距離
+    max_ground_x_m       : 20.0  # [m] 最大前方距離
+    publish_markers      : true
+
 lane_planner_node:
   ros__parameters:
     update_period_ms : 100
     map_frame_id : "map"
     base_frame_id : "base_link"
-    vector_map_topic : "/vector_map"
     localization_pose_topic : "/localization/pose"
     nav_cmd_topic : "/planning/nav_cmd"
+    global_path_topic : "/planner/global_path"
+    # lane_planner_mode: "vectormap" or "mapless"
+    lane_planner_mode : "vectormap"
+    # --- vectormap mode ---
+    vector_map_topic : "/vector_map"
     default_nav_cmd : "straight"
     nav_cmd_fallback_order : ["straight", "left", "right"]
-    global_path_topic : "/planner/global_path"
     route_lanelet_ids : [301, 302, 303, 304, 305, 311, 313, 312, 314, 315, 309, 310]
     # aiformula 2026 course: 301, 302, 303, 304, 305, 311, 313, 312, 314, 315, 309, 310
     global_path_resample_interval_m : 0.2
     max_centerline_connection_gap_m : 0.5
     off_route_distance_threshold_m : 3.0
     route_lookahead_lanelet_count : 3
+    # --- mapless mode ---
+    road_segments_topic : "/perception/road_segments"
+    mission_lanes_topic : "/planner/mission_lanes"
+    max_corridor_length_m : 20.0
+    path_resample_interval_m : 0.2
 
 local_planner_server_node:
   ros__parameters:
     local_planner_plugin : "local_planner::VectormapFrenetPlugin"
     update_period_ms : 100
+    global_path_timeout_ms : 1000   # [ms] global path が stale になるまでの時間
     map_frame_id : "map"
     base_frame_id : "base_link"
     global_path_topic : "/planner/global_path"
