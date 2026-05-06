@@ -59,6 +59,8 @@ LanePlannerServer::LanePlannerServer(
             });
         mission_lanes_pub_ = create_publisher<mapless_planning_msgs::msg::MissionLanesStamped>(
             get_parameter("mission_lanes_topic").as_string(), qos_);
+        marker_pub_ = create_publisher<visualization_msgs::msg::MarkerArray>(
+            "/planning/mission_lanes/markers", qos_);
     }
 
     path_pub_ = create_publisher<nav_msgs::msg::Path>(
@@ -112,6 +114,13 @@ void LanePlannerServer::timer_callback()
         const auto ml = plugin_->get_mission_lanes();
         if (ml) {
             mission_lanes_pub_->publish(*ml);
+        }
+    }
+
+    if (marker_pub_) {
+        const auto markers = plugin_->get_markers();
+        if (markers) {
+            marker_pub_->publish(*markers);
         }
     }
 }

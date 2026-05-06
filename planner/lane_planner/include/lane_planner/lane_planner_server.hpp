@@ -10,6 +10,7 @@
 #include <nav_msgs/msg/path.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <std_msgs/msg/string.hpp>
+#include <visualization_msgs/msg/marker_array.hpp>
 
 #include "lane_planner/lane_planner_plugin.hpp"
 #include "lane_planner/visibility_control.h"
@@ -48,6 +49,7 @@ private:
     rclcpp::Subscription<mapless_planning_msgs::msg::RoadSegments>::SharedPtr road_segments_sub_;
     rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr path_pub_;
     rclcpp::Publisher<mapless_planning_msgs::msg::MissionLanesStamped>::SharedPtr mission_lanes_pub_;
+    rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr marker_pub_;
     rclcpp::TimerBase::SharedPtr timer_;
 };
 

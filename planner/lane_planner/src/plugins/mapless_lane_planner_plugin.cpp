@@ -10,7 +10,6 @@ namespace
 
 constexpr double EPSILON = 1.0e-9;
 
-// 3x3 rotation matrix rows from quaternion (x, y, z, w)
 struct RotMat3
 {
     double r[3][3];
@@ -104,33 +103,26 @@ std::optional<nav_msgs::msg::Path> MaplessLanePlannerPlugin::compute_path(
 {
     std::lock_guard<std::mutex> lock(data_mutex_);
     if (!latest_segments_) {
-        RCLCPP_WARN_THROTTLE(
-            logger_, *clock_, 2000, "no RoadSegments received yet");
+        RCLCPP_WARN_THROTTLE(logger_, *clock_, 2000, "no RoadSegments received yet");
         return std::nullopt;
     }
     if (!latest_pose_) {
-        RCLCPP_WARN_THROTTLE(
-            logger_, *clock_, 2000, "no localization pose received yet");
+        RCLCPP_WARN_THROTTLE(logger_, *clock_, 2000, "no localization pose received yet");
         return std::nullopt;
     }
-
     if (latest_segments_->segments.empty()) {
         RCLCPP_WARN_THROTTLE(logger_, *clock_, 2000, "RoadSegments has no segments");
         return std::nullopt;
     }
-
     if (target_lane_ != mapless_planning_msgs::msg::MissionLanesStamped::LANE_KEEP) {
-        RCLCPP_ERROR_THROTTLE(
-            logger_, *clock_, 2000,
-            "lane change requested (target_lane=%d) but not implemented in initial version; "
-            "no path published",
+        RCLCPP_ERROR_THROTTLE(logger_, *clock_, 2000,
+            "lane change requested (target_lane=%d) but not implemented; no path published",
             target_lane_);
         return std::nullopt;
     }
 
     const auto ego_corridor = build_ego_corridor(*latest_segments_);
 
-    // Build MissionLanesStamped for external use
     mapless_planning_msgs::msg::MissionLanesStamped ml;
     ml.header.stamp = stamp;
     ml.header.frame_id = latest_segments_->header.frame_id;
@@ -140,8 +132,7 @@ std::optional<nav_msgs::msg::Path> MaplessLanePlannerPlugin::compute_path(
     latest_mission_lanes_ = ml;
 
     if (ego_corridor.centerline.empty()) {
-        RCLCPP_WARN_THROTTLE(
-            logger_, *clock_, 2000, "ego corridor centerline is empty");
+        RCLCPP_WARN_THROTTLE(logger_, *clock_, 2000, "ego corridor centerline is empty");
         return std::nullopt;
     }
 
@@ -155,54 +146,40 @@ MaplessLanePlannerPlugin::get_mission_lanes() const
     return latest_mission_lanes_;
 }
 
+std::optional<visualization_msgs::msg::MarkerArray>
+MaplessLanePlannerPlugin::get_markers() const
+{
+    std::lock_guard<std::mutex> lock(data_mutex_);
+    if (latest_lanelets_.empty() || !latest_segments_) {
+        return std::nullopt;
+    }
+    return create_road_model_markers(
+        latest_lanelets_,
+        latest_segments_->header.frame_id,
+        latest_segments_->header.stamp);
+}
+
 // ---------- Internal helpers ----------
 
 mapless_planning_msgs::msg::DrivingCorridor MaplessLanePlannerPlugin::build_ego_corridor(
-    const mapless_planning_msgs::msg::RoadSegments & segments) const
+    const mapless_planning_msgs::msg::RoadSegments & segments)
 {
-    // Initial version: use segment 0 as ego lane
-    const auto & seg = segments.segments[0];
+    std::vector<LaneletConnection> connections;
+    convert_segments_to_lanelets(segments, latest_lanelets_, connections);
 
-    if (seg.linestrings.size() < 2 ||
-        seg.linestrings[0].poses.empty() ||
-        seg.linestrings[1].poses.empty())
-    {
-        RCLCPP_WARN(logger_, "segment 0 has insufficient linestrings");
-        return mapless_planning_msgs::msg::DrivingCorridor{};
+    const int ego_id = find_ego_lanelet_id(latest_lanelets_);
+    if (ego_id < 0) {
+        // 単一路では ego は常に segment 0 内にあるはずだが、境界線上では外れることがある
+        RCLCPP_WARN_THROTTLE(logger_, *clock_, 2000,
+            "ego lanelet not found among %zu lanelets; using index 0",
+            latest_lanelets_.size());
+        if (latest_lanelets_.empty()) {
+            return mapless_planning_msgs::msg::DrivingCorridor{};
+        }
+        return create_driving_corridor({0}, latest_lanelets_);
     }
 
-    const auto & left_ls = seg.linestrings[0];
-    const auto & right_ls = seg.linestrings[1];
-
-    mapless_planning_msgs::msg::DrivingCorridor corridor;
-
-    for (const auto & pose : left_ls.poses) {
-        corridor.bound_left.push_back(pose.position);
-    }
-    for (const auto & pose : right_ls.poses) {
-        corridor.bound_right.push_back(pose.position);
-    }
-
-    // Compute centerline: interpolate between left and right at same x samples
-    const std::size_t n_left = left_ls.poses.size();
-    const std::size_t n_right = right_ls.poses.size();
-    const std::size_t n_pts = std::max(n_left, n_right);
-
-    for (std::size_t i = 0; i < n_pts; ++i) {
-        const double tl = static_cast<double>(i) / std::max<std::size_t>(1, n_pts - 1);
-        const double tr = tl;
-
-        const auto idx_l = static_cast<std::size_t>(tl * static_cast<double>(n_left - 1));
-        const auto idx_r = static_cast<std::size_t>(tr * static_cast<double>(n_right - 1));
-
-        geometry_msgs::msg::Point c;
-        c.x = 0.5 * (left_ls.poses[idx_l].position.x + right_ls.poses[idx_r].position.x);
-        c.y = 0.5 * (left_ls.poses[idx_l].position.y + right_ls.poses[idx_r].position.y);
-        c.z = 0.0;
-        corridor.centerline.push_back(c);
-    }
-
-    return corridor;
+    return create_driving_corridor({ego_id}, latest_lanelets_);
 }
 
 nav_msgs::msg::Path MaplessLanePlannerPlugin::corridor_to_path(
@@ -231,7 +208,7 @@ nav_msgs::msg::Path MaplessLanePlannerPlugin::corridor_to_path(
             if (std::hypot(dx, dy) > EPSILON) {
                 yaw = std::atan2(dy, dx);
             }
-        } else if (i > 0) {
+        } else {
             const auto p_prev = transform_point(cl[i - 1], ego_in_map);
             const double dx = p_map.x - p_prev.x;
             const double dy = p_map.y - p_prev.y;

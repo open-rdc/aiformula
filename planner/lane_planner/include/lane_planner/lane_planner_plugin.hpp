@@ -8,6 +8,7 @@
 #include <mapless_planning_msgs/msg/road_segments.hpp>
 #include <nav_msgs/msg/path.hpp>
 #include <rclcpp/rclcpp.hpp>
+#include <visualization_msgs/msg/marker_array.hpp>
 
 namespace lane_planner
 {
@@ -34,6 +35,10 @@ public:
     // Optional — only used by mapless plugin; default returns nullopt
     virtual std::optional<mapless_planning_msgs::msg::MissionLanesStamped>
     get_mission_lanes() const { return std::nullopt; }
+
+    // Optional — road model visualization; default returns nullopt
+    virtual std::optional<visualization_msgs::msg::MarkerArray>
+    get_markers() const { return std::nullopt; }
 };
 
 }  // namespace lane_planner

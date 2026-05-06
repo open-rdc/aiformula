@@ -10,6 +10,7 @@ ament_auto_find_build_dependencies()
 
 ament_auto_add_library(lane_planner_node SHARED
   src/lane_planner_server.cpp
+  src/lanelet_utils.cpp
   src/plugins/vectormap_lane_planner_plugin.cpp
   src/plugins/mapless_lane_planner_plugin.cpp
 )
