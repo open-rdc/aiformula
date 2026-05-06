@@ -16,6 +16,7 @@
 
 #include <geometry_msgs/msg/point.hpp>
 #include <mapless_planning_msgs/msg/road_segments.hpp>
+#include <opencv2/core.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/camera_info.hpp>
 #include <sensor_msgs/msg/image.hpp>
@@ -26,6 +27,13 @@
 
 namespace road_segments_provider
 {
+
+struct LaneBoundaries
+{
+    std::vector<geometry_msgs::msg::Point> left;
+    std::vector<geometry_msgs::msg::Point> right;
+    float curvature{0.0f};  // [1/m] max |κ| in segment, left-curve positive
+};
 
 class RoadSegmentsProviderNode : public rclcpp::Node
 {
@@ -50,14 +58,21 @@ private:
     // Returns nullopt if TF is unavailable.
     std::optional<CameraParams> build_camera_params();
 
-    // Extracts ego lane left/right boundaries from the lane mask image.
-    // Left boundary:  rightmost lane pixels in left half (u < width/2), row by row.
-    // Right boundary: leftmost lane pixels in right half (u >= width/2), row by row.
-    // Both are returned sorted by increasing ground-x (near to far).
-    std::pair<std::vector<geometry_msgs::msg::Point>, std::vector<geometry_msgs::msg::Point>>
-    extract_lane_boundaries(
+    // Scans the lane mask row-by-row and collects IPM-projected center points
+    // (only for rows where both sides are detected above min_valid_pixel_width_).
+    // Returns empty vectors when no valid rows are found.
+    std::pair<std::vector<double>, std::vector<double>>
+    collect_center_points(
         const cv::Mat & lane_img,
         const CameraParams & params) const;
+
+    // Fits a polynomial of degree poly_fit_order_ to the center points,
+    // resamples at uniform intervals, expands by ±lane_width_m_/2,
+    // and computes the max curvature scalar.
+    // Returns empty LaneBoundaries if fewer than min_fit_points_ are available.
+    LaneBoundaries fit_and_expand(
+        const std::vector<double> & cx,
+        const std::vector<double> & cy) const;
 
     visualization_msgs::msg::MarkerArray build_markers(
         const std::vector<geometry_msgs::msg::Point> & left,
@@ -74,6 +89,11 @@ private:
     const std::string base_frame_id_;
     const double min_ground_x_m_;
     const double max_ground_x_m_;
+    const double lane_width_m_;                    // [m] 既知レーン幅
+    const int min_valid_pixel_width_;              // [px] 両側検出時の最小ピクセル幅（消失点フィルタ）
+    const int poly_fit_order_;                     // 多項式次数（2 または 3）
+    const int min_fit_points_;                     // フィット最少点数
+    const double centerline_resample_interval_m_;  // [m] 再サンプリング間隔
     const bool publish_markers_;
 
     // Subscribers / sync
