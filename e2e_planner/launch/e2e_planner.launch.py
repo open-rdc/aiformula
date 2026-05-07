@@ -23,6 +23,7 @@ def launch_setup(context, *args, **kwargs):
             'debug_mode': True,
             'default_command': 1,
             'use_place_recognition': False,
+            'yolop_input_size': 256,
             'placenet_model_name': 'placenet.pt',
             'topomap_dir_name': 'topomap',
             'placenet_delta': 10.0,

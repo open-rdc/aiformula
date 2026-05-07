@@ -23,7 +23,7 @@ from .zed_sdk import ZedSdk
 
 from e2e_planner.placenav.place_recognition import PlaceRecognition
 from util.yolop_processor import YOLOPv2Processor
-from util.preprocessing import center_square_crop, lane_mask_to_tensor_array, overlay_lane_mask
+from util.preprocessing import MODEL_INPUT_SIZE, center_square_crop, lane_mask_to_tensor_array, overlay_lane_mask
 
 def denormalize_waypoints(normalized: np.ndarray) -> np.ndarray:
     denormalized = normalized.copy()
@@ -42,6 +42,7 @@ class InferenceNode(Node):
         self.declare_parameter('debug_mode', True)
         self.declare_parameter('default_command', 1)
         self.declare_parameter('use_place_recognition', False)
+        self.declare_parameter('yolop_input_size', 256)
         self.declare_parameter('placenet_model_name', 'placenet.pt')
         self.declare_parameter('topomap_dir_name', 'topomap')
         self.declare_parameter('placenet_delta', 10.0)
@@ -55,6 +56,7 @@ class InferenceNode(Node):
         self.debug_mode = bool(self.get_parameter('debug_mode').value)
         self.command = int(self.get_parameter('default_command').value)
         self.use_place_recognition = bool(self.get_parameter('use_place_recognition').value)
+        self.yolop_input_size = int(self.get_parameter('yolop_input_size').value)
         placenet_model_name = self.get_parameter('placenet_model_name').value
         topomap_dir_name = self.get_parameter('topomap_dir_name').value
         self.placenet_delta = float(self.get_parameter('placenet_delta').value)
@@ -89,7 +91,11 @@ class InferenceNode(Node):
 
         self.yolop_processor = None
         if yolop_weight_path.exists():
-            self.yolop_processor = YOLOPv2Processor(yolop_weight_path, self.device)
+            self.yolop_processor = YOLOPv2Processor(
+                yolop_weight_path,
+                self.device,
+                input_size=self.yolop_input_size,
+            )
         else:
             self.get_logger().warn(f'YOLOPv2 model not found: {yolop_weight_path}')
         self.place_recognition = None
@@ -193,7 +199,9 @@ class InferenceNode(Node):
         bgr_image = self._to_bgr(image)
         if self.yolop_processor is None:
             raise RuntimeError('YOLOPv2 processor is not available.')
-        mask = self.yolop_processor.process_image(bgr_image)
+        if bgr_image.shape[0] >= 288 and bgr_image.shape[1] >= 288:
+            bgr_image = center_square_crop(bgr_image)
+        mask = self.yolop_processor.process_image(bgr_image, target_size=MODEL_INPUT_SIZE)
 
         mask_normalized = lane_mask_to_tensor_array(mask)
         tensor = torch.from_numpy(mask_normalized).unsqueeze(0).unsqueeze(0)

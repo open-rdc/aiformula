@@ -8,9 +8,9 @@ from typing import Optional, Tuple
 
 
 class YOLOPv2Processor:
-    def __init__(self, model_path: Path, device: torch.device):
+    def __init__(self, model_path: Path, device: torch.device, input_size: int = 640):
         self.device = device
-        self.input_shape = (640, 640)
+        self.input_shape = (input_size, input_size)
 
         if model_path.exists():
             self.model = torch.jit.load(str(model_path), map_location=device)
