@@ -1,10 +1,10 @@
 launch: #起動パラメータ
   ros__parameters:
     joy: true
-    vectornav : false
-    odrive : false
-    socketcan : false
-    zed : false
+    vectornav : true
+    odrive : true
+    socketcan : true
+    zed : true
     sim : false
 
 /**:  #ワイルドカード(ここのパラメータは全ノードから読める: <名前に注意>)
@@ -35,31 +35,6 @@ zed_wrapper_node:
 controller_node:
   ros__parameters:
     linear_max_vel : 2.0  #[m/s]
-
-frenet_planner_node:
-  ros__parameters:
-    # 時間パラメータ
-    dt : 0.2               # [s] 軌道の時間離散化間隔
-    # 速度パラメータ
-    d_t_s : 0.1         # [double] 速度サンプリングの割合
-    n_s_sample : 0    # [int] 縦方向サンプリング数
-    # 衝突判定
-    safety_margin : 0.05  # [m] 障害物からの安全マージン
-    # コスト関数の重み
-    k_jerk : 1.0          # Jerkペナルティ
-    k_time : 1.0          # 時間ペナルティ
-    k_d : 1.0             # 目標横位置ペナルティ
-    k_d_s : 1.0           # 終端の経路平行（d_s）ペナルティ
-    k_s_dot : 1.0         # 目標速度ペナルティ
-
-    k_lat : 1.0           # 横方向
-    k_lon : 3.0           # 縦方向
-
-pure_pursuit_node:
-  ros__parameters:
-    lookahead_distance : 5.0
-    curvature_gain : 5.0
-    steered_gain : 1.8
 
 vectormap_server_node:
   ros__parameters:
