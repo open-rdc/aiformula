@@ -103,7 +103,7 @@ void OdomTfNode::velocity_callback(
     }
     if (msg->header.frame_id != base_frame_id_ && msg->header.frame_id != "vectornav") {
         throw std::runtime_error(
-            "velocity_body frame_id must be " + base_frame_id_ + ", got " + msg->header.frame_id);
+            "velocity_body frame_id must be " + base_frame_id_ + " or vectornav, got " + msg->header.frame_id);
     }
 
     const rclcpp::Time stamp(msg->header.stamp, get_clock()->get_clock_type());
