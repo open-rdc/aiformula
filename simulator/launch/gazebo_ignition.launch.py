@@ -70,7 +70,7 @@ def generate_launch_description():
             # /imu_raw から /vectornav/imu へ変換するときのyaw補正。
             # /vectornav/imuのyawは実機同様に北基準headingとして扱い，
             # localization/odom側でROS ENU yawへ変換する。
-            'imu_frame_id': 'base_link',
+            'imu_frame_id': 'vectornav',
         }]
     )
 
@@ -79,7 +79,7 @@ def generate_launch_description():
         executable='convert_sim_to_vectornav_velocity_body.py',
         output='screen',
         parameters=[{
-            'body_frame_id': 'base_link',
+            'frame_id': 'vectornav',
         }]
     )
 
