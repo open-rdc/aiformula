@@ -12,6 +12,7 @@ ament_auto_find_build_dependencies()
 ament_auto_add_executable(main_exec
         src/main.cpp
         )
+target_compile_features(main_exec PUBLIC c_std_99 cxx_std_17)
 
 
 if(BUILD_TESTING)

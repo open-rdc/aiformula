@@ -4,49 +4,212 @@ launch: #起動パラメータ
     vectornav : true
     odrive : true
     socketcan : true
+    zed : true
+    sim : false
 
 /**:  #ワイルドカード(ここのパラメータは全ノードから読める: <名前に注意>)
   ros__parameters:
     # 並進  速度[m/s],加速度[m/s^2],加減速度[-m/s^2],躍度[m/s^3]
     linear_max:
-      vel : 4.0
+      vel : 3.0
       acc: 5.0
       jer: 0.0
     # 舵角  位置[deg]
     steering_max :
-      pos : 7.0
+      pos : 15.0
 
     tread : 0.6
     wheelbase : 0.8
 
+zed_wrapper_node:
+  ros__parameters:
+    grab_fps             : 15
+    # ZED X：HD1200 / HD1080 / SVGA
+    resolution           : "HD1080"
+    # Depth mode：NONE / PERFORMANCE / QUALITY / ULTRA / NEURAL / NEURAL_PLUS
+    depth_mode           : "NEURAL"
+    confidence_threshold : 50
+    serial_number        : 0        # 0 = auto-select
+    camera_frame_id      : "camera_depth_link"
+
 controller_node:
   ros__parameters:
-    linear_max_vel : 3.0  #[m/s]
+    linear_max_vel : 2.0  #[m/s]
 
-frenet_planner_node:
+vectormap_server_node:
   ros__parameters:
-    # 時間パラメータ
-    dt : 0.2               # [s] 軌道の時間離散化間隔
-    # 速度パラメータ
-    d_t_s : 0.1         # [double] 速度サンプリングの割合
-    n_s_sample : 0    # [int] 縦方向サンプリング数
-    # 衝突判定
-    safety_margin : 0.05  # [m] 障害物からの安全マージン
-    # コスト関数の重み
-    k_jerk : 1.0          # Jerkペナルティ
-    k_time : 1.0          # 時間ペナルティ
-    k_d : 1.0             # 目標横位置ペナルティ
-    k_d_s : 1.0           # 終端の経路平行（d_s）ペナルティ
-    k_s_dot : 1.0         # 目標速度ペナルティ
+    map_path : "aiformula_course.osm"
+    publish_period_ms : 1000
+    earth_frame_id : "earth"
+    map_axis_convention : "image_x_right_y_up"
+    map_origin_pixel:
+      x : 0.0
+      y : 0.0
+    meter_per_pixel : 0.1739579
+    map_origin_geodetic:
+      latitude :  36.11313110136178
+      longitude: 139.98107529988687
+      altitude :   50.0
+    # map の +x 軸が East から何 rad だけ CCW に回転しているか [rad]
+    # front_view_extractor 式の +u 方向を ENU に投影して数値的に算出
+    map_yaw_from_east : 0.02686650
 
-    k_lat : 1.0           # 横方向
-    k_lon : 3.0           # 縦方向
-
-pure_pursuit_node:
+localization_node:
   ros__parameters:
+    update_period_ms : 100
+    map_frame_id : "map"
+    base_frame_id : "base_link"
+    localized_pose_topic : "/localization/pose"
+    raw_pose_topic : "/localization/pose_raw"
+    velocity_topic : "/vectornav/velocity_body"
+    # VectorNav yaw is heading: 0 rad at North, positive counter-clockwise.
+    imu_yaw_convention : "heading_north_ccw"
+    # vectormap_server_node と同じ値を設定すること
+    map_origin_geodetic:
+      latitude :  36.11313110136178
+      longitude: 139.98107529988687
+      altitude :   50.0
+    map_yaw_from_east : 0.02686650
+    mask_threshold : 128
+    pixel_step : 4
+    max_observed_points : 2000
+    min_observed_points : 5
+    min_map_points : 5
+    map_sample_interval_m : 0.25
+    ground_plane_z_base : 0.0
+    min_ground_intersection_distance : 0.2
+    max_ground_intersection_distance : 30.0
+    camera:
+      # zedx: width=640, height=360
+      fx : 246.55866667
+      fy : 246.389
+      cx : 318.345
+      cy : 186.59033333
+    # 画像点をbase_linkへ変換するためのカメラ外部パラメータ
+    camera_to_base:
+      x : 0.055
+      y : 0.0
+      z : 0.54
+      roll : -1.53938040026
+      pitch : -0.00349065850
+      yaw : -1.57428698530
+    icp:
+      max_iterations : 20
+      max_correspondence_distance : 1.5
+      convergence_translation_epsilon : 0.01
+      min_correspondences : 5
+    ekf:
+      initial_position_variance : 1.0
+      initial_yaw_variance : 0.3
+      initial_velocity_variance : 1.0
+      initial_yaw_rate_variance : 0.5
+      # 不確かさ
+      process_position_variance : 0.2
+      process_yaw_variance : 0.05
+      process_velocity_variance : 0.5
+      process_yaw_rate_variance : 0.2
+      # 信頼度
+      gnss_position_variance : 0.5
+      imu_yaw_variance : 0.05
+      icp_position_variance : 0.15
+      # マハラノビスゲート閾値 (単位: sigma)
+      position_gate_dist : 10.0
+      yaw_gate_dist : 10.0
+
+odom_tf_node:
+  ros__parameters:
+    publish_period_ms : 20
+    odom_frame_id : "odom"
+    base_frame_id : "base_link"
+    imu_topic : "/vectornav/imu"
+    velocity_topic : "/vectornav/velocity_body"
+    odom_topic : "/localization/odom"
+    # VectorNav yaw is heading: 0 rad at North, positive counter-clockwise.
+    imu_yaw_convention : "heading_north_ccw"
+    max_integration_dt : 0.2
+
+map_odom_tf_node:
+  ros__parameters:
+    publish_period_ms    : 50          # 再送周期 [ms]（20 Hz）
+    stale_warn_timeout_s : 2.0         # キャッシュ更新が途絶えた場合の警告閾値 [s]
+    map_frame_id         : "map"
+    odom_frame_id        : "odom"
+    base_frame_id        : "base_link"
+    localized_pose_topic : "/localization/pose"
+
+lane_planner_node:
+  ros__parameters:
+    update_period_ms : 100
+    map_frame_id : "map"
+    base_frame_id : "base_link"
+    vector_map_topic : "/vector_map"
+    localization_pose_topic : "/localization/pose"
+    nav_cmd_topic : "/planning/nav_cmd"
+    default_nav_cmd : "straight"
+    nav_cmd_fallback_order : ["straight", "left", "right"]
+    global_path_topic : "/planner/global_path"
+    route_lanelet_ids : [301, 302, 303, 304, 305, 311, 313, 312, 314, 315, 309, 310]
+    # aiformula 2026 course: 301, 302, 303, 304, 305, 311, 313, 312, 314, 315, 309, 310
+    global_path_resample_interval_m : 0.2
+    max_centerline_connection_gap_m : 0.5
+    off_route_distance_threshold_m : 3.0
+    route_lookahead_lanelet_count : 3
+
+local_planner_server_node:
+  ros__parameters:
+    local_planner_plugin : "local_planner::VectormapFrenetPlugin"
+    update_period_ms : 100
+    map_frame_id : "map"
+    base_frame_id : "base_link"
+    global_path_topic : "/planner/global_path"
+    local_path_topic : "/planner/local_path"
+    vector_map_topic : "/vector_map"
+    localization_pose_topic : "/localization/pose"
+    velocity_topic : "/vectornav/velocity_body"
+    objects_topic : "/perception/objects"
+    lane_switch_trigger_topic : "/flag"
+    # VectormapFrenetPlugin params
+    local_path_horizon_m : 15.0
+    local_path_resample_interval_m : 0.2
+    max_centerline_connection_gap_m : 0.5
+    vehicle_width_m : 0.6
+    lane_change_length_m : 10.0
+    avoidance_detection_forward_distance_m : 15.0
+    avoidance_hard_margin_m : 0.2
+    avoidance_soft_margin_m : 0.3
+    envelope_buffer_margin_m : 0.2
+    avoidance_lateral_jerk_mps3 : 1.0
+    avoidance_min_velocity_mps : 0.5
+    max_avoidance_shift_m : 1.0
+    frenet_collision_check_margin_m : 0.2
+    frenet_weight_lateral_offset : 1.0
+    frenet_weight_lateral_change : 0.2
+    frenet_weight_avoidance_shift : 0.1
+
+object_detector_node:
+  ros__parameters:
+    map_frame_id : "map"
+    base_frame_id : "base_link"
+    ground_z_threshold_m : 0.1     # [m] 地面除去Zカット高さ（base_link frame z基準）
+    voxel_leaf_size_m : 0.1        # [m] ボクセルサイズ
+    cluster_tolerance_m : 0.5      # [m] クラスタリング距離閾値
+    min_cluster_size : 10
+    max_cluster_size : 1000
+    marker_height_m : 1.0          # [m] 可視化用Marker高さ
+
+controller_server_node:
+  ros__parameters:
+    controller_plugin  : "motion_control::PurePursuitPlugin"
+    path_topic         : "/planner/local_path"
+    pose_topic         : "/localization/pose"
+    autonomous_topic   : "/autonomous"
+    cmd_vel_topic      : "/cmd_vel"
+    target_pose_topic  : "/vectormap_control/target_pose"
+    map_frame_id       : "map"
+    base_frame_id      : "base_link"
+    # PurePursuitPlugin params (linear_max.*, steering_max.*, wheelbase は /** から継承)
     lookahead_distance : 5.0
-    curvature_gain : 5.0
-    steered_gain : 1.8
+    steered_gain       : 1.8
 
 chassis_driver_node:
   ros__parameters:
