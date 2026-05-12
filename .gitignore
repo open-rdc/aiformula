@@ -2,6 +2,7 @@
 *.log
 *.pyc
 *.pt
+*.md
 
 #ディレクトリで指定
 bin/
@@ -19,6 +20,5 @@ simulator_old/
 AGENTS.md
 CLAUDE.md
 .codex
-project.md
 
 #例外ファイルを指定
