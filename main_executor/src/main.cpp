@@ -7,8 +7,9 @@
 #include "localization/odom_tf_node.hpp"
 #include "localization/localization_node.hpp"
 #include "motion_control/controller_server.hpp"
-#include "lane_planner/lane_planner_node.hpp"
+#include "lane_planner/lane_planner_server.hpp"
 #include "local_planner/local_planner_server.hpp"
+#include "road_segments_provider/road_segments_provider_node.hpp"
 #include "object_detector/object_detector_node.hpp"
 #include "vectormap_server/vectormap_server_node.hpp"
 
@@ -21,8 +22,10 @@ int main(int argc, char * argv[]){
     nodes_option.automatically_declare_parameters_from_overrides(true);
 
     // Read launch flags from the 'launch' node's parameters
-    const bool use_zed = rclcpp::Node("launch", nodes_option).get_parameter("zed").as_bool();
-    const bool use_sim = rclcpp::Node("launch", nodes_option).get_parameter("sim").as_bool();
+    auto launch_node = rclcpp::Node("launch", nodes_option);
+    const bool use_zed = launch_node.get_parameter("zed").as_bool();
+    const bool use_sim = launch_node.get_parameter("sim").as_bool();
+    const bool use_mapless = launch_node.get_parameter("mapless").as_bool();
 
     if (use_sim) {
         nodes_option.parameter_overrides({rclcpp::Parameter("use_sim_time", true)});
@@ -34,7 +37,7 @@ int main(int argc, char * argv[]){
     auto localization_node = std::make_shared<localization::LocalizationNode>(nodes_option);
     auto odom_tf_node = std::make_shared<localization::OdomTfNode>(nodes_option);
     auto map_odom_tf_node = std::make_shared<localization::MapOdomTfNode>(nodes_option);
-    auto lane_planner_node = std::make_shared<lane_planner::LanePlannerNode>(nodes_option);
+    auto lane_planner_node = std::make_shared<lane_planner::LanePlannerServer>(nodes_option);
     auto local_planner_server_node = std::make_shared<local_planner::LocalPlannerServer>(nodes_option);
     auto controller_server_node = std::make_shared<motion_control::ControllerServer>(nodes_option);
     auto object_detector_node = std::make_shared<object_detector::ObjectDetectorNode>(nodes_option);
@@ -43,6 +46,13 @@ int main(int argc, char * argv[]){
     if (use_zed) {
         zed_wrapper_node = std::make_shared<zed_wrapper::ZedWrapperNode>(nodes_option);
         exec.add_node(zed_wrapper_node);
+    }
+
+    std::shared_ptr<road_segments_provider::RoadSegmentsProviderNode> road_segments_provider_node;
+    if (use_mapless) {
+        road_segments_provider_node =
+            std::make_shared<road_segments_provider::RoadSegmentsProviderNode>(nodes_option);
+        exec.add_node(road_segments_provider_node);
     }
     exec.add_node(controller_node);
     exec.add_node(chassis_driver_node);

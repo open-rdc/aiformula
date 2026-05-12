@@ -43,6 +43,7 @@ def generate_launch_description():
         output='screen',
         remappings=[
             ('/image_raw', '/zed/zed_node/rgb/image_rect_color'),
+            ('/camera_info', '/zed/zed_node/rgb/camera_info'),
             ('/depth_image', '/zed/zed_node/depth/depth_registered'),
             ('/navsat', '/vectornav/gnss'),
             ('/depth_image_raw/points', '/zed/zed_node/point_cloud'),

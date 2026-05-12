@@ -20,6 +20,8 @@
   <depend>localization</depend>
   <depend>motion_control</depend>
   <depend>lane_planner</depend>
+  <depend>mapless_planning_msgs</depend>
+  <depend>road_segments_provider</depend>
   <depend>local_planner</depend>
   <depend>object_detector</depend>
   <depend>zed_wrapper</depend>

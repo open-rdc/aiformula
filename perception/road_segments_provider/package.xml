@@ -1,21 +1,21 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>lane_planner</name>
+  <name>road_segments_provider</name>
   <version>0.0.0</version>
-  <description>Lane graph based global path planner.</description>
+  <description>Converts YOLOPv2 segmentation masks to RoadSegments via IPM</description>
   <maintainer email="s21c1135sc@s.chibakoudai.jp">Kyo Yamashita</maintainer>
   <license>MIT</license>
 
   <buildtool_depend>ament_cmake_auto</buildtool_depend>
 
+  <depend>cv_bridge</depend>
   <depend>geometry_msgs</depend>
-  <depend>lanelet2_core</depend>
   <depend>mapless_planning_msgs</depend>
-  <depend>nav_msgs</depend>
+  <depend>message_filters</depend>
   <depend>rclcpp</depend>
-  <depend>std_msgs</depend>
-  <depend>vectormap_msgs</depend>
+  <depend>sensor_msgs</depend>
+  <depend>tf2_ros</depend>
   <depend>visualization_msgs</depend>
 
   <test_depend>ament_lint_auto</test_depend>

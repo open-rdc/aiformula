@@ -16,6 +16,7 @@ LocalPlannerServer::LocalPlannerServer(
 : rclcpp::Node("local_planner_server_node", name_space, options),
   plugin_loader_("local_planner", "local_planner::LocalPlannerPlugin"),
   update_period_ms_(get_parameter("update_period_ms").as_int()),
+  global_path_timeout_ms_(get_parameter("global_path_timeout_ms").as_int()),
   global_path_topic_(get_parameter("global_path_topic").as_string()),
   local_path_topic_(get_parameter("local_path_topic").as_string()),
   vector_map_topic_(get_parameter("vector_map_topic").as_string()),
@@ -27,6 +28,9 @@ LocalPlannerServer::LocalPlannerServer(
 {
     if (update_period_ms_ <= 0) {
         throw std::invalid_argument("update_period_ms must be greater than 0");
+    }
+    if (global_path_timeout_ms_ <= 0) {
+        throw std::invalid_argument("global_path_timeout_ms must be greater than 0");
     }
     if (global_path_topic_.empty() ||
         local_path_topic_.empty() ||
@@ -88,6 +92,7 @@ void LocalPlannerServer::global_path_callback(const nav_msgs::msg::Path::SharedP
     }
     std::lock_guard<std::mutex> lock(data_mutex_);
     plugin_->setGlobalPath(*msg);
+    last_global_path_stamp_ = now();
 }
 
 void LocalPlannerServer::vector_map_callback(
@@ -138,6 +143,21 @@ void LocalPlannerServer::timer_callback()
         if (!latest_pose_) {
             RCLCPP_WARN_THROTTLE(
                 get_logger(), *get_clock(), 2000, "waiting for localization pose");
+            return;
+        }
+
+        // Freshness gate: suppress local path when global path is stale
+        if (last_global_path_stamp_.nanoseconds() == 0) {
+            RCLCPP_WARN_THROTTLE(
+                get_logger(), *get_clock(), 2000, "waiting for global path");
+            return;
+        }
+        const auto age_ms = static_cast<int>(
+            (now() - last_global_path_stamp_).nanoseconds() / 1'000'000LL);
+        if (age_ms > global_path_timeout_ms_) {
+            RCLCPP_WARN_THROTTLE(
+                get_logger(), *get_clock(), 1000,
+                "global path is stale (%d ms); local path suppressed", age_ms);
             return;
         }
 
