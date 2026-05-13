@@ -1,5 +1,12 @@
-epochs: 200
-batch_size: 8
+epochs: 1000
+batch_size: 16
 learning_rate: 0.0002
-num_workers: 2
+num_workers: 8
 weight_file: "e2e_model.pt"
+split_seed: 0
+curve_surprise_weighting:
+  enabled: true
+  threshold_m: 0.5
+  bins: 8
+  scale: 1.0
+  max_weight: 4.0

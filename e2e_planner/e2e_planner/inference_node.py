@@ -25,10 +25,20 @@ from e2e_planner.placenav.place_recognition import PlaceRecognition
 from util.yolop_processor import YOLOPv2Processor
 from util.preprocessing import MODEL_INPUT_SIZE, center_square_crop, lane_mask_to_tensor_array, overlay_lane_mask
 
+WAYPOINT_X_MIN = -8.0
+WAYPOINT_X_MAX = 12.0
+WAYPOINT_Y_MIN = -10.0
+WAYPOINT_Y_MAX = 10.0
+
+
+def denormalize_axis(values: np.ndarray, min_value: float, max_value: float) -> np.ndarray:
+    return (values + 1.0) * 0.5 * (max_value - min_value) + min_value
+
+
 def denormalize_waypoints(normalized: np.ndarray) -> np.ndarray:
     denormalized = normalized.copy()
-    denormalized[0::2] = (normalized[0::2] + 1.0) * 5.0
-    denormalized[1::2] = (normalized[1::2] + 1.0) * 3.0 - 3.0
+    denormalized[0::2] = denormalize_axis(normalized[0::2], WAYPOINT_X_MIN, WAYPOINT_X_MAX)
+    denormalized[1::2] = denormalize_axis(normalized[1::2], WAYPOINT_Y_MIN, WAYPOINT_Y_MAX)
     return denormalized
 
 class InferenceNode(Node):
@@ -41,8 +51,9 @@ class InferenceNode(Node):
         self.declare_parameter('image_topic', '/image_raw')
         self.declare_parameter('debug_mode', True)
         self.declare_parameter('default_command', 1)
-        self.declare_parameter('use_place_recognition', False)
+        self.declare_parameter('use_place_recognition', True)
         self.declare_parameter('yolop_input_size', 256)
+        self.declare_parameter('yolop_fp16', True)
         self.declare_parameter('placenet_model_name', 'placenet.pt')
         self.declare_parameter('topomap_dir_name', 'topomap')
         self.declare_parameter('placenet_delta', 10.0)
@@ -57,6 +68,7 @@ class InferenceNode(Node):
         self.command = int(self.get_parameter('default_command').value)
         self.use_place_recognition = bool(self.get_parameter('use_place_recognition').value)
         self.yolop_input_size = int(self.get_parameter('yolop_input_size').value)
+        self.yolop_fp16 = bool(self.get_parameter('yolop_fp16').value)
         placenet_model_name = self.get_parameter('placenet_model_name').value
         topomap_dir_name = self.get_parameter('topomap_dir_name').value
         self.placenet_delta = float(self.get_parameter('placenet_delta').value)
@@ -95,6 +107,7 @@ class InferenceNode(Node):
                 yolop_weight_path,
                 self.device,
                 input_size=self.yolop_input_size,
+                use_fp16=self.yolop_fp16,
             )
         else:
             self.get_logger().warn(f'YOLOPv2 model not found: {yolop_weight_path}')
@@ -154,7 +167,7 @@ class InferenceNode(Node):
     def command_callback(self, msg: UInt8) -> None:
         self.command = int(msg.data)
 
-    def preprocess_command(self, command: int | None = None) -> torch.Tensor:
+    def preprocess_command(self, command: Optional[int] = None) -> torch.Tensor:
         command_tensor = torch.zeros((1, 4), device=self.device, dtype=torch.float32)
         command_idx = self.command if command is None else int(command)
         command_idx = min(max(command_idx, 0), 3)
@@ -231,7 +244,7 @@ class InferenceNode(Node):
             debug_msg.header = header
             self.pub_debug_image.publish(debug_msg)
 
-        with torch.no_grad():
+        with torch.inference_mode():
             output = self.run_model(input_tensor, command_tensor)
 
         output_normalized = output.cpu().numpy().flatten()

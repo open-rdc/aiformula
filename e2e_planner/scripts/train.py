@@ -1,53 +1,191 @@
 #!/usr/bin/env python3
 
+import ctypes
+import os
 import sys
 import yaml
+from datetime import datetime
+from pathlib import Path
+
+
+def find_conda_cudnn_lib_dir() -> Path:
+    return (
+        Path(sys.prefix)
+        / 'lib'
+        / f'python{sys.version_info.major}.{sys.version_info.minor}'
+        / 'site-packages'
+        / 'nvidia'
+        / 'cudnn'
+        / 'lib'
+    )
+
+
+def ensure_conda_cudnn_first() -> None:
+    cudnn_lib_dir = find_conda_cudnn_lib_dir()
+    if not cudnn_lib_dir.exists():
+        return
+
+    cudnn_lib_dir_str = str(cudnn_lib_dir)
+    ld_library_path = os.environ.get('LD_LIBRARY_PATH', '')
+    ld_parts = [part for part in ld_library_path.split(':') if part]
+    if ld_parts and ld_parts[0] == cudnn_lib_dir_str:
+        return
+    if os.environ.get('AIFORMULA_CUDNN_REEXEC') == '1':
+        return
+
+    os.environ['AIFORMULA_CUDNN_REEXEC'] = '1'
+    os.environ['LD_LIBRARY_PATH'] = ':'.join([cudnn_lib_dir_str, *ld_parts])
+    os.execv(sys.executable, [sys.executable, *sys.argv])
+
+
+def preload_conda_cudnn() -> None:
+    cudnn_lib_dir = (
+        find_conda_cudnn_lib_dir()
+    )
+    if not cudnn_lib_dir.exists():
+        return
+
+    for lib_name in (
+        'libcudnn.so.8',
+        'libcudnn_ops_infer.so.8',
+        'libcudnn_ops_train.so.8',
+        'libcudnn_cnn_infer.so.8',
+        'libcudnn_cnn_train.so.8',
+        'libcudnn_adv_infer.so.8',
+        'libcudnn_adv_train.so.8',
+    ):
+        lib_path = cudnn_lib_dir / lib_name
+        if lib_path.exists():
+            ctypes.CDLL(str(lib_path), mode=ctypes.RTLD_GLOBAL)
+
+
+ensure_conda_cudnn_first()
+preload_conda_cudnn()
+
 import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader, random_split
 from torch.utils.tensorboard import SummaryWriter
 import cv2
 import csv
-from pathlib import Path
 import numpy as np
-from typing import Tuple
+from typing import List, Tuple
 from tqdm import tqdm
 from network import Network
 from util.preprocessing import lane_mask_to_tensor_array
 
-NUM_WAYPOINTS = 10
+NUM_WAYPOINTS = 6
 NUM_BRANCHES = 4
 DEFAULT_COMMAND = 1
+WAYPOINT_X_MIN = -8.0
+WAYPOINT_X_MAX = 12.0
+WAYPOINT_Y_MIN = -10.0
+WAYPOINT_Y_MAX = 10.0
+METADATA_CURVE_SCORE_INDEX = 7
+METADATA_CURVE_SURPRISE_INDEX = 8
+METADATA_SAMPLE_WEIGHT_INDEX = 9
+
+
+def normalize_axis(values: torch.Tensor, min_value: float, max_value: float) -> torch.Tensor:
+    return (values - min_value) / (max_value - min_value) * 2.0 - 1.0
+
+
+def denormalize_axis(values: torch.Tensor, min_value: float, max_value: float) -> torch.Tensor:
+    return (values + 1.0) * 0.5 * (max_value - min_value) + min_value
+
+
+def denormalize_waypoints(waypoints: torch.Tensor) -> torch.Tensor:
+    denormalized = waypoints.clone()
+    denormalized[..., 0::2] = denormalize_axis(waypoints[..., 0::2], WAYPOINT_X_MIN, WAYPOINT_X_MAX)
+    denormalized[..., 1::2] = denormalize_axis(waypoints[..., 1::2], WAYPOINT_Y_MIN, WAYPOINT_Y_MAX)
+    return denormalized
 
 
 class E2EDataset(Dataset):
-    def __init__(self, dataset_path: Path):
+    def __init__(
+        self,
+        dataset_path: Path,
+        curve_surprise_enabled: bool = False,
+        curve_threshold_m: float = 0.5,
+        curve_bins: int = 8,
+        curve_surprise_scale: float = 1.0,
+        curve_max_weight: float = 4.0,
+    ):
         self.dataset_path = dataset_path
         self.mask_images_dir = dataset_path / 'mask_images'
         self.path_dir = dataset_path / 'path'
         self.command_dir = dataset_path / 'commands'
         self.mask_files = sorted(list(self.mask_images_dir.glob('*.png')))
+        self.curve_surprise_enabled = curve_surprise_enabled
+        self.curve_threshold_m = curve_threshold_m
+        self.curve_bins = max(1, curve_bins)
+        self.curve_surprise_scale = curve_surprise_scale
+        self.curve_max_weight = max(1.0, curve_max_weight)
+        self.curve_scores, self.curve_surprises, self.sample_weights = self._build_curve_surprise_weights()
 
     def __len__(self) -> int:
         return len(self.mask_files)
 
-    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def _read_waypoints(self, csv_file: Path) -> List[List[float]]:
+        with open(csv_file, 'r') as f:
+            reader = csv.DictReader(f)
+            waypoints = [[float(row['x']), float(row['y'])] for row in reader]
+        if len(waypoints) < NUM_WAYPOINTS:
+            raise ValueError(f'Expected at least {NUM_WAYPOINTS} waypoints in {csv_file}, got {len(waypoints)}')
+        return waypoints[:NUM_WAYPOINTS]
+
+    def _curve_score(self, waypoints: List[List[float]]) -> float:
+        raw_waypoints = np.array(waypoints, dtype=np.float32)
+        return float(np.max(np.abs(raw_waypoints[:, 1])))
+
+    def _build_curve_surprise_weights(self) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        curve_scores = np.zeros(len(self.mask_files), dtype=np.float32)
+        surprises = np.zeros(len(self.mask_files), dtype=np.float32)
+        weights = np.ones(len(self.mask_files), dtype=np.float32)
+
+        if not self.curve_surprise_enabled or len(self.mask_files) == 0:
+            return curve_scores, surprises, weights
+
+        for idx, mask_file in enumerate(self.mask_files):
+            waypoints = self._read_waypoints(self.path_dir / f'{mask_file.stem}.csv')
+            curve_scores[idx] = self._curve_score(waypoints)
+
+        curve_mask = curve_scores >= self.curve_threshold_m
+        if not np.any(curve_mask):
+            return curve_scores, surprises, weights
+
+        curve_values = curve_scores[curve_mask]
+        max_curve = float(np.max(curve_values))
+        if max_curve <= self.curve_threshold_m:
+            return curve_scores, surprises, weights
+
+        bin_edges = np.linspace(self.curve_threshold_m, max_curve, self.curve_bins + 1)
+        bin_indices = np.digitize(curve_values, bin_edges[1:-1], right=True)
+        counts = np.bincount(bin_indices, minlength=self.curve_bins).astype(np.float32)
+        probabilities = counts / float(np.sum(counts))
+        curve_surprises = -np.log2(np.maximum(probabilities[bin_indices], 1e-12))
+
+        surprises[curve_mask] = curve_surprises
+        curve_weights = 1.0 + self.curve_surprise_scale * curve_surprises
+        weights[curve_mask] = np.minimum(curve_weights, self.curve_max_weight)
+        return curve_scores, surprises, weights
+
+    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, str, torch.Tensor]:
         mask_file = self.mask_files[idx]
         csv_file = self.path_dir / f'{mask_file.stem}.csv'
         command_file = self.command_dir / f'{mask_file.stem}.csv'
 
         mask_bgr = cv2.imread(str(mask_file), cv2.IMREAD_COLOR)
+        mask_nonzero = int(np.count_nonzero(mask_bgr))
 
-        with open(csv_file, 'r') as f:
-            reader = csv.DictReader(f)
-            waypoints = [[float(row['x']), float(row['y'])] for row in reader]
+        waypoints = self._read_waypoints(csv_file)
 
         mask_normalized = lane_mask_to_tensor_array(mask_bgr)
         mask_tensor = torch.from_numpy(mask_normalized).unsqueeze(0)
 
         waypoints_tensor = torch.tensor(waypoints, dtype=torch.float32).flatten()
-        waypoints_tensor[0::2] = waypoints_tensor[0::2] / 5.0 - 1.0
-        waypoints_tensor[1::2] = (waypoints_tensor[1::2] + 3.0) / 3.0 - 1.0
+        waypoints_tensor[0::2] = normalize_axis(waypoints_tensor[0::2], WAYPOINT_X_MIN, WAYPOINT_X_MAX)
+        waypoints_tensor[1::2] = normalize_axis(waypoints_tensor[1::2], WAYPOINT_Y_MIN, WAYPOINT_Y_MAX)
 
         command = DEFAULT_COMMAND
         if command_file.exists():
@@ -58,7 +196,24 @@ class E2EDataset(Dataset):
         command_tensor = torch.zeros(NUM_BRANCHES, dtype=torch.float32)
         command_tensor[command] = 1.0
 
-        return mask_tensor, waypoints_tensor, command_tensor
+        raw_waypoints = np.array(waypoints, dtype=np.float32)
+        metadata = torch.tensor(
+            [
+                float(command),
+                float(mask_nonzero),
+                float(raw_waypoints[-1, 0]),
+                float(raw_waypoints[-1, 1]),
+                float(np.max(np.abs(raw_waypoints[:, 1]))),
+                float(np.min(raw_waypoints[:, 0])),
+                float(np.max(raw_waypoints[:, 0])),
+                float(self.curve_scores[idx]),
+                float(self.curve_surprises[idx]),
+                float(self.sample_weights[idx]),
+            ],
+            dtype=torch.float32,
+        )
+
+        return mask_tensor, waypoints_tensor, command_tensor, mask_file.stem, metadata
 
 class Config:
     def __init__(self, config_path: Path, package_root: Path):
@@ -72,11 +227,19 @@ class Config:
         self.learning_rate = config_dict['learning_rate']
         self.num_workers = config_dict['num_workers']
         self.weight_file = config_dict['weight_file']
+        self.split_seed = int(config_dict.get('split_seed', 0))
+        curve_surprise = config_dict.get('curve_surprise_weighting', {})
+        self.curve_surprise_enabled = bool(curve_surprise.get('enabled', False))
+        self.curve_threshold_m = float(curve_surprise.get('threshold_m', 0.5))
+        self.curve_bins = int(curve_surprise.get('bins', 8))
+        self.curve_surprise_scale = float(curve_surprise.get('scale', 1.0))
+        self.curve_max_weight = float(curve_surprise.get('max_weight', 4.0))
 
         self.weights_dir = package_root / 'weights'
         self.weights_dir.mkdir(exist_ok=True)
 
         self.logs_dir = package_root / 'runs'
+        self.logs_dir.mkdir(exist_ok=True)
 
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -84,11 +247,25 @@ class Trainer:
     def __init__(self, dataset_path: Path, config: Config):
         self.config = config
         self.device = config.device
+        self.dataset_path = dataset_path
 
-        dataset = E2EDataset(dataset_path)
+        dataset = E2EDataset(
+            dataset_path,
+            curve_surprise_enabled=config.curve_surprise_enabled,
+            curve_threshold_m=config.curve_threshold_m,
+            curve_bins=config.curve_bins,
+            curve_surprise_scale=config.curve_surprise_scale,
+            curve_max_weight=config.curve_max_weight,
+        )
+        if len(dataset) == 0:
+            raise RuntimeError(
+                f'No training masks found in {dataset_path / "mask_images"}. '
+                'Run binarize_dataset.py before train.py.'
+            )
         train_size = int(0.8 * len(dataset))
         val_size = len(dataset) - train_size
-        train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
+        split_generator = torch.Generator().manual_seed(config.split_seed)
+        train_dataset, val_dataset = random_split(dataset, [train_size, val_size], generator=split_generator)
 
         self.train_loader = DataLoader(
             train_dataset,
@@ -106,23 +283,47 @@ class Trainer:
         self.model = Network(num_waypoints=NUM_WAYPOINTS, num_branches=NUM_BRANCHES).to(self.device)
         self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=config.learning_rate)
         self.mseloss = nn.MSELoss()
-        self.writer = SummaryWriter(log_dir=str(config.logs_dir))
+        run_name = f'{datetime.now().strftime("%Y%m%d_%H%M%S")}_{dataset_path.name}'
+        self.run_dir = config.logs_dir / run_name
+        self.writer = SummaryWriter(log_dir=str(self.run_dir))
 
         self.best_val_loss = float('inf')
+        self.last_val_details = []
+        self.last_val_rmse_m = 0.0
 
         print(f'Using device: {self.device}')
         print(f'Train size: {len(train_dataset)}, Val size: {len(val_dataset)}')
+        if config.curve_surprise_enabled:
+            curve_count = int(np.count_nonzero(dataset.curve_scores >= config.curve_threshold_m))
+            print(
+                'Curve surprise weighting: '
+                f'threshold={config.curve_threshold_m:.3f} m, '
+                f'bins={config.curve_bins}, '
+                f'scale={config.curve_surprise_scale:.3f}, '
+                f'max_weight={config.curve_max_weight:.3f}, '
+                f'curve_samples={curve_count}/{len(dataset)}, '
+                f'weight_range={float(np.min(dataset.sample_weights)):.3f}-{float(np.max(dataset.sample_weights)):.3f}'
+            )
+        print(f'TensorBoard log dir: {self.run_dir}')
+        print(f'View with: tensorboard --logdir {config.logs_dir}')
+
+    def weighted_mse_loss(self, outputs: torch.Tensor, targets: torch.Tensor, sample_weights: torch.Tensor) -> torch.Tensor:
+        sample_losses = torch.mean((outputs - targets) ** 2, dim=1)
+        return torch.mean(sample_losses * sample_weights)
 
     def validate(self) -> float:
         self.model.eval()
         total_loss = 0.0
+        total_rmse_m = 0.0
+        self.last_val_details = []
 
         with torch.no_grad():
             pbar = tqdm(self.val_loader, desc='Validation')
-            for images, waypoints, commands in pbar:
+            for images, waypoints, commands, sample_names, metadata in pbar:
                 images = images.to(self.device)
                 waypoints = waypoints.to(self.device)
                 commands = commands.to(self.device)
+                metadata = metadata.to(self.device)
 
                 outputs = self.model(images, commands)
 
@@ -130,7 +331,64 @@ class Trainer:
                 total_loss += loss.item()
                 pbar.set_postfix({'loss': f'{loss.item():.6f}'})
 
+                sample_losses = torch.mean((outputs - waypoints) ** 2, dim=1)
+                output_meters = denormalize_waypoints(outputs)
+                target_meters = denormalize_waypoints(waypoints)
+                sample_rmse_meters = torch.sqrt(torch.mean((output_meters - target_meters) ** 2, dim=1))
+                total_rmse_m += sample_rmse_meters.mean().item()
+
+                for i, sample_name in enumerate(sample_names):
+                    self.last_val_details.append({
+                        'sample': sample_name,
+                        'loss': float(sample_losses[i].item()),
+                        'rmse_m': float(sample_rmse_meters[i].item()),
+                        'command': int(metadata[i, 0].item()),
+                        'mask_nonzero': int(metadata[i, 1].item()),
+                        'last_x_3s': float(metadata[i, 2].item()),
+                        'last_y_3s': float(metadata[i, 3].item()),
+                        'max_abs_y_3s': float(metadata[i, 4].item()),
+                        'min_x_3s': float(metadata[i, 5].item()),
+                        'max_x_3s': float(metadata[i, 6].item()),
+                        'curve_score_m': float(metadata[i, METADATA_CURVE_SCORE_INDEX].item()),
+                        'curve_surprise_bits': float(metadata[i, METADATA_CURVE_SURPRISE_INDEX].item()),
+                        'sample_weight': float(metadata[i, METADATA_SAMPLE_WEIGHT_INDEX].item()),
+                    })
+
+        self.last_val_rmse_m = total_rmse_m / len(self.val_loader)
         return total_loss / len(self.val_loader)
+
+    def write_val_details(self, epoch: int) -> None:
+        if not self.last_val_details:
+            return
+
+        sorted_details = sorted(self.last_val_details, key=lambda row: row['loss'], reverse=True)
+        csv_path = self.run_dir / f'val_loss_epoch_{epoch:04d}.csv'
+        fieldnames = [
+            'rank',
+            'sample',
+            'loss',
+            'rmse_m',
+            'command',
+            'mask_nonzero',
+            'last_x_3s',
+            'last_y_3s',
+            'max_abs_y_3s',
+            'min_x_3s',
+            'max_x_3s',
+            'curve_score_m',
+            'curve_surprise_bits',
+            'sample_weight',
+        ]
+        with open(csv_path, 'w', newline='') as f:
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            writer.writeheader()
+            for rank, row in enumerate(sorted_details, start=1):
+                writer.writerow({'rank': rank, **row})
+
+        worst = sorted_details[:5]
+        worst_summary = ', '.join(f"{row['sample']}:{row['loss']:.4f}" for row in worst)
+        print(f'Validation details saved: {csv_path}')
+        print(f'Worst val samples: {worst_summary}')
 
     def save_checkpoint(self, val_loss: float) -> None:
         if val_loss < self.best_val_loss:
@@ -141,33 +399,65 @@ class Trainer:
             print(f'Best model saved: {weight_path} (val_loss: {val_loss:.6f})')
 
     def train(self, epochs: int) -> None:
+        self.writer.add_text('run/dataset_path', str(self.dataset_path), 0)
+        self.writer.add_text('run/device', str(self.device), 0)
+        self.writer.add_scalar('Dataset/train_size', len(self.train_loader.dataset), 0)
+        self.writer.add_scalar('Dataset/val_size', len(self.val_loader.dataset), 0)
+
         for epoch in range(1, epochs + 1):
             self.model.train()
             total_train_loss = 0.0
+            total_train_rmse_m = 0.0
+            total_train_weight = 0.0
 
             pbar = tqdm(self.train_loader, desc=f'Epoch {epoch} [Train]')
-            for images, waypoints, commands in pbar:
+            for images, waypoints, commands, _, metadata in pbar:
                 images = images.to(self.device)
                 waypoints = waypoints.to(self.device)
                 commands = commands.to(self.device)
+                metadata = metadata.to(self.device)
+                sample_weights = metadata[:, METADATA_SAMPLE_WEIGHT_INDEX]
 
                 self.optimizer.zero_grad()
                 outputs = self.model(images, commands)
 
-                loss = self.mseloss(outputs, waypoints)
+                loss = self.weighted_mse_loss(outputs, waypoints, sample_weights)
                 loss.backward()
                 self.optimizer.step()
 
                 total_train_loss += loss.item()
-                pbar.set_postfix({'loss': f'{loss.item():.6f}'})
+                with torch.no_grad():
+                    total_train_weight += sample_weights.mean().item()
+                    output_meters = denormalize_waypoints(outputs)
+                    target_meters = denormalize_waypoints(waypoints)
+                    rmse_meters = torch.sqrt(torch.mean((output_meters - target_meters) ** 2, dim=1))
+                    total_train_rmse_m += rmse_meters.mean().item()
+                pbar.set_postfix({
+                    'loss': f'{loss.item():.6f}',
+                    'w': f'{sample_weights.mean().item():.3f}',
+                })
 
             train_loss = total_train_loss / len(self.train_loader)
+            train_rmse_m = total_train_rmse_m / len(self.train_loader)
+            train_weight_mean = total_train_weight / len(self.train_loader)
             val_loss = self.validate()
 
             self.writer.add_scalar('Loss/train', train_loss, epoch)
             self.writer.add_scalar('Loss/val', val_loss, epoch)
+            self.writer.add_scalar('RMSE_m/train', train_rmse_m, epoch)
+            self.writer.add_scalar('RMSE_m/val', self.last_val_rmse_m, epoch)
+            if self.config.curve_surprise_enabled:
+                self.writer.add_scalar('CurveWeight/train_mean', train_weight_mean, epoch)
+            self.writer.add_scalar('LearningRate', self.optimizer.param_groups[0]['lr'], epoch)
+            self.writer.add_scalar('Best/val_loss', min(self.best_val_loss, val_loss), epoch)
+            self.writer.flush()
 
-            print(f'Epoch [{epoch}/{epochs}], Train Loss: {train_loss:.6f}, Val Loss: {val_loss:.6f}')
+            print(
+                f'Epoch [{epoch}/{epochs}], '
+                f'Train Loss: {train_loss:.6f}, Val Loss: {val_loss:.6f}, '
+                f'Train RMSE: {train_rmse_m:.3f} m, Val RMSE: {self.last_val_rmse_m:.3f} m'
+            )
+            self.write_val_details(epoch)
 
             self.save_checkpoint(val_loss)
 
@@ -183,7 +473,7 @@ def main() -> None:
         print(f'Dataset path does not exist: {dataset_path}')
         sys.exit(1)
 
-    script_dir = Path(__file__).parent
+    script_dir = Path(__file__).resolve().parent
     package_root = script_dir.parent
     config_path = package_root / 'config' / 'train.yaml'
 
