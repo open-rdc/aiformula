@@ -1,66 +1,9 @@
 #!/usr/bin/env python3
 
-import ctypes
-import os
 import sys
 import yaml
 from datetime import datetime
 from pathlib import Path
-
-
-def find_conda_cudnn_lib_dir() -> Path:
-    return (
-        Path(sys.prefix)
-        / 'lib'
-        / f'python{sys.version_info.major}.{sys.version_info.minor}'
-        / 'site-packages'
-        / 'nvidia'
-        / 'cudnn'
-        / 'lib'
-    )
-
-
-def ensure_conda_cudnn_first() -> None:
-    cudnn_lib_dir = find_conda_cudnn_lib_dir()
-    if not cudnn_lib_dir.exists():
-        return
-
-    cudnn_lib_dir_str = str(cudnn_lib_dir)
-    ld_library_path = os.environ.get('LD_LIBRARY_PATH', '')
-    ld_parts = [part for part in ld_library_path.split(':') if part]
-    if ld_parts and ld_parts[0] == cudnn_lib_dir_str:
-        return
-    if os.environ.get('AIFORMULA_CUDNN_REEXEC') == '1':
-        return
-
-    os.environ['AIFORMULA_CUDNN_REEXEC'] = '1'
-    os.environ['LD_LIBRARY_PATH'] = ':'.join([cudnn_lib_dir_str, *ld_parts])
-    os.execv(sys.executable, [sys.executable, *sys.argv])
-
-
-def preload_conda_cudnn() -> None:
-    cudnn_lib_dir = (
-        find_conda_cudnn_lib_dir()
-    )
-    if not cudnn_lib_dir.exists():
-        return
-
-    for lib_name in (
-        'libcudnn.so.8',
-        'libcudnn_ops_infer.so.8',
-        'libcudnn_ops_train.so.8',
-        'libcudnn_cnn_infer.so.8',
-        'libcudnn_cnn_train.so.8',
-        'libcudnn_adv_infer.so.8',
-        'libcudnn_adv_train.so.8',
-    ):
-        lib_path = cudnn_lib_dir / lib_name
-        if lib_path.exists():
-            ctypes.CDLL(str(lib_path), mode=ctypes.RTLD_GLOBAL)
-
-
-ensure_conda_cudnn_first()
-preload_conda_cudnn()
 
 import torch
 import torch.nn as nn
