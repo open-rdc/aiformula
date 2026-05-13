@@ -25,7 +25,7 @@ WAYPOINT_X_MAX = 12.0
 WAYPOINT_Y_MIN = -10.0
 WAYPOINT_Y_MAX = 10.0
 METADATA_CURVE_SCORE_INDEX = 7
-METADATA_CURVE_SURPRISE_INDEX = 8
+METADATA_CURVE_BIN_INDEX = 8
 METADATA_SAMPLE_WEIGHT_INDEX = 9
 
 
@@ -48,23 +48,21 @@ class E2EDataset(Dataset):
     def __init__(
         self,
         dataset_path: Path,
-        curve_surprise_enabled: bool = False,
+        curve_weight_enabled: bool = False,
         curve_threshold_m: float = 0.5,
-        curve_bins: int = 8,
-        curve_surprise_scale: float = 1.0,
-        curve_max_weight: float = 4.0,
+        curve_side_bins: int = 3,
+        curve_step_weight_factor: float = 4.0,
     ):
         self.dataset_path = dataset_path
         self.mask_images_dir = dataset_path / 'mask_images'
         self.path_dir = dataset_path / 'path'
         self.command_dir = dataset_path / 'commands'
         self.mask_files = sorted(list(self.mask_images_dir.glob('*.png')))
-        self.curve_surprise_enabled = curve_surprise_enabled
+        self.curve_weight_enabled = curve_weight_enabled
         self.curve_threshold_m = curve_threshold_m
-        self.curve_bins = max(1, curve_bins)
-        self.curve_surprise_scale = curve_surprise_scale
-        self.curve_max_weight = max(1.0, curve_max_weight)
-        self.curve_scores, self.curve_surprises, self.sample_weights = self._build_curve_surprise_weights()
+        self.curve_side_bins = max(1, curve_side_bins)
+        self.curve_step_weight_factor = max(1.0, curve_step_weight_factor)
+        self.curve_scores, self.curve_bins, self.sample_weights = self._build_curve_bin_weights()
 
     def __len__(self) -> int:
         return len(self.mask_files)
@@ -79,39 +77,41 @@ class E2EDataset(Dataset):
 
     def _curve_score(self, waypoints: List[List[float]]) -> float:
         raw_waypoints = np.array(waypoints, dtype=np.float32)
-        return float(np.max(np.abs(raw_waypoints[:, 1])))
+        max_abs_y_index = int(np.argmax(np.abs(raw_waypoints[:, 1])))
+        return float(raw_waypoints[max_abs_y_index, 1])
 
-    def _build_curve_surprise_weights(self) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    def _build_curve_bin_weights(self) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         curve_scores = np.zeros(len(self.mask_files), dtype=np.float32)
-        surprises = np.zeros(len(self.mask_files), dtype=np.float32)
+        curve_bins = np.zeros(len(self.mask_files), dtype=np.float32)
         weights = np.ones(len(self.mask_files), dtype=np.float32)
 
-        if not self.curve_surprise_enabled or len(self.mask_files) == 0:
-            return curve_scores, surprises, weights
+        if not self.curve_weight_enabled or len(self.mask_files) == 0:
+            return curve_scores, curve_bins, weights
 
         for idx, mask_file in enumerate(self.mask_files):
             waypoints = self._read_waypoints(self.path_dir / f'{mask_file.stem}.csv')
             curve_scores[idx] = self._curve_score(waypoints)
 
-        curve_mask = curve_scores >= self.curve_threshold_m
+        curve_magnitudes = np.abs(curve_scores)
+        curve_mask = curve_magnitudes >= self.curve_threshold_m
         if not np.any(curve_mask):
-            return curve_scores, surprises, weights
+            return curve_scores, curve_bins, weights
 
-        curve_values = curve_scores[curve_mask]
+        curve_values = curve_magnitudes[curve_mask]
         max_curve = float(np.max(curve_values))
         if max_curve <= self.curve_threshold_m:
-            return curve_scores, surprises, weights
+            signed_bins = np.sign(curve_scores[curve_mask]).astype(np.float32)
+            curve_bins[curve_mask] = signed_bins
+            weights[curve_mask] = self.curve_step_weight_factor
+            return curve_scores, curve_bins, weights
 
-        bin_edges = np.linspace(self.curve_threshold_m, max_curve, self.curve_bins + 1)
-        bin_indices = np.digitize(curve_values, bin_edges[1:-1], right=True)
-        counts = np.bincount(bin_indices, minlength=self.curve_bins).astype(np.float32)
-        probabilities = counts / float(np.sum(counts))
-        curve_surprises = -np.log2(np.maximum(probabilities[bin_indices], 1e-12))
+        bin_edges = np.linspace(self.curve_threshold_m, max_curve, self.curve_side_bins + 1)
+        bin_levels = np.digitize(curve_values, bin_edges[1:-1], right=True) + 1
+        signed_bins = bin_levels.astype(np.float32) * np.sign(curve_scores[curve_mask]).astype(np.float32)
 
-        surprises[curve_mask] = curve_surprises
-        curve_weights = 1.0 + self.curve_surprise_scale * curve_surprises
-        weights[curve_mask] = np.minimum(curve_weights, self.curve_max_weight)
-        return curve_scores, surprises, weights
+        curve_bins[curve_mask] = signed_bins
+        weights[curve_mask] = np.power(self.curve_step_weight_factor, bin_levels).astype(np.float32)
+        return curve_scores, curve_bins, weights
 
     def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, str, torch.Tensor]:
         mask_file = self.mask_files[idx]
@@ -150,7 +150,7 @@ class E2EDataset(Dataset):
                 float(np.min(raw_waypoints[:, 0])),
                 float(np.max(raw_waypoints[:, 0])),
                 float(self.curve_scores[idx]),
-                float(self.curve_surprises[idx]),
+                float(self.curve_bins[idx]),
                 float(self.sample_weights[idx]),
             ],
             dtype=torch.float32,
@@ -171,12 +171,11 @@ class Config:
         self.num_workers = config_dict['num_workers']
         self.weight_file = config_dict['weight_file']
         self.split_seed = int(config_dict.get('split_seed', 0))
-        curve_surprise = config_dict.get('curve_surprise_weighting', {})
-        self.curve_surprise_enabled = bool(curve_surprise.get('enabled', False))
-        self.curve_threshold_m = float(curve_surprise.get('threshold_m', 0.5))
-        self.curve_bins = int(curve_surprise.get('bins', 8))
-        self.curve_surprise_scale = float(curve_surprise.get('scale', 1.0))
-        self.curve_max_weight = float(curve_surprise.get('max_weight', 4.0))
+        curve_weighting = config_dict.get('curve_bin_weighting', config_dict.get('curve_surprise_weighting', {}))
+        self.curve_weight_enabled = bool(curve_weighting.get('enabled', False))
+        self.curve_threshold_m = float(curve_weighting.get('threshold_m', 0.5))
+        self.curve_side_bins = int(curve_weighting.get('side_bins', 3))
+        self.curve_step_weight_factor = float(curve_weighting.get('step_weight_factor', 4.0))
 
         self.weights_dir = package_root / 'weights'
         self.weights_dir.mkdir(exist_ok=True)
@@ -194,11 +193,10 @@ class Trainer:
 
         dataset = E2EDataset(
             dataset_path,
-            curve_surprise_enabled=config.curve_surprise_enabled,
+            curve_weight_enabled=config.curve_weight_enabled,
             curve_threshold_m=config.curve_threshold_m,
-            curve_bins=config.curve_bins,
-            curve_surprise_scale=config.curve_surprise_scale,
-            curve_max_weight=config.curve_max_weight,
+            curve_side_bins=config.curve_side_bins,
+            curve_step_weight_factor=config.curve_step_weight_factor,
         )
         if len(dataset) == 0:
             raise RuntimeError(
@@ -236,14 +234,13 @@ class Trainer:
 
         print(f'Using device: {self.device}')
         print(f'Train size: {len(train_dataset)}, Val size: {len(val_dataset)}')
-        if config.curve_surprise_enabled:
-            curve_count = int(np.count_nonzero(dataset.curve_scores >= config.curve_threshold_m))
+        if config.curve_weight_enabled:
+            curve_count = int(np.count_nonzero(np.abs(dataset.curve_scores) >= config.curve_threshold_m))
             print(
-                'Curve surprise weighting: '
+                'Curve bin weighting: '
                 f'threshold={config.curve_threshold_m:.3f} m, '
-                f'bins={config.curve_bins}, '
-                f'scale={config.curve_surprise_scale:.3f}, '
-                f'max_weight={config.curve_max_weight:.3f}, '
+                f'side_bins={config.curve_side_bins}, '
+                f'step_weight_factor={config.curve_step_weight_factor:.3f}, '
                 f'curve_samples={curve_count}/{len(dataset)}, '
                 f'weight_range={float(np.min(dataset.sample_weights)):.3f}-{float(np.max(dataset.sample_weights)):.3f}'
             )
@@ -292,8 +289,8 @@ class Trainer:
                         'max_abs_y_3s': float(metadata[i, 4].item()),
                         'min_x_3s': float(metadata[i, 5].item()),
                         'max_x_3s': float(metadata[i, 6].item()),
-                        'curve_score_m': float(metadata[i, METADATA_CURVE_SCORE_INDEX].item()),
-                        'curve_surprise_bits': float(metadata[i, METADATA_CURVE_SURPRISE_INDEX].item()),
+                        'curve_y_m': float(metadata[i, METADATA_CURVE_SCORE_INDEX].item()),
+                        'curve_bin': int(metadata[i, METADATA_CURVE_BIN_INDEX].item()),
                         'sample_weight': float(metadata[i, METADATA_SAMPLE_WEIGHT_INDEX].item()),
                     })
 
@@ -318,8 +315,8 @@ class Trainer:
             'max_abs_y_3s',
             'min_x_3s',
             'max_x_3s',
-            'curve_score_m',
-            'curve_surprise_bits',
+            'curve_y_m',
+            'curve_bin',
             'sample_weight',
         ]
         with open(csv_path, 'w', newline='') as f:
@@ -389,7 +386,7 @@ class Trainer:
             self.writer.add_scalar('Loss/val', val_loss, epoch)
             self.writer.add_scalar('RMSE_m/train', train_rmse_m, epoch)
             self.writer.add_scalar('RMSE_m/val', self.last_val_rmse_m, epoch)
-            if self.config.curve_surprise_enabled:
+            if self.config.curve_weight_enabled:
                 self.writer.add_scalar('CurveWeight/train_mean', train_weight_mean, epoch)
             self.writer.add_scalar('LearningRate', self.optimizer.param_groups[0]['lr'], epoch)
             self.writer.add_scalar('Best/val_loss', min(self.best_val_loss, val_loss), epoch)
