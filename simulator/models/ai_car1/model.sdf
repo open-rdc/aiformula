@@ -1,6 +1,7 @@
 <?xml version="1.0" ?>
 <sdf version="1.5">
   <model name="ai_car1">
+  <self_collide>1</self_collide>
   <pose>0 0 0 0 0 0</pose>
 
   <!-- ignition plugin -->
@@ -13,42 +14,17 @@
       <wheel_separation>0.6</wheel_separation>
       <wheel_radius>0.124</wheel_radius>
       <odom_publish_frequency>30</odom_publish_frequency>
-      <topic>cmd_vel_twist</topic>
+      <topic>cmd_vel</topic>
       <odom_topic>odom</odom_topic>
-    </plugin>
-    <plugin
-      filename="gz_ros2_control-system"
-      name="gz_ros2_control::GazeboSimROS2ControlPlugin">
-      <robot_param>robot_description</robot_param>
-      <robot_param_node>robot_state_publisher</robot_param_node>
-      <parameters>/tmp/simulator_ai_car1_ros2_control.yaml</parameters>
-      <controller_manager_name>controller_manager</controller_manager_name>
-      <ros>
-        <remapping>/caster_yaw_position_controller/commands:=/cmd_caster</remapping>
-      </ros>
     </plugin>
     <plugin
         filename="libignition-gazebo-imu-system.so"
         name="ignition::gazebo::systems::Imu">
     </plugin>
     <plugin
-        filename="libignition-gazebo-sensors-system.so"
+        filename="ignition-gazebo-sensors-system"
         name="ignition::gazebo::systems::Sensors">
     </plugin>
-
-    <ros2_control name="gz_ros2_control" type="system">
-      <hardware>
-        <plugin>gz_ros2_control/GazeboSimSystem</plugin>
-      </hardware>
-      <joint name="caster_yaw_wheel">
-        <command_interface name="position">
-          <param name="min">-0.26</param>
-          <param name="max">0.26</param>
-        </command_interface>
-        <state_interface name="position"/>
-        <state_interface name="velocity"/>
-      </joint>
-    </ros2_control>
 
     <!-- chassis -->
 
@@ -68,9 +44,10 @@
       </inertial>
 
       <visual name='visual'>
+        <pose>0 0 0 0 0 0</pose>
         <geometry>
         <!--let's add color to our link-->
-        <pose>0 0 0 0 0 3.14</pose>
+        <!-- <pose>0 0 0 0 0 3.14</pose> -->
           <mesh>
             <uri>package://simulator/models/ai_car1/meshes/AIF_body.dae</uri>
           </mesh>
@@ -78,13 +55,18 @@
       </visual>
 
       <collision name='collision'>
-        <pose>0 0 0 0 0 3.14</pose>
+        <pose>0 0 0 0 0 0</pose>
         <geometry>
         <pose>0 0 0 0 0 3.14</pose>
           <mesh>
             <uri>package://simulator/models/ai_car1/meshes/AIF_body.dae</uri>
           </mesh>
         </geometry>
+        <surface>
+          <contact>
+            <collide_bitmask>0x00</collide_bitmask>
+          </contact>
+        </surface>
       </collision>
     </link>
 
@@ -122,6 +104,11 @@
             <scale>0.05 0.12 0.12</scale>
           </mesh>
         </geometry>
+        <surface>
+          <contact>
+            <collide_bitmask>0x01</collide_bitmask>
+          </contact>
+        </surface>
       </collision>
     </link>
 
@@ -160,6 +147,11 @@
             <scale>0.05 0.12 0.12</scale>
           </mesh>
         </geometry>
+        <surface>
+          <contact>
+            <collide_bitmask>0x01</collide_bitmask>
+          </contact>
+        </surface>
       </collision>
     </link>
 
@@ -169,10 +161,12 @@
         <pose>0.8 0 0 0 0 1.57</pose>
     </frame>
 
+    
+    
     <link name='caster_yaw'>
-      <pose relative_to='caster_frame'/>
+      <pose relative_to='caster_frame'>0 0.1 0.25 0 0 -1.57</pose>
       <inertial>
-        <mass>5.0</mass>
+        <mass>0.7</mass>
         <inertia>
           <ixx>0.001</ixx>
           <ixy>0</ixy>
@@ -182,10 +176,208 @@
           <izz>0.001</izz>
         </inertia>
       </inertial>
+    
+      <visual name='visual'>
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <mesh>
+            <uri>package://simulator/models/ai_car1/meshes/aiformula_stl/caster_yaw.stl</uri>
+            <scale>0.001 0.001 0.001</scale>
+          </mesh>
+        </geometry>
+        <material>
+          <ambient>1.0 0.0 0.0 1</ambient>   [環境光：黄色]
+          <diffuse>1.0 0.0 0.0 1</diffuse>   [拡散反射：黄色]
+          <specular>0.2 0.2 0.2 1</specular> [少し光沢]
+          <emissive>0 0 0 1</emissive>       [発光なし]
+        </material>
+      </visual>
+
+      <!-- [🔸 左アーム]
+      <collision name="caster_left_collision">
+        <pose>-0.04 -0.0045 0.097 0 0 0.175</pose>
+        <geometry>
+          <box>
+            <size>0.017 0.005 0.01</size>
+          </box>
+        </geometry>
+        <surface>
+          <contact>
+            <collide_bitmask>0x01</collide_bitmask>
+          </contact>
+        </surface>
+      </collision>
+
+      [🔸 右アーム]
+      <collision name="caster_right_collision">
+        <pose>-0.04 0.0045 0.097 0 0 -0.175</pose>
+        <geometry>
+          <box>
+            <size>0.017 0.005 0.01</size>
+          </box>
+        </geometry>
+        <surface>
+          <contact>
+            <collide_bitmask>0x01</collide_bitmask>
+          </contact>
+        </surface>
+      </collision> -->
+
+      [🔸 中心柱]
+      <collision name="caster_center_collision">
+        <pose>0 0 0.0444 0 0 -0.261</pose>
+        <geometry>
+          <mesh>
+            <uri>package://simulator/models/ai_car1/meshes/aiformula_stl/caster_yaw.stl</uri>
+            <scale>0.001 0.001 0.001</scale>
+          </mesh>
+        </geometry>
+        <surface>
+          <contact>
+            <collide_bitmask>0x01</collide_bitmask>
+          </contact>
+        </surface>
+      </collision>
+    
+    </link>
+    
+    <link name='rotater'>
+      <pose relative_to='caster_yaw'>0.0 0.0 -0.0 0 0 0.0</pose>
+      <inertial>
+        <mass>1.0</mass>
+        <inertia>
+          <ixx>0.001</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>0.001</iyy>
+          <iyz>0</iyz>
+          <izz>0.001</izz>
+        </inertia>
+      </inertial>
+
+      <visual name='visual'>
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <mesh>
+            <uri>package://simulator/models/ai_car1/meshes/aiformula_stl/rotater.stl</uri>
+            <scale>0.001 0.001 0.001</scale>
+          </mesh>
+        </geometry>
+        <material>
+          <ambient>1.0 0.0 0.0 1</ambient>   [環境光：黄色]
+          <diffuse>1.0 0.0 0.0 1</diffuse>   [拡散反射：黄色]
+          <specular>0.2 0.2 0.2 1</specular> [少し光沢]
+          <emissive>0 0 0 1</emissive>       [発光なし]
+        </material>
+      </visual>
+
+      <collision name='collision'>
+        <geometry>
+          <mesh>
+            <uri>package://simulator/models/ai_car1/meshes/aiformula_stl/rotater.stl</uri>
+            <scale>0.001 0.001 0.001</scale>
+          </mesh>
+        </geometry>
+        <surface>
+          <contact>
+            <collide_bitmask>0x04</collide_bitmask>
+          </contact>
+        </surface>
+      </collision>
+    </link>
+
+    <link name='mover_left'>
+      <pose relative_to='caster_frame'>-0.03 0.1 0.25 0 0 0.0</pose>
+      <inertial>
+        <mass>1.0</mass>
+        <inertia>
+          <ixx>0.001</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>0.001</iyy>
+          <iyz>0</iyz>
+          <izz>0.001</izz>
+        </inertia>
+      </inertial>
+
+      <visual name='visual'>
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <mesh>
+            <uri>package://simulator/models/ai_car1/meshes/aiformula_stl/mover.stl</uri>
+            <scale>0.001 0.001 0.001</scale>
+          </mesh>
+        </geometry>
+        <material>
+          <ambient>0.0 1.0 0.0 1</ambient>   [環境光：黄色]
+          <diffuse>0.0 1.0 0.0 1</diffuse>   [拡散反射：黄色]
+          <specular>0.2 0.2 0.2 1</specular> [少し光沢]
+          <emissive>0 0 0 1</emissive>       [発光なし]
+        </material>
+      </visual>
+
+      <collision name='collision'>
+        <geometry>
+          <mesh>
+            <uri>package://simulator/models/ai_car1/meshes/aiformula_stl/mover.stl</uri>
+            <scale>0.001 0.001 0.001</scale>
+          </mesh>
+        </geometry>
+        <surface>
+          <contact>
+            <collide_bitmask>0x04</collide_bitmask>
+          </contact>
+        </surface>
+      </collision>
+    </link>
+
+    <link name='mover_right'>
+      <pose relative_to='caster_frame'>0.03 0.1 0.25 0 0 0.0</pose>
+      <inertial>
+        <mass>1.0</mass>
+        <inertia>
+          <ixx>0.001</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>0.001</iyy>
+          <iyz>0</iyz>
+          <izz>0.001</izz>
+        </inertia>
+      </inertial>
+
+      <visual name='visual'>
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <mesh>
+            <uri>package://simulator/models/ai_car1/meshes/aiformula_stl/mover.stl</uri>
+            <scale>0.001 0.001 0.001</scale>
+          </mesh>
+        </geometry>
+        <material>
+          <ambient>0.0 1.0 0.0 1</ambient>   [環境光：黄色]
+          <diffuse>0.0 1.0 0.0 1</diffuse>   [拡散反射：黄色]
+          <specular>0.2 0.2 0.2 1</specular> [少し光沢]
+          <emissive>0 0 0 1</emissive>       [発光なし]
+        </material>
+      </visual>
+
+      <collision name='collision'>
+        <geometry>
+          <mesh>
+            <uri>package://simulator/models/ai_car1/meshes/aiformula_stl/mover.stl</uri>
+            <scale>0.001 0.001 0.001</scale>
+          </mesh>
+        </geometry>
+        <surface>
+          <contact>
+            <collide_bitmask>0x04</collide_bitmask>
+          </contact>
+        </surface>
+      </collision>
     </link>
 
     <link name='caster'>
-      <pose relative_to='caster_yaw'/>
+      <pose relative_to='caster_yaw'>0.1 0.0 -0.25 0 0 1.57</pose>
       <inertial>
         <mass>1.0</mass>
         <inertia>
@@ -215,10 +407,36 @@
             <scale>0.1 0.1 0.1</scale>
           </mesh>
         </geometry>
+        <surface>
+          <contact>
+            <collide_bitmask>0x01</collide_bitmask>
+          </contact>
+        </surface>
       </collision>
     </link>
 
     <!-- joint config -->
+
+    <!-- <joint name='motor_joint' type='fixed'>
+      <parent>chassis</parent>
+      <child>motor</child>
+    </joint>
+
+    <joint name='motor_spin_joint' type='revolute'>
+      <parent>motor</parent>
+      <child>motor_spin</child>
+      <axis>
+        <xyz expressed_in='__model__'>0 0 1</xyz>
+        <limit>
+	  <lower>-6.283</lower>
+	  <upper>6.283</upper>
+	  <effort>9.4</effort>
+        </limit>
+        <dynamics>
+          <friction>0.9</friction>  [静止摩擦]
+        </dynamics>
+      </axis>
+    </joint> -->
 
     <joint name='left_wheel_joint' type='revolute'>
       <pose relative_to='left_wheel'/>
@@ -227,7 +445,7 @@
       <axis>
         <xyz expressed_in='__model__'>0 1 0</xyz>
         <limit>
-          <effort>84.4</effort>
+          <effort>9.4</effort>
         </limit>
         <dynamics>
           <friction>0.9</friction>  <!-- 静止摩擦 -->
@@ -242,7 +460,7 @@
       <axis>
         <xyz expressed_in='__model__'>0 1 0</xyz>
         <limit>
-          <effort>84.4</effort>
+          <effort>9.4</effort>
         </limit>
         <dynamics>
           <friction>0.9</friction>  <!-- 静止摩擦 -->
@@ -256,9 +474,8 @@
       <axis>
         <xyz expressed_in='__model__'>0 0 1</xyz>
         <limit>
-          <lower>-0.26</lower>
-          <upper>0.26</upper>
-          <effort>1000000.0</effort>
+          <lower>-0.261</lower>
+          <upper>0.261</upper>
         </limit>
         <dynamics>
           <damping>10.0</damping>
@@ -266,6 +483,57 @@
           <spring_reference>0.0</spring_reference>
         </dynamics>
       </axis>
+    </joint>
+
+    <joint name='rotater_joint' type='fixed'>
+      <parent>caster_yaw</parent>
+      <child>rotater</child>
+    </joint>
+
+    <joint name="mover_left_joint" type="prismatic">
+      <parent>chassis</parent>
+      <child>mover_left</child>
+      <pose>0.0 0.0 0.0 0.0 0.0 0.0</pose>
+      <axis>
+        <limit>
+          <lower>-0.1</lower>
+          <upper>0.1</upper>
+          <stiffness>1.0e6</stiffness>
+          <dissipation>0</dissipation>
+        </limit>
+        <xyz>0.0 1.0 0.0</xyz>
+      </axis>
+      <physics>
+        <ode>
+          <limit>
+            <cfm>0.0</cfm>
+            <erp>0.2</erp>
+          </limit>
+        </ode>
+      </physics>
+    </joint>
+
+    <joint name="mover_right_joint" type="prismatic">
+      <parent>chassis</parent>
+      <child>mover_right</child>
+      <pose>0.0 0.0 0.0 0.0 0.0 0.0</pose>
+      <axis>
+        <limit>
+          <lower>-0.1</lower>
+          <upper>0.1</upper>
+          <stiffness>1.0e6</stiffness>
+          <dissipation>0</dissipation>
+        </limit>
+        <xyz>0.0 1.0 0.0</xyz>
+      </axis>
+      <physics>
+        <ode>
+          <limit>
+            <cfm>0.0</cfm>
+            <erp>0.2</erp>
+          </limit>
+        </ode>
+      </physics>
     </joint>
 
     <joint name='caster_pitch_joint' type='revolute'>
@@ -327,7 +595,6 @@
         <xyz>0 0 1</xyz>
       </axis>
     </joint>
-
 
     <link name="camera_link">
       <pose>0 0 0 0 0 0</pose>
@@ -404,10 +671,58 @@
     <link name="gps_link">
       <sensor name="gps_sensor" type="navsat">
         <always_on>true</always_on>
-        <update_rate>5.0</update_rate>
+        <update_rate>1.0</update_rate>
         <topic>navsat</topic>
       </sensor>
     </link>
+
+    <!-- mover_left 用のコントローラー -->
+    <plugin
+      filename="libignition-gazebo-joint-position-controller-system.so"
+      name="ignition::gazebo::systems::JointPositionController">
+      <joint_name>mover_left_joint</joint_name>
+      <topic>/mover_left/cmd_pos</topic>
+      <p_gain>1000</p_gain>
+      <i_gain>0</i_gain>
+      <d_gain>50</d_gain>
+    </plugin>
+
+    <!-- mover_right 用のコントローラー -->
+    <plugin
+      filename="libignition-gazebo-joint-position-controller-system.so"
+      name="ignition::gazebo::systems::JointPositionController">
+      <joint_name>mover_right_joint</joint_name>
+      <topic>/mover_right/cmd_pos</topic>
+      <p_gain>1000</p_gain>
+      <i_gain>0</i_gain>
+      <d_gain>50</d_gain>
+    </plugin>
+    <!-- <plugin
+      filename="libgz-sim-joint-position-controller-system"
+      name="gz::sim::systems::JointPositionController">
+      <joint_name>motor_spin_joint</joint_name>
+      <topic>motor_spin_angle</topic>
+      <p_gain>20</p_gain>
+      <i_gain>0</i_gain>
+      <d_gain>0</d_gain>
+      <i_max>0</i_max>
+      <i_min>0</i_min>
+      <cmd_max>50</cmd_max>
+      <cmd_min>-50</cmd_min>
+    </plugin>
+    <plugin
+      filename="gz-sim-joint-state-publisher-system"
+      name="gz::sim::systems::JointStatePublisher">
+      <joint_name>motor_spin_joint</joint_name>
+      <topic>motor_spin_state</topic>
+    </plugin>
+    <plugin
+      filename="gz-sim-joint-state-publisher-system"
+      name="gz::sim::systems::JointStatePublisher">
+      <joint_name>caster_yaw_wheel</joint_name>
+      <topic>caster_yaw_angle</topic>
+    </plugin> -->
+
 
   </model>
 </sdf>
