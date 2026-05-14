@@ -21,7 +21,7 @@ from pathlib import Path
 from tqdm import tqdm
 
 sys.path.insert(0, str(Path(__file__).parent))
-from util.yolop_processor import YOLOPv2Processor
+from e2e_planner.util.yolop_processor import YOLOPv2Processor
 
 
 def resolve_weights_path(weights_arg):

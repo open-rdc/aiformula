@@ -15,16 +15,27 @@ import copy
 import sys
 from pathlib import Path
 from collections import deque
-from typing import Optional, List, Tuple, Deque, Union
+from typing import Any, Optional, List, Tuple, Deque, Union
 from tf_transformations import euler_from_quaternion
 from rclpy.qos import qos_profile_sensor_data
 import sensor_msgs_py.point_cloud2 as pc2
 import pymap3d as pm
-try:
-    import pyzed.sl as sl
-    ZED_SDK_AVAILABLE = True
-except ImportError:
-    ZED_SDK_AVAILABLE = False
+
+sl = None
+
+
+def _load_zed_sdk():
+    global sl
+    if sl is not None:
+        return sl
+
+    try:
+        import pyzed.sl as zed_sl
+    except ImportError as exc:
+        raise RuntimeError('ZED SDK not available. Install pyzed package.') from exc
+
+    sl = zed_sl
+    return sl
 
 SAMPLE_INTERVAL = 0.2
 WAYPOINT_INTERVAL = 0.5
@@ -94,16 +105,14 @@ class DataCollectionNode(Node):
         self.is_paused: bool = True
         self.prev_toggle_button_state: int = 0
 
-        self.zed_camera: Optional[sl.Camera] = None
-        self.zed_image: Optional[sl.Mat] = None
-        self.zed_point_cloud: Optional[sl.Mat] = None
-        self.zed_pose: Optional[sl.Pose] = None
-        self.zed_runtime_params: Optional[sl.RuntimeParameters] = None
+        self.zed_camera: Optional[Any] = None
+        self.zed_image: Optional[Any] = None
+        self.zed_point_cloud: Optional[Any] = None
+        self.zed_pose: Optional[Any] = None
+        self.zed_runtime_params: Optional[Any] = None
 
         if self.sdk_flag_:
-            if not ZED_SDK_AVAILABLE:
-                self.get_logger().error('ZED SDK not available. Install pyzed package.')
-                raise RuntimeError('ZED SDK not available')
+            _load_zed_sdk()
             self._initialize_zed_camera()
         else:
             image_topic = self.image_topic if self.simulator_mode else '/zed/zed_node/rgb/image_rect_color'

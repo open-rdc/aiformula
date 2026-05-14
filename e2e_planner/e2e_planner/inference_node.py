@@ -22,8 +22,8 @@ from typing import Optional, Tuple
 from .zed_sdk import ZedSdk
 
 from e2e_planner.placenav.place_recognition import PlaceRecognition
-from util.yolop_processor import YOLOPv2Processor
-from util.preprocessing import MODEL_INPUT_SIZE, center_square_crop, lane_mask_to_tensor_array, overlay_lane_mask
+from e2e_planner.util.yolop_processor import YOLOPv2Processor
+from e2e_planner.util.preprocessing import MODEL_INPUT_SIZE, center_square_crop, lane_mask_to_tensor_array, overlay_lane_mask
 
 WAYPOINT_X_MIN = -0.5
 WAYPOINT_X_MAX = 12.5

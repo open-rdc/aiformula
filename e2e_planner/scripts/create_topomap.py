@@ -9,7 +9,7 @@ import torch
 import yaml
 from torchvision import transforms
 
-from util.preprocessing import MODEL_INPUT_SIZE, center_square_crop
+from e2e_planner.util.preprocessing import MODEL_INPUT_SIZE, center_square_crop
 
 
 class TopomapGenerator:

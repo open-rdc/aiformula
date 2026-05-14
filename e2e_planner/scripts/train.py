@@ -14,8 +14,13 @@ import csv
 import numpy as np
 from typing import List, Tuple
 from tqdm import tqdm
-from network import Network
-from util.preprocessing import lane_mask_to_tensor_array
+
+try:
+    from e2e_collector.network import Network
+except ImportError:
+    from network import Network
+
+from e2e_planner.util.preprocessing import lane_mask_to_tensor_array
 
 NUM_WAYPOINTS = 6
 NUM_BRANCHES = 4
