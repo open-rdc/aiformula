@@ -25,10 +25,10 @@ from e2e_planner.placenav.place_recognition import PlaceRecognition
 from util.yolop_processor import YOLOPv2Processor
 from util.preprocessing import MODEL_INPUT_SIZE, center_square_crop, lane_mask_to_tensor_array, overlay_lane_mask
 
-WAYPOINT_X_MIN = -8.0
-WAYPOINT_X_MAX = 12.0
-WAYPOINT_Y_MIN = -10.0
-WAYPOINT_Y_MAX = 10.0
+WAYPOINT_X_MIN = -0.5
+WAYPOINT_X_MAX = 12.5
+WAYPOINT_Y_MIN = -8.5
+WAYPOINT_Y_MAX = 8.5
 
 
 def denormalize_axis(values: np.ndarray, min_value: float, max_value: float) -> np.ndarray:
@@ -56,9 +56,9 @@ class InferenceNode(Node):
         self.declare_parameter('yolop_fp16', True)
         self.declare_parameter('placenet_model_name', 'placenet.pt')
         self.declare_parameter('topomap_dir_name', 'topomap')
-        self.declare_parameter('placenet_delta', 10.0)
-        self.declare_parameter('placenet_window_lower', -1)
-        self.declare_parameter('placenet_window_upper', 2)
+        self.declare_parameter('placenet_delta', 5.0)
+        self.declare_parameter('placenet_window_lower', -3)
+        self.declare_parameter('placenet_window_upper', 5)
 
         model_path = self.get_parameter('model_name').value
         interval_ms = self.get_parameter('interval_ms').value
