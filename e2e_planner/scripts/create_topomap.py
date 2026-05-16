@@ -19,14 +19,14 @@ class TopomapGenerator:
         2: 'left',
         3: 'right',
     }
-    SAVED_STEP = 10
+    SAVED_STEP = 5
 
     def __init__(self, dataset_path):
         self.dataset_root = Path(dataset_path)
         self.image_dir = self.dataset_root / 'images'
         self.command_dir = self.dataset_root / 'commands'
 
-        script_dir = Path(__file__).parent
+        script_dir = Path(__file__).resolve().parent
         self.package_root = script_dir.parent
         self.topomap_dir = self.package_root / 'config' / 'topomap'
         self.topomap_images_dir = self.topomap_dir / 'images'
@@ -57,13 +57,11 @@ class TopomapGenerator:
         with command_path.open('r', newline='') as f:
             return int(float(next(csv.reader(f))[0]))
 
-    def _preprocess_image(self, image_path):
+    def _center_crop(self, image_path):
         image = cv2.imread(str(image_path), cv2.IMREAD_COLOR)
         if image is None:
             raise ValueError(f'Failed to read image: {image_path}')
-
-        cropped_image = center_square_crop(image)
-        return cv2.resize(cropped_image, MODEL_INPUT_SIZE, interpolation=cv2.INTER_AREA)
+        return center_square_crop(image)
 
     def extract_feature(self, image):
         image_tensor = self.placenet_transform(cv2.cvtColor(image, cv2.COLOR_BGR2RGB)).unsqueeze(0)
@@ -83,15 +81,20 @@ class TopomapGenerator:
             if command not in self.COMMAND_TO_ACTION:
                 raise ValueError(f'Unsupported command value: {command}')
 
-            processed_image = self._preprocess_image(image_path)
+            # センタークロップ（288x288）を特徴抽出と保存用画像の両方のベースにする
+            cropped_image = self._center_crop(image_path)
+
+            # 保存用は cv2.resize で 85x85 に縮小
+            save_image = cv2.resize(cropped_image, MODEL_INPUT_SIZE, interpolation=cv2.INTER_AREA)
             output_image_name = f'img{idx + 1:05d}.png'
             output_image_path = self.topomap_images_dir / output_image_name
-            cv2.imwrite(str(output_image_path), processed_image)
+            cv2.imwrite(str(output_image_path), save_image)
 
+            # 特徴抽出は 288x288 のまま渡し、transforms.Resize で縮小する（推論時と同じ経路）
             nodes.append({
                 'id': idx,
                 'image': output_image_name,
-                'feature': self.extract_feature(processed_image),
+                'feature': self.extract_feature(cropped_image),
                 'action': self.COMMAND_TO_ACTION[command],
             })
 
