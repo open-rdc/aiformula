@@ -45,8 +45,7 @@ class PlaceRecognition:
     def _initialize_belief(self, query_feature):
         dists = self._compute_distances(query_feature)
         descriptor_quantiles = np.quantile(dists, [0.025, 0.975])
-        denom = descriptor_quantiles[1] - descriptor_quantiles[0]
-        self.lambda1 = np.log(self.delta) / denom if denom > 1e-6 else 1.0
+        self.lambda1 = np.log(self.delta) / (descriptor_quantiles[1] - descriptor_quantiles[0])
         self.belief = np.exp(-self.lambda1 * dists)
         self.belief /= self.belief.sum()
 
