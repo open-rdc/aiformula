@@ -70,11 +70,7 @@ class PlaceRecognition:
             self.belief[:self.window_lower] = 0.0
 
         self.belief *= self._observation_likelihood(query_feature)
-        belief_sum = self.belief.sum()
-        if belief_sum <= 0.0:
-            self._initialize_belief(query_feature)
-        else:
-            self.belief /= belief_sum
+        self.belief /= self.belief.sum()
 
     def get_recognition(self, image_tensor):
         image_tensor = image_tensor.to(self.device, dtype=torch.float32)
