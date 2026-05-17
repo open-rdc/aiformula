@@ -14,6 +14,7 @@ from torchvision import transforms
 import numpy as np
 import os
 import sys
+import csv
 from pathlib import Path as FilePath
 from rclpy.qos import qos_profile_system_default, qos_profile_sensor_data
 from ament_index_python.packages import get_package_share_directory
@@ -25,20 +26,17 @@ from e2e_planner.placenav.place_recognition import PlaceRecognition
 from e2e_planner.util.yolop_processor import YOLOPv2Processor
 from e2e_planner.util.preprocessing import MODEL_INPUT_SIZE, center_square_crop, lane_mask_to_tensor_array, overlay_lane_mask
 
-WAYPOINT_X_MIN = -0.5
-WAYPOINT_X_MAX = 12.5
-WAYPOINT_Y_MIN = -8.5
-WAYPOINT_Y_MAX = 8.5
+NUM_WAYPOINTS = 6
 
 
 def denormalize_axis(values: np.ndarray, min_value: float, max_value: float) -> np.ndarray:
     return (values + 1.0) * 0.5 * (max_value - min_value) + min_value
 
 
-def denormalize_waypoints(normalized: np.ndarray) -> np.ndarray:
+def denormalize_waypoints(normalized: np.ndarray, bounds: dict) -> np.ndarray:
     denormalized = normalized.copy()
-    denormalized[0::2] = denormalize_axis(normalized[0::2], WAYPOINT_X_MIN, WAYPOINT_X_MAX)
-    denormalized[1::2] = denormalize_axis(normalized[1::2], WAYPOINT_Y_MIN, WAYPOINT_Y_MAX)
+    denormalized[0::2] = denormalize_axis(normalized[0::2], bounds['x_min'], bounds['x_max'])
+    denormalized[1::2] = denormalize_axis(normalized[1::2], bounds['y_min'], bounds['y_max'])
     return denormalized
 
 class InferenceNode(Node):
@@ -57,8 +55,9 @@ class InferenceNode(Node):
         self.declare_parameter('placenet_model_name', 'placenet.pt')
         self.declare_parameter('topomap_dir_name', 'topomap')
         self.declare_parameter('placenet_delta', 5.0)
-        self.declare_parameter('placenet_window_lower', -3)
-        self.declare_parameter('placenet_window_upper', 5)
+        self.declare_parameter('placenet_window_lower', -1)
+        self.declare_parameter('placenet_window_upper', 10)
+        self.declare_parameter('normalization_dataset_path', '')
 
         model_path = self.get_parameter('model_name').value
         interval_ms = self.get_parameter('interval_ms').value
@@ -74,6 +73,9 @@ class InferenceNode(Node):
         self.placenet_delta = float(self.get_parameter('placenet_delta').value)
         self.placenet_window_lower = int(self.get_parameter('placenet_window_lower').value)
         self.placenet_window_upper = int(self.get_parameter('placenet_window_upper').value)
+        normalization_dataset_path = FilePath(
+            self.get_parameter('normalization_dataset_path').value
+        )
 
         self.bridge = CvBridge()
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -87,6 +89,7 @@ class InferenceNode(Node):
         yolop_weight_path = FilePath(package_share_directory) / 'weights' / 'yolopv2.pt'
         placenet_weight_path = FilePath(package_share_directory) / 'weights' / placenet_model_name
         topomap_path = FilePath(package_share_directory) / 'config' / topomap_dir_name / 'topomap.yaml'
+        self.waypoint_bounds = self._build_waypoint_bounds(normalization_dataset_path)
 
         if os.path.exists(weight_path):
             self.model = torch.jit.load(weight_path, map_location=self.device)
@@ -163,6 +166,40 @@ class InferenceNode(Node):
             self.torch_callback,
             callback_group=self.torch_cb_group,
         )
+
+    def _build_waypoint_bounds(self, dataset_path: FilePath) -> dict:
+        path_dir = dataset_path / 'path'
+        path_files = sorted(path_dir.glob('*.csv'))
+        if not path_files:
+            raise RuntimeError(
+                'normalization_dataset_path must point to a dataset containing path/*.csv: '
+                f'{dataset_path}'
+            )
+
+        waypoints = []
+        for path_file in path_files:
+            with path_file.open('r') as f:
+                reader = csv.DictReader(f)
+                rows = [[float(row['x']), float(row['y'])] for row in reader]
+            if len(rows) < NUM_WAYPOINTS:
+                raise RuntimeError(
+                    f'Expected at least {NUM_WAYPOINTS} waypoints in {path_file}, got {len(rows)}'
+                )
+            waypoints.extend(rows[:NUM_WAYPOINTS])
+
+        waypoint_array = np.asarray(waypoints, dtype=np.float32)
+        loaded_bounds = {
+            'x_min': float(np.min(waypoint_array[:, 0])),
+            'x_max': float(np.max(waypoint_array[:, 0])),
+            'y_min': float(np.min(waypoint_array[:, 1])),
+            'y_max': float(np.max(waypoint_array[:, 1])),
+        }
+        self.get_logger().info(
+            'Waypoint normalization bounds from dataset: '
+            f"x=({loaded_bounds['x_min']:.3f}, {loaded_bounds['x_max']:.3f}), "
+            f"y=({loaded_bounds['y_min']:.3f}, {loaded_bounds['y_max']:.3f})"
+        )
+        return loaded_bounds
 
     def command_callback(self, msg: UInt8) -> None:
         self.command = int(msg.data)
@@ -248,7 +285,7 @@ class InferenceNode(Node):
             output = self.run_model(input_tensor, command_tensor)
 
         output_normalized = output.cpu().numpy().flatten()
-        output_denormalized = denormalize_waypoints(output_normalized)
+        output_denormalized = denormalize_waypoints(output_normalized, self.waypoint_bounds)
         output_denormalized_tensor = torch.from_numpy(output_denormalized).unsqueeze(0)
 
         path_raw_msg = self.create_path_from_output(output_denormalized_tensor, header)
