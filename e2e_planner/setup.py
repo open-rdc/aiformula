@@ -28,6 +28,7 @@ setup(
         (os.path.join('share', package_name, 'config', 'topomap'), source_glob('config/topomap/*.yaml')),
         (os.path.join('share', package_name, 'config', 'topomap', 'images'), source_glob('config/topomap/images/*.png')),
         (os.path.join('share', package_name, 'weights'), source_glob('weights/*.pt')),
+        (os.path.join('share', package_name, 'weights'), source_glob('weights/*.json')),
     ],
     install_requires=['setuptools'],
     zip_safe=True,

@@ -1,4 +1,5 @@
 import argparse
+import json
 import rclpy
 from rclpy.node import Node
 from rclpy.callback_groups import ReentrantCallbackGroup
@@ -14,7 +15,6 @@ from torchvision import transforms
 import numpy as np
 import os
 import sys
-import csv
 from pathlib import Path as FilePath
 from rclpy.qos import qos_profile_system_default, qos_profile_sensor_data
 from ament_index_python.packages import get_package_share_directory
@@ -57,7 +57,6 @@ class InferenceNode(Node):
         self.declare_parameter('placenet_delta', 5.0)
         self.declare_parameter('placenet_window_lower', -1)
         self.declare_parameter('placenet_window_upper', 10)
-        self.declare_parameter('normalization_dataset_path', '')
 
         model_path = self.get_parameter('model_name').value
         interval_ms = self.get_parameter('interval_ms').value
@@ -73,9 +72,6 @@ class InferenceNode(Node):
         self.placenet_delta = float(self.get_parameter('placenet_delta').value)
         self.placenet_window_lower = int(self.get_parameter('placenet_window_lower').value)
         self.placenet_window_upper = int(self.get_parameter('placenet_window_upper').value)
-        normalization_dataset_path = FilePath(
-            self.get_parameter('normalization_dataset_path').value
-        )
 
         self.bridge = CvBridge()
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -85,14 +81,14 @@ class InferenceNode(Node):
         self.cv_header: Optional[Header] = None
 
         package_share_directory = get_package_share_directory('e2e_planner')
-        weight_path = os.path.join(package_share_directory, 'weights', model_path)
+        weight_path = FilePath(package_share_directory) / 'weights' / model_path
         yolop_weight_path = FilePath(package_share_directory) / 'weights' / 'yolopv2.pt'
         placenet_weight_path = FilePath(package_share_directory) / 'weights' / placenet_model_name
         topomap_path = FilePath(package_share_directory) / 'config' / topomap_dir_name / 'topomap.yaml'
-        self.waypoint_bounds = self._build_waypoint_bounds(normalization_dataset_path)
+        self.waypoint_bounds = self._build_waypoint_bounds(weight_path)
 
-        if os.path.exists(weight_path):
-            self.model = torch.jit.load(weight_path, map_location=self.device)
+        if weight_path.exists():
+            self.model = torch.jit.load(str(weight_path), map_location=self.device)
             self.model.eval()
             self.model_uses_command = self._model_uses_command(self.model)
             if not self.model_uses_command:
@@ -100,7 +96,7 @@ class InferenceNode(Node):
                     'Loaded model accepts only image input; navigation command will be ignored.'
                 )
         else:
-            self.get_logger().warn(f'Model file not found: {weight_path}')
+            self.get_logger().warn(f'Model file not found: {str(weight_path)}')
             self.model = None
             self.model_uses_command = False
 
@@ -167,39 +163,21 @@ class InferenceNode(Node):
             callback_group=self.torch_cb_group,
         )
 
-    def _build_waypoint_bounds(self, dataset_path: FilePath) -> dict:
-        path_dir = dataset_path / 'path'
-        path_files = sorted(path_dir.glob('*.csv'))
-        if not path_files:
+    def _build_waypoint_bounds(self, weight_path: FilePath) -> dict:
+        bounds_path = weight_path.with_suffix('.bounds.json')
+        if not bounds_path.exists():
             raise RuntimeError(
-                'normalization_dataset_path must point to a dataset containing path/*.csv: '
-                f'{dataset_path}'
+                f'Normalization bounds file not found: {bounds_path}\n'
+                'Re-train the model to generate it automatically.'
             )
-
-        waypoints = []
-        for path_file in path_files:
-            with path_file.open('r') as f:
-                reader = csv.DictReader(f)
-                rows = [[float(row['x']), float(row['y'])] for row in reader]
-            if len(rows) < NUM_WAYPOINTS:
-                raise RuntimeError(
-                    f'Expected at least {NUM_WAYPOINTS} waypoints in {path_file}, got {len(rows)}'
-                )
-            waypoints.extend(rows[:NUM_WAYPOINTS])
-
-        waypoint_array = np.asarray(waypoints, dtype=np.float32)
-        loaded_bounds = {
-            'x_min': float(np.min(waypoint_array[:, 0])),
-            'x_max': float(np.max(waypoint_array[:, 0])),
-            'y_min': float(np.min(waypoint_array[:, 1])),
-            'y_max': float(np.max(waypoint_array[:, 1])),
-        }
+        with open(bounds_path, 'r') as f:
+            bounds = json.load(f)
         self.get_logger().info(
-            'Waypoint normalization bounds from dataset: '
-            f"x=({loaded_bounds['x_min']:.3f}, {loaded_bounds['x_max']:.3f}), "
-            f"y=({loaded_bounds['y_min']:.3f}, {loaded_bounds['y_max']:.3f})"
+            f'Waypoint normalization bounds loaded from {bounds_path.name}: '
+            f"x=({bounds['x_min']:.3f}, {bounds['x_max']:.3f}), "
+            f"y=({bounds['y_min']:.3f}, {bounds['y_max']:.3f})"
         )
-        return loaded_bounds
+        return bounds
 
     def command_callback(self, msg: UInt8) -> None:
         self.command = int(msg.data)

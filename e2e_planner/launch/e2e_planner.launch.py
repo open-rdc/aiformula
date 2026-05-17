@@ -5,7 +5,6 @@ from launch_ros.actions import Node
 
 def launch_setup(context, *args, **kwargs):
     sim_flag = LaunchConfiguration('sim_flag').perform(context)
-    normalization_dataset_path = LaunchConfiguration('normalization_dataset_path').perform(context)
 
     is_sim = sim_flag.lower() == 'true'
     executable_name = 'inference_node'
@@ -28,10 +27,9 @@ def launch_setup(context, *args, **kwargs):
             'yolop_fp16': True,
             'placenet_model_name': 'placenet.pt',
             'topomap_dir_name': 'topomap',
-            'placenet_delta': 10.0,
+            'placenet_delta': 5.0,
             'placenet_window_lower': -1,
             'placenet_window_upper': 10,
-            'normalization_dataset_path': normalization_dataset_path,
         }]
     )
 
@@ -43,11 +41,6 @@ def generate_launch_description():
             'sim_flag',
             default_value='false',
             description='Flag to use simulation inference node'
-        ),
-        DeclareLaunchArgument(
-            'normalization_dataset_path',
-            default_value='',
-            description='Dataset path used to compute waypoint normalization bounds'
         ),
         OpaqueFunction(function=launch_setup)
     ])

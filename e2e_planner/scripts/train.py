@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import json
 import sys
 import yaml
 from datetime import datetime
@@ -49,22 +50,27 @@ class E2EDataset(Dataset):
     def __init__(
         self,
         dataset_path: Path,
-        curve_weight_enabled: bool = False,
-        curve_threshold_m: float = 0.5,
-        curve_side_bins: int = 3,
-        curve_step_weight_factor: float = 4.0,
+        surprise_enabled: bool = False,
+        surprise_num_bins: int = 16,
+        surprise_smoothing: float = 1.0,
+        surprise_max_weight: float = 50.0,
     ):
         self.dataset_path = dataset_path
         self.mask_images_dir = dataset_path / 'mask_images'
         self.path_dir = dataset_path / 'path'
         self.command_dir = dataset_path / 'commands'
         self.mask_files = sorted(list(self.mask_images_dir.glob('*.png')))
-        self.curve_weight_enabled = curve_weight_enabled
-        self.curve_threshold_m = curve_threshold_m
-        self.curve_side_bins = max(1, curve_side_bins)
-        self.curve_step_weight_factor = max(1.0, curve_step_weight_factor)
+        self.surprise_enabled = surprise_enabled
+        self.surprise_num_bins = max(2, surprise_num_bins)
+        self.surprise_smoothing = max(0.0, surprise_smoothing)
+        self.surprise_max_weight = max(1.0, surprise_max_weight)
         self.normalization_bounds = self._build_normalization_bounds()
-        self.curve_scores, self.curve_bins, self.sample_weights = self._build_curve_bin_weights()
+        (
+            self.curve_scores,
+            self.curve_bins,
+            self.sample_weights,
+            self.bin_entropy_nats,
+        ) = self._build_curve_surprise_weights()
 
     def __len__(self) -> int:
         return len(self.mask_files)
@@ -101,38 +107,39 @@ class E2EDataset(Dataset):
             'y_max': float(np.max(waypoint_array[:, 1])),
         }
 
-    def _build_curve_bin_weights(self) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    def _build_curve_surprise_weights(
+        self,
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, float]:
         curve_scores = np.zeros(len(self.mask_files), dtype=np.float32)
-        curve_bins = np.zeros(len(self.mask_files), dtype=np.float32)
+        bin_indices = np.zeros(len(self.mask_files), dtype=np.float32)
         weights = np.ones(len(self.mask_files), dtype=np.float32)
 
-        if not self.curve_weight_enabled or len(self.mask_files) == 0:
-            return curve_scores, curve_bins, weights
+        if not self.surprise_enabled or len(self.mask_files) == 0:
+            return curve_scores, bin_indices, weights, 0.0
 
         for idx, mask_file in enumerate(self.mask_files):
             waypoints = self._read_waypoints(self.path_dir / f'{mask_file.stem}.csv')
             curve_scores[idx] = self._curve_score(waypoints)
 
-        curve_magnitudes = np.abs(curve_scores)
-        curve_mask = curve_magnitudes >= self.curve_threshold_m
-        if not np.any(curve_mask):
-            return curve_scores, curve_bins, weights
+        # Signed curve_score の経験分布から自己情報量 -log p をサンプル重みにする
+        hist, bin_edges = np.histogram(curve_scores, bins=self.surprise_num_bins)
+        denom = float(hist.sum()) + self.surprise_smoothing * self.surprise_num_bins
+        probs = (hist.astype(np.float64) + self.surprise_smoothing) / denom
+        surprise_per_bin = (-np.log(probs)).astype(np.float32)
 
-        curve_values = curve_magnitudes[curve_mask]
-        max_curve = float(np.max(curve_values))
-        if max_curve <= self.curve_threshold_m:
-            signed_bins = np.sign(curve_scores[curve_mask]).astype(np.float32)
-            curve_bins[curve_mask] = signed_bins
-            weights[curve_mask] = self.curve_step_weight_factor
-            return curve_scores, curve_bins, weights
-
-        bin_edges = np.linspace(self.curve_threshold_m, max_curve, self.curve_side_bins + 1)
-        bin_levels = np.digitize(curve_values, bin_edges[1:-1], right=True) + 1
-        signed_bins = bin_levels.astype(np.float32) * np.sign(curve_scores[curve_mask]).astype(np.float32)
-
-        curve_bins[curve_mask] = signed_bins
-        weights[curve_mask] = np.power(self.curve_step_weight_factor, bin_levels).astype(np.float32)
-        return curve_scores, curve_bins, weights
+        indices = np.clip(
+            np.digitize(curve_scores, bin_edges[1:-1]),
+            0,
+            self.surprise_num_bins - 1,
+        )
+        bin_indices = indices.astype(np.float32)
+        weights = surprise_per_bin[indices]
+        weights = np.minimum(weights, np.float32(self.surprise_max_weight))
+        mean_weight = float(weights.mean())
+        if mean_weight > 0.0:
+            weights = weights / mean_weight  # 平均=1 で全体の loss スケールを保つ
+        entropy_nats = float(-np.sum(probs * np.log(probs)))
+        return curve_scores, bin_indices, weights.astype(np.float32), entropy_nats
 
     def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, str, torch.Tensor]:
         mask_file = self.mask_files[idx]
@@ -200,11 +207,11 @@ class Config:
         self.num_workers = config_dict['num_workers']
         self.weight_file = config_dict['weight_file']
         self.split_seed = int(config_dict.get('split_seed', 0))
-        curve_weighting = config_dict.get('curve_bin_weighting', config_dict.get('curve_surprise_weighting', {}))
-        self.curve_weight_enabled = bool(curve_weighting.get('enabled', False))
-        self.curve_threshold_m = float(curve_weighting.get('threshold_m', 0.5))
-        self.curve_side_bins = int(curve_weighting.get('side_bins', 3))
-        self.curve_step_weight_factor = float(curve_weighting.get('step_weight_factor', 4.0))
+        surprise_cfg = config_dict.get('curve_surprise_weighting', {})
+        self.surprise_enabled = bool(surprise_cfg.get('enabled', False))
+        self.surprise_num_bins = max(2, int(surprise_cfg.get('num_bins', 16)))
+        self.surprise_smoothing = float(surprise_cfg.get('smoothing', 1.0))
+        self.surprise_max_weight = float(surprise_cfg.get('max_weight', 50.0))
 
         self.weights_dir = package_root / 'weights'
         self.weights_dir.mkdir(exist_ok=True)
@@ -222,10 +229,10 @@ class Trainer:
 
         dataset = E2EDataset(
             dataset_path,
-            curve_weight_enabled=config.curve_weight_enabled,
-            curve_threshold_m=config.curve_threshold_m,
-            curve_side_bins=config.curve_side_bins,
-            curve_step_weight_factor=config.curve_step_weight_factor,
+            surprise_enabled=config.surprise_enabled,
+            surprise_num_bins=config.surprise_num_bins,
+            surprise_smoothing=config.surprise_smoothing,
+            surprise_max_weight=config.surprise_max_weight,
         )
         self.normalization_bounds = dataset.normalization_bounds
         if len(dataset) == 0:
@@ -269,14 +276,13 @@ class Trainer:
             f"x=({self.normalization_bounds['x_min']:.3f}, {self.normalization_bounds['x_max']:.3f}), "
             f"y=({self.normalization_bounds['y_min']:.3f}, {self.normalization_bounds['y_max']:.3f})"
         )
-        if config.curve_weight_enabled:
-            curve_count = int(np.count_nonzero(np.abs(dataset.curve_scores) >= config.curve_threshold_m))
+        if config.surprise_enabled:
             print(
-                'Curve bin weighting: '
-                f'threshold={config.curve_threshold_m:.3f} m, '
-                f'side_bins={config.curve_side_bins}, '
-                f'step_weight_factor={config.curve_step_weight_factor:.3f}, '
-                f'curve_samples={curve_count}/{len(dataset)}, '
+                'Curve surprise weighting: '
+                f'num_bins={config.surprise_num_bins}, '
+                f'smoothing={config.surprise_smoothing:.3f}, '
+                f'max_weight={config.surprise_max_weight:.3f}, '
+                f'entropy={dataset.bin_entropy_nats:.3f} nats, '
                 f'weight_range={float(np.min(dataset.sample_weights)):.3f}-{float(np.max(dataset.sample_weights)):.3f}'
             )
         print(f'TensorBoard log dir: {self.run_dir}')
@@ -371,6 +377,9 @@ class Trainer:
             weight_path = self.config.weights_dir / self.config.weight_file
             scripted_model = torch.jit.script(self.model)
             scripted_model.save(str(weight_path))
+            bounds_path = weight_path.with_suffix('.bounds.json')
+            with open(bounds_path, 'w') as f:
+                json.dump(self.normalization_bounds, f, indent=2)
             print(f'Best model saved: {weight_path} (val_loss: {val_loss:.6f})')
 
     def train(self, epochs: int) -> None:
@@ -421,8 +430,8 @@ class Trainer:
             self.writer.add_scalar('Loss/val', val_loss, epoch)
             self.writer.add_scalar('RMSE_m/train', train_rmse_m, epoch)
             self.writer.add_scalar('RMSE_m/val', self.last_val_rmse_m, epoch)
-            if self.config.curve_weight_enabled:
-                self.writer.add_scalar('CurveWeight/train_mean', train_weight_mean, epoch)
+            if self.config.surprise_enabled:
+                self.writer.add_scalar('CurveSurprise/train_weight_mean', train_weight_mean, epoch)
             self.writer.add_scalar('LearningRate', self.optimizer.param_groups[0]['lr'], epoch)
             self.writer.add_scalar('Best/val_loss', min(self.best_val_loss, val_loss), epoch)
             self.writer.flush()
