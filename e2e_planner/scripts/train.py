@@ -12,7 +12,7 @@ from torch.utils.tensorboard import SummaryWriter
 import cv2
 import csv
 import numpy as np
-from typing import List, Tuple
+from typing import Dict, List, Tuple
 from tqdm import tqdm
 
 try:
@@ -25,10 +25,6 @@ from e2e_planner.util.preprocessing import lane_mask_to_tensor_array
 NUM_WAYPOINTS = 6
 NUM_BRANCHES = 4
 DEFAULT_COMMAND = 1
-WAYPOINT_X_MIN = -0.5
-WAYPOINT_X_MAX = 12.5
-WAYPOINT_Y_MIN = -8.5
-WAYPOINT_Y_MAX = 8.5
 METADATA_CURVE_SCORE_INDEX = 7
 METADATA_CURVE_BIN_INDEX = 8
 METADATA_SAMPLE_WEIGHT_INDEX = 9
@@ -42,10 +38,10 @@ def denormalize_axis(values: torch.Tensor, min_value: float, max_value: float) -
     return (values + 1.0) * 0.5 * (max_value - min_value) + min_value
 
 
-def denormalize_waypoints(waypoints: torch.Tensor) -> torch.Tensor:
+def denormalize_waypoints(waypoints: torch.Tensor, bounds: Dict[str, float]) -> torch.Tensor:
     denormalized = waypoints.clone()
-    denormalized[..., 0::2] = denormalize_axis(waypoints[..., 0::2], WAYPOINT_X_MIN, WAYPOINT_X_MAX)
-    denormalized[..., 1::2] = denormalize_axis(waypoints[..., 1::2], WAYPOINT_Y_MIN, WAYPOINT_Y_MAX)
+    denormalized[..., 0::2] = denormalize_axis(waypoints[..., 0::2], bounds['x_min'], bounds['x_max'])
+    denormalized[..., 1::2] = denormalize_axis(waypoints[..., 1::2], bounds['y_min'], bounds['y_max'])
     return denormalized
 
 
@@ -67,6 +63,7 @@ class E2EDataset(Dataset):
         self.curve_threshold_m = curve_threshold_m
         self.curve_side_bins = max(1, curve_side_bins)
         self.curve_step_weight_factor = max(1.0, curve_step_weight_factor)
+        self.normalization_bounds = self._build_normalization_bounds()
         self.curve_scores, self.curve_bins, self.sample_weights = self._build_curve_bin_weights()
 
     def __len__(self) -> int:
@@ -84,6 +81,25 @@ class E2EDataset(Dataset):
         raw_waypoints = np.array(waypoints, dtype=np.float32)
         max_abs_y_index = int(np.argmax(np.abs(raw_waypoints[:, 1])))
         return float(raw_waypoints[max_abs_y_index, 1])
+
+    def _build_normalization_bounds(self) -> Dict[str, float]:
+        if len(self.mask_files) == 0:
+            raise RuntimeError(
+                f'No training masks found in {self.mask_images_dir}. '
+                'Cannot compute waypoint normalization bounds.'
+            )
+
+        waypoints = []
+        for mask_file in self.mask_files:
+            waypoints.extend(self._read_waypoints(self.path_dir / f'{mask_file.stem}.csv'))
+
+        waypoint_array = np.asarray(waypoints, dtype=np.float32)
+        return {
+            'x_min': float(np.min(waypoint_array[:, 0])),
+            'x_max': float(np.max(waypoint_array[:, 0])),
+            'y_min': float(np.min(waypoint_array[:, 1])),
+            'y_max': float(np.max(waypoint_array[:, 1])),
+        }
 
     def _build_curve_bin_weights(self) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         curve_scores = np.zeros(len(self.mask_files), dtype=np.float32)
@@ -132,8 +148,16 @@ class E2EDataset(Dataset):
         mask_tensor = torch.from_numpy(mask_normalized).unsqueeze(0)
 
         waypoints_tensor = torch.tensor(waypoints, dtype=torch.float32).flatten()
-        waypoints_tensor[0::2] = normalize_axis(waypoints_tensor[0::2], WAYPOINT_X_MIN, WAYPOINT_X_MAX)
-        waypoints_tensor[1::2] = normalize_axis(waypoints_tensor[1::2], WAYPOINT_Y_MIN, WAYPOINT_Y_MAX)
+        waypoints_tensor[0::2] = normalize_axis(
+            waypoints_tensor[0::2],
+            self.normalization_bounds['x_min'],
+            self.normalization_bounds['x_max'],
+        )
+        waypoints_tensor[1::2] = normalize_axis(
+            waypoints_tensor[1::2],
+            self.normalization_bounds['y_min'],
+            self.normalization_bounds['y_max'],
+        )
 
         command = DEFAULT_COMMAND
         if command_file.exists():
@@ -203,6 +227,7 @@ class Trainer:
             curve_side_bins=config.curve_side_bins,
             curve_step_weight_factor=config.curve_step_weight_factor,
         )
+        self.normalization_bounds = dataset.normalization_bounds
         if len(dataset) == 0:
             raise RuntimeError(
                 f'No training masks found in {dataset_path / "mask_images"}. '
@@ -239,6 +264,11 @@ class Trainer:
 
         print(f'Using device: {self.device}')
         print(f'Train size: {len(train_dataset)}, Val size: {len(val_dataset)}')
+        print(
+            'Waypoint normalization bounds: '
+            f"x=({self.normalization_bounds['x_min']:.3f}, {self.normalization_bounds['x_max']:.3f}), "
+            f"y=({self.normalization_bounds['y_min']:.3f}, {self.normalization_bounds['y_max']:.3f})"
+        )
         if config.curve_weight_enabled:
             curve_count = int(np.count_nonzero(np.abs(dataset.curve_scores) >= config.curve_threshold_m))
             print(
@@ -277,8 +307,8 @@ class Trainer:
                 pbar.set_postfix({'loss': f'{loss.item():.6f}'})
 
                 sample_losses = torch.mean((outputs - waypoints) ** 2, dim=1)
-                output_meters = denormalize_waypoints(outputs)
-                target_meters = denormalize_waypoints(waypoints)
+                output_meters = denormalize_waypoints(outputs, self.normalization_bounds)
+                target_meters = denormalize_waypoints(waypoints, self.normalization_bounds)
                 sample_rmse_meters = torch.sqrt(torch.mean((output_meters - target_meters) ** 2, dim=1))
                 total_rmse_m += sample_rmse_meters.mean().item()
 
@@ -373,8 +403,8 @@ class Trainer:
                 total_train_loss += loss.item()
                 with torch.no_grad():
                     total_train_weight += sample_weights.mean().item()
-                    output_meters = denormalize_waypoints(outputs)
-                    target_meters = denormalize_waypoints(waypoints)
+                    output_meters = denormalize_waypoints(outputs, self.normalization_bounds)
+                    target_meters = denormalize_waypoints(waypoints, self.normalization_bounds)
                     rmse_meters = torch.sqrt(torch.mean((output_meters - target_meters) ** 2, dim=1))
                     total_train_rmse_m += rmse_meters.mean().item()
                 pbar.set_postfix({
