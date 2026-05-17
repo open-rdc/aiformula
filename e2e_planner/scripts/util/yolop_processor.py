@@ -8,13 +8,16 @@ from typing import Optional, Tuple
 
 
 class YOLOPv2Processor:
-    def __init__(self, model_path: Path, device: torch.device, input_size: int = 640):
+    def __init__(self, model_path: Path, device: torch.device, input_size: int = 640, use_fp16: bool = False):
         self.device = device
         self.input_shape = (input_size, input_size)
+        self.use_fp16 = use_fp16 and device.type == 'cuda'
 
         if model_path.exists():
             self.model = torch.jit.load(str(model_path), map_location=device)
             self.model.to(device)
+            if self.use_fp16:
+                self.model.half()
             self.model.eval()
         else:
             raise FileNotFoundError(f'YOLOPv2 model not found: {model_path}')
@@ -70,8 +73,10 @@ class YOLOPv2Processor:
 
         img = img_resized.astype(np.float32) / 255.0
         img = torch.from_numpy(np.transpose(img, (2, 0, 1))).unsqueeze(0).to(self.device)
+        if self.use_fp16:
+            img = img.half()
 
-        with torch.no_grad():
+        with torch.inference_mode():
             outputs = self.model(img)
             [pred, anchor_grid], seg, ll = outputs
 
