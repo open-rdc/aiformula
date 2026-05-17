@@ -1,4 +1,5 @@
 import argparse
+import json
 import rclpy
 from rclpy.node import Node
 from rclpy.callback_groups import ReentrantCallbackGroup
@@ -22,13 +23,20 @@ from typing import Optional, Tuple
 from .zed_sdk import ZedSdk
 
 from e2e_planner.placenav.place_recognition import PlaceRecognition
-from util.yolop_processor import YOLOPv2Processor
-from util.preprocessing import MODEL_INPUT_SIZE, center_square_crop, lane_mask_to_tensor_array, overlay_lane_mask
+from e2e_planner.util.yolop_processor import YOLOPv2Processor
+from e2e_planner.util.preprocessing import MODEL_INPUT_SIZE, center_square_crop, lane_mask_to_tensor_array, overlay_lane_mask
 
-def denormalize_waypoints(normalized: np.ndarray) -> np.ndarray:
+NUM_WAYPOINTS = 6
+
+
+def denormalize_axis(values: np.ndarray, min_value: float, max_value: float) -> np.ndarray:
+    return (values + 1.0) * 0.5 * (max_value - min_value) + min_value
+
+
+def denormalize_waypoints(normalized: np.ndarray, bounds: dict) -> np.ndarray:
     denormalized = normalized.copy()
-    denormalized[0::2] = (normalized[0::2] + 1.0) * 5.0
-    denormalized[1::2] = (normalized[1::2] + 1.0) * 3.0 - 3.0
+    denormalized[0::2] = denormalize_axis(normalized[0::2], bounds['x_min'], bounds['x_max'])
+    denormalized[1::2] = denormalize_axis(normalized[1::2], bounds['y_min'], bounds['y_max'])
     return denormalized
 
 class InferenceNode(Node):
@@ -41,13 +49,14 @@ class InferenceNode(Node):
         self.declare_parameter('image_topic', '/image_raw')
         self.declare_parameter('debug_mode', True)
         self.declare_parameter('default_command', 1)
-        self.declare_parameter('use_place_recognition', False)
+        self.declare_parameter('use_place_recognition', True)
         self.declare_parameter('yolop_input_size', 256)
+        self.declare_parameter('yolop_fp16', True)
         self.declare_parameter('placenet_model_name', 'placenet.pt')
         self.declare_parameter('topomap_dir_name', 'topomap')
-        self.declare_parameter('placenet_delta', 10.0)
+        self.declare_parameter('placenet_delta', 5.0)
         self.declare_parameter('placenet_window_lower', -1)
-        self.declare_parameter('placenet_window_upper', 2)
+        self.declare_parameter('placenet_window_upper', 10)
 
         model_path = self.get_parameter('model_name').value
         interval_ms = self.get_parameter('interval_ms').value
@@ -57,6 +66,7 @@ class InferenceNode(Node):
         self.command = int(self.get_parameter('default_command').value)
         self.use_place_recognition = bool(self.get_parameter('use_place_recognition').value)
         self.yolop_input_size = int(self.get_parameter('yolop_input_size').value)
+        self.yolop_fp16 = bool(self.get_parameter('yolop_fp16').value)
         placenet_model_name = self.get_parameter('placenet_model_name').value
         topomap_dir_name = self.get_parameter('topomap_dir_name').value
         self.placenet_delta = float(self.get_parameter('placenet_delta').value)
@@ -71,13 +81,14 @@ class InferenceNode(Node):
         self.cv_header: Optional[Header] = None
 
         package_share_directory = get_package_share_directory('e2e_planner')
-        weight_path = os.path.join(package_share_directory, 'weights', model_path)
+        weight_path = FilePath(package_share_directory) / 'weights' / model_path
         yolop_weight_path = FilePath(package_share_directory) / 'weights' / 'yolopv2.pt'
         placenet_weight_path = FilePath(package_share_directory) / 'weights' / placenet_model_name
         topomap_path = FilePath(package_share_directory) / 'config' / topomap_dir_name / 'topomap.yaml'
+        self.waypoint_bounds = self._build_waypoint_bounds(weight_path)
 
-        if os.path.exists(weight_path):
-            self.model = torch.jit.load(weight_path, map_location=self.device)
+        if weight_path.exists():
+            self.model = torch.jit.load(str(weight_path), map_location=self.device)
             self.model.eval()
             self.model_uses_command = self._model_uses_command(self.model)
             if not self.model_uses_command:
@@ -85,7 +96,7 @@ class InferenceNode(Node):
                     'Loaded model accepts only image input; navigation command will be ignored.'
                 )
         else:
-            self.get_logger().warn(f'Model file not found: {weight_path}')
+            self.get_logger().warn(f'Model file not found: {str(weight_path)}')
             self.model = None
             self.model_uses_command = False
 
@@ -95,6 +106,7 @@ class InferenceNode(Node):
                 yolop_weight_path,
                 self.device,
                 input_size=self.yolop_input_size,
+                use_fp16=self.yolop_fp16,
             )
         else:
             self.get_logger().warn(f'YOLOPv2 model not found: {yolop_weight_path}')
@@ -151,10 +163,26 @@ class InferenceNode(Node):
             callback_group=self.torch_cb_group,
         )
 
+    def _build_waypoint_bounds(self, weight_path: FilePath) -> dict:
+        bounds_path = weight_path.with_suffix('.bounds.json')
+        if not bounds_path.exists():
+            raise RuntimeError(
+                f'Normalization bounds file not found: {bounds_path}\n'
+                'Re-train the model to generate it automatically.'
+            )
+        with open(bounds_path, 'r') as f:
+            bounds = json.load(f)
+        self.get_logger().info(
+            f'Waypoint normalization bounds loaded from {bounds_path.name}: '
+            f"x=({bounds['x_min']:.3f}, {bounds['x_max']:.3f}), "
+            f"y=({bounds['y_min']:.3f}, {bounds['y_max']:.3f})"
+        )
+        return bounds
+
     def command_callback(self, msg: UInt8) -> None:
         self.command = int(msg.data)
 
-    def preprocess_command(self, command: int | None = None) -> torch.Tensor:
+    def preprocess_command(self, command: Optional[int] = None) -> torch.Tensor:
         command_tensor = torch.zeros((1, 4), device=self.device, dtype=torch.float32)
         command_idx = self.command if command is None else int(command)
         command_idx = min(max(command_idx, 0), 3)
@@ -231,11 +259,11 @@ class InferenceNode(Node):
             debug_msg.header = header
             self.pub_debug_image.publish(debug_msg)
 
-        with torch.no_grad():
+        with torch.inference_mode():
             output = self.run_model(input_tensor, command_tensor)
 
         output_normalized = output.cpu().numpy().flatten()
-        output_denormalized = denormalize_waypoints(output_normalized)
+        output_denormalized = denormalize_waypoints(output_normalized, self.waypoint_bounds)
         output_denormalized_tensor = torch.from_numpy(output_denormalized).unsqueeze(0)
 
         path_raw_msg = self.create_path_from_output(output_denormalized_tensor, header)

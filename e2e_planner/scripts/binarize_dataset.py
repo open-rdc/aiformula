@@ -21,7 +21,7 @@ from pathlib import Path
 from tqdm import tqdm
 
 sys.path.insert(0, str(Path(__file__).parent))
-from util.yolop_processor import YOLOPv2Processor
+from e2e_planner.util.yolop_processor import YOLOPv2Processor
 
 
 def resolve_weights_path(weights_arg):
@@ -29,8 +29,8 @@ def resolve_weights_path(weights_arg):
         return Path(weights_arg)
 
     candidates = [
+        Path(__file__).resolve().parent.parent / 'weights/yolopv2.pt',
         Path.home() / 'ros2_ws/install/e2e_planner/share/e2e_planner/weights/yolopv2.pt',
-        Path(__file__).parent.parent / 'weights/yolopv2.pt',
     ]
     return next((p for p in candidates if p.exists()), None)
 

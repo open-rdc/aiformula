@@ -3,7 +3,7 @@ import torch.nn as nn
 
 
 class Network(nn.Module):
-    def __init__(self, num_waypoints: int = 10, num_branches: int = 4):
+    def __init__(self, num_waypoints: int = 6, num_branches: int = 4):
         super(Network, self).__init__()
 
         self.conv1 = nn.Conv2d(1, 32, kernel_size=8, stride=4)

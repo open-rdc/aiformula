@@ -1,10 +1,9 @@
-#!/usr/bin/env python3
+from pathlib import Path
+from typing import Optional, Tuple
 
 import cv2
 import numpy as np
 import torch
-from pathlib import Path
-from typing import Optional, Tuple
 
 
 class YOLOPv2Processor:
@@ -76,7 +75,7 @@ class YOLOPv2Processor:
         if self.use_fp16:
             img = img.half()
 
-        with torch.inference_mode():
+        with torch.no_grad():
             outputs = self.model(img)
             [pred, anchor_grid], seg, ll = outputs
 

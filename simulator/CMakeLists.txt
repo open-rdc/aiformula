@@ -20,10 +20,14 @@ find_package(ament_cmake REQUIRED)
 # uncomment the following section in order to fill in
 # further dependencies manually.
 # find_package(<dependency> REQUIRED)
-install(
-  DIRECTORY  launch world models config
-  DESTINATION share/${PROJECT_NAME}
-)
+foreach(dir launch world models config)
+  if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${dir}")
+    install(
+      DIRECTORY ${dir}
+      DESTINATION share/${PROJECT_NAME}
+    )
+  endif()
+endforeach()
 
 install(
   PROGRAMS

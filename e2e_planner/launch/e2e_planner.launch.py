@@ -22,13 +22,14 @@ def launch_setup(context, *args, **kwargs):
             'image_topic': '/image_raw',
             'debug_mode': True,
             'default_command': 1,
-            'use_place_recognition': False,
+            'use_place_recognition': True,
             'yolop_input_size': 256,
+            'yolop_fp16': True,
             'placenet_model_name': 'placenet.pt',
             'topomap_dir_name': 'topomap',
-            'placenet_delta': 10.0,
+            'placenet_delta': 5.0,
             'placenet_window_lower': -1,
-            'placenet_window_upper': 2,
+            'placenet_window_upper': 10,
         }]
     )
 
