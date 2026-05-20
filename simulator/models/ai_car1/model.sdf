@@ -165,6 +165,7 @@
     
     <link name='caster_yaw'>
       <pose relative_to='caster_frame'>0 0.1 0.25 0 0 -1.57</pose>
+      <!-- <pose relative_to='caster_frame'/> -->
       <inertial>
         <mass>0.7</mass>
         <inertia>
@@ -177,11 +178,11 @@
         </inertia>
       </inertial>
     
-      <visual name='visual'>
+      <!-- <visual name='visual'>
         <pose>0 0 0 0 0 0</pose>
         <geometry>
           <mesh>
-            <uri>package://simulator/models/ai_car1/meshes/aiformula_stl/caster_yaw.stl</uri>
+            <uri>package://simulator/models/ai_car1/meshes/used/caster_yaw.stl</uri>
             <scale>0.001 0.001 0.001</scale>
           </mesh>
         </geometry>
@@ -191,7 +192,7 @@
           <specular>0.2 0.2 0.2 1</specular> [少し光沢]
           <emissive>0 0 0 1</emissive>       [発光なし]
         </material>
-      </visual>
+      </visual> -->
 
       <!-- [🔸 左アーム]
       <collision name="caster_left_collision">
@@ -224,11 +225,11 @@
       </collision> -->
 
       [🔸 中心柱]
-      <collision name="caster_center_collision">
+      <!-- <collision name="caster_center_collision">
         <pose>0 0 0.0444 0 0 -0.261</pose>
         <geometry>
           <mesh>
-            <uri>package://simulator/models/ai_car1/meshes/aiformula_stl/caster_yaw.stl</uri>
+            <uri>package://simulator/models/ai_car1/meshes/used/caster_yaw.stl</uri>
             <scale>0.001 0.001 0.001</scale>
           </mesh>
         </geometry>
@@ -237,7 +238,7 @@
             <collide_bitmask>0x01</collide_bitmask>
           </contact>
         </surface>
-      </collision>
+      </collision> -->
     
     </link>
     
@@ -259,7 +260,7 @@
         <pose>0 0 0 0 0 0</pose>
         <geometry>
           <mesh>
-            <uri>package://simulator/models/ai_car1/meshes/aiformula_stl/rotater.stl</uri>
+            <uri>package://simulator/models/ai_car1/meshes/used/rotater_2.stl</uri>
             <scale>0.001 0.001 0.001</scale>
           </mesh>
         </geometry>
@@ -274,7 +275,7 @@
       <collision name='collision'>
         <geometry>
           <mesh>
-            <uri>package://simulator/models/ai_car1/meshes/aiformula_stl/rotater.stl</uri>
+            <uri>package://simulator/models/ai_car1/meshes/used/rotater_2.stl</uri>
             <scale>0.001 0.001 0.001</scale>
           </mesh>
         </geometry>
@@ -287,7 +288,7 @@
     </link>
 
     <link name='mover_left'>
-      <pose relative_to='caster_frame'>-0.03 0.1 0.25 0 0 0.0</pose>
+      <pose relative_to='caster_frame'>0 0 0 0 0 0.0</pose>
       <inertial>
         <mass>1.0</mass>
         <inertia>
@@ -304,7 +305,7 @@
         <pose>0 0 0 0 0 0</pose>
         <geometry>
           <mesh>
-            <uri>package://simulator/models/ai_car1/meshes/aiformula_stl/mover.stl</uri>
+            <uri>package://simulator/models/ai_car1/meshes/used/mover_left.stl</uri>
             <scale>0.001 0.001 0.001</scale>
           </mesh>
         </geometry>
@@ -319,7 +320,7 @@
       <collision name='collision'>
         <geometry>
           <mesh>
-            <uri>package://simulator/models/ai_car1/meshes/aiformula_stl/mover.stl</uri>
+            <uri>package://simulator/models/ai_car1/meshes/used/mover_left.stl</uri>
             <scale>0.001 0.001 0.001</scale>
           </mesh>
         </geometry>
@@ -332,7 +333,7 @@
     </link>
 
     <link name='mover_right'>
-      <pose relative_to='caster_frame'>0.03 0.1 0.25 0 0 0.0</pose>
+      <pose relative_to='caster_frame'>0.0 0 0 0 0 0.0</pose>
       <inertial>
         <mass>1.0</mass>
         <inertia>
@@ -349,7 +350,7 @@
         <pose>0 0 0 0 0 0</pose>
         <geometry>
           <mesh>
-            <uri>package://simulator/models/ai_car1/meshes/aiformula_stl/mover.stl</uri>
+            <uri>package://simulator/models/ai_car1/meshes/used/mover_right.stl</uri>
             <scale>0.001 0.001 0.001</scale>
           </mesh>
         </geometry>
@@ -364,7 +365,7 @@
       <collision name='collision'>
         <geometry>
           <mesh>
-            <uri>package://simulator/models/ai_car1/meshes/aiformula_stl/mover.stl</uri>
+            <uri>package://simulator/models/ai_car1/meshes/used/mover_right.stl</uri>
             <scale>0.001 0.001 0.001</scale>
           </mesh>
         </geometry>
