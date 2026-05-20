@@ -5,12 +5,15 @@
 
 ## 手順
 ```bash
+#ホスト側
 git clone https://github.com/open-rdc/aiformula
 cd docker
 docker build -t <your-image-name> .
 #例
 docker run -it -d --name <your_container_name> <your_image_name>
 docker exec -it <your_container_name> /bin/bash
+#コンテナ内
+cd ~/ros2_ws
 colcon build
 source ~/.bashrc
 ```
