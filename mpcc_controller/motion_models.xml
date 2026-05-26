@@ -1,0 +1,12 @@
+<library path="mpcc_motion_models">
+  <class name="mpcc_controller/DiffDriveMotionModel"
+         type="mpcc_controller::DiffDriveMotionModel"
+         base_class_type="mpcc_controller::MotionModel">
+    <description>Kinematic Differential Drive motion model for MPCC</description>
+  </class>
+  <class name="mpcc_controller/AckermannMotionModel"
+         type="mpcc_controller::AckermannMotionModel"
+         base_class_type="mpcc_controller::MotionModel">
+    <description>Kinematic Ackermann (bicycle) motion model for MPCC</description>
+  </class>
+</library>

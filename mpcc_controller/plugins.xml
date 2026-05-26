@@ -1,0 +1,7 @@
+<library path="mpcc_controller_plugin">
+  <class name="mpcc_controller::MpccControllerPlugin"
+         type="mpcc_controller::MpccControllerPlugin"
+         base_class_type="motion_control::ControllerPlugin">
+    <description>MPCC Controller Plugin</description>
+  </class>
+</library>
