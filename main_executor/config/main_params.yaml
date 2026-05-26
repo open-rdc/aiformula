@@ -1,11 +1,11 @@
 launch: #起動パラメータ
   ros__parameters:
     joy: true
-    vectornav : true
-    odrive : true
-    socketcan : true
-    zed : true
-    sim : false
+    vectornav : false
+    odrive : false
+    socketcan : false
+    zed : false
+    sim : true
 
 /**:  #ワイルドカード(ここのパラメータは全ノードから読める: <名前に注意>)
   ros__parameters:
@@ -199,17 +199,101 @@ object_detector_node:
 
 controller_server_node:
   ros__parameters:
-    controller_plugin  : "motion_control::PurePursuitPlugin"
-    path_topic         : "/planner/local_path"
+    controller_plugin  : "mpcc_controller::MpccControllerPlugin"
+    path_topic         : "/planner/global_path"
     pose_topic         : "/localization/pose"
     autonomous_topic   : "/autonomous"
     cmd_vel_topic      : "/cmd_vel"
     target_pose_topic  : "/vectormap_control/target_pose"
     map_frame_id       : "map"
     base_frame_id      : "base_link"
-    # PurePursuitPlugin params (linear_max.*, steering_max.*, wheelbase は /** から継承)
-    lookahead_distance : 5.0
-    steered_gain       : 1.8
+    control_period_s   : 0.1           # [s] 制御周期 (10 Hz)
+    mpcc_controller_plugin:
+      motion_model_plugin: "mpcc_controller/AckermannMotionModel"
+
+      # MPC ソルバ設定
+      n_sqp           : 3
+      n_reset         : 5
+      sqp_mixing      : 0.8
+      control_period_s: 0.1        # [s] (controller_server_node と一致させること)
+
+      # 車両パラメータ
+      wheelbase  : 0.8             # [m]
+      car_l      : 1.0             # [m]
+      car_w      : 0.6             # [m]
+      lf         : 0.4             # [m]
+      lr         : 0.4             # [m]
+      vx_zero    : 0.1             # [m/s]
+      initial_velocity: 1.0        # [m/s]
+      max_dist_proj: 5.0           # [m]
+      s_trust_region: 3.0          # [m]
+      max_lat_accel: 5.0           # [m/s²] 曲率ベース終端速度制約用
+      v_max        : 5.0           # [m/s]  曲率ベース終端速度の上限 (vx_u と合わせること)
+
+      # コンタリングコスト
+      q_c          : 0.1
+      q_l          : 1.0
+      q_vs         : 1.0
+      q_mu         : 0.05
+      q_mu_N_mult  : 1.0
+      q_c_N_mult   : 5.0
+      q_r          : 0.0
+      q_r_N_mult   : 1.0
+
+      # 入力コスト (Ackermann)
+      r_vx         : 0.0
+      r_delta      : 0.0
+      r_vs         : 0.0
+      r_a          : 0.01
+      r_ddelta     : 0.1
+      r_dvs        : 0.01
+      # DiffDrive 入力コスト (未使用の場合 0.0)
+      r_v          : 0.0
+      r_omega      : 0.0
+      r_dv         : 0.0
+      r_domega     : 0.0
+
+      # ソフト制約コスト
+      sc_quad_track: 100.0
+      sc_lin_track : 10.0
+
+      # 状態上下限 (Ackermann)
+      vx_l     : 0.0     # [m/s]
+      vx_u     : 5.0     # [m/s]
+      delta_l  : -0.26   # [rad]
+      delta_u  :  0.26   # [rad]
+      vs_l     : 0.0     # [m/s]
+      vs_u     : 5.0     # [m/s]
+      # DiffDrive 状態上下限 (未使用の場合 0.0)
+      omega_l  : 0.0
+      omega_u  : 0.0
+
+      # 入力上下限
+      dv_l     : -3.0    # [m/s²]
+      dv_u     :  3.0
+      domega_l : 0.0
+      domega_u : 0.0
+      ddelta_l : -1.0    # [rad/s]
+      ddelta_u :  1.0
+      dvs_l    : -3.0
+      dvs_u    :  3.0
+
+      # 正規化スケール (対角要素, NX=7 Ackermann)
+      T_x_diag : [10.0, 10.0, 3.14, 3.0, 0.26, 10.0, 3.0]
+      T_u_diag : [3.0, 1.0, 3.0]
+      T_s_diag : [1.0]
+
+      # トラックコリドー幅 (左右各 2.0 m)
+      track_width_left_m  : 2.0
+      track_width_right_m : 2.0
+
+      # AckermannMotionModel limits
+      min_turning_r : 0.2          # [m]
+      max_vx        : 5.0
+      max_delta     : 0.26
+      max_accel     : 3.0
+      max_ddelta    : 1.0
+      max_dvs       : 3.0
 
 chassis_driver_node:
   ros__parameters:
@@ -234,3 +318,4 @@ chassis_driver_node:
 socketcan_interface_node:
   ros__parameters:
     if_name : "can_main"
+
