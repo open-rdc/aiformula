@@ -104,6 +104,22 @@ void LanePlannerNode::build_global_path_once(
             RouteEdge{connection.to_lanelet_id, connection.turn_direction, connection.cost});
     }
 
+    left_adjacent_lanelet_by_id_.clear();
+    right_adjacent_lanelet_by_id_.clear();
+    for (const auto& [id, lanelet] : lanelet_by_id_) {
+        for (const auto& [other_id, other] : lanelet_by_id_) {
+            if (id == other_id) {
+                continue;
+            }
+            if (lanelet.left_line_id == other.right_line_id) {
+                left_adjacent_lanelet_by_id_[id] = other_id;
+            }
+            if (lanelet.right_line_id == other.left_line_id) {
+                right_adjacent_lanelet_by_id_[id] = other_id;
+            }
+        }
+    }
+
     lanelet_centerline_points_by_id_.clear();
     lanelet_centerline_points_by_id_.reserve(lanelet_by_id_.size());
     for (const auto& [lanelet_id, lanelet] : lanelet_by_id_) {
