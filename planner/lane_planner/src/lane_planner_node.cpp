@@ -51,6 +51,7 @@ LanePlannerNode::LanePlannerNode(
   localization_pose_topic_(get_parameter("localization_pose_topic").as_string()),
   nav_cmd_topic_(get_parameter("nav_cmd_topic").as_string()),
   default_nav_cmd_(get_parameter("default_nav_cmd").as_string()),
+  lane_change_topic_(get_parameter("lane_change_topic").as_string()),
   global_path_topic_(get_parameter("global_path_topic").as_string()),
   route_lanelet_ids_param_(read_route_lanelet_ids(*this)),
   nav_cmd_fallback_order_param_(read_nav_cmd_fallback_order(*this)),
@@ -74,6 +75,7 @@ LanePlannerNode::LanePlannerNode(
     if (vector_map_topic_.empty() ||
         localization_pose_topic_.empty() ||
         nav_cmd_topic_.empty() ||
+        lane_change_topic_.empty() ||
         global_path_topic_.empty())
     {
         throw std::invalid_argument("topic parameters must not be empty");
@@ -109,6 +111,10 @@ LanePlannerNode::LanePlannerNode(
         nav_cmd_topic_,
         qos_,
         std::bind(&LanePlannerNode::nav_cmd_callback, this, std::placeholders::_1));
+    lane_change_subscription_ = create_subscription<std_msgs::msg::Empty>(
+        lane_change_topic_,
+        qos_,
+        std::bind(&LanePlannerNode::lane_change_callback, this, std::placeholders::_1));
 
     global_path_publisher_ = create_publisher<nav_msgs::msg::Path>(global_path_topic_, qos_);
     timer_ = create_wall_timer(
@@ -164,6 +170,51 @@ void LanePlannerNode::nav_cmd_callback(const std_msgs::msg::String::SharedPtr ms
 
     const Point2D ego{latest_pose_->pose.pose.position.x, latest_pose_->pose.pose.position.y};
     rebuild_route_from_pose(ego, "nav_cmd");
+    global_path_publisher_->publish(make_global_path_message(now()));
+}
+
+void LanePlannerNode::lane_change_callback(const std_msgs::msg::Empty::SharedPtr msg)
+{
+    if (!msg) {
+        throw std::runtime_error("lane change message must not be null");
+    }
+    std::lock_guard<std::mutex> lock(data_mutex_);
+    if (!global_path_ready_ || !latest_pose_) {
+        RCLCPP_WARN_THROTTLE(
+            get_logger(), *get_clock(), 2000,
+            "lane change requested but route is not ready: waiting for vector map and localization pose");
+        return;
+    }
+
+    const Point2D ego{latest_pose_->pose.pose.position.x, latest_pose_->pose.pose.position.y};
+    const auto [current_lanelet_id, distance] = find_nearest_lanelet_within_route(ego);
+    if (current_lanelet_id == 0U) {
+        RCLCPP_WARN(get_logger(), "lane change rejected: could not determine current lanelet");
+        return;
+    }
+
+    const bool has_left = left_adjacent_lanelet_by_id_.count(current_lanelet_id) > 0U;
+    const bool has_right = right_adjacent_lanelet_by_id_.count(current_lanelet_id) > 0U;
+    if (has_left && has_right) {
+        RCLCPP_ERROR(
+            get_logger(),
+            "lane change rejected: both left and right adjacent lanelets exist from %lu",
+            current_lanelet_id);
+        return;
+    }
+    if (!has_left && !has_right) {
+        RCLCPP_WARN(
+            get_logger(),
+            "lane change rejected: no adjacent lanelet from %lu",
+            current_lanelet_id);
+        return;
+    }
+
+    const uint64_t adjacent_lanelet_id = has_left
+        ? left_adjacent_lanelet_by_id_.at(current_lanelet_id)
+        : right_adjacent_lanelet_by_id_.at(current_lanelet_id);
+
+    rebuild_route_from_lanelet(adjacent_lanelet_id, "lane_change");
     global_path_publisher_->publish(make_global_path_message(now()));
 }
 

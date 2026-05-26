@@ -5,11 +5,13 @@
 #include <mutex>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
 #include <nav_msgs/msg/path.hpp>
 #include <rclcpp/rclcpp.hpp>
+#include <std_msgs/msg/empty.hpp>
 #include <std_msgs/msg/string.hpp>
 #include <vectormap_msgs/msg/lane_connection.hpp>
 #include <vectormap_msgs/msg/lanelet.hpp>
@@ -66,6 +68,7 @@ private:
     void vector_map_callback(const vectormap_msgs::msg::VectorMap::SharedPtr msg);
     void pose_callback(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg);
     void nav_cmd_callback(const std_msgs::msg::String::SharedPtr msg);
+    void lane_change_callback(const std_msgs::msg::Empty::SharedPtr msg);
     void timer_callback();
 
     void build_global_path_once(const vectormap_msgs::msg::VectorMap& map_msg);
@@ -81,7 +84,9 @@ private:
         uint8_t requested_turn,
         uint8_t& selected_turn,
         bool& used_fallback) const;
-    uint64_t find_nearest_lanelet_from_pose(const Point2D& point) const;
+    std::unordered_set<uint64_t> build_reachable_lanelet_set() const;
+    uint64_t find_nearest_lanelet_in_set(
+        const Point2D& point, const std::unordered_set<uint64_t>& candidates) const;
     std::pair<uint64_t, double> find_nearest_lanelet_within_route(const Point2D& point) const;
     uint64_t lanelet_at_s(double s) const;
     double normalize_path_s(double s) const;
@@ -97,6 +102,7 @@ private:
     const std::string localization_pose_topic_;
     const std::string nav_cmd_topic_;
     const std::string default_nav_cmd_;
+    const std::string lane_change_topic_;
     const std::string global_path_topic_;
     const std::vector<int64_t> route_lanelet_ids_param_;
     const std::vector<std::string> nav_cmd_fallback_order_param_;
@@ -120,6 +126,8 @@ private:
     std::unordered_map<uint64_t, vectormap_msgs::msg::Lanelet> lanelet_by_id_;
     std::unordered_map<uint64_t, std::vector<Point2D>> lanelet_centerline_points_by_id_;
     std::unordered_map<uint64_t, std::vector<RouteEdge>> connection_edges_by_from_lanelet_id_;
+    std::unordered_map<uint64_t, uint64_t> left_adjacent_lanelet_by_id_;
+    std::unordered_map<uint64_t, uint64_t> right_adjacent_lanelet_by_id_;
 
     geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr latest_pose_;
     mutable std::mutex data_mutex_;
@@ -127,6 +135,7 @@ private:
     rclcpp::Subscription<vectormap_msgs::msg::VectorMap>::SharedPtr vector_map_subscription_;
     rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr pose_subscription_;
     rclcpp::Subscription<std_msgs::msg::String>::SharedPtr nav_cmd_subscription_;
+    rclcpp::Subscription<std_msgs::msg::Empty>::SharedPtr lane_change_subscription_;
     rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr global_path_publisher_;
     rclcpp::TimerBase::SharedPtr timer_;
 };

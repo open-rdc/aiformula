@@ -10,7 +10,6 @@
 #include <object_detection_msgs/msg/object_info_array.hpp>
 #include <pluginlib/class_loader.hpp>
 #include <rclcpp/rclcpp.hpp>
-#include <std_msgs/msg/empty.hpp>
 #include <vectormap_msgs/msg/vector_map.hpp>
 
 #include "local_planner/local_planner_plugin.hpp"
@@ -36,7 +35,6 @@ private:
     void pose_callback(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg);
     void velocity_callback(const geometry_msgs::msg::TwistWithCovarianceStamped::SharedPtr msg);
     void objects_callback(const object_detection_msgs::msg::ObjectInfoArray::SharedPtr msg);
-    void lane_switch_flag_callback(const std_msgs::msg::Empty::SharedPtr msg);
     void timer_callback();
 
     pluginlib::ClassLoader<LocalPlannerPlugin> plugin_loader_;
@@ -49,7 +47,6 @@ private:
     const std::string localization_pose_topic_;
     const std::string velocity_topic_;
     const std::string objects_topic_;
-    const std::string lane_switch_trigger_topic_;
     const rclcpp::QoS qos_;
 
     geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr latest_pose_;
@@ -62,7 +59,6 @@ private:
     rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr pose_subscription_;
     rclcpp::Subscription<geometry_msgs::msg::TwistWithCovarianceStamped>::SharedPtr velocity_subscription_;
     rclcpp::Subscription<object_detection_msgs::msg::ObjectInfoArray>::SharedPtr objects_subscription_;
-    rclcpp::Subscription<std_msgs::msg::Empty>::SharedPtr lane_switch_flag_subscription_;
     rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr local_path_publisher_;
     rclcpp::TimerBase::SharedPtr timer_;
 };

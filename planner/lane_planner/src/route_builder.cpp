@@ -104,6 +104,22 @@ void LanePlannerNode::build_global_path_once(
             RouteEdge{connection.to_lanelet_id, connection.turn_direction, connection.cost});
     }
 
+    left_adjacent_lanelet_by_id_.clear();
+    right_adjacent_lanelet_by_id_.clear();
+    for (const auto& [id, lanelet] : lanelet_by_id_) {
+        for (const auto& [other_id, other] : lanelet_by_id_) {
+            if (id == other_id) {
+                continue;
+            }
+            if (lanelet.left_line_id == other.right_line_id) {
+                left_adjacent_lanelet_by_id_[id] = other_id;
+            }
+            if (lanelet.right_line_id == other.left_line_id) {
+                right_adjacent_lanelet_by_id_[id] = other_id;
+            }
+        }
+    }
+
     lanelet_centerline_points_by_id_.clear();
     lanelet_centerline_points_by_id_.reserve(lanelet_by_id_.size());
     for (const auto& [lanelet_id, lanelet] : lanelet_by_id_) {
@@ -289,9 +305,16 @@ bool LanePlannerNode::rebuild_route_from_pose(
     const Point2D& ego,
     const std::string& reason)
 {
-    const uint64_t start_lanelet_id = find_nearest_lanelet_from_pose(ego);
+    const auto reachable = build_reachable_lanelet_set();
+    const uint64_t start_lanelet_id = find_nearest_lanelet_in_set(ego, reachable);
     if (start_lanelet_id == 0U) {
-        throw std::runtime_error("failed to find nearest lanelet for route rebuild");
+        RCLCPP_WARN(
+            get_logger(),
+            "route rebuild skipped: no reachable lanelet near ego pose "
+            "(reason=%s, nav_cmd=%s) — connection constraints not satisfied",
+            reason.c_str(),
+            turn_direction_to_string(last_nav_cmd_turn_).c_str());
+        return false;
     }
     rebuild_route_from_lanelet(start_lanelet_id, reason);
     return true;
@@ -426,15 +449,38 @@ std::string LanePlannerNode::turn_direction_to_string(
     return "unknown";
 }
 
-uint64_t LanePlannerNode::find_nearest_lanelet_from_pose(
-    const Point2D& point) const
+std::unordered_set<uint64_t> LanePlannerNode::build_reachable_lanelet_set() const
+{
+    std::unordered_set<uint64_t> reachable(
+        current_route_lanelet_ids_.begin(), current_route_lanelet_ids_.end());
+    for (const uint64_t id : current_route_lanelet_ids_) {
+        const auto edges_it = connection_edges_by_from_lanelet_id_.find(id);
+        if (edges_it == connection_edges_by_from_lanelet_id_.end()) {
+            continue;
+        }
+        for (const auto& edge : edges_it->second) {
+            if (edge.turn_direction == last_nav_cmd_turn_) {
+                reachable.insert(edge.to_lanelet_id);
+            }
+        }
+    }
+    return reachable;
+}
+
+uint64_t LanePlannerNode::find_nearest_lanelet_in_set(
+    const Point2D& point,
+    const std::unordered_set<uint64_t>& candidates) const
 {
     uint64_t best_lanelet_id = 0U;
     double best_distance_sq = std::numeric_limits<double>::max();
-    for (const auto& [lanelet_id, centerline_points] : lanelet_centerline_points_by_id_) {
-        if (centerline_points.size() < 2U) {
+    for (const uint64_t lanelet_id : candidates) {
+        const auto centerline_it = lanelet_centerline_points_by_id_.find(lanelet_id);
+        if (centerline_it == lanelet_centerline_points_by_id_.end() ||
+            centerline_it->second.size() < 2U)
+        {
             continue;
         }
+        const auto& centerline_points = centerline_it->second;
         for (std::size_t i = 1U; i < centerline_points.size(); ++i) {
             const double distance_sq = point_segment_distance_sq(
                 point,
