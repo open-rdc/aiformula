@@ -22,7 +22,6 @@ LocalPlannerServer::LocalPlannerServer(
   localization_pose_topic_(get_parameter("localization_pose_topic").as_string()),
   velocity_topic_(get_parameter("velocity_topic").as_string()),
   objects_topic_(get_parameter("objects_topic").as_string()),
-  lane_switch_trigger_topic_(get_parameter("lane_switch_trigger_topic").as_string()),
   qos_(rclcpp::QoS(10))
 {
     if (update_period_ms_ <= 0) {
@@ -33,8 +32,7 @@ LocalPlannerServer::LocalPlannerServer(
         vector_map_topic_.empty() ||
         localization_pose_topic_.empty() ||
         velocity_topic_.empty() ||
-        objects_topic_.empty() ||
-        lane_switch_trigger_topic_.empty())
+        objects_topic_.empty())
     {
         throw std::invalid_argument("topic parameters must not be empty");
     }
@@ -66,10 +64,6 @@ LocalPlannerServer::LocalPlannerServer(
         objects_topic_,
         qos_,
         std::bind(&LocalPlannerServer::objects_callback, this, std::placeholders::_1));
-    lane_switch_flag_subscription_ = create_subscription<std_msgs::msg::Empty>(
-        lane_switch_trigger_topic_,
-        qos_,
-        std::bind(&LocalPlannerServer::lane_switch_flag_callback, this, std::placeholders::_1));
 
     local_path_publisher_ = create_publisher<nav_msgs::msg::Path>(local_path_topic_, qos_);
     timer_ = create_wall_timer(
@@ -119,15 +113,6 @@ void LocalPlannerServer::objects_callback(
 {
     std::lock_guard<std::mutex> lock(data_mutex_);
     latest_objects_ = msg;
-}
-
-void LocalPlannerServer::lane_switch_flag_callback(const std_msgs::msg::Empty::SharedPtr msg)
-{
-    if (!msg) {
-        throw std::runtime_error("lane switch flag message must not be null");
-    }
-    std::lock_guard<std::mutex> lock(data_mutex_);
-    plugin_->requestLaneChange();
 }
 
 void LocalPlannerServer::timer_callback()

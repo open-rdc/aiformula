@@ -28,8 +28,6 @@ public:
 
     virtual void setVectorMap(const vectormap_msgs::msg::VectorMap & /*map*/) {}
 
-    virtual void requestLaneChange() {}
-
     virtual std::optional<nav_msgs::msg::Path> computeLocalPath(
         const geometry_msgs::msg::PoseWithCovarianceStamped & ego_pose,
         const geometry_msgs::msg::TwistWithCovarianceStamped & velocity,
