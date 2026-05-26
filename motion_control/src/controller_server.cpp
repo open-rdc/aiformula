@@ -1,6 +1,5 @@
 #include "motion_control/controller_server.hpp"
 
-#include <cmath>
 #include <stdexcept>
 
 namespace motion_control
@@ -57,6 +56,11 @@ ControllerServer::ControllerServer(
         create_publisher<steered_drive_msg::msg::SteeredDrive>(cmd_vel_topic_, qos);
     target_pose_publisher_ =
         create_publisher<geometry_msgs::msg::PoseStamped>(target_pose_topic_, qos);
+
+    const double control_period = get_parameter("control_period_s").as_double();
+    control_timer_ = create_wall_timer(
+        std::chrono::duration<double>(control_period),
+        std::bind(&ControllerServer::control_loop, this));
 }
 
 void ControllerServer::path_callback(const nav_msgs::msg::Path::SharedPtr msg)
@@ -64,51 +68,8 @@ void ControllerServer::path_callback(const nav_msgs::msg::Path::SharedPtr msg)
     if (!msg) {
         throw std::runtime_error("path message must not be null");
     }
-
-    geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr latest_pose;
-    bool autonomous_enabled = false;
-    {
-        std::lock_guard<std::mutex> lock(data_mutex_);
-        latest_pose = latest_pose_;
-        autonomous_enabled = autonomous_enabled_;
-    }
-
-    if (!autonomous_enabled) {
-        return;
-    }
-    if (msg->poses.empty()) {
-        RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000, "received empty local path");
-        return;
-    }
-    if (msg->header.frame_id == map_frame_id_ && !latest_pose) {
-        RCLCPP_WARN_THROTTLE(
-            get_logger(), *get_clock(), 1000,
-            "waiting for localization pose before tracking map-frame path");
-        return;
-    }
-
-    nav_msgs::msg::Path path_in_base;
-    if (msg->header.frame_id == base_frame_id_) {
-        path_in_base = *msg;
-    } else if (msg->header.frame_id == map_frame_id_) {
-        path_in_base = transform_path_to_base(*msg, *latest_pose);
-    } else {
-        RCLCPP_WARN_THROTTLE(
-            get_logger(), *get_clock(), 1000,
-            "unsupported path frame_id: %s", msg->header.frame_id.c_str());
-        return;
-    }
-
-    geometry_msgs::msg::PoseStamped target_pose;
-    const auto command = plugin_->computeCommand(path_in_base, target_pose);
-    if (!command) {
-        return;
-    }
-
-    command_publisher_->publish(*command);
-    target_pose.header.stamp = now();
-    target_pose.header.frame_id = base_frame_id_;
-    target_pose_publisher_->publish(target_pose);
+    std::lock_guard<std::mutex> lock(data_mutex_);
+    latest_path_ = msg;
 }
 
 void ControllerServer::pose_callback(
@@ -135,40 +96,43 @@ void ControllerServer::autonomous_callback(const std_msgs::msg::Bool::SharedPtr 
     autonomous_enabled_ = msg->data;
 }
 
-nav_msgs::msg::Path ControllerServer::transform_path_to_base(
-    const nav_msgs::msg::Path & path,
-    const geometry_msgs::msg::PoseWithCovarianceStamped & ego_pose) const
+void ControllerServer::control_loop()
 {
-    const double yaw = yaw_from_quaternion(ego_pose.pose.pose.orientation);
-    const double cos_yaw = std::cos(yaw);
-    const double sin_yaw = std::sin(yaw);
-    const double ego_x = ego_pose.pose.pose.position.x;
-    const double ego_y = ego_pose.pose.pose.position.y;
-
-    nav_msgs::msg::Path path_in_base;
-    path_in_base.header.frame_id = base_frame_id_;
-    path_in_base.header.stamp = path.header.stamp;
-    path_in_base.poses.reserve(path.poses.size());
-
-    for (const auto & p : path.poses) {
-        const double dx = p.pose.position.x - ego_x;
-        const double dy = p.pose.position.y - ego_y;
-        geometry_msgs::msg::PoseStamped pose_base;
-        pose_base.pose.position.x = cos_yaw * dx + sin_yaw * dy;
-        pose_base.pose.position.y = -sin_yaw * dx + cos_yaw * dy;
-        pose_base.pose.position.z = 0.0;
-        pose_base.pose.orientation.w = 1.0;
-        path_in_base.poses.push_back(pose_base);
+    nav_msgs::msg::Path::SharedPtr path;
+    geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr pose;
+    bool autonomous;
+    {
+        std::lock_guard<std::mutex> lock(data_mutex_);
+        autonomous = autonomous_enabled_;
+        path = latest_path_;
+        pose = latest_pose_;
     }
 
-    return path_in_base;
-}
+    if (!autonomous || !path || path->poses.empty()) return;
+    if (path->header.frame_id == map_frame_id_ && !pose) {
+        RCLCPP_WARN_THROTTLE(
+            get_logger(), *get_clock(), 1000,
+            "waiting for localization pose before tracking map-frame path");
+        return;
+    }
+    if (path->header.frame_id != map_frame_id_ && path->header.frame_id != base_frame_id_) {
+        RCLCPP_WARN_THROTTLE(
+            get_logger(), *get_clock(), 1000,
+            "unsupported path frame_id: %s", path->header.frame_id.c_str());
+        return;
+    }
 
-double ControllerServer::yaw_from_quaternion(const geometry_msgs::msg::Quaternion & q)
-{
-    const double siny_cosp = 2.0 * (q.w * q.z + q.x * q.y);
-    const double cosy_cosp = 1.0 - 2.0 * (q.y * q.y + q.z * q.z);
-    return std::atan2(siny_cosp, cosy_cosp);
+    geometry_msgs::msg::PoseStamped target_pose;
+    const auto command = plugin_->computeCommand(*path, pose.get(), target_pose);
+    if (!command) {
+        RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000, "computeCommand returned no command");
+        return;
+    }
+
+    command_publisher_->publish(*command);
+    target_pose.header.stamp = now();
+    target_pose.header.frame_id = base_frame_id_;
+    target_pose_publisher_->publish(target_pose);
 }
 
 }  // namespace motion_control

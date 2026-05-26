@@ -4,6 +4,7 @@
 #include <optional>
 
 #include <geometry_msgs/msg/pose_stamped.hpp>
+#include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
 #include <nav_msgs/msg/path.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <steered_drive_msg/msg/steered_drive.hpp>
@@ -24,11 +25,13 @@ public:
         const rclcpp::Clock::SharedPtr & clock,
         const rclcpp::node_interfaces::NodeParametersInterface::SharedPtr & params) = 0;
 
-    // path_in_base is already transformed to base_link frame by the server.
+    // path is in the frame indicated by path.header.frame_id.
+    // ego_pose is the current vehicle pose in map frame; nullptr when unavailable.
     // Returns std::nullopt when no command should be published.
     // On success, fills target_pose_out (position only, frame_id/stamp set by server).
     virtual std::optional<steered_drive_msg::msg::SteeredDrive> computeCommand(
-        const nav_msgs::msg::Path & path_in_base,
+        const nav_msgs::msg::Path & path,
+        const geometry_msgs::msg::PoseWithCovarianceStamped * ego_pose,
         geometry_msgs::msg::PoseStamped & target_pose_out) = 0;
 };
 

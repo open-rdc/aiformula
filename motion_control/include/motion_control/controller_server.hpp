@@ -35,12 +35,7 @@ private:
     void pose_callback(
         const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg);
     void autonomous_callback(const std_msgs::msg::Bool::SharedPtr msg);
-
-    nav_msgs::msg::Path transform_path_to_base(
-        const nav_msgs::msg::Path & path,
-        const geometry_msgs::msg::PoseWithCovarianceStamped & ego_pose) const;
-
-    static double yaw_from_quaternion(const geometry_msgs::msg::Quaternion & q);
+    void control_loop();
 
     const std::string path_topic_;
     const std::string pose_topic_;
@@ -54,9 +49,11 @@ private:
     ControllerPlugin::SharedPtr plugin_;
 
     bool autonomous_enabled_{false};
+    nav_msgs::msg::Path::SharedPtr latest_path_;
     geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr latest_pose_;
     mutable std::mutex data_mutex_;
 
+    rclcpp::TimerBase::SharedPtr control_timer_;
     rclcpp::Subscription<nav_msgs::msg::Path>::SharedPtr path_subscription_;
     rclcpp::Subscription<
         geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr pose_subscription_;

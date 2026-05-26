@@ -6,6 +6,8 @@
 
 #include <pluginlib/class_list_macros.hpp>
 
+#include <geometry_msgs/msg/pose_stamped.hpp>
+
 namespace motion_control
 {
 
@@ -38,9 +40,13 @@ void PurePursuitPlugin::initialize(
 }
 
 std::optional<steered_drive_msg::msg::SteeredDrive> PurePursuitPlugin::computeCommand(
-    const nav_msgs::msg::Path & path_in_base,
+    const nav_msgs::msg::Path & path,
+    const geometry_msgs::msg::PoseWithCovarianceStamped * ego_pose,
     geometry_msgs::msg::PoseStamped & target_pose_out)
 {
+    const nav_msgs::msg::Path & path_in_base =
+        (ego_pose != nullptr) ? transform_to_base(path, *ego_pose) : path;
+
     TargetPoint target{0.0, 0.0};
     if (!find_lookahead_target(path_in_base, target)) {
         return std::nullopt;
@@ -102,6 +108,38 @@ bool PurePursuitPlugin::find_lookahead_target(
 
     RCLCPP_WARN_THROTTLE(logger_, *clock_, 1000, "no forward lookahead target in path");
     return false;
+}
+
+nav_msgs::msg::Path PurePursuitPlugin::transform_to_base(
+    const nav_msgs::msg::Path & path,
+    const geometry_msgs::msg::PoseWithCovarianceStamped & ego_pose)
+{
+    const double yaw = yaw_from_quaternion(ego_pose.pose.pose.orientation);
+    const double cos_yaw = std::cos(yaw);
+    const double sin_yaw = std::sin(yaw);
+    const double ego_x = ego_pose.pose.pose.position.x;
+    const double ego_y = ego_pose.pose.pose.position.y;
+
+    nav_msgs::msg::Path out;
+    out.header = path.header;
+    out.poses.reserve(path.poses.size());
+    for (const auto & p : path.poses) {
+        const double dx = p.pose.position.x - ego_x;
+        const double dy = p.pose.position.y - ego_y;
+        geometry_msgs::msg::PoseStamped ps;
+        ps.pose.position.x =  cos_yaw * dx + sin_yaw * dy;
+        ps.pose.position.y = -sin_yaw * dx + cos_yaw * dy;
+        ps.pose.orientation.w = 1.0;
+        out.poses.push_back(ps);
+    }
+    return out;
+}
+
+double PurePursuitPlugin::yaw_from_quaternion(const geometry_msgs::msg::Quaternion & q)
+{
+    const double siny_cosp = 2.0 * (q.w * q.z + q.x * q.y);
+    const double cosy_cosp = 1.0 - 2.0 * (q.y * q.y + q.z * q.z);
+    return std::atan2(siny_cosp, cosy_cosp);
 }
 
 }  // namespace motion_control

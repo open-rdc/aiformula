@@ -14,7 +14,8 @@ public:
         const rclcpp::node_interfaces::NodeParametersInterface::SharedPtr & params) override;
 
     std::optional<steered_drive_msg::msg::SteeredDrive> computeCommand(
-        const nav_msgs::msg::Path & path_in_base,
+        const nav_msgs::msg::Path & path,
+        const geometry_msgs::msg::PoseWithCovarianceStamped * ego_pose,
         geometry_msgs::msg::PoseStamped & target_pose_out) override;
 
 private:
@@ -25,6 +26,11 @@ private:
     };
 
     bool find_lookahead_target(const nav_msgs::msg::Path & path, TargetPoint & target_out) const;
+
+    static nav_msgs::msg::Path transform_to_base(
+        const nav_msgs::msg::Path & path,
+        const geometry_msgs::msg::PoseWithCovarianceStamped & ego_pose);
+    static double yaw_from_quaternion(const geometry_msgs::msg::Quaternion & q);
 
     rclcpp::Logger logger_{rclcpp::get_logger("pure_pursuit_plugin")};
     rclcpp::Clock::SharedPtr clock_{std::make_shared<rclcpp::Clock>()};
