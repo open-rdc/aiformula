@@ -67,19 +67,24 @@ def open_camera(args: argparse.Namespace) -> sl.Camera:
 
 
 def extract_camera_matrix(zed: sl.Camera, pub_width: int, pub_height: int) -> dict:
-    # zed_wrapper_node.cpp: getCameraInformation(kPublishResolution) と同一
-    pub_res  = sl.Resolution(pub_width, pub_height)
-    cam_info = zed.get_camera_information(pub_res)
-    calib    = cam_info.camera_configuration.calibration_parameters.left_cam
-    res      = cam_info.camera_configuration.resolution
+    # ネイティブ解像度でintrinsicsを取得し、publish解像度へ手動スケール
+    # (Python bindingでget_camera_information(resolution)がスケールしない場合に対応)
+    cam_info    = zed.get_camera_information()
+    calib       = cam_info.camera_configuration.calibration_parameters.left_cam
+    native_res  = cam_info.camera_configuration.resolution
 
-    fx, fy = calib.fx, calib.fy
-    cx, cy = calib.cx, calib.cy
-    d      = list(calib.disto)  # [k1, k2, p1, p2, k3, ...]
+    scale_x = pub_width  / native_res.width
+    scale_y = pub_height / native_res.height
+
+    fx = calib.fx * scale_x
+    fy = calib.fy * scale_y
+    cx = calib.cx * scale_x
+    cy = calib.cy * scale_y
+    d  = list(calib.disto)  # [k1, k2, p1, p2, k3, ...]
 
     return {
-        "width":  int(res.width),
-        "height": int(res.height),
+        "width":  pub_width,
+        "height": pub_height,
         "distortion_model": "plumb_bob",
         # D: k1, k2, p1, p2, k3
         "D": [d[0], d[1], d[2], d[3], d[4]],
