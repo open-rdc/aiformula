@@ -5,6 +5,7 @@
 #include <mutex>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
@@ -81,7 +82,9 @@ private:
         uint8_t requested_turn,
         uint8_t& selected_turn,
         bool& used_fallback) const;
-    uint64_t find_nearest_lanelet_from_pose(const Point2D& point) const;
+    std::unordered_set<uint64_t> build_reachable_lanelet_set() const;
+    uint64_t find_nearest_lanelet_in_set(
+        const Point2D& point, const std::unordered_set<uint64_t>& candidates) const;
     std::pair<uint64_t, double> find_nearest_lanelet_within_route(const Point2D& point) const;
     uint64_t lanelet_at_s(double s) const;
     double normalize_path_s(double s) const;
