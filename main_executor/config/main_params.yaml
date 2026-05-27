@@ -169,15 +169,41 @@ object_detector_node:
 
 controller_server_node:
   ros__parameters:
+    # motion_control を local planner として動作させる．
+    # 利用可能プラグイン:
+    #   - "motion_control::PurePursuitPlugin"     (frenet sampling + Pure Pursuit)
+    #   - "mpcc_controller::MpccControllerPlugin" (global path 追従 MPCC)
     controller_plugin  : "mpcc_controller::MpccControllerPlugin"
     path_topic         : "/planner/global_path"
     pose_topic         : "/localization/pose"
+    velocity_topic     : "/vectornav/velocity_body"
+    objects_topic      : "/perception/objects"
     autonomous_topic   : "/autonomous"
     cmd_vel_topic      : "/cmd_vel"
     target_pose_topic  : "/vectormap_control/target_pose"
     map_frame_id       : "map"
     base_frame_id      : "base_link"
     control_period_s   : 0.1           # [s] 制御周期 (10 Hz)
+
+    # PurePursuitPlugin params (Pure Pursuit 部 + Frenet sampling 部)
+    lookahead_distance : 1.0           # [m]
+    steered_gain       : 1.0
+    local_path_horizon_m : 15.0
+    local_path_resample_interval_m : 0.2
+    max_centerline_connection_gap_m : 0.5
+    vehicle_width_m : 0.6
+    avoidance_detection_forward_distance_m : 15.0
+    avoidance_hard_margin_m : 0.2
+    avoidance_soft_margin_m : 0.3
+    envelope_buffer_margin_m : 0.2
+    avoidance_lateral_jerk_mps3 : 1.0
+    avoidance_min_velocity_mps : 0.5
+    max_avoidance_shift_m : 1.0
+    frenet_collision_check_margin_m : 0.2
+    frenet_weight_lateral_offset : 1.0
+    frenet_weight_lateral_change : 0.2
+    frenet_weight_avoidance_shift : 0.1
+
     mpcc_controller_plugin:
       motion_model_plugin: "mpcc_controller/AckermannMotionModel"
 

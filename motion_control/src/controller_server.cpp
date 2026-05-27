@@ -16,6 +16,8 @@ ControllerServer::ControllerServer(
 : rclcpp::Node("controller_server_node", name_space, options),
   path_topic_(get_parameter("path_topic").as_string()),
   pose_topic_(get_parameter("pose_topic").as_string()),
+  velocity_topic_(get_parameter("velocity_topic").as_string()),
+  objects_topic_(get_parameter("objects_topic").as_string()),
   autonomous_topic_(get_parameter("autonomous_topic").as_string()),
   cmd_vel_topic_(get_parameter("cmd_vel_topic").as_string()),
   target_pose_topic_(get_parameter("target_pose_topic").as_string()),
@@ -23,7 +25,8 @@ ControllerServer::ControllerServer(
   base_frame_id_(get_parameter("base_frame_id").as_string()),
   plugin_loader_("motion_control", "motion_control::ControllerPlugin")
 {
-    if (path_topic_.empty() || pose_topic_.empty() || autonomous_topic_.empty() ||
+    if (path_topic_.empty() || pose_topic_.empty() || velocity_topic_.empty() ||
+        objects_topic_.empty() || autonomous_topic_.empty() ||
         cmd_vel_topic_.empty() || target_pose_topic_.empty())
     {
         throw std::invalid_argument("controller server topic parameters must not be empty");
@@ -48,6 +51,14 @@ ControllerServer::ControllerServer(
         create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>(
             pose_topic_, qos,
             std::bind(&ControllerServer::pose_callback, this, std::placeholders::_1));
+    velocity_subscription_ =
+        create_subscription<geometry_msgs::msg::TwistWithCovarianceStamped>(
+            velocity_topic_, qos,
+            std::bind(&ControllerServer::velocity_callback, this, std::placeholders::_1));
+    objects_subscription_ =
+        create_subscription<object_detection_msgs::msg::ObjectInfoArray>(
+            objects_topic_, qos,
+            std::bind(&ControllerServer::objects_callback, this, std::placeholders::_1));
     autonomous_subscription_ = create_subscription<std_msgs::msg::Bool>(
         autonomous_topic_, qos,
         std::bind(
@@ -87,6 +98,26 @@ void ControllerServer::pose_callback(
     latest_pose_ = msg;
 }
 
+void ControllerServer::velocity_callback(
+    const geometry_msgs::msg::TwistWithCovarianceStamped::SharedPtr msg)
+{
+    if (!msg) {
+        throw std::runtime_error("velocity message must not be null");
+    }
+    std::lock_guard<std::mutex> lock(data_mutex_);
+    latest_velocity_ = msg;
+}
+
+void ControllerServer::objects_callback(
+    const object_detection_msgs::msg::ObjectInfoArray::SharedPtr msg)
+{
+    if (!msg) {
+        throw std::runtime_error("objects message must not be null");
+    }
+    std::lock_guard<std::mutex> lock(data_mutex_);
+    latest_objects_ = msg;
+}
+
 void ControllerServer::autonomous_callback(const std_msgs::msg::Bool::SharedPtr msg)
 {
     if (!msg) {
@@ -100,12 +131,16 @@ void ControllerServer::control_loop()
 {
     nav_msgs::msg::Path::SharedPtr path;
     geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr pose;
+    geometry_msgs::msg::TwistWithCovarianceStamped::SharedPtr velocity;
+    object_detection_msgs::msg::ObjectInfoArray::SharedPtr objects;
     bool autonomous;
     {
         std::lock_guard<std::mutex> lock(data_mutex_);
         autonomous = autonomous_enabled_;
         path = latest_path_;
         pose = latest_pose_;
+        velocity = latest_velocity_;
+        objects = latest_objects_;
     }
 
     if (!autonomous || !path || path->poses.empty()) return;
@@ -123,7 +158,8 @@ void ControllerServer::control_loop()
     }
 
     geometry_msgs::msg::PoseStamped target_pose;
-    const auto command = plugin_->computeCommand(*path, pose.get(), target_pose);
+    const auto command = plugin_->computeCommand(
+        *path, pose.get(), velocity.get(), objects.get(), target_pose);
     if (!command) {
         RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000, "computeCommand returned no command");
         return;
