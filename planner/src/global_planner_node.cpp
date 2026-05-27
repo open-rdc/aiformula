@@ -1,11 +1,11 @@
-#include "lane_planner/lane_planner_node.hpp"
+#include "global_planner/global_planner_node.hpp"
 
 #include <algorithm>
 #include <cmath>
 #include <limits>
 #include <stdexcept>
 
-namespace lane_planner
+namespace global_planner
 {
 namespace
 {
@@ -35,15 +35,15 @@ std::vector<std::string> read_nav_cmd_fallback_order(rclcpp::Node& node)
 
 }  // namespace
 
-LanePlannerNode::LanePlannerNode(const rclcpp::NodeOptions& options)
-: LanePlannerNode("", options)
+GlobalPlannerNode::GlobalPlannerNode(const rclcpp::NodeOptions& options)
+: GlobalPlannerNode("", options)
 {
 }
 
-LanePlannerNode::LanePlannerNode(
+GlobalPlannerNode::GlobalPlannerNode(
     const std::string& name_space,
     const rclcpp::NodeOptions& options)
-: rclcpp::Node("lane_planner_node", name_space, options),
+: rclcpp::Node("global_planner_node", name_space, options),
   update_period_ms_(get_parameter("update_period_ms").as_int()),
   map_frame_id_(get_parameter("map_frame_id").as_string()),
   base_frame_id_(get_parameter("base_frame_id").as_string()),
@@ -102,27 +102,27 @@ LanePlannerNode::LanePlannerNode(
     vector_map_subscription_ = create_subscription<vectormap_msgs::msg::VectorMap>(
         vector_map_topic_,
         qos_,
-        std::bind(&LanePlannerNode::vector_map_callback, this, std::placeholders::_1));
+        std::bind(&GlobalPlannerNode::vector_map_callback, this, std::placeholders::_1));
     pose_subscription_ = create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>(
         localization_pose_topic_,
         qos_,
-        std::bind(&LanePlannerNode::pose_callback, this, std::placeholders::_1));
+        std::bind(&GlobalPlannerNode::pose_callback, this, std::placeholders::_1));
     nav_cmd_subscription_ = create_subscription<std_msgs::msg::String>(
         nav_cmd_topic_,
         qos_,
-        std::bind(&LanePlannerNode::nav_cmd_callback, this, std::placeholders::_1));
+        std::bind(&GlobalPlannerNode::nav_cmd_callback, this, std::placeholders::_1));
     lane_change_subscription_ = create_subscription<std_msgs::msg::Empty>(
         lane_change_topic_,
         qos_,
-        std::bind(&LanePlannerNode::lane_change_callback, this, std::placeholders::_1));
+        std::bind(&GlobalPlannerNode::lane_change_callback, this, std::placeholders::_1));
 
     global_path_publisher_ = create_publisher<nav_msgs::msg::Path>(global_path_topic_, qos_);
     timer_ = create_wall_timer(
         std::chrono::milliseconds(update_period_ms_),
-        std::bind(&LanePlannerNode::timer_callback, this));
+        std::bind(&GlobalPlannerNode::timer_callback, this));
 }
 
-void LanePlannerNode::vector_map_callback(
+void GlobalPlannerNode::vector_map_callback(
     const vectormap_msgs::msg::VectorMap::SharedPtr msg)
 {
     if (!msg) {
@@ -136,14 +136,14 @@ void LanePlannerNode::vector_map_callback(
     global_path_publisher_->publish(make_global_path_message(now()));
 }
 
-void LanePlannerNode::pose_callback(
+void GlobalPlannerNode::pose_callback(
     const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg)
 {
     std::lock_guard<std::mutex> lock(data_mutex_);
     latest_pose_ = msg;
 }
 
-void LanePlannerNode::nav_cmd_callback(const std_msgs::msg::String::SharedPtr msg)
+void GlobalPlannerNode::nav_cmd_callback(const std_msgs::msg::String::SharedPtr msg)
 {
     if (!msg) {
         throw std::runtime_error("nav_cmd message must not be null");
@@ -173,7 +173,7 @@ void LanePlannerNode::nav_cmd_callback(const std_msgs::msg::String::SharedPtr ms
     global_path_publisher_->publish(make_global_path_message(now()));
 }
 
-void LanePlannerNode::lane_change_callback(const std_msgs::msg::Empty::SharedPtr msg)
+void GlobalPlannerNode::lane_change_callback(const std_msgs::msg::Empty::SharedPtr msg)
 {
     if (!msg) {
         throw std::runtime_error("lane change message must not be null");
@@ -218,7 +218,7 @@ void LanePlannerNode::lane_change_callback(const std_msgs::msg::Empty::SharedPtr
     global_path_publisher_->publish(make_global_path_message(now()));
 }
 
-void LanePlannerNode::timer_callback()
+void GlobalPlannerNode::timer_callback()
 {
     std::lock_guard<std::mutex> lock(data_mutex_);
     if (!global_path_ready_ || !latest_pose_) {
@@ -267,7 +267,7 @@ void LanePlannerNode::timer_callback()
     }
 }
 
-nav_msgs::msg::Path LanePlannerNode::make_global_path_message(
+nav_msgs::msg::Path GlobalPlannerNode::make_global_path_message(
     const rclcpp::Time& stamp) const
 {
     nav_msgs::msg::Path path;
@@ -286,7 +286,7 @@ nav_msgs::msg::Path LanePlannerNode::make_global_path_message(
     return path;
 }
 
-geometry_msgs::msg::Quaternion LanePlannerNode::yaw_to_quaternion(const double yaw)
+geometry_msgs::msg::Quaternion GlobalPlannerNode::yaw_to_quaternion(const double yaw)
 {
     geometry_msgs::msg::Quaternion q;
     q.x = 0.0;
@@ -296,4 +296,4 @@ geometry_msgs::msg::Quaternion LanePlannerNode::yaw_to_quaternion(const double y
     return q;
 }
 
-}  // namespace lane_planner
+}  // namespace global_planner

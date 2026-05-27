@@ -18,20 +18,20 @@
 #include <vectormap_msgs/msg/line_string.hpp>
 #include <vectormap_msgs/msg/vector_map.hpp>
 
-#include "lane_planner/visibility_control.h"
+#include "global_planner/visibility_control.h"
 
-namespace lane_planner
+namespace global_planner
 {
 
-class LanePlannerNode : public rclcpp::Node
+class GlobalPlannerNode : public rclcpp::Node
 {
 public:
-    LANE_PLANNER_PUBLIC
-    explicit LanePlannerNode(
+    GLOBAL_PLANNER_PUBLIC
+    explicit GlobalPlannerNode(
         const rclcpp::NodeOptions& options = rclcpp::NodeOptions());
 
-    LANE_PLANNER_PUBLIC
-    explicit LanePlannerNode(
+    GLOBAL_PLANNER_PUBLIC
+    explicit GlobalPlannerNode(
         const std::string& name_space,
         const rclcpp::NodeOptions& options = rclcpp::NodeOptions());
 
@@ -140,4 +140,4 @@ private:
     rclcpp::TimerBase::SharedPtr timer_;
 };
 
-}  // namespace lane_planner
+}  // namespace global_planner

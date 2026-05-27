@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(lane_planner)
+project(planner)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
@@ -8,13 +8,13 @@ endif()
 find_package(ament_cmake_auto REQUIRED)
 ament_auto_find_build_dependencies()
 
-ament_auto_add_library(lane_planner_node SHARED
-  src/lane_planner_node.cpp
+ament_auto_add_library(global_planner_node SHARED
+  src/global_planner_node.cpp
   src/route_builder.cpp
 )
-target_compile_features(lane_planner_node PUBLIC c_std_99 cxx_std_17)
-target_compile_definitions(lane_planner_node PRIVATE "LANE_PLANNER_BUILDING_LIBRARY")
-target_include_directories(lane_planner_node PUBLIC
+target_compile_features(global_planner_node PUBLIC c_std_99 cxx_std_17)
+target_compile_definitions(global_planner_node PRIVATE "GLOBAL_PLANNER_BUILDING_LIBRARY")
+target_include_directories(global_planner_node PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
 )

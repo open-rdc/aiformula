@@ -1,4 +1,4 @@
-#include "lane_planner/lane_planner_node.hpp"
+#include "global_planner/global_planner_node.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -7,7 +7,7 @@
 #include <unordered_map>
 #include <vector>
 
-namespace lane_planner
+namespace global_planner
 {
 namespace
 {
@@ -17,16 +17,16 @@ using LineString = vectormap_msgs::msg::LineString;
 constexpr double EPSILON = 1.0e-6;
 
 double distance_2d(
-    const LanePlannerNode::Point2D& a,
-    const LanePlannerNode::Point2D& b)
+    const GlobalPlannerNode::Point2D& a,
+    const GlobalPlannerNode::Point2D& b)
 {
     return std::hypot(a.x - b.x, a.y - b.y);
 }
 
 double point_segment_distance_sq(
-    const LanePlannerNode::Point2D& point,
-    const LanePlannerNode::Point2D& start,
-    const LanePlannerNode::Point2D& end)
+    const GlobalPlannerNode::Point2D& point,
+    const GlobalPlannerNode::Point2D& start,
+    const GlobalPlannerNode::Point2D& end)
 {
     const double vx = end.x - start.x;
     const double vy = end.y - start.y;
@@ -46,8 +46,8 @@ double point_segment_distance_sq(
     return dx * dx + dy * dy;
 }
 
-LanePlannerNode::PathPoint interpolate_raw_path(
-    const std::vector<LanePlannerNode::Point2D>& points,
+GlobalPlannerNode::PathPoint interpolate_raw_path(
+    const std::vector<GlobalPlannerNode::Point2D>& points,
     const std::vector<double>& s_values,
     const double target_s,
     const uint64_t lanelet_id)
@@ -72,12 +72,12 @@ LanePlannerNode::PathPoint interpolate_raw_path(
     const double x = start.x + ratio * (end.x - start.x);
     const double y = start.y + ratio * (end.y - start.y);
     const double yaw = std::atan2(end.y - start.y, end.x - start.x);
-    return LanePlannerNode::PathPoint{clamped_s, x, y, yaw, lanelet_id};
+    return GlobalPlannerNode::PathPoint{clamped_s, x, y, yaw, lanelet_id};
 }
 
 }  // namespace
 
-void LanePlannerNode::build_global_path_once(
+void GlobalPlannerNode::build_global_path_once(
     const vectormap_msgs::msg::VectorMap& map_msg)
 {
     if (map_msg.header.frame_id != map_frame_id_) {
@@ -162,7 +162,7 @@ void LanePlannerNode::build_global_path_once(
         route_is_loop_ ? "true" : "false");
 }
 
-void LanePlannerNode::build_route_from_lanelet_ids(
+void GlobalPlannerNode::build_route_from_lanelet_ids(
     const std::vector<uint64_t>& route_lanelet_ids)
 {
     if (route_lanelet_ids.empty()) {
@@ -268,7 +268,7 @@ void LanePlannerNode::build_route_from_lanelet_ids(
     current_route_lanelet_ids_ = route_lanelet_ids;
 }
 
-void LanePlannerNode::rebuild_route_from_lanelet(
+void GlobalPlannerNode::rebuild_route_from_lanelet(
     const uint64_t start_lanelet_id,
     const std::string& reason)
 {
@@ -291,7 +291,7 @@ void LanePlannerNode::rebuild_route_from_lanelet(
     }
 }
 
-void LanePlannerNode::request_route_rebuild(const std::string& reason)
+void GlobalPlannerNode::request_route_rebuild(const std::string& reason)
 {
     pending_route_rebuild_ = true;
     if (pending_route_rebuild_reason_.empty()) {
@@ -301,7 +301,7 @@ void LanePlannerNode::request_route_rebuild(const std::string& reason)
     }
 }
 
-bool LanePlannerNode::rebuild_route_from_pose(
+bool GlobalPlannerNode::rebuild_route_from_pose(
     const Point2D& ego,
     const std::string& reason)
 {
@@ -320,7 +320,7 @@ bool LanePlannerNode::rebuild_route_from_pose(
     return true;
 }
 
-std::vector<uint64_t> LanePlannerNode::build_route_sequence_from_graph(
+std::vector<uint64_t> GlobalPlannerNode::build_route_sequence_from_graph(
     const uint64_t start_lanelet_id,
     std::size_t& fallback_count) const
 {
@@ -372,7 +372,7 @@ std::vector<uint64_t> LanePlannerNode::build_route_sequence_from_graph(
     return route_lanelet_ids;
 }
 
-uint64_t LanePlannerNode::select_next_lanelet(
+uint64_t GlobalPlannerNode::select_next_lanelet(
     const uint64_t from_lanelet_id,
     const uint8_t requested_turn,
     uint8_t& selected_turn,
@@ -420,7 +420,7 @@ uint64_t LanePlannerNode::select_next_lanelet(
     return 0U;
 }
 
-uint8_t LanePlannerNode::parse_nav_cmd(const std::string& command) const
+uint8_t GlobalPlannerNode::parse_nav_cmd(const std::string& command) const
 {
     if (command == "straight") {
         return vectormap_msgs::msg::LaneConnection::TURN_STRAIGHT;
@@ -434,7 +434,7 @@ uint8_t LanePlannerNode::parse_nav_cmd(const std::string& command) const
     throw std::invalid_argument("nav_cmd must be straight, left, or right: " + command);
 }
 
-std::string LanePlannerNode::turn_direction_to_string(
+std::string GlobalPlannerNode::turn_direction_to_string(
     const uint8_t turn_direction) const
 {
     if (turn_direction == vectormap_msgs::msg::LaneConnection::TURN_STRAIGHT) {
@@ -449,7 +449,7 @@ std::string LanePlannerNode::turn_direction_to_string(
     return "unknown";
 }
 
-std::unordered_set<uint64_t> LanePlannerNode::build_reachable_lanelet_set() const
+std::unordered_set<uint64_t> GlobalPlannerNode::build_reachable_lanelet_set() const
 {
     std::unordered_set<uint64_t> reachable(
         current_route_lanelet_ids_.begin(), current_route_lanelet_ids_.end());
@@ -467,7 +467,7 @@ std::unordered_set<uint64_t> LanePlannerNode::build_reachable_lanelet_set() cons
     return reachable;
 }
 
-uint64_t LanePlannerNode::find_nearest_lanelet_in_set(
+uint64_t GlobalPlannerNode::find_nearest_lanelet_in_set(
     const Point2D& point,
     const std::unordered_set<uint64_t>& candidates) const
 {
@@ -495,7 +495,7 @@ uint64_t LanePlannerNode::find_nearest_lanelet_in_set(
     return best_lanelet_id;
 }
 
-std::pair<uint64_t, double> LanePlannerNode::find_nearest_lanelet_within_route(
+std::pair<uint64_t, double> GlobalPlannerNode::find_nearest_lanelet_within_route(
     const Point2D& point) const
 {
     uint64_t best_lanelet_id = 0U;
@@ -525,7 +525,7 @@ std::pair<uint64_t, double> LanePlannerNode::find_nearest_lanelet_within_route(
     return {best_lanelet_id, distance};
 }
 
-uint64_t LanePlannerNode::lanelet_at_s(const double s) const
+uint64_t GlobalPlannerNode::lanelet_at_s(const double s) const
 {
     if (lanelet_ranges_.empty()) {
         return 0U;
@@ -543,7 +543,7 @@ uint64_t LanePlannerNode::lanelet_at_s(const double s) const
     return lanelet_ranges_.back().lanelet_id;
 }
 
-double LanePlannerNode::normalize_path_s(const double s) const
+double GlobalPlannerNode::normalize_path_s(const double s) const
 {
     double path_length = 0.0;
     if (!global_samples_.empty()) {
@@ -566,4 +566,4 @@ double LanePlannerNode::normalize_path_s(const double s) const
     return normalized;
 }
 
-}  // namespace lane_planner
+}  // namespace global_planner
