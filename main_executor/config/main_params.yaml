@@ -160,7 +160,7 @@ object_detector_node:
   ros__parameters:
     map_frame_id : "map"
     base_frame_id : "base_link"
-    ground_z_threshold_m : 0.1     # [m] 地面除去Zカット高さ（base_link frame z基準）
+    ground_z_threshold_m : 0.5     # [m] 地面除去Zカット高さ（base_link frame z基準）
     voxel_leaf_size_m : 0.1        # [m] ボクセルサイズ
     cluster_tolerance_m : 0.5      # [m] クラスタリング距離閾値
     min_cluster_size : 10
