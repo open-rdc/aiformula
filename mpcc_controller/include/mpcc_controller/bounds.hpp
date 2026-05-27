@@ -10,7 +10,7 @@ class Bounds
 {
 public:
   Bounds() = default;
-  Bounds(const MotionModel & model, const BoundsParam & param);
+  Bounds(const MotionModel & model, double s_trust_region);
 
   Bounds_x getBoundsLX(const State & x) const;
   Bounds_x getBoundsUX(const State & x) const;

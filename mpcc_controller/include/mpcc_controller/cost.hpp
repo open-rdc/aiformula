@@ -1,5 +1,8 @@
 #pragma once
 
+#include <memory>
+
+#include "mpcc_controller/motion_model.hpp"
 #include "mpcc_controller/params.hpp"
 #include "mpcc_controller/spline.hpp"
 #include "mpcc_controller/types.hpp"
@@ -22,7 +25,8 @@ class Cost
 {
 public:
   Cost() = default;
-  Cost(const CostParam & cost_param, const Param & param);
+  Cost(const CostParam & cost_param, const Param & param,
+       std::shared_ptr<const MotionModel> model);
 
   CostMatrix getCost(
     const Spline & track, const State & x, const Input & u, int k) const;
@@ -38,6 +42,7 @@ private:
 
   CostParam cost_param_;
   Param     param_;
+  std::shared_ptr<const MotionModel> model_;
 };
 
 }  // namespace mpcc_controller

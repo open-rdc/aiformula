@@ -16,6 +16,8 @@
   <depend>geometry_msgs</depend>
   <depend>steered_drive_msg</depend>
   <depend>motion_control</depend>
+  <depend>tf2</depend>
+  <depend>tf2_geometry_msgs</depend>
   <depend>eigen3_cmake_module</depend>
   <depend>Eigen3</depend>
   <depend>boost</depend>

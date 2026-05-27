@@ -4,8 +4,9 @@
 
 namespace mpcc_controller {
 
-Cost::Cost(const CostParam & cost_param, const Param & param)
-: cost_param_(cost_param), param_(param) {}
+Cost::Cost(const CostParam & cost_param, const Param & param,
+           std::shared_ptr<const MotionModel> model)
+: cost_param_(cost_param), param_(param), model_(std::move(model)) {}
 
 TrackPoint Cost::getRefPoint(const Spline & track, const State & x) const
 {
@@ -73,9 +74,9 @@ CostMatrix Cost::getContouringCost(const Spline & track, const State & x, int k)
   const double e_lag0  = ei.error(1) - d_lag  * x_vec;
 
   Q_MPC Q_cont = q_c * d_cont.transpose() * d_cont + q_l * d_lag.transpose() * d_lag;
-  // ヨーレート正則化 (DiffDrive: ctrl_state = omega_cmd)
+  // ヨーレート正則化 (モデル固有の意味で適用; DiffDriveのみ ctrl_state へ)
   const double q_r = (k < N) ? cost_param_.q_r : cost_param_.q_r_N_mult * cost_param_.q_r;
-  Q_cont(si_index.ctrl, si_index.ctrl) += q_r;
+  model_->applyYawRateReg(Q_cont, q_r);
   Q_cont = 2.0 * Q_cont;
 
   q_MPC q_cont = q_c * 2.0 * e_cont0 * d_cont.transpose()
@@ -110,15 +111,8 @@ CostMatrix Cost::getInputCost() const
   Q_MPC Q_inp = Q_MPC::Zero();
   R_MPC R_inp = R_MPC::Zero();
 
-  // DiffDrive と Ackermann は si_index.v / ctrl が共通レイアウト
-  // DiffDrive: v, omega_cmd / Ackermann: vx, delta
-  Q_inp(si_index.v,    si_index.v)    = cost_param_.r_v    + cost_param_.r_vx;
-  Q_inp(si_index.ctrl, si_index.ctrl) = cost_param_.r_omega + cost_param_.r_delta;
-  Q_inp(si_index.vs,   si_index.vs)   = cost_param_.r_vs;
-
-  R_inp(si_index.du0, si_index.du0) = cost_param_.r_dv  + cost_param_.r_a;
-  R_inp(si_index.du1, si_index.du1) = cost_param_.r_domega + cost_param_.r_ddelta;
-  R_inp(si_index.dvs, si_index.dvs) = cost_param_.r_dvs;
+  // モデル固有の係数を MotionModel に解釈させる
+  model_->applyInputCost(Q_inp, R_inp, cost_param_);
 
   Q_inp = 2.0 * Q_inp;
   R_inp = 2.0 * R_inp;

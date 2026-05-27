@@ -3,6 +3,8 @@
 #include <cmath>
 #include <pluginlib/class_list_macros.hpp>
 
+#include "mpcc_controller/params.hpp"
+
 namespace mpcc_controller {
 
 // ============================================================
@@ -13,6 +15,8 @@ void DiffDriveMotionModel::initialize(
   const rclcpp::node_interfaces::NodeParametersInterface::SharedPtr & params,
   const std::string & prefix)
 {
+  wheelbase_ = params->get_parameter(prefix + "wheelbase").as_double();
+  v_zero_    = params->get_parameter(prefix + "vx_zero").as_double();
   max_vel_   = params->get_parameter(prefix + "max_vel").as_double();
   max_omega_ = params->get_parameter(prefix + "max_omega").as_double();
   max_accel_ = params->get_parameter(prefix + "max_accel").as_double();
@@ -79,6 +83,31 @@ Bounds_u DiffDriveMotionModel::getLowerBoundsU() const
 
 Bounds_s DiffDriveMotionModel::getUpperBoundsS() const { return Bounds_s::Zero(); }
 Bounds_s DiffDriveMotionModel::getLowerBoundsS() const { return Bounds_s::Zero(); }
+
+void DiffDriveMotionModel::applyInputCost(
+  Q_MPC & Q_inp, R_MPC & R_inp, const CostParam & cp) const
+{
+  Q_inp(si_index.v,    si_index.v)    = cp.r_v;
+  Q_inp(si_index.ctrl, si_index.ctrl) = cp.r_omega;
+  Q_inp(si_index.vs,   si_index.vs)   = cp.r_vs;
+  R_inp(si_index.du0, si_index.du0)   = cp.r_dv;
+  R_inp(si_index.du1, si_index.du1)   = cp.r_domega;
+  R_inp(si_index.dvs, si_index.dvs)   = cp.r_dvs;
+}
+
+void DiffDriveMotionModel::applyYawRateReg(Q_MPC & Q, double q_r) const
+{
+  // DiffDrive: ctrl_state = omega_cmd は yaw rate そのもの
+  Q(si_index.ctrl, si_index.ctrl) += q_r;
+}
+
+double DiffDriveMotionModel::toSteeringAngle(double ctrl_state, double v_or_vx) const
+{
+  // omega = v * tan(delta) / L  ->  delta = atan(omega * L / v)
+  // 低速時は v_zero で打ち切って発散を防ぐ
+  const double v_eff = std::max(std::fabs(v_or_vx), v_zero_);
+  return std::atan(ctrl_state * wheelbase_ / v_eff);
+}
 
 // ============================================================
 // AckermannMotionModel
@@ -156,6 +185,29 @@ Bounds_u AckermannMotionModel::getLowerBoundsU() const
 
 Bounds_s AckermannMotionModel::getUpperBoundsS() const { return Bounds_s::Zero(); }
 Bounds_s AckermannMotionModel::getLowerBoundsS() const { return Bounds_s::Zero(); }
+
+void AckermannMotionModel::applyInputCost(
+  Q_MPC & Q_inp, R_MPC & R_inp, const CostParam & cp) const
+{
+  Q_inp(si_index.v,    si_index.v)    = cp.r_vx;
+  Q_inp(si_index.ctrl, si_index.ctrl) = cp.r_delta;
+  Q_inp(si_index.vs,   si_index.vs)   = cp.r_vs;
+  R_inp(si_index.du0, si_index.du0)   = cp.r_a;
+  R_inp(si_index.du1, si_index.du1)   = cp.r_ddelta;
+  R_inp(si_index.dvs, si_index.dvs)   = cp.r_dvs;
+}
+
+void AckermannMotionModel::applyYawRateReg(Q_MPC & /*Q*/, double /*q_r*/) const
+{
+  // Ackermann: yaw rate = vx*tan(delta)/L であり ctrl_state(=delta) 単独では表せない。
+  // 単純な線形ペナルティでは意味が変わるため，本キネマティクスでは適用しない
+  // (dynamicモデル拡張時に yaw rate 状態を追加して効かせる想定)。
+}
+
+double AckermannMotionModel::toSteeringAngle(double ctrl_state, double /*v_or_vx*/) const
+{
+  return ctrl_state;
+}
 
 }  // namespace mpcc_controller
 

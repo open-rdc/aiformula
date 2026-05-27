@@ -243,39 +243,24 @@ controller_server_node:
       r_a          : 0.01
       r_ddelta     : 0.1
       r_dvs        : 0.01
-      # DiffDrive 入力コスト (未使用の場合 0.0)
+      # DiffDrive 入力コスト (omega/角加速度ペナルティ無しだとヨー振動が発生するため非ゼロを基本とする)
       r_v          : 0.0
       r_omega      : 0.0
-      r_dv         : 0.0
-      r_domega     : 0.0
+      r_dv         : 0.01
+      r_domega     : 0.1
 
       # ソフト制約コスト
       sc_quad_track: 100.0
       sc_lin_track : 10.0
 
-      # 状態上下限 (Ackermann)
-      vx_l     : 0.0     # [m/s]
-      vx_u     : 5.0     # [m/s]
-      delta_l  : -0.26   # [rad]
-      delta_u  :  0.26   # [rad]
-      vs_l     : 0.0     # [m/s]
-      vs_u     : 5.0     # [m/s]
-      # DiffDrive 状態上下限 (未使用の場合 0.0)
-      omega_l  : 0.0
-      omega_u  : 0.0
+      # 状態/入力上下限は MotionModel パラメータ (max_vel/max_omega/max_delta/max_accel/...) に一元化
 
-      # 入力上下限
-      dv_l     : -3.0    # [m/s²]
-      dv_u     :  3.0
-      domega_l : 0.0
-      domega_u : 0.0
-      ddelta_l : -1.0    # [rad/s]
-      ddelta_u :  1.0
-      dvs_l    : -3.0
-      dvs_u    :  3.0
-
-      # 正規化スケール (対角要素, NX=7 Ackermann)
-      T_x_diag : [10.0, 10.0, 3.14, 3.0, 0.26, 10.0, 3.0]
+      # 正規化スケール (対角要素, NX=7)
+      # ctrl_state スケールは選択する motion_model に合わせること
+      #   - Ackermann: max_delta (例 0.26 rad) ，T_u[1]=max_ddelta
+      #   - DiffDrive: max_omega (例 2.0 rad/s)，T_u[1]=max_alpha
+      # 現在の設定は AckermannMotionModel (max_vx=5, max_delta=0.26, max_ddelta=1.0) に合わせる
+      T_x_diag : [10.0, 10.0, 3.14, 5.0, 0.26, 10.0, 5.0]
       T_u_diag : [3.0, 1.0, 3.0]
       T_s_diag : [1.0]
 
@@ -285,11 +270,16 @@ controller_server_node:
 
       # AckermannMotionModel limits
       min_turning_r : 0.2          # [m]
-      max_vx        : 5.0
-      max_delta     : 0.26
-      max_accel     : 3.0
-      max_ddelta    : 1.0
-      max_dvs       : 3.0
+      max_vx        : 5.0          # [m/s]
+      max_delta     : 0.26         # [rad]
+      max_accel     : 3.0          # [m/s²]
+      max_ddelta    : 1.0          # [rad/s]
+      max_dvs       : 3.0          # [m/s²]
+
+      # DiffDriveMotionModel limits
+      max_vel   : 5.0              # [m/s]
+      max_omega : 2.0              # [rad/s]
+      max_alpha : 2.0              # [rad/s²]
 
 chassis_driver_node:
   ros__parameters:

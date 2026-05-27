@@ -6,6 +6,11 @@
 
 namespace mpcc_controller {
 
+// MotionModel プラグインを切り替えてもダイナミクスのみ差し替え，
+// 次元 (NX/NU/NPC/NS/N) は全モデル共通とすることが本パッケージの設計前提
+// (設計書セクション 3 参照)．固定サイズ Eigen + HPIPM の組合せで実時間性能を
+// 確保するための判断であり，次元が異なるモデルを導入する場合は，
+// ここを変更してパッケージ全体を再ビルドすること．
 static constexpr int NX  = 7;    // 状態次元 (X, Y, phi, v/vx, omega/delta, s, vs)
 static constexpr int NU  = 3;    // 入力次元 (du0, du1, dvs)
 static constexpr int NPC = 1;    // 多面体制約数 (トラック境界のみ)

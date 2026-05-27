@@ -43,17 +43,6 @@ struct CostParam {
   double sc_quad_track, sc_lin_track;
 };
 
-struct BoundsParam {
-  double vx_l, vx_u;
-  double omega_l, omega_u;
-  double delta_l, delta_u;
-  double vs_l, vs_u;
-  double dv_l, dv_u;
-  double domega_l, domega_u;
-  double ddelta_l, ddelta_u;
-  double dvs_l, dvs_u;
-};
-
 struct NormalizationParam {
   TX_MPC T_x,   T_x_inv;
   TU_MPC T_u,   T_u_inv;
@@ -66,10 +55,6 @@ Param             loadParam(
   const std::string & prefix);
 
 CostParam         loadCostParam(
-  const rclcpp::node_interfaces::NodeParametersInterface::SharedPtr & params,
-  const std::string & prefix);
-
-BoundsParam       loadBoundsParam(
   const rclcpp::node_interfaces::NodeParametersInterface::SharedPtr & params,
   const std::string & prefix);
 

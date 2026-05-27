@@ -2,31 +2,17 @@
 
 namespace mpcc_controller {
 
-Bounds::Bounds(const MotionModel & model, const BoundsParam & param)
+Bounds::Bounds(const MotionModel & model, double s_trust_region)
+: s_trust_region_(s_trust_region)
 {
+  // MotionModel が自身のパラメータ (max_vel/max_omega/max_delta 等) で
+  // モデル固有の上下限を返すため、ここでは追加の上書きを行わない。
   u_bounds_x_ = model.getUpperBoundsX();
   l_bounds_x_ = model.getLowerBoundsX();
-
-  // BoundsParam でオーバーライド (モデル依存パラメータと yaml 値を統合)
-  u_bounds_x_(si_index.v)    = param.vx_u;
-  l_bounds_x_(si_index.v)    = param.vx_l;
-  u_bounds_x_(si_index.ctrl) = param.delta_u + param.omega_u;   // 一方が 0 のため加算でOK
-  l_bounds_x_(si_index.ctrl) = param.delta_l + param.omega_l;
-  u_bounds_x_(si_index.vs)   = param.vs_u;
-  l_bounds_x_(si_index.vs)   = param.vs_l;
-
   u_bounds_u_ = model.getUpperBoundsU();
   l_bounds_u_ = model.getLowerBoundsU();
-
-  u_bounds_u_(si_index.du0) = param.dv_u;
-  l_bounds_u_(si_index.du0) = param.dv_l;
-  u_bounds_u_(si_index.du1) = param.domega_u + param.ddelta_u;
-  l_bounds_u_(si_index.du1) = param.domega_l + param.ddelta_l;
-  u_bounds_u_(si_index.dvs) = param.dvs_u;
-  l_bounds_u_(si_index.dvs) = param.dvs_l;
-
-  l_bounds_s_ = Bounds_s::Zero();
-  u_bounds_s_ = Bounds_s::Zero();
+  u_bounds_s_ = model.getUpperBoundsS();
+  l_bounds_s_ = model.getLowerBoundsS();
 }
 
 Bounds_x Bounds::getBoundsLX(const State & x) const

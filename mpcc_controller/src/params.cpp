@@ -62,30 +62,6 @@ CostParam loadCostParam(
   return c;
 }
 
-BoundsParam loadBoundsParam(
-  const rclcpp::node_interfaces::NodeParametersInterface::SharedPtr & params,
-  const std::string & prefix)
-{
-  BoundsParam b;
-  b.vx_l      = get(params, prefix + "vx_l");
-  b.vx_u      = get(params, prefix + "vx_u");
-  b.omega_l   = get(params, prefix + "omega_l");
-  b.omega_u   = get(params, prefix + "omega_u");
-  b.delta_l   = get(params, prefix + "delta_l");
-  b.delta_u   = get(params, prefix + "delta_u");
-  b.vs_l      = get(params, prefix + "vs_l");
-  b.vs_u      = get(params, prefix + "vs_u");
-  b.dv_l      = get(params, prefix + "dv_l");
-  b.dv_u      = get(params, prefix + "dv_u");
-  b.domega_l  = get(params, prefix + "domega_l");
-  b.domega_u  = get(params, prefix + "domega_u");
-  b.ddelta_l  = get(params, prefix + "ddelta_l");
-  b.ddelta_u  = get(params, prefix + "ddelta_u");
-  b.dvs_l     = get(params, prefix + "dvs_l");
-  b.dvs_u     = get(params, prefix + "dvs_u");
-  return b;
-}
-
 NormalizationParam loadNormalizationParam(
   const rclcpp::node_interfaces::NodeParametersInterface::SharedPtr & params,
   const std::string & prefix)

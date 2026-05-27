@@ -6,6 +6,7 @@
 #include <string>
 
 #include <geometry_msgs/msg/pose_stamped.hpp>
+#include <geometry_msgs/msg/twist_with_covariance_stamped.hpp>
 #include <nav_msgs/msg/path.hpp>
 #include <pluginlib/class_loader.hpp>
 #include <rclcpp/rclcpp.hpp>
@@ -31,6 +32,8 @@ public:
   std::optional<steered_drive_msg::msg::SteeredDrive> computeCommand(
     const nav_msgs::msg::Path & path,
     const geometry_msgs::msg::PoseWithCovarianceStamped * ego_pose,
+    const geometry_msgs::msg::TwistWithCovarianceStamped * velocity,
+    const object_detection_msgs::msg::ObjectInfoArray * objects,
     geometry_msgs::msg::PoseStamped & target_pose_out) override;
 
 private:
@@ -41,9 +44,11 @@ private:
   State  latest_state_;
   bool   state_initialized_ = false;
   bool   path_initialized_  = false;
+  bool   pending_reproject_ = true;   // setPath直後/SQPリセット後はprojectOnSplineを呼ぶ
   size_t last_path_size_    = 0;
   double last_first_x_      = 0.0;
   double last_first_y_      = 0.0;
+  double control_period_s_  = 0.1;
 
   mutable std::mutex        compute_mutex_;
 

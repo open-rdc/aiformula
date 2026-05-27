@@ -9,7 +9,6 @@ MPC::MPC(
   int n_sqp, int n_reset, double sqp_mixing, double Ts,
   std::shared_ptr<MotionModel> model,
   const Param & param, const CostParam & cost_param,
-  const BoundsParam & bounds_param,
   const NormalizationParam & norm_param,
   double track_width_left, double track_width_right,
   const rclcpp::Logger & logger)
@@ -18,9 +17,9 @@ MPC::MPC(
   sqp_mixing_(sqp_mixing),
   Ts_(Ts),
   model_(model),
-  cost_(cost_param, param),
+  cost_(cost_param, param, model),
   constraints_(param),
-  bounds_(*model, bounds_param),
+  bounds_(*model, param.s_trust_region),
   norm_param_(norm_param),
   param_(param),
   solver_(std::make_unique<HpipmInterface>()),
@@ -124,12 +123,15 @@ std::array<OptVariables, N + 1> MPC::deNormalizeSolution(
 
 void MPC::updateInitialGuess(const State & x0)
 {
+  // 1 ステップ分シフトしてウォームスタートを維持する。
+  // 直前解の u[1..N-1] が新しい ig[0..N-2].uk に，状態も同様にシフトされる。
   for (int i = 1; i < N; i++) initial_guess_[i - 1] = initial_guess_[i];
   initial_guess_[0].xk = x0;
-  initial_guess_[0].uk.setZero();
+  // 末端は (N-2) の制御入力を踏襲して終端ホライズンを定速進行させる
   initial_guess_[N - 1].xk = initial_guess_[N - 2].xk;
-  initial_guess_[N - 1].uk.setZero();
-  initial_guess_[N].xk = integrator_.RK4(initial_guess_[N - 1].xk, {}, Ts_, *model_);
+  initial_guess_[N - 1].uk = initial_guess_[N - 2].uk;
+  initial_guess_[N].xk = integrator_.RK4(
+    initial_guess_[N - 1].xk, initial_guess_[N - 1].uk, Ts_, *model_);
   initial_guess_[N].uk.setZero();
   unwrapInitialGuess();
 }
@@ -158,12 +160,14 @@ void MPC::generateNewInitialGuess(const State & x0)
 void MPC::unwrapInitialGuess()
 {
   const double L = track_.getLength();
+  const bool   closed = track_.isClosed();
   for (int i = 1; i <= N; i++) {
     const double dphi = initial_guess_[i].xk.phi - initial_guess_[i - 1].xk.phi;
     if (dphi < -PI) initial_guess_[i].xk.phi += 2.0 * PI;
     if (dphi >  PI) initial_guess_[i].xk.phi -= 2.0 * PI;
 
-    if ((initial_guess_[i].xk.s - initial_guess_[i - 1].xk.s) > L / 2.0) {
+    // 閉ループのときのみ s の周回ジャンプを補正
+    if (closed && (initial_guess_[i].xk.s - initial_guess_[i - 1].xk.s) > L / 2.0) {
       initial_guess_[i].xk.s -= L;
     }
   }
@@ -190,7 +194,8 @@ MPCReturn MPC::runMPC(const State & x0)
   const auto t1 = std::chrono::high_resolution_clock::now();
 
   State x_mpc = x0;
-  x_mpc.unwrap(track_.getLength());
+  x_mpc.unwrapPhi();
+  x_mpc.s = track_.wrapOrClampS(x_mpc.s);
 
   const bool used_new_guess = !valid_initial_guess_;
   if (valid_initial_guess_) updateInitialGuess(x_mpc);
@@ -247,7 +252,7 @@ MPCReturn MPC::runMPC(const State & x0)
     initial_guess_[1].xk.ctrl_state, initial_guess_[1].xk.s,
     time_total * 1000.0);
 
-  return {initial_guess_[0].uk, initial_guess_, time_total};
+  return {initial_guess_[0].uk, initial_guess_, time_total, used_new_guess};
 }
 
 }  // namespace mpcc_controller

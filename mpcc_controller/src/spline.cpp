@@ -19,16 +19,30 @@ void Spline::genSplines(
 
   max_dist_proj_ = param.max_dist_proj;
 
-  // (1) X, Y 抽出
-  std::vector<double> xs(n_pts), ys(n_pts);
-  for (int i = 0; i < n_pts; i++) {
-    xs[i] = path.poses[i].pose.position.x;
-    ys[i] = path.poses[i].pose.position.y;
+  // (1) X, Y 抽出 (重複点を除去: 後続の弧長累積で 0 除算を防ぐ)
+  std::vector<double> xs, ys;
+  xs.reserve(n_pts);
+  ys.reserve(n_pts);
+  xs.push_back(path.poses[0].pose.position.x);
+  ys.push_back(path.poses[0].pose.position.y);
+  for (int i = 1; i < n_pts; i++) {
+    const double xi = path.poses[i].pose.position.x;
+    const double yi = path.poses[i].pose.position.y;
+    if (std::hypot(xi - xs.back(), yi - ys.back()) > 1e-6) {
+      xs.push_back(xi);
+      ys.push_back(yi);
+    }
   }
+  const int n_unique = static_cast<int>(xs.size());
+  if (n_unique < 2) {
+    throw std::invalid_argument("Path must have at least 2 unique points");
+  }
+  // 先頭と末尾が十分近ければ閉ループとみなす
+  is_closed_ = std::hypot(xs.back() - xs.front(), ys.back() - ys.front()) < 1e-3;
 
   // (2) 弧長累積
-  std::vector<double> sv(n_pts, 0.0);
-  for (int i = 1; i < n_pts; i++) {
+  std::vector<double> sv(n_unique, 0.0);
+  for (int i = 1; i < n_unique; i++) {
     const double dx = xs[i] - xs[i - 1];
     const double dy = ys[i] - ys[i - 1];
     sv[i] = sv[i - 1] + std::hypot(dx, dy);
@@ -36,7 +50,7 @@ void Spline::genSplines(
   length_s_ = sv.back();
 
   // (3) 均一ステップで再サンプリング
-  const int n_resample = std::max(n_pts, 200);
+  const int n_resample = std::max(n_unique, 200);
   step_s_ = length_s_ / (n_resample - 1);
 
   std::vector<double> xs_r(n_resample), ys_r(n_resample);
@@ -142,7 +156,7 @@ double Spline::projectOnSpline(const State & x) const
     s_opt = path_s_(min_idx);
   }
 
-  // Newton法で精密化
+  // Newton法で精密化 (Hessian が極小の場合は更新を打ち切る)
   double s_old = s_opt;
   for (int i = 0; i < 20; i++) {
     const double su = unwrapInput(s_opt);
@@ -152,6 +166,7 @@ double Spline::projectOnSpline(const State & x) const
     const Eigen::Vector2d diff = pp - pos;
     const double jac     = 2.0 * diff.dot(dpp);
     const double hessian = 2.0 * (dpp.dot(dpp) + diff.dot(ddpp));
+    if (std::abs(hessian) < 1e-9) break;
     s_opt -= jac / hessian;
     s_opt = unwrapInput(s_opt);
     if (std::abs(s_old - s_opt) <= 1e-5) return s_opt;
@@ -162,7 +177,14 @@ double Spline::projectOnSpline(const State & x) const
 
 double Spline::unwrapInput(double s) const
 {
-  return s - length_s_ * std::floor(s / length_s_);
+  // 内部のスプライン評価は常に定義域 [0, length_s_) 内へ収める
+  if (is_closed_) return s - length_s_ * std::floor(s / length_s_);
+  return std::clamp(s, 0.0, length_s_);
+}
+
+double Spline::wrapOrClampS(double s) const
+{
+  return unwrapInput(s);
 }
 
 }  // namespace mpcc_controller

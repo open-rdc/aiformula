@@ -11,6 +11,8 @@
 
 namespace mpcc_controller {
 
+struct CostParam;  // 前方宣言 (params.hpp が motion_model に依存しないように)
+
 class MotionModel
 {
 public:
@@ -22,6 +24,22 @@ public:
 
   // 連続時間ダイナミクス dx/dt = f(x, u)
   virtual StateVector getF(const State & x, const Input & u) const = 0;
+
+  // モデル固有の入力コスト係数 (DiffDrive: r_v/r_omega/r_dv/r_domega,
+  // Ackermann: r_vx/r_delta/r_a/r_ddelta) を Q_inp / R_inp に積む
+  virtual void applyInputCost(Q_MPC & Q_inp, R_MPC & R_inp,
+                              const CostParam & cp) const = 0;
+
+  // ヨーレート正則化 q_r をモデル固有の量に効かせる
+  // (DiffDrive: ctrl_state = omega_cmd が yaw rate そのもの)
+  virtual void applyYawRateReg(Q_MPC & Q, double q_r) const = 0;
+
+  // ctrl_state を chassis_driver の steering_angle [rad] へ変換する。
+  // - Ackermann: ctrl_state そのものが舵角
+  // - DiffDrive: omega_cmd を等価舵角 atan(omega * L / v) に変換 (低速時は v_zero でクランプ)
+  // chassis_driver が steering_max.pos でクリップする実装に依存しているため，
+  // ここで物理的に正しい等価舵角を生成しないと DiffDrive が事実上機能しない．
+  virtual double toSteeringAngle(double ctrl_state, double v_or_vx) const = 0;
 
   // x_next = A*x + B*u + g  (数値微分で離散化)
   // g = RK4(x_lin, u_lin) - x_next  (参照実装と同一)
@@ -93,6 +111,11 @@ public:
 
   StateVector getF(const State & x, const Input & u) const override;
 
+  void applyInputCost(Q_MPC & Q_inp, R_MPC & R_inp,
+                      const CostParam & cp) const override;
+  void applyYawRateReg(Q_MPC & Q, double q_r) const override;
+  double toSteeringAngle(double ctrl_state, double v_or_vx) const override;
+
   Bounds_x getUpperBoundsX() const override;
   Bounds_x getLowerBoundsX() const override;
   Bounds_u getUpperBoundsU() const override;
@@ -101,6 +124,8 @@ public:
   Bounds_s getLowerBoundsS() const override;
 
 private:
+  double wheelbase_;
+  double v_zero_;
   double max_vel_;
   double max_omega_;
   double max_accel_;
@@ -117,6 +142,11 @@ public:
     const std::string & plugin_name) override;
 
   StateVector getF(const State & x, const Input & u) const override;
+
+  void applyInputCost(Q_MPC & Q_inp, R_MPC & R_inp,
+                      const CostParam & cp) const override;
+  void applyYawRateReg(Q_MPC & Q, double q_r) const override;
+  double toSteeringAngle(double ctrl_state, double v_or_vx) const override;
 
   Bounds_x getUpperBoundsX() const override;
   Bounds_x getLowerBoundsX() const override;

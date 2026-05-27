@@ -177,6 +177,8 @@ std::array<OptVariables, N + 1> HpipmInterface::solve(int * status)
   void * qp_mem = malloc(qp_size);
   struct d_ocp_qp qp;
   d_ocp_qp_create(&dim, &qp, qp_mem);
+  // HPIPM 0.1.4+ signature: ..., idxs, idxs_rev, ls, us, qp.
+  // idxs_rev (inverse soft-constraint map) は使用しないため nullptr.
   d_ocp_qp_set_all(
     hA_, hB_, hb_,
     hQ_, hS_, hR_, hq_, hr_,
@@ -184,7 +186,7 @@ std::array<OptVariables, N + 1> HpipmInterface::solve(int * status)
     hidxbu_, hlbu_, hubu_,
     hC_, hD_, hlg_, hug_,
     hZl_, hZu_, hzl_, hzu_,
-    hidxs_, nullptr, hlls_, hlus_, &qp);
+    hidxs_, /*idxs_rev=*/nullptr, hlls_, hlus_, &qp);
 
   // --- qp sol ---
   int qp_sol_size = d_ocp_qp_sol_memsize(&dim);

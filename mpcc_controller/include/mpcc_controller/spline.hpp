@@ -27,6 +27,10 @@ public:
   double getLength()                            const;
   double projectOnSpline(const State & x)       const;
 
+  // ローカルパス(開ループ)では clamp、閉ループでは wrap した s を返す
+  double wrapOrClampS(double s) const;
+  bool   isClosed() const { return is_closed_; }
+
 private:
   double unwrapInput(double s) const;
 
@@ -39,6 +43,7 @@ private:
   double length_s_  = 0.0;
   double step_s_    = 0.0;
   double max_dist_proj_ = 5.0;
+  bool   is_closed_ = false;   // 先頭/末尾が一致すれば閉ループ
 
   // 投影用データ保持
   Eigen::VectorXd path_x_;

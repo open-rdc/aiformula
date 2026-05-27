@@ -26,7 +26,6 @@ public:
   MPC(int n_sqp, int n_reset, double sqp_mixing, double Ts,
       std::shared_ptr<MotionModel> model,
       const Param & param, const CostParam & cost_param,
-      const BoundsParam & bounds_param,
       const NormalizationParam & norm_param,
       double track_width_left, double track_width_right,
       const rclcpp::Logger & logger = rclcpp::get_logger("mpc"));

@@ -43,11 +43,10 @@ struct State {
     X = Y = phi = v_or_vx = ctrl_state = s = vs = 0.0;
   }
 
-  void unwrap(double track_length) {
+  // phi のみ ±π に正規化。s の周回処理はトラックの開/閉ループに依存するため Spline 側で行う
+  void unwrapPhi() {
     while (phi >  PI) phi -= 2.0 * PI;
     while (phi < -PI) phi += 2.0 * PI;
-    s = std::fmod(s, track_length);
-    if (s < 0.0) s += track_length;
   }
 
   void enforceMinSpeed(double v_min) {
@@ -105,6 +104,7 @@ struct MPCReturn {
   const Input                             u0;
   const std::array<OptVariables, N + 1>  mpc_horizon;
   const double                            time_total;
+  const bool                              guess_reset;  // 今回のループで initial_guess を再生成したか
 };
 
 // フリー関数 (si_index を使って State/Input ↔ Eigen ベクトル変換)
