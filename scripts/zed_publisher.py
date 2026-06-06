@@ -28,19 +28,9 @@ class ZedPublisher(Node):
             self.camera = sl.Camera()
             init_params = sl.InitParameters()
             
-            if res_str == 'HD2K':
-                init_params.camera_resolution = sl.RESOLUTION.HD2K
-            elif res_str == 'HD1080':
-                init_params.camera_resolution = sl.RESOLUTION.HD1080
-            elif res_str == 'HD720':
-                init_params.camera_resolution = sl.RESOLUTION.HD720
-            elif res_str == 'VGA':
-                init_params.camera_resolution = sl.RESOLUTION.VGA
-            else:
-                self.get_logger().warn(f"Unknown resolution {res_str}, defaulting to HD720")
-                init_params.camera_resolution = sl.RESOLUTION.HD720
-            
-            init_params.camera_fps = fps
+
+            init_params.camera_resolution = sl.RESOLUTION.SVGA
+            # init_params.camera_fps = fps
             
             err = self.camera.open(init_params)
             if err != sl.ERROR_CODE.SUCCESS:
@@ -64,7 +54,7 @@ class ZedPublisher(Node):
             # Get numpy array (RGBA)
             image_rgba = self.image_sl.get_data()
             # Convert to BGR for ROS image_raw compatibility
-            image_bgr = cv2.cvtColor(image_rgba, cv2.COLOR_RGBA2BGR)
+            image_bgr = cv2.cvtColor(image_rgba, cv2.COLOR_BGRA2BGR)
             
             # Convert to ROS Image message
             msg = self.bridge.cv2_to_imgmsg(image_bgr, encoding='bgr8')
