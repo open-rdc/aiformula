@@ -99,15 +99,27 @@ fi
 #    . /etc/bash_completion
 #fi
 
+############ original config ############
+parse_git_branch() {
+    git branch 2> /dev/null | sed -e '/^[^*]/d' -e 's/* \(.*\)/[\1]/'
+}
+
+if [ -f /usr/lib/git-core/git-sh-prompt ]; then
+    source /usr/lib/git-core/git-sh-prompt
+elif [ -f /etc/bash_completion.d/git-prompt ]; then
+    source /etc/bash_completion.d/git-prompt
+fi
+
+export PS1='\[\033[01;32m\]\u@\h\[\033[01;33m\] \w \[\033[01;31m\]$(__git_ps1 "(%s)") \n\[\033[01;34m\]\$\[\033[00m\] '
 export ROS_DOMAIN_ID=10
 
 source /opt/ros/humble/setup.bash
-source ~/formula_ws/install/setup.bash
+[ -f ~/formula_ws/install/setup.bash ] && source ~/formula_ws/install/setup.bash
 
 export ROS_WORKSPACE=${HOME}/formula_ws
 
 alias cb='colcon build --symlink-install'
-alias cbcl ='rm -rf install/ build/ log/ && colcon build --symlink-install'
+alias cbcl='rm -rf install/ build/ log/ && colcon build --symlink-install'
 alias bashrc='source ~/.bashrc'
 
 function ros_make() {
