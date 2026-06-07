@@ -6,10 +6,10 @@ LABEL maintainer="Kenta Ishizeki<kentai5420@gmail.com>"
 # ROS_DIDTRO
 ENV ROS_DISTRO=humble
 # username 自分の好きな名前に変更
-ENV USER_NAME=developer
+ENV USER_NAME=nvidia
 ENV DEBIAN_FRONTEND=noninteractive
 # workspace 好きな名前に変更
-ENV MYWORKSPACE_NAME=ros2_ws
+ENV MYWORKSPACE_NAME=formula_ws
 # basic packages
 RUN apt-get update && \
     apt-get upgrade -y && \
@@ -83,10 +83,10 @@ RUN echo "PS1='\[\e[1;31m\]\u@\h\[\e[00m\]:\[\e[1;34m\]\w\[\e[00m\]\$ '" >> ~/.b
 
 # ROS environment
 RUN echo "source /opt/ros/humble/setup.bash" >> ~/.bashrc && \
-    echo "source/ros2_ws/install/setup.bash" >> ~/.bashrc
+    echo "source ~/${MYWORKSPACE_NAME}/install/setup.bash" >> ~/.bashrc
 
-RUN mkdir -p ~/$MYWORKSPACE_NAME/src && \
-    cd ~/$MYWORKSPACE_NAME/src && \
-    git clone --recursive -b main https://github.com/open-rdc/aiformula
+RUN mkdir ~/$MYWORKSPACE_NAME && \
+    cd ~/$MYWORKSPACE_NAME && \
+    git clone --recursive -b deploy https://github.com/open-rdc/aiformula src
 
 CMD ["/bin/bash"]
