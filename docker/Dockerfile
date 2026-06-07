@@ -89,4 +89,9 @@ RUN mkdir ~/$MYWORKSPACE_NAME && \
     cd ~/$MYWORKSPACE_NAME && \
     git clone --recursive -b deploy https://github.com/open-rdc/aiformula src
 
+# config setting
+COPY config/.bashrc /home/${USER_NAME}/.bashrc
+COPY config/.vimrc /home/${USER_NAME}/.vimrc
+COPY config/.tmux.conf /home/${USER_NAME}/.tmux.conf
+
 CMD ["/bin/bash"]
