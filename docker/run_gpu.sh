@@ -2,6 +2,7 @@
 
 eval "docker container run \
 --network host \
+--gpus all \
 -it \
 --name my-aiformula-humble \
 -e DISPLAY=$DISPLAY \
