@@ -1,5 +1,6 @@
+numpy<2
 matplotlib==3.10.9
-opencv-python==4.13.0.92
+opencv-python==4.11.0.86
 pymap3d==3.2.0
 pyproj==3.7.1
 schedulefree==1.4.1
