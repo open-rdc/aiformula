@@ -17,7 +17,7 @@ ENV HOME=/home/${USER_NAME}
 # install aiformula repository
 RUN mkdir ~/$MYWORKSPACE_NAME && \
     cd ~/$MYWORKSPACE_NAME && \
-    git clone --recursive -b deploy https://github.com/open-rdc/aiformula src
+    git clone --recursive -b fix/docker https://github.com/open-rdc/aiformula src
 
 # download YOLOPv2 weights
 RUN wget -q https://github.com/CAIC-AD/YOLOPv2/releases/download/V0.0.1/yolopv2.pt \
