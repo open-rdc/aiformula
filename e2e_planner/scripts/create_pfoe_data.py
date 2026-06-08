@@ -38,6 +38,7 @@ class DataCollectionNode(Node):
 
         self.is_paused = True
         self.prev_button_state = 0
+        self.next_command = 1
         self.joy_value = None
         self.last_sample_time = None
 
@@ -52,7 +53,7 @@ class DataCollectionNode(Node):
         self.log_path = dataset_dir / 'log.csv'
         self.log_file = open(str(self.log_path), 'w', newline='')
         self.log_writer = csv.writer(self.log_file)
-        self.log_writer.writerow(['row', 'joy_value'])
+        self.log_writer.writerow(['row', 'joy_value', 'command'])
 
         if self.sdk_flag_:
             if not ZED_SDK_AVAILABLE:
@@ -88,8 +89,7 @@ class DataCollectionNode(Node):
 
         self.zed_camera.retrieve_image(self.zed_image, sl.VIEW.LEFT)
         image = self.zed_image.get_data()
-        resized_image = cv2.resize(image, (224, 224))
-        final_image = cv2.cvtColor(resized_image, cv2.COLOR_BGRA2RGB)
+        final_image = cv2.cvtColor(image, cv2.COLOR_BGRA2RGB)
         
         return final_image
 
@@ -97,22 +97,28 @@ class DataCollectionNode(Node):
         self.latest_image = msg
     
     def joy_callback(self, msg: Joy) -> None:
-        if len(msg.buttons) > 2:
-            current_button_state = msg.buttons[2]
-            if current_button_state == 1 and self.prev_button_state == 0:
-                self.is_paused = not self.is_paused
-                if self.is_paused:
-                    self.get_logger().info('⏸️ Data collection paused')
-                else:
-                    self.last_sample_time = None
-                    self.get_logger().info('▶️ Data collection resumed')
-            self.prev_button_state = current_button_state
+        current_button_state = msg.buttons[2]
+        if current_button_state == 1 and self.prev_button_state == 0:
+            self.is_paused = not self.is_paused
+            if self.is_paused:
+                self.get_logger().info('⏸️ Data collection paused')
+            else:
+                self.last_sample_time = None
+                self.get_logger().info('▶️ Data collection resumed')
 
-        if len(msg.axes) > 4:
-            left_stick = msg.axes[0]
-            right_stick = msg.axes[4]
+        self.prev_button_state = current_button_state
 
-            self.joy_value = np.arctan2(right_stick, left_stick)
+        if msg.buttons[4] == 1:
+            command = 2
+        elif msg.buttons[5] == 1:
+            command = 3
+        else:
+            command = 1
+
+        right_stick = msg.axes[2]
+
+        self.next_command = command
+        self.joy_value = right_stick
 
     def timer_callback(self)->None:
         if self.is_paused:
@@ -129,10 +135,10 @@ class DataCollectionNode(Node):
                 get_image_tensor = self.feature_extractor.extract(image).astype(np.float32)
                 row = np.concatenate([
                     get_image_tensor,
-                    np.array([self.joy_value], dtype=np.float32)
+                    np.array([self.joy_value, self.next_command], dtype=np.float32)
                 ])
                 self.bin_file.write(row.tobytes())
-                self.log_writer.writerow([self.row_count, self.joy_value])
+                self.log_writer.writerow([self.row_count, self.joy_value, self.next_command])
                 self.row_count += 1
                 self.last_sample_time = current_time
 
@@ -144,10 +150,10 @@ class DataCollectionNode(Node):
                 get_image_tensor = self.feature_extractor.extract(cv_image).astype(np.float32)
                 row = np.concatenate([
                     get_image_tensor,
-                    np.array([self.joy_value], dtype=np.float32)
+                    np.array([self.joy_value, self.next_command], dtype=np.float32)
                 ])
                 self.bin_file.write(row.tobytes())
-                self.log_writer.writerow([self.row_count, self.joy_value])
+                self.log_writer.writerow([self.row_count, self.joy_value, self.next_command])
                 self.row_count += 1
                 self.last_sample_time = current_time
 

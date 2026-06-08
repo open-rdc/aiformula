@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 from torchvision import models, transforms
+from pathlib import Path
 from PIL import Image
 import numpy as np
 
@@ -10,8 +11,13 @@ class ImageFeatureExtractor(nn.Module):
         super().__init__()
         self.device = torch.device('cuda')
 
-        weights = models.EfficientNet_B0_Weights.IMAGENET1K_V1
-        backbone = models.efficientnet_b0(weights=weights)
+        backbone = models.efficientnet_b0(weights=None)
+
+        weights_path = Path(__file__).parent.parent / 'weights' / 'efficientnet_b0_rwightman-3dd342df.pth'
+        if not weights_path.exists():
+            raise FileNotFoundError(f"weights not found: {weights_path}")
+        state_dict = torch.load(str(weights_path), map_location='cpu')
+        backbone.load_state_dict(state_dict)
 
         self.features = backbone.features.to(self.device)
         self.pool = backbone.avgpool.to(self.device)
