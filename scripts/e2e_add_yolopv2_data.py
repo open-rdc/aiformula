@@ -7,8 +7,8 @@ import numpy as np
 from pathlib import Path
 from tqdm import tqdm
 
-sys.path.append(str(Path(__file__).parent.parent / 'e2e_planner' / 'scripts'))
-from util.yolop_processor import YOLOPv2Processor
+sys.path.append(str(Path(__file__).parent.parent / 'e2e_planner'))
+from e2e_planner.util.yolop_processor import YOLOPv2Processor
 
 
 def process_dataset(dataset_path: Path, yolop_weight_path: Path) -> None:
