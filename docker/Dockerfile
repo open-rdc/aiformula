@@ -28,4 +28,8 @@ COPY config/.bashrc /home/${USER_NAME}/.bashrc
 COPY config/.vimrc /home/${USER_NAME}/.vimrc
 COPY config/.tmux.conf /home/${USER_NAME}/.tmux.conf
 
+# install python dependencies
+COPY config/requirements.txt /tmp/requirements.txt
+RUN pip3 install --no-cache-dir -r /tmp/requirements.txt
+
 CMD ["/bin/bash"]
