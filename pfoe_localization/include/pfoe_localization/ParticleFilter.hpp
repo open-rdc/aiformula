@@ -36,21 +36,23 @@ struct Particle
 class ParticleFilter{
 public:
     ParticleFilter();
-    int init(const std::string& data_dir);
+    int init(const std::string& data_dir, int predictio_range);
     void cycle(const std::vector<float>& feat);
-    float decision() const;
+    float decision();
 private:
-    int particle_num;
+    int particle_num_ = 0;
+    int prediction_range_ = 0;
     std::mt19937 rng_;
 
     std::vector<Particle> particles_;
     std::vector<Episode>  episodes_;
 
-    int load_episode(const std::string& path);
+    int randomInt(int min, int max);
+    double randomReal(double lo, double hi);
+    int loadEpisode(const std::string& path);
     void scatterParticles();
     void predict();
-    void weighting(const std::vector<float>& feat);
-    void normalizeWeights();
+    void normalize();
     void resampling();
     double likelihood(const std::vector<float>& a,
                     const std::vector<float>& b) const;
