@@ -41,7 +41,7 @@ FrenetPlannerNode::FrenetPlannerNode(const std::string& name_space, const rclcpp
         std::bind(&FrenetPlannerNode::path_callback, this, std::placeholders::_1)
     );
     sub_pointcloud_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
-        "/zed/zed_node/pointcloud",
+        "/zed/zed_node/pointcloud_filtered",
         qos_,
         std::bind(&FrenetPlannerNode::pointcloud_callback, this, std::placeholders::_1)
     );
