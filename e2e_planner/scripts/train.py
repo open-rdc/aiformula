@@ -20,6 +20,12 @@ IMAGE_HEIGHT = 48
 NUM_WAYPOINTS = 10
 
 
+def normalize_waypoints(waypoints: torch.Tensor) -> torch.Tensor:
+    waypoints[0::2] = waypoints[0::2] / 5.0 - 1.0  # x座標
+    waypoints[1::2] = (waypoints[1::2] + 3.0) / 3.0 - 1.0  # y座標
+    return waypoints
+
+
 class E2EDataset(Dataset):
     def __init__(self, dataset_path: Path):
         self.dataset_path = dataset_path
@@ -49,8 +55,7 @@ class E2EDataset(Dataset):
         mask_tensor = torch.from_numpy(mask_normalized).unsqueeze(0)
 
         waypoints_tensor = torch.tensor(waypoints, dtype=torch.float32).flatten()
-        waypoints_tensor[0::2] = waypoints_tensor[0::2] / 5.0 - 1.0
-        waypoints_tensor[1::2] = (waypoints_tensor[1::2] + 3.0) / 3.0 - 1.0
+        waypoints_tensor = normalize_waypoints(waypoints_tensor)
 
         return mask_tensor, waypoints_tensor
 
@@ -99,7 +104,7 @@ class Trainer:
 
         self.model = Network(num_waypoints=NUM_WAYPOINTS).to(self.device)
         self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=config.learning_rate)
-        self.mseloss = nn.MSELoss()
+        self.criterion = nn.MSELoss()
         self.writer = SummaryWriter(log_dir=str(config.logs_dir))
 
         self.best_val_loss = float('inf')
@@ -119,7 +124,7 @@ class Trainer:
 
                 outputs = self.model(images)
 
-                loss = self.mseloss(outputs, waypoints)
+                loss = self.criterion(outputs, waypoints)
                 total_loss += loss.item()
                 pbar.set_postfix({'loss': f'{loss.item():.6f}'})
 
@@ -146,7 +151,7 @@ class Trainer:
                 self.optimizer.zero_grad()
                 outputs = self.model(images)
 
-                loss = self.mseloss(outputs, waypoints)
+                loss = self.criterion(outputs, waypoints)
                 loss.backward()
                 self.optimizer.step()
 

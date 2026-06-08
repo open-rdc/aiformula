@@ -1,4 +1,5 @@
-from .slit_aug import crop_images, rotate_waypoints, augment
-from .yolop_processor import YOLOPv2Processor
+"""Shared utilities for e2e_planner (sensor I/O, YOLOP, augmentation).
 
-__all__ = ['crop_images', 'rotate_waypoints', 'augment', 'YOLOPv2Processor']
+Import submodules explicitly (e.g. ``from e2e_planner.util.sensor_utils import
+create_sensor_source``) so light-weight consumers do not pull heavy deps.
+"""

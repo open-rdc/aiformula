@@ -1,19 +1,20 @@
 #!/usr/bin/env python3
 
+import os
+
 import cv2
 import numpy as np
 import torch
-from pathlib import Path
 from typing import Tuple
 
 
 class YOLOPv2Processor:
-    def __init__(self, model_path: Path, device: torch.device):
+    def __init__(self, model_path: str, device: torch.device):
         self.device = device
         self.input_shape = (640, 640)
 
-        if model_path.exists():
-            self.model = torch.jit.load(str(model_path), map_location=device)
+        if os.path.exists(model_path):
+            self.model = torch.jit.load(model_path, map_location=device)
             self.model.to(device)
             self.model.eval()
         else:
