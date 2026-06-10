@@ -45,7 +45,6 @@ frenet_planner_node:
 pure_pursuit_node:
   ros__parameters:
     lookahead_distance : 5.0
-    curvature_gain : 5.0
     steered_gain : 1.8
 
 chassis_driver_node:
