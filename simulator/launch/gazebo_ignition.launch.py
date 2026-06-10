@@ -112,6 +112,8 @@ def generate_launch_description():
             '/controller_manager',
             '--controller-manager-timeout',
             '60',
+            '--switch-timeout',
+            '60',
         ],
         output='screen',
     )
