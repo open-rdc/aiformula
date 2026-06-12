@@ -4,6 +4,8 @@ launch: #起動パラメータ
     vectornav : false
     odrive : false
     socketcan : false
+    zed : false
+    sim : true
 
 /**:  #ワイルドカード(ここのパラメータは全ノードから読める: <名前に注意>)
   ros__parameters:
@@ -143,6 +145,7 @@ lane_planner_node:
     vector_map_topic : "/vector_map"
     localization_pose_topic : "/localization/pose"
     nav_cmd_topic : "/planning/nav_cmd"
+    lane_change_topic : "/flag"
     default_nav_cmd : "straight"
     nav_cmd_fallback_order : ["straight", "left", "right"]
     global_path_topic : "/planner/global_path"
