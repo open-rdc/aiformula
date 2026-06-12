@@ -74,7 +74,7 @@ class ZedSdkSource(SensorSource):
         return self._camera.grab(self._runtime) == self._sl.ERROR_CODE.SUCCESS
 
     def get_image(self) -> Optional[np.ndarray]:
-        self._camera.retrieve_image(self._image, self._sl.VIEW.LEFT, resolution=())
+        self._camera.retrieve_image(self._image, self._sl.VIEW.LEFT)
         return self._image.get_data()
 
     def get_pointcloud(self) -> Optional[np.ndarray]:
