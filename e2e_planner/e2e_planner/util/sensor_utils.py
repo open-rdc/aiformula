@@ -16,7 +16,7 @@ POINTCLOUD_MAX_POINTS = 1024
 
 @dataclass(frozen=True)
 class SourceConfig:
-    resolution: str = 'SVGA'
+    resolution: str = 'HD1080'
     fps: int = 30
     depth_mode: str = 'NEURAL'
     image_topic: str = '/zed/zed_node/rgb/image_rect_color'
@@ -74,7 +74,7 @@ class ZedSdkSource(SensorSource):
         return self._camera.grab(self._runtime) == self._sl.ERROR_CODE.SUCCESS
 
     def get_image(self) -> Optional[np.ndarray]:
-        self._camera.retrieve_image(self._image, self._sl.VIEW.LEFT)
+        self._camera.retrieve_image(self._image, self._sl.VIEW.LEFT, resolution=())
         return self._image.get_data()
 
     def get_pointcloud(self) -> Optional[np.ndarray]:
@@ -89,6 +89,7 @@ class RosTopicSource(SensorSource):
         self._bridge = CvBridge()
         self._latest_image: Optional[Image] = None
         self._latest_pointcloud: Optional[PointCloud2] = None
+        self._image_updated = False
 
         self.subscription_image = node.create_subscription(
             Image, config.image_topic, self.image_callback, qos_profile_sensor_data
@@ -104,12 +105,16 @@ class RosTopicSource(SensorSource):
 
     def image_callback(self, msg: Image) -> None:
         self._latest_image = msg
+        self._image_updated = True
 
     def pointcloud_callback(self, msg: PointCloud2) -> None:
         self._latest_pointcloud = msg
 
     def grab(self) -> bool:
-        return self._latest_image is not None
+        if not self._image_updated:
+            return False
+        self._image_updated = False
+        return True
 
     def get_image(self) -> Optional[np.ndarray]:
         msg = self._latest_image
@@ -121,10 +126,9 @@ class RosTopicSource(SensorSource):
         msg = self._latest_pointcloud
         if msg is None:
             return None
-        points = point_cloud2.read_points(
+        cloud = point_cloud2.read_points_numpy(
             msg, field_names=('x', 'y', 'z', 'rgb'), skip_nans=True
         )
-        cloud = np.array([[p[0], p[1], p[2], p[3]] for p in points], dtype=np.float32)
         if cloud.size == 0:
             return None
         return cloud
