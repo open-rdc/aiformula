@@ -1,0 +1,14 @@
+<class_libraries>
+  <library path="frenet_planner_plugin">
+    <class type="local_planner::FrenetPlannerPlugin"
+           base_class_type="local_planner::LocalPlannerPlugin">
+      <description>Frenet trajectory planner plugin (time-based polynomial sampling)</description>
+    </class>
+  </library>
+  <library path="vectormap_frenet_plugin">
+    <class type="local_planner::VectormapFrenetPlugin"
+           base_class_type="local_planner::LocalPlannerPlugin">
+      <description>VectorMap-aware Frenet local planner with lane change support</description>
+    </class>
+  </library>
+</class_libraries>
