@@ -18,6 +18,9 @@ simulator_old/
 e2e_planner/data/
 e2e_planner/runs/
 #ファイル名で指定
-
+AGENTS.md
+CLAUDE.md
+.codex
+*project.md
 
 #例外ファイルを指定
