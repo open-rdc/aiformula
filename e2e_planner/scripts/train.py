@@ -12,12 +12,12 @@ from pathlib import Path
 import numpy as np
 from typing import Tuple
 from tqdm import tqdm
-from schedulefree import RAdamScheduleFree
 from network import Network
+from util.preprocessing import lane_mask_to_tensor_array
 
-IMAGE_WIDTH = 64
-IMAGE_HEIGHT = 48
 NUM_WAYPOINTS = 10
+NUM_BRANCHES = 4
+DEFAULT_COMMAND = 1
 
 
 class E2EDataset(Dataset):
@@ -25,14 +25,16 @@ class E2EDataset(Dataset):
         self.dataset_path = dataset_path
         self.mask_images_dir = dataset_path / 'mask_images'
         self.path_dir = dataset_path / 'path'
+        self.command_dir = dataset_path / 'commands'
         self.mask_files = sorted(list(self.mask_images_dir.glob('*.png')))
 
     def __len__(self) -> int:
         return len(self.mask_files)
 
-    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
+    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         mask_file = self.mask_files[idx]
         csv_file = self.path_dir / f'{mask_file.stem}.csv'
+        command_file = self.command_dir / f'{mask_file.stem}.csv'
 
         mask_bgr = cv2.imread(str(mask_file), cv2.IMREAD_COLOR)
 
@@ -40,19 +42,23 @@ class E2EDataset(Dataset):
             reader = csv.DictReader(f)
             waypoints = [[float(row['x']), float(row['y'])] for row in reader]
 
-        mask_binary = ((mask_bgr[:, :, 2] > 200) & (mask_bgr[:, :, 0] < 50) & (mask_bgr[:, :, 1] < 50)).astype(np.uint8)
-
-        cropped_mask = mask_binary[:, 40:440]
-        resized_mask = cv2.resize(cropped_mask, (IMAGE_WIDTH, IMAGE_HEIGHT), interpolation=cv2.INTER_NEAREST)
-
-        mask_normalized = resized_mask.astype(np.float32)
+        mask_normalized = lane_mask_to_tensor_array(mask_bgr)
         mask_tensor = torch.from_numpy(mask_normalized).unsqueeze(0)
 
         waypoints_tensor = torch.tensor(waypoints, dtype=torch.float32).flatten()
         waypoints_tensor[0::2] = waypoints_tensor[0::2] / 5.0 - 1.0
         waypoints_tensor[1::2] = (waypoints_tensor[1::2] + 3.0) / 3.0 - 1.0
 
-        return mask_tensor, waypoints_tensor
+        command = DEFAULT_COMMAND
+        if command_file.exists():
+            with open(command_file, 'r', newline='') as f:
+                command = int(float(next(csv.reader(f))[0]))
+
+        command = min(max(command, 0), NUM_BRANCHES - 1)
+        command_tensor = torch.zeros(NUM_BRANCHES, dtype=torch.float32)
+        command_tensor[command] = 1.0
+
+        return mask_tensor, waypoints_tensor, command_tensor
 
 class Config:
     def __init__(self, config_path: Path, package_root: Path):
@@ -72,7 +78,7 @@ class Config:
 
         self.logs_dir = package_root / 'runs'
 
-        self.device = torch.device('cuda')
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 class Trainer:
     def __init__(self, dataset_path: Path, config: Config):
@@ -97,7 +103,7 @@ class Trainer:
             num_workers=config.num_workers
         )
 
-        self.model = Network(num_waypoints=NUM_WAYPOINTS).to(self.device)
+        self.model = Network(num_waypoints=NUM_WAYPOINTS, num_branches=NUM_BRANCHES).to(self.device)
         self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=config.learning_rate)
         self.mseloss = nn.MSELoss()
         self.writer = SummaryWriter(log_dir=str(config.logs_dir))
@@ -113,11 +119,12 @@ class Trainer:
 
         with torch.no_grad():
             pbar = tqdm(self.val_loader, desc='Validation')
-            for images, waypoints in pbar:
+            for images, waypoints, commands in pbar:
                 images = images.to(self.device)
                 waypoints = waypoints.to(self.device)
+                commands = commands.to(self.device)
 
-                outputs = self.model(images)
+                outputs = self.model(images, commands)
 
                 loss = self.mseloss(outputs, waypoints)
                 total_loss += loss.item()
@@ -139,12 +146,13 @@ class Trainer:
             total_train_loss = 0.0
 
             pbar = tqdm(self.train_loader, desc=f'Epoch {epoch} [Train]')
-            for images, waypoints in pbar:
+            for images, waypoints, commands in pbar:
                 images = images.to(self.device)
                 waypoints = waypoints.to(self.device)
+                commands = commands.to(self.device)
 
                 self.optimizer.zero_grad()
-                outputs = self.model(images)
+                outputs = self.model(images, commands)
 
                 loss = self.mseloss(outputs, waypoints)
                 loss.backward()
