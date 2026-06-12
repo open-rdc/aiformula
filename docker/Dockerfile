@@ -19,11 +19,9 @@ RUN mkdir ~/$MYWORKSPACE_NAME && \
     cd ~/$MYWORKSPACE_NAME && \
     git clone --recursive -b fix/docker https://github.com/open-rdc/aiformula src
 
-# download YOLOPv2 weights and e2e model
+# download YOLOPv2 weights
 RUN wget -q https://github.com/CAIC-AD/YOLOPv2/releases/download/V0.0.1/yolopv2.pt \
-    -O ~/$MYWORKSPACE_NAME/src/e2e_planner/weights/yolopv2.pt && \
-    wget -q "https://drive.google.com/uc?export=download&id=1qgfKzX3SAiTUN4RMzQju3JR_jo5zwaVi" \
-    -O ~/$MYWORKSPACE_NAME/src/e2e_planner/weights/e2e_model.pt
+    -O ~/$MYWORKSPACE_NAME/src/perception/road_detector/data/weights/yolopv2.pt
 
 # config setting
 COPY config/.bashrc /home/${USER_NAME}/.bashrc
