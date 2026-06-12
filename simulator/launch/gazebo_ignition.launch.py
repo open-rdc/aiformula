@@ -27,6 +27,7 @@ def generate_launch_description():
         package='ros_gz_bridge',
         executable='parameter_bridge',
         arguments=[
+            '/clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock',
             # RGB camera (color image only)
             '/camera_info@sensor_msgs/msg/CameraInfo@gz.msgs.CameraInfo',
             '/image_raw@sensor_msgs/msg/Image@gz.msgs.Image',
