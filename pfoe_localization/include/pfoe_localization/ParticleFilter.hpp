@@ -12,7 +12,7 @@
 #include <cmath>
 
 static constexpr int FEAT_DIM = 1280;
-static constexpr int REC_DIM  = 1281;
+static constexpr int REC_DIM  = 1282;
 
 struct Event
 {

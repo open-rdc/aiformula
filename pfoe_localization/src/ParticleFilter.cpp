@@ -46,7 +46,7 @@ void ParticleFilter::cycle(const std::vector<float>& feat){
         const auto& recorded = episodes_[p.episode_idx].events[p.event_idx].features;
         double h = likelihood(feat, recorded);
 
-        p.weight *= h;
+        p.weight *= (h + 1) / 2;
     }
 
     normalize();
