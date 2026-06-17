@@ -18,8 +18,8 @@
   <depend>path_tracker</depend>
   <depend>utilities</depend>
   <depend>localization</depend>
-  <depend>motion_control</depend>
-  <depend>lane_planner</depend>
+  <depend>trajectory_follower</depend>
+  <depend>mission_planner</depend>
   <depend>local_planner</depend>
   <depend>object_detector</depend>
   <depend>zed_wrapper</depend>

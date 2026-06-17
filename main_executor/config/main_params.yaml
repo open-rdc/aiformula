@@ -137,7 +137,7 @@ map_odom_tf_node:
     base_frame_id        : "base_link"
     localized_pose_topic : "/localization/pose"
 
-lane_planner_node:
+mission_planner_node:
   ros__parameters:
     update_period_ms : 100
     map_frame_id : "map"
@@ -200,7 +200,7 @@ object_detector_node:
 
 controller_server_node:
   ros__parameters:
-    controller_plugin  : "motion_control::PurePursuitPlugin"
+    controller_plugin  : "trajectory_follower::PurePursuitPlugin"
     path_topic         : "/planner/local_path"
     pose_topic         : "/localization/pose"
     autonomous_topic   : "/autonomous"

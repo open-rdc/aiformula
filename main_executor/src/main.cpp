@@ -6,8 +6,8 @@
 #include "localization/map_odom_tf_node.hpp"
 #include "localization/odom_tf_node.hpp"
 #include "localization/localization_node.hpp"
-#include "motion_control/controller_server.hpp"
-#include "lane_planner/lane_planner_node.hpp"
+#include "trajectory_follower/controller_server.hpp"
+#include "mission_planner/mission_planner_node.hpp"
 #include "local_planner/local_planner_server.hpp"
 #include "object_detector/object_detector_node.hpp"
 #include "vectormap_server/vectormap_server_node.hpp"
@@ -34,9 +34,9 @@ int main(int argc, char * argv[]){
     auto localization_node = std::make_shared<localization::LocalizationNode>(nodes_option);
     auto odom_tf_node = std::make_shared<localization::OdomTfNode>(nodes_option);
     auto map_odom_tf_node = std::make_shared<localization::MapOdomTfNode>(nodes_option);
-    auto lane_planner_node = std::make_shared<lane_planner::LanePlannerNode>(nodes_option);
+    auto mission_planner_node = std::make_shared<mission_planner::MissionPlannerNode>(nodes_option);
     auto local_planner_server_node = std::make_shared<local_planner::LocalPlannerServer>(nodes_option);
-    auto controller_server_node = std::make_shared<motion_control::ControllerServer>(nodes_option);
+    auto controller_server_node = std::make_shared<trajectory_follower::ControllerServer>(nodes_option);
     auto object_detector_node = std::make_shared<object_detector::ObjectDetectorNode>(nodes_option);
 
 #ifdef ENABLE_ZED
@@ -52,7 +52,7 @@ int main(int argc, char * argv[]){
     exec.add_node(localization_node);
     exec.add_node(odom_tf_node);
     exec.add_node(map_odom_tf_node);
-    exec.add_node(lane_planner_node);
+    exec.add_node(mission_planner_node);
     exec.add_node(local_planner_server_node);
     exec.add_node(controller_server_node);
     exec.add_node(object_detector_node);
