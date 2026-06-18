@@ -1,0 +1,195 @@
+#include "trajectory_follower/mpc/lateral_mpc.hpp"
+
+#include <algorithm>
+#include <cmath>
+#include <limits>
+#include <vector>
+
+#include <Eigen/Core>
+#include <Eigen/Dense>
+
+namespace trajectory_follower
+{
+
+namespace
+{
+constexpr double EPSILON = 1.0e-9;
+
+double normalize_angle(double a)
+{
+    while (a > M_PI) a -= 2.0 * M_PI;
+    while (a < -M_PI) a += 2.0 * M_PI;
+    return a;
+}
+
+// 3点から符号付き曲率 (左旋回が正) を Menger 曲率で算出する。
+double menger_curvature(
+    const std::array<double, 2> & p0,
+    const std::array<double, 2> & p1,
+    const std::array<double, 2> & p2)
+{
+    const double area2 =
+        (p1[0] - p0[0]) * (p2[1] - p0[1]) - (p1[1] - p0[1]) * (p2[0] - p0[0]);
+    const double a = std::hypot(p1[0] - p0[0], p1[1] - p0[1]);
+    const double b = std::hypot(p2[0] - p1[0], p2[1] - p1[1]);
+    const double c = std::hypot(p2[0] - p0[0], p2[1] - p0[1]);
+    const double denom = a * b * c;
+    if (denom < EPSILON) {
+        return 0.0;
+    }
+    return 2.0 * area2 / denom;  // = 4 * 符号付き面積 / (a b c) = ±1/R
+}
+}  // namespace
+
+void LateralMpc::configure(const LateralMpcParams & params)
+{
+    p_ = params;
+    reset();
+}
+
+double LateralMpc::computeSteering(
+    const std::vector<std::array<double, 2>> & path_xy, double v)
+{
+    const int n = static_cast<int>(path_xy.size());
+    if (n < 3) {
+        return std::clamp(prev_steer_, -p_.steer_limit, p_.steer_limit);
+    }
+
+    // 累積距離と各点の符号付き曲率を算出
+    std::vector<double> arc(n, 0.0);
+    for (int i = 1; i < n; ++i) {
+        arc[i] = arc[i - 1] + std::hypot(path_xy[i][0] - path_xy[i - 1][0],
+                                         path_xy[i][1] - path_xy[i - 1][1]);
+    }
+    std::vector<double> curv(n, 0.0);
+    for (int i = 1; i < n - 1; ++i) {
+        curv[i] = menger_curvature(path_xy[i - 1], path_xy[i], path_xy[i + 1]);
+    }
+    curv[0] = curv[1];
+    curv[n - 1] = curv[n - 2];
+
+    // 自車(原点)に最も近い経路点を探索
+    int nearest = 0;
+    double best = std::numeric_limits<double>::max();
+    for (int i = 0; i < n; ++i) {
+        const double d = path_xy[i][0] * path_xy[i][0] + path_xy[i][1] * path_xy[i][1];
+        if (d < best) {
+            best = d;
+            nearest = i;
+        }
+    }
+
+    // 最近傍点での接線方位
+    const int hi = (nearest < n - 1) ? nearest + 1 : nearest;
+    const int lo = (nearest < n - 1) ? nearest : nearest - 1;
+    const double theta = std::atan2(path_xy[hi][1] - path_xy[lo][1],
+                                    path_xy[hi][0] - path_xy[lo][0]);
+
+    // 誤差状態 (自車は原点・前進 +x なので yaw = 0)
+    const double x0 = path_xy[nearest][0];
+    const double y0 = path_xy[nearest][1];
+    const double e_y = std::sin(theta) * x0 - std::cos(theta) * y0;
+    const double e_yaw = normalize_angle(0.0 - theta);
+
+    const int N = std::max(1, p_.horizon);
+    const double dt = p_.prediction_dt;
+    const double V = std::max(v, p_.min_predict_speed);
+    const double L = p_.wheelbase;
+    const double tau = std::max(p_.steer_tau, 1.0e-3);
+    const double ds = V * dt;
+
+    // 連続時間モデル -> 前進オイラー離散化 (A,B は時不変、w は曲率で変化)
+    Eigen::Matrix3d Ac;
+    Ac << 0.0, V, 0.0,
+          0.0, 0.0, V / L,
+          0.0, 0.0, -1.0 / tau;
+    const Eigen::Matrix3d Ad = Eigen::Matrix3d::Identity() + Ac * dt;
+    Eigen::Vector3d Bc(0.0, 0.0, 1.0 / tau);
+    const Eigen::Vector3d Bd = Bc * dt;
+
+    // 予測ホライズンに沿った曲率列を距離方向にサンプル
+    auto curvature_at = [&](double s) -> double {
+        const double s_abs = arc[nearest] + s;
+        int j = nearest;
+        while (j < n - 1 && arc[j] < s_abs) ++j;
+        return curv[std::clamp(j, 0, n - 1)];
+    };
+
+    // Ad の冪を事前計算
+    std::vector<Eigen::Matrix3d> Apow(N + 1, Eigen::Matrix3d::Identity());
+    for (int k = 1; k <= N; ++k) {
+        Apow[k] = Apow[k - 1] * Ad;
+    }
+
+    // 予測行列 X = Sx x0 + Su U + Sw
+    Eigen::MatrixXd Sx(3 * N, 3);
+    Eigen::MatrixXd Su = Eigen::MatrixXd::Zero(3 * N, N);
+    Eigen::VectorXd Sw = Eigen::VectorXd::Zero(3 * N);
+
+    std::vector<Eigen::Vector3d> wd(N, Eigen::Vector3d::Zero());
+    for (int i = 0; i < N; ++i) {
+        const double kappa = curvature_at(static_cast<double>(i) * ds);
+        wd[i] = Eigen::Vector3d(0.0, -V * kappa, 0.0) * dt;
+    }
+
+    for (int k = 1; k <= N; ++k) {
+        const int r = (k - 1) * 3;
+        Sx.block<3, 3>(r, 0) = Apow[k];
+        for (int j = 0; j < k; ++j) {
+            Su.block<3, 1>(r, j) = Apow[k - 1 - j] * Bd;
+        }
+        Eigen::Vector3d acc = Eigen::Vector3d::Zero();
+        for (int i = 0; i < k; ++i) {
+            acc += Apow[k - 1 - i] * wd[i];
+        }
+        Sw.segment<3>(r) = acc;
+    }
+
+    // 重み行列 (終端のみ別重み、ステア状態には重みを掛けない)
+    Eigen::VectorXd qdiag(3 * N);
+    for (int k = 1; k <= N; ++k) {
+        const int r = (k - 1) * 3;
+        const bool terminal = (k == N);
+        qdiag(r) = terminal ? p_.weight_terminal_lat_error : p_.weight_lat_error;
+        qdiag(r + 1) = terminal ? p_.weight_terminal_heading_error : p_.weight_heading_error;
+        qdiag(r + 2) = 0.0;
+    }
+    const Eigen::MatrixXd Qbar = qdiag.asDiagonal();
+
+    // ステアレート差分行列 D と参照オフセット p (Δu_0 = u_0 - prev_steer)
+    Eigen::MatrixXd D = Eigen::MatrixXd::Zero(N, N);
+    Eigen::VectorXd pvec = Eigen::VectorXd::Zero(N);
+    for (int k = 0; k < N; ++k) {
+        D(k, k) = 1.0;
+        if (k > 0) D(k, k - 1) = -1.0;
+    }
+    pvec(0) = prev_steer_;
+
+    const double R = p_.weight_steering_input;
+    const double Rd = p_.weight_steer_rate;
+
+    const Eigen::VectorXd x0vec = (Eigen::Vector3d() << e_y, e_yaw, prev_steer_).finished();
+
+    // J(U) = (Sx x0 + Su U + Sw)^T Q (..) + R U^T U + Rd (D U - p)^T (D U - p)
+    // dJ/dU = 0 -> M U = rhs
+    const Eigen::MatrixXd SuTQ = Su.transpose() * Qbar;
+    Eigen::MatrixXd M = SuTQ * Su + R * Eigen::MatrixXd::Identity(N, N) + Rd * (D.transpose() * D);
+    const Eigen::VectorXd rhs = -(SuTQ * (Sx * x0vec + Sw)) + Rd * (D.transpose() * pvec);
+
+    const Eigen::VectorXd U = M.ldlt().solve(rhs);
+
+    double steer = U(0);
+    if (!std::isfinite(steer)) {
+        steer = prev_steer_;
+    }
+    steer = std::clamp(steer, -p_.steer_limit, p_.steer_limit);
+    prev_steer_ = steer;
+    return steer;
+}
+
+void LateralMpc::reset()
+{
+    prev_steer_ = 0.0;
+}
+
+}  // namespace trajectory_follower
