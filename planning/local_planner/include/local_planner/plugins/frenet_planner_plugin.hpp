@@ -18,7 +18,7 @@
 namespace local_planner
 {
 
-class VectormapFrenetPlugin : public LocalPlannerPlugin
+class FrenetPlannerPlugin : public LocalPlannerPlugin
 {
 public:
     void initialize(
@@ -35,7 +35,7 @@ public:
 
 private:
     struct Point2D { double x; double y; };
-    struct PathPoint { double s; double x; double y; double yaw; uint64_t lanelet_id; };
+    struct PathPoint { double s; double x; double y; double yaw; };
     struct FrenetPoint { double s; double d; };
     struct FrenetObstacle { double s; double d; };
 
@@ -84,7 +84,7 @@ private:
         const std::vector<PathPoint> & points,
         const rclcpp::Time & stamp) const;
 
-    rclcpp::Logger logger_{rclcpp::get_logger("vectormap_frenet_plugin")};
+    rclcpp::Logger logger_{rclcpp::get_logger("frenet_planner_plugin")};
     rclcpp::Clock::SharedPtr clock_;
 
     double local_path_horizon_m_{15.0};

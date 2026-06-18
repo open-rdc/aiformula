@@ -18,7 +18,6 @@ LocalPlannerServer::LocalPlannerServer(
   update_period_ms_(get_parameter("update_period_ms").as_int()),
   global_path_topic_(get_parameter("global_path_topic").as_string()),
   local_path_topic_(get_parameter("local_path_topic").as_string()),
-  vector_map_topic_(get_parameter("vector_map_topic").as_string()),
   localization_pose_topic_(get_parameter("localization_pose_topic").as_string()),
   velocity_topic_(get_parameter("velocity_topic").as_string()),
   objects_topic_(get_parameter("objects_topic").as_string()),
@@ -29,7 +28,6 @@ LocalPlannerServer::LocalPlannerServer(
     }
     if (global_path_topic_.empty() ||
         local_path_topic_.empty() ||
-        vector_map_topic_.empty() ||
         localization_pose_topic_.empty() ||
         velocity_topic_.empty() ||
         objects_topic_.empty())
@@ -48,10 +46,6 @@ LocalPlannerServer::LocalPlannerServer(
         global_path_topic_,
         qos_,
         std::bind(&LocalPlannerServer::global_path_callback, this, std::placeholders::_1));
-    vector_map_subscription_ = create_subscription<vectormap_msgs::msg::VectorMap>(
-        vector_map_topic_,
-        qos_,
-        std::bind(&LocalPlannerServer::vector_map_callback, this, std::placeholders::_1));
     pose_subscription_ = create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>(
         localization_pose_topic_,
         qos_,
@@ -82,16 +76,6 @@ void LocalPlannerServer::global_path_callback(const nav_msgs::msg::Path::SharedP
     }
     std::lock_guard<std::mutex> lock(data_mutex_);
     plugin_->setGlobalPath(*msg);
-}
-
-void LocalPlannerServer::vector_map_callback(
-    const vectormap_msgs::msg::VectorMap::SharedPtr msg)
-{
-    if (!msg) {
-        throw std::runtime_error("VectorMap message must not be null");
-    }
-    std::lock_guard<std::mutex> lock(data_mutex_);
-    plugin_->setVectorMap(*msg);
 }
 
 void LocalPlannerServer::pose_callback(
