@@ -8,7 +8,6 @@
 #include <nav_msgs/msg/path.hpp>
 #include <object_detection_msgs/msg/object_info_array.hpp>
 #include <rclcpp/rclcpp.hpp>
-#include <vectormap_msgs/msg/vector_map.hpp>
 
 namespace local_planner
 {
@@ -25,8 +24,6 @@ public:
         const rclcpp::node_interfaces::NodeParametersInterface::SharedPtr & params) = 0;
 
     virtual void setGlobalPath(const nav_msgs::msg::Path & global_path) = 0;
-
-    virtual void setVectorMap(const vectormap_msgs::msg::VectorMap & /*map*/) {}
 
     virtual std::optional<nav_msgs::msg::Path> computeLocalPath(
         const geometry_msgs::msg::PoseWithCovarianceStamped & ego_pose,

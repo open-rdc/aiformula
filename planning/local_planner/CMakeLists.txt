@@ -25,14 +25,6 @@ target_include_directories(frenet_planner_plugin PUBLIC
   $<INSTALL_INTERFACE:include>
 )
 
-ament_auto_add_library(vectormap_frenet_plugin SHARED
-  src/plugins/vectormap_frenet_plugin.cpp)
-target_compile_features(vectormap_frenet_plugin PUBLIC c_std_99 cxx_std_17)
-target_include_directories(vectormap_frenet_plugin PUBLIC
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  $<INSTALL_INTERFACE:include>
-)
-
 pluginlib_export_plugin_description_file(local_planner plugins.xml)
 
 install(

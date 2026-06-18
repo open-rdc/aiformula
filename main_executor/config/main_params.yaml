@@ -158,18 +158,16 @@ mission_planner_node:
 
 local_planner_server_node:
   ros__parameters:
-    local_planner_plugin : "local_planner::VectormapFrenetPlugin"
+    local_planner_plugin : "local_planner::FrenetPlannerPlugin"
     update_period_ms : 100
     map_frame_id : "map"
     base_frame_id : "base_link"
     global_path_topic : "/planner/global_path"
     local_path_topic : "/planner/local_path"
-    vector_map_topic : "/vector_map"
     localization_pose_topic : "/localization/pose"
     velocity_topic : "/vectornav/velocity_body"
     objects_topic : "/perception/objects"
-    lane_switch_trigger_topic : "/flag"
-    # VectormapFrenetPlugin params
+    # FrenetPlannerPlugin params
     local_path_horizon_m : 15.0
     local_path_resample_interval_m : 0.2
     max_centerline_connection_gap_m : 0.5
@@ -200,9 +198,11 @@ object_detector_node:
 
 controller_server_node:
   ros__parameters:
+    control_period_ms  : 50            # 制御周期 [ms]
     controller_plugin  : "trajectory_follower::PurePursuitPlugin"
     path_topic         : "/planner/local_path"
     pose_topic         : "/localization/pose"
+    velocity_topic     : "/vectornav/velocity_body"
     autonomous_topic   : "/autonomous"
     cmd_vel_topic      : "/cmd_vel"
     target_pose_topic  : "/vectormap_control/target_pose"

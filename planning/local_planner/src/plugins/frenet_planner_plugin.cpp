@@ -1,4 +1,4 @@
-#include "local_planner/plugins/vectormap_frenet_plugin.hpp"
+#include "local_planner/plugins/frenet_planner_plugin.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -15,7 +15,7 @@ namespace
 constexpr double EPSILON = 1.0e-6;
 }  // namespace
 
-void VectormapFrenetPlugin::initialize(
+void FrenetPlannerPlugin::initialize(
     const rclcpp::Logger & logger,
     const rclcpp::Clock::SharedPtr & clock,
     const rclcpp::node_interfaces::NodeParametersInterface::SharedPtr & params)
@@ -69,11 +69,11 @@ void VectormapFrenetPlugin::initialize(
         max_avoidance_shift_m_ <= 0.0 ||
         frenet_collision_check_margin_m_ <= 0.0)
     {
-        throw std::invalid_argument("VectormapFrenetPlugin parameters are invalid");
+        throw std::invalid_argument("FrenetPlannerPlugin parameters are invalid");
     }
 }
 
-void VectormapFrenetPlugin::setGlobalPath(const nav_msgs::msg::Path & global_path)
+void FrenetPlannerPlugin::setGlobalPath(const nav_msgs::msg::Path & global_path)
 {
     if (global_path.poses.empty()) {
         return;
@@ -93,7 +93,7 @@ void VectormapFrenetPlugin::setGlobalPath(const nav_msgs::msg::Path & global_pat
             s += std::hypot(dx, dy);
         }
         const double yaw = yaw_from_quaternion(pose.pose.orientation);
-        global_samples_.push_back(PathPoint{s, pose.pose.position.x, pose.pose.position.y, yaw, 0U});
+        global_samples_.push_back(PathPoint{s, pose.pose.position.x, pose.pose.position.y, yaw});
     }
 
     const auto& first = global_samples_.front();
@@ -103,7 +103,7 @@ void VectormapFrenetPlugin::setGlobalPath(const nav_msgs::msg::Path & global_pat
     global_path_ready_ = true;
 }
 
-std::optional<nav_msgs::msg::Path> VectormapFrenetPlugin::computeLocalPath(
+std::optional<nav_msgs::msg::Path> FrenetPlannerPlugin::computeLocalPath(
     const geometry_msgs::msg::PoseWithCovarianceStamped & ego_pose,
     const geometry_msgs::msg::TwistWithCovarianceStamped & velocity,
     const object_detection_msgs::msg::ObjectInfoArray * objects)
@@ -143,7 +143,7 @@ std::optional<nav_msgs::msg::Path> VectormapFrenetPlugin::computeLocalPath(
     return make_path_message(local_points, clock_->now());
 }
 
-std::vector<VectormapFrenetPlugin::PathPoint> VectormapFrenetPlugin::generate_local_path(
+std::vector<FrenetPlannerPlugin::PathPoint> FrenetPlannerPlugin::generate_local_path(
     const FrenetPoint& ego_frenet,
     const bool has_obstacle,
     const FrenetObstacle& obstacle,
@@ -203,7 +203,7 @@ std::vector<VectormapFrenetPlugin::PathPoint> VectormapFrenetPlugin::generate_lo
     return best_path;
 }
 
-std::vector<VectormapFrenetPlugin::PathPoint> VectormapFrenetPlugin::sample_frenet_path(
+std::vector<FrenetPlannerPlugin::PathPoint> FrenetPlannerPlugin::sample_frenet_path(
     const double start_s,
     const double end_s,
     const double start_d,
@@ -249,8 +249,7 @@ std::vector<VectormapFrenetPlugin::PathPoint> VectormapFrenetPlugin::sample_fren
             s,
             base_point.x - std::sin(base_point.yaw) * offset,
             base_point.y + std::cos(base_point.yaw) * offset,
-            base_point.yaw,
-            0U});
+            base_point.yaw});
     }
 
     if (!points.empty() && end_s - points.back().s > EPSILON) {
@@ -262,8 +261,7 @@ std::vector<VectormapFrenetPlugin::PathPoint> VectormapFrenetPlugin::sample_fren
             end_s,
             base_point.x - std::sin(base_point.yaw) * offset,
             base_point.y + std::cos(base_point.yaw) * offset,
-            base_point.yaw,
-            0U});
+            base_point.yaw});
     }
 
     for (std::size_t i = 1U; i < points.size(); ++i) {
@@ -279,7 +277,7 @@ std::vector<VectormapFrenetPlugin::PathPoint> VectormapFrenetPlugin::sample_fren
     return points;
 }
 
-bool VectormapFrenetPlugin::is_collision_free(
+bool FrenetPlannerPlugin::is_collision_free(
     const std::vector<PathPoint>& candidate,
     const FrenetObstacle& obstacle) const
 {
@@ -303,7 +301,7 @@ bool VectormapFrenetPlugin::is_collision_free(
     return true;
 }
 
-double VectormapFrenetPlugin::evaluate_frenet_candidate(
+double FrenetPlannerPlugin::evaluate_frenet_candidate(
     const std::vector<PathPoint>& candidate,
     const double target_offset,
     const double avoidance_shift) const
@@ -326,7 +324,7 @@ double VectormapFrenetPlugin::evaluate_frenet_candidate(
         frenet_weight_avoidance_shift_ * std::abs(avoidance_shift);
 }
 
-bool VectormapFrenetPlugin::find_static_obstacle(
+bool FrenetPlannerPlugin::find_static_obstacle(
     const double current_s,
     const double base_offset,
     const object_detection_msgs::msg::ObjectInfoArray& objects,
@@ -376,7 +374,7 @@ bool VectormapFrenetPlugin::find_static_obstacle(
     return true;
 }
 
-VectormapFrenetPlugin::FrenetPoint VectormapFrenetPlugin::project_to_path(
+FrenetPlannerPlugin::FrenetPoint FrenetPlannerPlugin::project_to_path(
     const Point2D& point) const
 {
     if (global_samples_.empty()) {
@@ -412,7 +410,7 @@ VectormapFrenetPlugin::FrenetPoint VectormapFrenetPlugin::project_to_path(
     return best;
 }
 
-VectormapFrenetPlugin::PathPoint VectormapFrenetPlugin::path_point_at_s(
+FrenetPlannerPlugin::PathPoint FrenetPlannerPlugin::path_point_at_s(
     const double s) const
 {
     if (global_samples_.size() < 2U) {
@@ -443,11 +441,10 @@ VectormapFrenetPlugin::PathPoint VectormapFrenetPlugin::path_point_at_s(
         clamped_s,
         start.x + ratio * (end.x - start.x),
         start.y + ratio * (end.y - start.y),
-        std::atan2(end.y - start.y, end.x - start.x),
-        0U};
+        std::atan2(end.y - start.y, end.x - start.x)};
 }
 
-double VectormapFrenetPlugin::max_path_s() const
+double FrenetPlannerPlugin::max_path_s() const
 {
     if (global_samples_.empty()) {
         throw std::runtime_error("global path is not ready");
@@ -455,7 +452,7 @@ double VectormapFrenetPlugin::max_path_s() const
     return global_samples_.back().s;
 }
 
-double VectormapFrenetPlugin::normalize_path_s(const double s) const
+double FrenetPlannerPlugin::normalize_path_s(const double s) const
 {
     if (global_samples_.empty()) {
         return s;
@@ -474,13 +471,13 @@ double VectormapFrenetPlugin::normalize_path_s(const double s) const
     return normalized;
 }
 
-double VectormapFrenetPlugin::smooth_step(const double t)
+double FrenetPlannerPlugin::smooth_step(const double t)
 {
     const double x = std::clamp(t, 0.0, 1.0);
     return x * x * x * (10.0 + x * (-15.0 + 6.0 * x));
 }
 
-double VectormapFrenetPlugin::yaw_from_quaternion(
+double FrenetPlannerPlugin::yaw_from_quaternion(
     const geometry_msgs::msg::Quaternion& q)
 {
     const double siny_cosp = 2.0 * (q.w * q.z + q.x * q.y);
@@ -488,7 +485,7 @@ double VectormapFrenetPlugin::yaw_from_quaternion(
     return std::atan2(siny_cosp, cosy_cosp);
 }
 
-geometry_msgs::msg::Quaternion VectormapFrenetPlugin::yaw_to_quaternion(const double yaw)
+geometry_msgs::msg::Quaternion FrenetPlannerPlugin::yaw_to_quaternion(const double yaw)
 {
     geometry_msgs::msg::Quaternion q;
     q.x = 0.0;
@@ -498,7 +495,7 @@ geometry_msgs::msg::Quaternion VectormapFrenetPlugin::yaw_to_quaternion(const do
     return q;
 }
 
-double VectormapFrenetPlugin::point_segment_distance_sq(
+double FrenetPlannerPlugin::point_segment_distance_sq(
     const Point2D& point,
     const Point2D& start,
     const Point2D& end)
@@ -521,7 +518,7 @@ double VectormapFrenetPlugin::point_segment_distance_sq(
     return dx * dx + dy * dy;
 }
 
-nav_msgs::msg::Path VectormapFrenetPlugin::make_path_message(
+nav_msgs::msg::Path FrenetPlannerPlugin::make_path_message(
     const std::vector<PathPoint>& points,
     const rclcpp::Time& stamp) const
 {
@@ -543,4 +540,4 @@ nav_msgs::msg::Path VectormapFrenetPlugin::make_path_message(
 
 }  // namespace local_planner
 
-PLUGINLIB_EXPORT_CLASS(local_planner::VectormapFrenetPlugin, local_planner::LocalPlannerPlugin)
+PLUGINLIB_EXPORT_CLASS(local_planner::FrenetPlannerPlugin, local_planner::LocalPlannerPlugin)

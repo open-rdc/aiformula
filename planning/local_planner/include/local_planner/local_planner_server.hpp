@@ -10,7 +10,6 @@
 #include <object_detection_msgs/msg/object_info_array.hpp>
 #include <pluginlib/class_loader.hpp>
 #include <rclcpp/rclcpp.hpp>
-#include <vectormap_msgs/msg/vector_map.hpp>
 
 #include "local_planner/local_planner_plugin.hpp"
 #include "local_planner/visibility_control.h"
@@ -31,7 +30,6 @@ public:
 
 private:
     void global_path_callback(const nav_msgs::msg::Path::SharedPtr msg);
-    void vector_map_callback(const vectormap_msgs::msg::VectorMap::SharedPtr msg);
     void pose_callback(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg);
     void velocity_callback(const geometry_msgs::msg::TwistWithCovarianceStamped::SharedPtr msg);
     void objects_callback(const object_detection_msgs::msg::ObjectInfoArray::SharedPtr msg);
@@ -43,7 +41,6 @@ private:
     const int update_period_ms_;
     const std::string global_path_topic_;
     const std::string local_path_topic_;
-    const std::string vector_map_topic_;
     const std::string localization_pose_topic_;
     const std::string velocity_topic_;
     const std::string objects_topic_;
@@ -55,7 +52,6 @@ private:
     mutable std::mutex data_mutex_;
 
     rclcpp::Subscription<nav_msgs::msg::Path>::SharedPtr global_path_subscription_;
-    rclcpp::Subscription<vectormap_msgs::msg::VectorMap>::SharedPtr vector_map_subscription_;
     rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr pose_subscription_;
     rclcpp::Subscription<geometry_msgs::msg::TwistWithCovarianceStamped>::SharedPtr velocity_subscription_;
     rclcpp::Subscription<object_detection_msgs::msg::ObjectInfoArray>::SharedPtr objects_subscription_;
