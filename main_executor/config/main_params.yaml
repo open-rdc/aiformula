@@ -11,7 +11,7 @@ launch: #起動パラメータ
   ros__parameters:
     # 並進  速度[m/s],加速度[m/s^2],加減速度[-m/s^2],躍度[m/s^3]
     linear_max:
-      vel : 2.0
+      vel : 5.0
       acc: 5.0
       jer: 0.0
     # 舵角  位置[deg]
@@ -50,8 +50,6 @@ vectormap_server_node:
       latitude :  36.11313110136178
       longitude: 139.98107529988687
       altitude :   50.0
-    # map の +x 軸が East から何 rad だけ CCW に回転しているか [rad]
-    # front_view_extractor 式の +u 方向を ENU に投影して数値的に算出
     map_yaw_from_east : 0.02686650
 
 localization_node:
@@ -159,6 +157,7 @@ mission_planner_node:
 local_planner_server_node:
   ros__parameters:
     local_planner_plugin : "local_planner::FrenetPlannerPlugin"
+    # [FrenetPlannerPlugin]
     update_period_ms : 100
     map_frame_id : "map"
     base_frame_id : "base_link"
@@ -199,7 +198,8 @@ object_detector_node:
 controller_server_node:
   ros__parameters:
     control_period_ms  : 50            # 制御周期 [ms]
-    controller_plugin  : "trajectory_follower::PurePursuitPlugin"
+    controller_plugin  : "trajectory_follower::PidMpcPlugin" 
+    # [PurePursuitPlugin，PidMpcPlugin]
     path_topic         : "/planner/local_path"
     pose_topic         : "/localization/pose"
     velocity_topic     : "/vectornav/velocity_body"
@@ -208,9 +208,35 @@ controller_server_node:
     target_pose_topic  : "/vectormap_control/target_pose"
     map_frame_id       : "map"
     base_frame_id      : "base_link"
-    # PurePursuitPlugin params (linear_max.*, steering_max.*, wheelbase は /** から継承)
-    lookahead_distance : 5.0
-    steered_gain : 1.8
+
+    # PurePursuitPlugin
+    pure_pursuit:
+      lookahead_distance : 5.0
+      steered_gain       : 1.8
+
+    # PidMpcPlugin
+    mpc:
+      longitudinal:
+        a_lat_max          : 5.0    # 横加速度上限 [m/s^2] (曲率制限速度)
+        a_max              : 5.0    # 加速上限 [m/s^2]
+        a_min              : -2.0   # 減速上限 [m/s^2]
+        jerk_max           : 5.0    # 加加速度上限 [m/s^3]
+        kp                 : 0.8
+        ki                 : 0.1
+        kd                 : 0.0
+        lpf_vel_error_gain : 0.9
+        stop_distance      : 0.5
+      lateral:
+        horizon                       : 20
+        prediction_dt                 : 0.1
+        min_predict_speed             : 0.5
+        steer_tau                     : 0.3   # ステア1次遅れ時定数 [s]
+        weight_lat_error              : 1.0
+        weight_heading_error          : 1.0
+        weight_steering_input         : 0.5
+        weight_steer_rate             : 5.0
+        weight_terminal_lat_error     : 1.0
+        weight_terminal_heading_error : 1.0
 
 chassis_driver_node:
   ros__parameters:

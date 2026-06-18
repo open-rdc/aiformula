@@ -24,8 +24,8 @@ void PurePursuitPlugin::initialize(
     clock_ = clock;
 
     linear_max_vel_ = params->get_parameter("linear_max.vel").get_value<double>();
-    lookahead_distance_ = params->get_parameter("lookahead_distance").get_value<double>();
-    steered_gain_ = params->get_parameter("steered_gain").get_value<double>();
+    lookahead_distance_ = params->get_parameter("pure_pursuit.lookahead_distance").get_value<double>();
+    steered_gain_ = params->get_parameter("pure_pursuit.steered_gain").get_value<double>();
     wheelbase_ = params->get_parameter("wheelbase").get_value<double>();
     steering_max_angle_rad_ =
         params->get_parameter("steering_max.pos").get_value<double>() * DEG2RAD;
