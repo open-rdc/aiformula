@@ -39,6 +39,7 @@ void PurePursuitPlugin::initialize(
 
 std::optional<steered_drive_msg::msg::SteeredDrive> PurePursuitPlugin::computeCommand(
     const nav_msgs::msg::Path & path_in_base,
+    [[maybe_unused]] double current_velocity,
     geometry_msgs::msg::PoseStamped & target_pose_out)
 {
     TargetPoint target{0.0, 0.0};

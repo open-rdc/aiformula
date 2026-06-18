@@ -15,6 +15,7 @@ public:
 
     std::optional<steered_drive_msg::msg::SteeredDrive> computeCommand(
         const nav_msgs::msg::Path & path_in_base,
+        double current_velocity,
         geometry_msgs::msg::PoseStamped & target_pose_out) override;
 
 private:
