@@ -39,11 +39,13 @@ int main(int argc, char * argv[]){
     auto controller_server_node = std::make_shared<motion_control::ControllerServer>(nodes_option);
     auto object_detector_node = std::make_shared<object_detector::ObjectDetectorNode>(nodes_option);
 
+#ifdef ENABLE_ZED
     std::shared_ptr<zed_wrapper::ZedWrapperNode> zed_wrapper_node;
     if (use_zed) {
         zed_wrapper_node = std::make_shared<zed_wrapper::ZedWrapperNode>(nodes_option);
         exec.add_node(zed_wrapper_node);
     }
+#endif
     exec.add_node(controller_node);
     exec.add_node(chassis_driver_node);
     exec.add_node(vectormap_server_node);
