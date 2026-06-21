@@ -83,12 +83,11 @@ localization_node:
       fy : 246.389
       cx : 318.345
       cy : 186.59033333
-    # 画像点をbase_linkへ変換するためのカメラ外部パラメータ
     camera_to_base:
       x : 0.055
       y : 0.0
       z : 0.54
-      roll : -1.53938040026
+      roll : -1.61442956
       pitch : -0.00349065850
       yaw : -1.57428698530
     icp:
@@ -102,17 +101,15 @@ localization_node:
       initial_velocity_variance : 1.0
       initial_yaw_rate_variance : 0.5
       # 不確かさ
-      process_position_variance : 0.2
+      process_position_variance : 0.1
       process_yaw_variance : 0.05
       process_velocity_variance : 0.5
       process_yaw_rate_variance : 0.2
-      # 信頼度
-      gnss_position_variance : 0.5
+      gnss_position_variance : 1.0
       imu_yaw_variance : 0.05
       icp_position_variance : 0.15
-      # マハラノビスゲート閾値 (単位: sigma)
-      position_gate_dist : 10.0
-      yaw_gate_dist : 10.0
+      position_gate_dist : 3.0
+      yaw_gate_dist : 3.0
 
 odom_tf_node:
   ros__parameters:
