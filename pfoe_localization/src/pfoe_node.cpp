@@ -42,3 +42,7 @@ void PfoeNode::featureCallback(const std_msgs::msg::Float32MultiArray::SharedPtr
 }
   
 }
+
+int main(){
+  
+}
