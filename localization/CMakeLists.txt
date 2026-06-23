@@ -37,6 +37,7 @@ install(
   DESTINATION include
 )
 
+ament_export_include_directories(include ${EIGEN3_INCLUDE_DIRS})
 ament_export_dependencies(Eigen3 OpenCV)
 
 if(BUILD_TESTING)
