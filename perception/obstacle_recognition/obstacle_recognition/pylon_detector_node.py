@@ -78,13 +78,13 @@ class PylonDetectorNode(Node):
         with torch.no_grad():
             outputs = self.model(inputs)
             outputs = postprocess(outputs, self.exp.num_classes, self.exp.test_conf, self.exp.nmsthre, class_agnostic=True)[0]
-        centers = []
+        boxes_out = []
         if outputs is not None:
             boxes = outputs.cpu()[:, 0:4] / ratio
             for x1, y1, x2, y2 in boxes:
-                centers.append((float((x1 + x2) / 2), float((y1 + y2))))
-        return centers, (w, h)
-    
+                boxes_out.append((float(x1), float(y1), float(x2), float(y2)))
+        return boxes_out, (w, h)
+            
     # 座標変換
     def pixel_to_xyz(self, pc, u, v):
         pts = list(point_cloud2.read_points(
@@ -128,18 +128,30 @@ class PylonDetectorNode(Node):
             return
         pc = self.latest_cloud
         img = self.bridge.imgmsg_to_cv2(img_msg, desired_encoding='bgr8')
-        centers, (img_w, img_h) = self.detect(img)
+        boxes, (img_w, img_h) = self.detect(img)
+
+        sx = pc.width / img_w
+        sy = pc.height / img_h
 
         cones = []
-        for (u, v) in centers:
-            pu = u * pc.width / img_w
-            pv = v * pc.height / img_h
-            xyz = self.patch_xyz(pc, pu, pv)
-            if xyz is None:
+        for (x1, y1, x2, y2) in boxes:
+            v = y2
+            pL = self.patch_xyz(pc, x1 * sx, v * sy)
+            pR = self.patch_xyz(pc, x2 * sx, v * sy)
+            pC = self.patch_xyz(pc, (x1 + x2) / 2 * sx, v * sy)
+
+            if pC is None:
                 continue
-            tp = self.transform_point(*xyz, pc.header.frame_id, pc.header.stamp)
-            if tp is not None:
-                cones.append(tp)
+            if pL is not None and pR is not None:
+                width = math.hypot(pL[0] - pR[0], pL[1] - pR[1])
+            else:
+                width = self.pylon_width_m
+            dist = math.hypot(pC[0], pC[1])
+            tp = self.transform_point(*pC, pc.header.frame_id, pc.header.stamp)
+            if tp is None:
+                continue
+            cones.append((tp[0], tp[1], width, dist))
+            self.get_logger().info(f'pylon dist={dist:.2f}m width={width:.2f}m', throttle_duration_sec=1.0)
         
         self.object_pub.publish(self.make_objects(cones, img_msg.header.stamp))
         self.marker_pub.publish(self.make_markers(cones, img_msg.header.stamp))
@@ -149,11 +161,11 @@ class PylonDetectorNode(Node):
         arr = ObjectInfoArray()
         arr.header.stamp = stamp
         arr.header.frame_id = self.target_frame
-        for (x, y, z) in cones:
+        for (x, y, width, dist) in cones:
             o = ObjectInfo()
             o.x = float(x)
             o.y = float(y)
-            o.width = float(self.pylon_width_m)
+            o.width = float(width)
             o.id = int(self.pylon_class_id)
             arr.objects.append(o)
         return arr
@@ -163,7 +175,7 @@ class PylonDetectorNode(Node):
         clear = Marker()
         clear.action = Marker.DELETEALL
         arr.markers.append(clear)
-        for i, (x, y, z) in enumerate(cones):
+        for i, (x, y, width, dist) in enumerate(cones):
             m = Marker()
             m.header.frame_id = self.target_frame
             m.header.stamp = stamp
@@ -175,7 +187,7 @@ class PylonDetectorNode(Node):
             m.pose.position.y = float(y)
             m.pose.position.z = 0.2
             m.pose.orientation.w = 1.0
-            m.scale.x = m.scale.y = float(self.pylon_width_m)
+            m.scale.x = m.scale.y = float(width)
             m.scale.z = 0.4
             m.color.r = 1.0
             m.color.g = 0.5
