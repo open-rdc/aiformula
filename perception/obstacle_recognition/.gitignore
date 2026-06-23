@@ -1,0 +1,2 @@
+# 学習済み重み(巨大: GitHub 100MB制限超) はgit管理しない
+data/weights/*.pth
