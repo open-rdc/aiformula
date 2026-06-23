@@ -60,7 +60,7 @@ class PylonDetectorNode(Node):
         self.exp.test_conf = g('conf_thre')
         self.exp.nmsthre = g('nms_thre')
         self.model = self.exp.get_model().to(self.device).eval()
-        ckpt = torch.load(g('ckpt'), map_location=self.device, weights_only=False)
+        ckpt = torch.load(g('ckpt'), map_location=self.device)
         self.model.load_state_dict(ckpt['model'] if 'model' in ckpt else ckpt)
         self.preproc = ValTransform(legacy=False)
         self.get_logger().info(f'Loaded YOLOX model from {g("ckpt")}')

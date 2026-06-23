@@ -17,8 +17,8 @@ class Exp(MyExp):
         self.val_ann = "instances_val2017.json"
         self.num_classes = 1
 
-        self.input_size = (360, 640)
-        self.test_size = (360, 640)
+        self.input_size = (384, 640)
+        self.test_size = (384, 640)
         self.multiscale_range = 0   # 非正方形のためマルチスケールは固定(安全)
 
         # ---- スケジュール: 300エポック ----
