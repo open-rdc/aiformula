@@ -82,7 +82,7 @@ class PylonDetectorNode(Node):
         if outputs is not None:
             boxes = outputs.cpu()[:, 0:4] / ratio
             for x1, y1, x2, y2 in boxes:
-                centers.append((float((x1 + x2) / 2), float((y1 + y2) / 2)))
+                centers.append((float((x1 + x2) / 2), float((y1 + y2))))
         return centers, (w, h)
     
     # 座標変換
