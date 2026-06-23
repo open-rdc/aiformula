@@ -6,21 +6,28 @@ import os
 from ament_index_python.packages import get_package_share_directory
 import rclpy
 from rclpy.node import Node
-from rclpy.duration import Duration
 from rclpy.qos import qos_profile_sensor_data
 from sensor_msgs.msg import Image, PointCloud2
 from visualization_msgs.msg import Marker, MarkerArray
-from geometry_msgs.msg import PointStamped
 from object_detection_msgs.msg import ObjectInfo, ObjectInfoArray
 
 from cv_bridge import CvBridge
 from sensor_msgs_py import point_cloud2
-import tf2_ros
-import tf2_geometry_msgs
 
 from yolox.exp import get_exp
 from yolox.utils import postprocess
 from yolox.data.data_augment import ValTransform
+
+
+def rpy_to_matrix(roll, pitch, yaw):
+    cr, sr = np.cos(roll), np.sin(roll)
+    cp, sp = np.cos(pitch), np.sin(pitch)
+    cy, sy = np.cos(yaw), np.sin(yaw)
+    Rx = np.array([[1.0, 0.0, 0.0], [0.0, cr, -sr], [0.0, sr, cr]])
+    Ry = np.array([[cp, 0.0, sp], [0.0, 1.0, 0.0], [-sp, 0.0, cp]])
+    Rz = np.array([[cy, -sy, 0.0], [sy, cy, 0.0], [0.0, 0.0, 1.0]])
+    return Rz @ Ry @ Rx
+
 
 class PylonDetectorNode(Node):
     def __init__(self):
@@ -34,16 +41,18 @@ class PylonDetectorNode(Node):
         self.declare_parameter('image_topic', '/zed/zed_node/rgb/image_rect_color')
         self.declare_parameter('pointcloud_topic', '/zed/zed_node/point_cloud')
         self.declare_parameter('objects_topic', '/perception/pylons')
-        self.declare_parameter('target_frame', 'map')
-        self.declare_parameter('pylon_width_m', 0.3)
+        self.declare_parameter('target_frame', 'base_link')
         self.declare_parameter('pylon_class_id', 0)
         self.declare_parameter('patch_radius', 2)
+        self.declare_parameter('cam_xyz', [0.055, 0.0, 0.54])   # カメラ取付位置[m] (base_link基準)
+        self.declare_parameter('cam_rpy', [0.0, 0.0, 0.0])      # 取付姿勢[rad] (点群frame X前/Y左/Z上 → base)
 
         g = lambda k: self.get_parameter(k).value
         self.target_frame = g('target_frame')
-        self.pylon_width_m = g('pylon_width_m')
         self.pylon_class_id = g('pylon_class_id')
         self.patch_radius = g('patch_radius')
+        self._R = rpy_to_matrix(*g('cam_rpy'))                  # カメラ→base 回転
+        self._t = np.array(g('cam_xyz'), dtype=float)           # カメラ→base 並進
 
         # YOLOXのロード
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -59,8 +68,6 @@ class PylonDetectorNode(Node):
         # ros入出力
         self.bridge = CvBridge()
         self.latest_cloud = None
-        self.tf_buffer = tf2_ros.Buffer()
-        self.tf_listener = tf2_ros.TransformListener(self.tf_buffer, self)
         self.create_subscription(PointCloud2, g('pointcloud_topic'), self.pointcloud_cb, qos_profile_sensor_data)
         self.create_subscription(Image, g('image_topic'), self.image_cb, qos_profile_sensor_data)
         self.object_pub = self.create_publisher(ObjectInfoArray, g('objects_topic'), 10)
@@ -109,18 +116,10 @@ class PylonDetectorNode(Node):
             return None
         return (float(np.median(xs)), float(np.median(ys)), float(np.median(zs)))
     
-    def transform_point(self, x, y, z, src_frame, stamp):
-        ps = PointStamped()
-        ps.header.frame_id = src_frame
-        ps.header.stamp = stamp
-        ps.point.x, ps.point.y, ps.point.z = x, y, z
-        try:
-            o = self.tf_buffer.transform(ps, self.target_frame, timeout=Duration(seconds=0.1))
-            return (o.point.x, o.point.y, o.point.z)
-        except Exception as e:
-            self.get_logger().warn(f'TF {src_frame}->{self.target_frame} fail: {e}',
-                                    throttle_duration_sec=2.0)
-            return None
+    def transform_point(self, x, y, z):
+        # 点群frame(X前/Y左/Z上) → base_link を手計算: p_base = R·p_cam + t
+        p = self._R @ np.array([x, y, z]) + self._t
+        return (float(p[0]), float(p[1]), float(p[2]))
         
     def image_cb(self, img_msg):
         if self.latest_cloud is None:
@@ -147,10 +146,8 @@ class PylonDetectorNode(Node):
             else:
                 width = self.pylon_width_m
             dist = math.hypot(pC[0], pC[1])
-            tp = self.transform_point(*pC, pc.header.frame_id, pc.header.stamp)
-            if tp is None:
-                continue
-            cones.append((tp[0], tp[1], width, dist))
+            tp = self.transform_point(*pC)
+            cones.append((tp[0], tp[1], width))
             self.get_logger().info(f'pylon dist={dist:.2f}m width={width:.2f}m', throttle_duration_sec=1.0)
         
         self.object_pub.publish(self.make_objects(cones, img_msg.header.stamp))
@@ -161,7 +158,7 @@ class PylonDetectorNode(Node):
         arr = ObjectInfoArray()
         arr.header.stamp = stamp
         arr.header.frame_id = self.target_frame
-        for (x, y, width, dist) in cones:
+        for (x, y, width) in cones:
             o = ObjectInfo()
             o.x = float(x)
             o.y = float(y)
@@ -175,7 +172,7 @@ class PylonDetectorNode(Node):
         clear = Marker()
         clear.action = Marker.DELETEALL
         arr.markers.append(clear)
-        for i, (x, y, width, dist) in enumerate(cones):
+        for i, (x, y, width) in enumerate(cones):
             m = Marker()
             m.header.frame_id = self.target_frame
             m.header.stamp = stamp
