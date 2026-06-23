@@ -139,12 +139,9 @@ class PylonDetectorNode(Node):
             pR = self.patch_xyz(pc, x2 * sx, v * sy)
             pC = self.patch_xyz(pc, (x1 + x2) / 2 * sx, v * sy)
 
-            if pC is None:
+            if pC is None or pL is None or pR is None:
                 continue
-            if pL is not None and pR is not None:
-                width = math.hypot(pL[0] - pR[0], pL[1] - pR[1])
-            else:
-                width = self.pylon_width_m
+            width = math.hypot(pL[0] - pR[0], pL[1] - pR[1])
             dist = math.hypot(pC[0], pC[1])
             tp = self.transform_point(*pC)
             cones.append((tp[0], tp[1], width))
