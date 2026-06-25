@@ -23,7 +23,7 @@ class DataCollectionNode(Node):
     def __init__(self):
         super().__init__('data_collection_node')
 
-        self.declare_parameter('sdk_flag', True)
+        self.declare_parameter('sdk_flag', False)
         self.sdk_flag_ = self.get_parameter('sdk_flag').value
 
         self.bridge = CvBridge()
@@ -114,6 +114,10 @@ class DataCollectionNode(Node):
             command = 3
         else:
             command = 1
+
+        if command != self.next_command:
+            label = {1: '道なり ―', 2: '左折 ◀', 3: '右折 ▶'}[command]
+            self.get_logger().info(f'コマンド: {label}')
 
         right_stick = msg.axes[2]
 

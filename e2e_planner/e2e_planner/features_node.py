@@ -4,8 +4,8 @@ from std_msgs.msg import Float32MultiArray
 import numpy as np
 from pathlib import Path
 import sys
-sys.path.append(str(Path(__file__).parent.parent / 'scripts'))
-from feature_extractor import ImageFeatureExtractor
+# sys.path.append(str(Path(__file__).parent.parent / 'scripts'))
+from e2e_planner.feature_extractor import ImageFeatureExtractor
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
 from rclpy.qos import qos_profile_sensor_data
