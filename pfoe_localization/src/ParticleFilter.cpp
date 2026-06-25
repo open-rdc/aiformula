@@ -35,24 +35,44 @@ int ParticleFilter::init(const std::string& data_dir, int predictio_range){
     }
     
     scatterParticles();
+    std::cerr << "episodes loaded: " << episodes_.size() << std::endl;
 
     return 0;
 }
 
 void ParticleFilter::cycle(const std::vector<float>& feat){
+    float min_particles = 1.0;
+    float max_particles = 0.0;
+    float sum_particles = 0.0;
+    float square_particles = 0.0;
+
     predict();
 
     for(auto &p : particles_){
         const auto& recorded = episodes_[p.episode_idx].events[p.event_idx].features;
         double h = likelihood(feat, recorded);
+        p.weight *= std::exp((h - 1.0) / 0.05);
+        sum_particles += p.weight;
+        square_particles += p.weight * p.weight;
 
-        p.weight *= (h + 1) / 2;
+        if(p.weight < min_particles){
+            min_particles = p.weight;
+        }
+        if(p.weight > max_particles){
+            max_particles = p.weight;
+        }
     }
+    
+    printf("particles_range = %f\n", min_particles / max_particles);
+    printf("ESS = %f\n", (sum_particles * sum_particles / square_particles));
+    printf("1/n =  %f\n", (1.0 / 1000.0) / max_particles);
+    //ここで見るでいいかな？
+    //ここで何を見ればいいのかわかってないので更に解説
 
     normalize();
     resampling();
 }
-
+ 
 float ParticleFilter::decision(){
     /*
     std::map<std::pair<int,int>, int> votes;
@@ -76,19 +96,45 @@ float ParticleFilter::decision(){
     }
     */
 
-    double sum = 0.0;
-    double sum_w = 0.0;
+    int count[4] = {0, 0, 0, 0};
+    std::map<std::pair<int,int>, int> votes;
+    std::pair<int,int> most_event_{0, 0};
 
     for (const auto& p : particles_) {
-        float steer = episodes_[p.episode_idx].events[p.event_idx].joy_value;
-        sum += p.weight * steer;
-        sum_w += p.weight;
+        int c = episodes_[p.episode_idx].events[p.event_idx].command;
+        votes[{p.episode_idx, p.event_idx}]++;
+        if (c >= 1 && c <= 3) count[c]++;
     }
 
-    if (sum_w == 0.0) return 0.0f;
+    if (!votes.empty()) {
+        auto bestcell = std::max_element(
+            votes.begin(), votes.end(),
+            [](const auto& a, const auto& b){ return a.second < b.second; });
 
-    return sum / sum_w;
+        most_event_ = bestcell->first;          // (ep, ev) をメンバ保存
+        int max_vote = bestcell->second;        // そのセルの粒子数
 
+        printf("most_ep=%d most_ev=%d max_vote=%d/%d  count=%d/%d/%d\n",
+               most_event_.first, most_event_.second,
+               max_vote, (int)particles_.size(),
+               count[1], count[2], count[3]);
+    }
+
+    int modal_cmd = episodes_[most_event_.first]
+                   .events[most_event_.second].command;
+    return modal_cmd;
+
+}
+
+void ParticleFilter::selftest(int ep_idx){
+    if (ep_idx < 0 || ep_idx >= (int)episodes_.size()) return;
+    const auto& ep = episodes_[ep_idx];
+    for (size_t i = 0; i < ep.events.size(); i++) {
+        cycle(ep.events[i].features);   // 教師の特徴量そのものを入力
+        std::cerr << "i=" << i
+                  << " true=" << ep.events[i].command
+                  << " pred=" << decision() << std::endl;
+    }
 }
 
 int ParticleFilter::loadEpisode(const std::string& path)
@@ -110,6 +156,7 @@ int ParticleFilter::loadEpisode(const std::string& path)
         Event e;
         e.features.assign(rec.begin(), rec.begin() + FEAT_DIM);
         e.joy_value = rec[FEAT_DIM];
+        e.command   = static_cast<int>(rec[FEAT_DIM + 1]);
         ep.events.push_back(std::move(e));
     }
 
@@ -137,7 +184,7 @@ void ParticleFilter::scatterParticles()
 
 void ParticleFilter::predict(){
     for(auto &p : particles_){
-        bool teleport = rand() % 10 == 0;
+        bool teleport = rand() % 20 == 0;
         if(!teleport){
             p.event_idx += rand() % prediction_range_;
             teleport = (p.event_idx >= (int)episodes_[p.episode_idx].size());

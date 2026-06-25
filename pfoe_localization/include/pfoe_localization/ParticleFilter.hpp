@@ -9,7 +9,7 @@
 #include <algorithm>
 #include <limits.h>
 #include <random>
-#include <cmath>
+#include <map>
 
 static constexpr int FEAT_DIM = 1280;
 static constexpr int REC_DIM  = 1282;
@@ -18,6 +18,7 @@ struct Event
 {
     std::vector<float> features;  // (1280,)
     float joy_value;
+    int command;
 };
 
 struct Episode
@@ -39,6 +40,8 @@ public:
     int init(const std::string& data_dir, int predictio_range);
     void cycle(const std::vector<float>& feat);
     float decision();
+    int mostevent();
+    void selftest(int ep_idx = 0);
 private:
     int particle_num_ = 0;
     int prediction_range_ = 0;

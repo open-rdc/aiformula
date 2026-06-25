@@ -2,10 +2,11 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include <std_msgs/msg/float32_multi_array.hpp>
+#include <std_msgs/msg/int32_multi_array.hpp>
+#include <std_msgs/msg/string.hpp>
 #include <std_msgs/msg/int32.hpp>
 #include <ament_index_cpp/get_package_share_directory.hpp>
 #include <filesystem>
-
 #include "pfoe_localization/ParticleFilter.hpp"
 
 namespace pfoe_localization
@@ -18,7 +19,8 @@ public:
     void featureCallback(const std_msgs::msg::Float32MultiArray::SharedPtr msg);
 private:
     ParticleFilter pf_;
-    rclcpp::Publisher<std_msgs::msg::Int32>::SharedPtr pub_;
+    rclcpp::Publisher<std_msgs::msg::String>::SharedPtr pub_;
+    rclcpp::Publisher<std_msgs::msg::Int32>::SharedPtr debug_pub_;
     rclcpp::Subscription<std_msgs::msg::Float32MultiArray>::SharedPtr sub_;
 };
 }

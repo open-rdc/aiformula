@@ -9,7 +9,8 @@ PfoeNode::PfoeNode(const rclcpp::NodeOptions& options)
 PfoeNode::PfoeNode(const std::string& name_space, const rclcpp::NodeOptions& options)
 : rclcpp::Node("pfoe_node", name_space, options)
 {
-  pub_ = create_publisher<std_msgs::msg::Int32>("pfoe/command", 10);
+  pub_ = create_publisher<std_msgs::msg::String>("/planning/nav_cmd", 10);
+  debug_pub_ = create_publisher<std_msgs::msg::Int32>("/pfoe_cmd", 10);
 
   sub_ = create_subscription<std_msgs::msg::Float32MultiArray>(
     "pfoe/features",
@@ -17,7 +18,7 @@ PfoeNode::PfoeNode(const std::string& name_space, const rclcpp::NodeOptions& opt
     std::bind(&PfoeNode::featureCallback, this, std::placeholders::_1));
     
   const std::string share_dir = 
-      ament_index_cpp::get_package_share_directory("e2e_planner");
+      ament_index_cpp::get_package_share_directory("pfoe_localization");
   const std::filesystem::path data_dir =
       std::filesystem::path(share_dir) / "data";
   
@@ -25,6 +26,8 @@ PfoeNode::PfoeNode(const std::string& name_space, const rclcpp::NodeOptions& opt
     RCLCPP_ERROR(get_logger(), "failed to init particle filter");
     return ;
   }
+
+  // pf_.selftest(0);
 
 }
 
@@ -35,14 +38,15 @@ void PfoeNode::featureCallback(const std_msgs::msg::Float32MultiArray::SharedPtr
   }
   pf_.cycle(msg->data);
 
-  float cmd = pf_.decision();
-  std_msgs::msg::Int32 out;
-  out.data = static_cast<int>(cmd);
+  const int cmd = static_cast<int>(pf_.decision());
+  std_msgs::msg::String out;
+  out.data =  (cmd == 2) ? "left" : (cmd == 3) ? "right" : "straight";
   pub_ -> publish(out);
-}
-  
-}
 
-int main(){
+  std_msgs::msg::Int32 dbg;
+  dbg.data = cmd;
+  debug_pub_->publish(dbg);
+
+}
   
 }

@@ -11,27 +11,39 @@ find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(ament_index_cpp REQUIRED)
 
-add_executable(pfoe_node
+add_library(${PROJECT_NAME}
   src/pfoe_node.cpp
   src/ParticleFilter.cpp
 )
 
-ament_target_dependencies(pfoe_node
+ament_target_dependencies(${PROJECT_NAME}
   rclcpp
   std_msgs
+  ament_index_cpp
 )
 
-target_include_directories(pfoe_node PUBLIC
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  $<INSTALL_INTERFACE:include>)
-target_compile_features(pfoe_node PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
-
-install(TARGETS pfoe_node
+add_executable(pfoe_test src/main_test.cpp)
+target_link_libraries(pfoe_test ${PROJECT_NAME})   # ↑のlibraryをリンク
+ament_target_dependencies(pfoe_test rclcpp)
+install(TARGETS pfoe_test
   DESTINATION lib/${PROJECT_NAME})
 
-install(DIRECTORY data/
-  DESTINATION share/${PROJECT_NAME}/data
-)
+target_include_directories(${PROJECT_NAME} PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>)
+target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_17)
+
+install(DIRECTORY include/ DESTINATION include)
+install(TARGETS ${PROJECT_NAME}
+  EXPORT export_${PROJECT_NAME}
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION bin
+  INCLUDES DESTINATION include)
+ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
+ament_export_dependencies(rclcpp std_msgs ament_index_cpp)
+
+install(DIRECTORY data/ DESTINATION share/${PROJECT_NAME}/data)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
