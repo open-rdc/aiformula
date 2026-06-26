@@ -328,7 +328,8 @@
 
 
     <link name="camera_link">
-      <pose relative_to="chassis">0.055 0.0 0.54 0.0 0.0 0.0</pose>
+      <!-- 取付姿勢は localization の camera_to_base から導出（scripts/camera_extrinsic_sim_pose.py）。 -->
+      <pose relative_to="chassis">0.055 0.0 0.54 -0.0034939840 0.0436329672 -0.0036430636</pose>
       <inertial>
         <mass>0.01</mass>
         <inertia>
