@@ -17,13 +17,11 @@ def generate_launch_description():
         'main_params.yaml'
     )
 
-    # 起動パラメータファイルのロード
     with open(config_file_path, 'r') as file:
         launch_params = yaml.safe_load(file)['launch']['ros__parameters']
 
     use_sim_time = launch_params.get('sim', False)
 
-    # robot_state_publisher（URDF から TF を publish）
     urdf_path = os.path.join(
         get_package_share_directory('simulator'),
         'models', 'ai_car1', 'model.urdf',
@@ -40,15 +38,13 @@ def generate_launch_description():
         }],
         output='screen',
     )
-
-    # カメラフレームの静的TF（chassis → ai_car1/camera_depth_link/camera_depth_link）
-    # Foxy uses positional args: x y z yaw pitch roll frame_id child_frame_id
+    
     camera_tf = Node(
         package='tf2_ros',
         executable='static_transform_publisher',
         arguments=[
             '0.055', '0.0', '0.54',
-            '0', '0', '0',
+            '-0.0036430636', '0.0436329672', '-0.0034939840',
             'chassis', 'ai_car1/camera_depth_link/camera_depth_link',
         ],
         output='screen',
