@@ -9,7 +9,6 @@
 #include "trajectory_follower/controller_server.hpp"
 #include "mission_planner/mission_planner_node.hpp"
 #include "local_planner/local_planner_server.hpp"
-// #include "object_detector/object_detector_node.hpp"  // Removed: package does not exist
 #include "vectormap_server/vectormap_server_node.hpp"
 
 int main(int argc, char * argv[]){
@@ -37,7 +36,6 @@ int main(int argc, char * argv[]){
     auto mission_planner_node = std::make_shared<mission_planner::MissionPlannerNode>(nodes_option);
     auto local_planner_server_node = std::make_shared<local_planner::LocalPlannerServer>(nodes_option);
     auto controller_server_node = std::make_shared<trajectory_follower::ControllerServer>(nodes_option);
-    // auto object_detector_node = std::make_shared<object_detector::ObjectDetectorNode>(nodes_option);  // Removed: package does not exist
 
 #ifdef ENABLE_ZED
     std::shared_ptr<zed_wrapper::ZedWrapperNode> zed_wrapper_node;
