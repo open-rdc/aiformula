@@ -2,20 +2,23 @@
 
 #include <ignition/plugin/Register.hh>
 #include <ignition/gazebo/components/Material.hh>
-#include <ignition/gazebo/components/Name.hh>
-#include <sdf/Material.hh>
+#include <ignition/gazebo/components/Visual.hh>
+#include <ignition/gazebo/components/VisualCmd.hh>
+
+// #include <ignition/gazebo/components/Name.hh>
+// #include <sdf/Material.hh>
+#include <ignition/msgs/visual.pb.h>
 
 using namespace ignition;
 using namespace gazebo;
 
-// すべてのマテリアルエンティティを検索
 void ColorControl::FindColorEntities(EntityComponentManager &_ecm)
 {
   this->ColorEntities.clear();
 
-  _ecm.Each<components::Material, components::Name>(
+  _ecm.Each<components::Visual, components::Name>(
       [&](const Entity &_entity,
-          const components::Material *,
+          const components::Visual *,
           const components::Name *_name) -> bool
       {
         if (_name->Data() == "screen_visual")
@@ -24,14 +27,17 @@ void ColorControl::FindColorEntities(EntityComponentManager &_ecm)
         }
         return true;
       });
+  
 }
 
 void ColorControl::PreUpdate(const UpdateInfo &_info,
                              EntityComponentManager &_ecm)
 {
-  // if (_info.paused)
-  //   return;
+  if (_info.paused)
+    return;
+
   std::cout << "[ColorControl] PreUpdate Loop Pythonic Test!" << std::endl;
+
   static uint64_t frameCount = 0;
   frameCount++;
   // double simTimeInSeconds = std::chrono::duration_cast<std::chrono::duration<double>>(_info.simTime).count();
@@ -50,22 +56,10 @@ void ColorControl::PreUpdate(const UpdateInfo &_info,
   double g = 0.0;
   const double b = 0.0;
   std::string color = "";
-  // if (std::abs(simTimeInSeconds - std::round(simTimeInSeconds)) < 0.005)
-  // {
-  //   ignmsg << "Current Sim Time: " << std::round(simTimeInSeconds) << "s | ";
-  //   if (static_cast<int>(simTimeInSeconds) % 2 == 0)
-  //   {
-  //     ignmsg << "Color set to RED\n";
-  //   }
-  //   else
-  //   {
-  //     ignmsg << "Color set to GREEN\n";
-  //   }
-  // }
 
-  if ((frameCount / 2000) % 2 == 0){
+  if ((frameCount / 100) % 2 == 0){
     r = 1.0;
-    g = 0.0;
+    g = 1.0;
     color = "Red";
   }else{
     r = 0.0;
@@ -75,28 +69,46 @@ void ColorControl::PreUpdate(const UpdateInfo &_info,
 
   ignition::math::Color newColor(r, g, b, 1.0);
 
+
   for (const Entity e : this->ColorEntities)
   {
-      std::cout << "Set" << color << "!!!!" << std::endl;
+    std::cout << "Set" << color << "!!!!" << std::endl;
 
-    auto ColorComp = _ecm.Component<components::Material>(e);
-    if (!ColorComp)
-      continue;
+    // auto cmd = _ecm.Component<components::VisualCmd>(e);
 
-    sdf::Material &sdfColor = ColorComp->Data();
+    // std::cout << "VisualCmd exists = "
+    //       << (cmd != nullptr)
+    //       << std::endl;
 
-    sdfColor.SetAmbient(newColor);
-    sdfColor.SetDiffuse(newColor);
-    sdfColor.SetEmissive(newColor);
+    ignition::msgs::Visual visual;
+    auto *mat = visual.mutable_material();
 
-    // データの変更を通知
-     _ecm.SetChanged(e,
-                     components::Material::typeId,
-                     ComponentState::PeriodicChange);
+    ignition::msgs::Set(mat->mutable_ambient(), newColor);
+    ignition::msgs::Set(mat->mutable_diffuse(), newColor);
+    ignition::msgs::Set(mat->mutable_specular(), newColor);
+    ignition::msgs::Set(mat->mutable_emissive(), newColor);
+    auto cmdComp = _ecm.Component<components::VisualCmd>(e);
+    if (!cmdComp)
+      _ecm.CreateComponent(e, components::VisualCmd(visual));
+    else
+    {
+
+      cmdComp->Data() = visual;
+
+
+    }
+    auto materialComp = _ecm.Component<components::Material>(e);
+
+
+    _ecm.SetComponentData<components::VisualCmd>(e, visual);
+    
+    _ecm.SetChanged(e,
+                     components::VisualCmd::typeId,
+                     ComponentState::OneTimeChange);
   }
 }
 
-// Ignition規格の登録マクロ
+
 IGNITION_ADD_PLUGIN(
     ColorControl,
     ignition::gazebo::System,
