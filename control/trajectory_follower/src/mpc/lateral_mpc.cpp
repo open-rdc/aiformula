@@ -22,7 +22,6 @@ double normalize_angle(double a)
     return a;
 }
 
-// 3点から符号付き曲率 (左旋回が正) を Menger 曲率で算出する。
 double menger_curvature(
     const std::array<double, 2> & p0,
     const std::array<double, 2> & p1,
@@ -37,9 +36,9 @@ double menger_curvature(
     if (denom < EPSILON) {
         return 0.0;
     }
-    return 2.0 * area2 / denom;  // = 4 * 符号付き面積 / (a b c) = ±1/R
+    return 2.0 * area2 / denom;
 }
-}  // namespace
+}
 
 void LateralMpc::configure(const LateralMpcParams & params)
 {
@@ -55,7 +54,6 @@ double LateralMpc::computeSteering(
         return std::clamp(prev_steer_, -p_.steer_limit, p_.steer_limit);
     }
 
-    // 累積距離と各点の符号付き曲率を算出
     std::vector<double> arc(n, 0.0);
     for (int i = 1; i < n; ++i) {
         arc[i] = arc[i - 1] + std::hypot(path_xy[i][0] - path_xy[i - 1][0],
@@ -68,7 +66,6 @@ double LateralMpc::computeSteering(
     curv[0] = curv[1];
     curv[n - 1] = curv[n - 2];
 
-    // 自車(原点)に最も近い経路点を探索
     int nearest = 0;
     double best = std::numeric_limits<double>::max();
     for (int i = 0; i < n; ++i) {
@@ -79,13 +76,11 @@ double LateralMpc::computeSteering(
         }
     }
 
-    // 最近傍点での接線方位
     const int hi = (nearest < n - 1) ? nearest + 1 : nearest;
     const int lo = (nearest < n - 1) ? nearest : nearest - 1;
     const double theta = std::atan2(path_xy[hi][1] - path_xy[lo][1],
                                     path_xy[hi][0] - path_xy[lo][0]);
 
-    // 誤差状態 (自車は原点・前進 +x なので yaw = 0)
     const double x0 = path_xy[nearest][0];
     const double y0 = path_xy[nearest][1];
     const double e_y = std::sin(theta) * x0 - std::cos(theta) * y0;
@@ -98,7 +93,6 @@ double LateralMpc::computeSteering(
     const double tau = std::max(p_.steer_tau, 1.0e-3);
     const double ds = V * dt;
 
-    // 連続時間モデル -> 前進オイラー離散化 (A,B は時不変、w は曲率で変化)
     Eigen::Matrix3d Ac;
     Ac << 0.0, V, 0.0,
           0.0, 0.0, V / L,
@@ -107,7 +101,6 @@ double LateralMpc::computeSteering(
     Eigen::Vector3d Bc(0.0, 0.0, 1.0 / tau);
     const Eigen::Vector3d Bd = Bc * dt;
 
-    // 予測ホライズンに沿った曲率列を距離方向にサンプル
     auto curvature_at = [&](double s) -> double {
         const double s_abs = arc[nearest] + s;
         int j = nearest;
@@ -115,13 +108,11 @@ double LateralMpc::computeSteering(
         return curv[std::clamp(j, 0, n - 1)];
     };
 
-    // Ad の冪を事前計算
     std::vector<Eigen::Matrix3d> Apow(N + 1, Eigen::Matrix3d::Identity());
     for (int k = 1; k <= N; ++k) {
         Apow[k] = Apow[k - 1] * Ad;
     }
 
-    // 予測行列 X = Sx x0 + Su U + Sw
     Eigen::MatrixXd Sx(3 * N, 3);
     Eigen::MatrixXd Su = Eigen::MatrixXd::Zero(3 * N, N);
     Eigen::VectorXd Sw = Eigen::VectorXd::Zero(3 * N);
@@ -145,7 +136,6 @@ double LateralMpc::computeSteering(
         Sw.segment<3>(r) = acc;
     }
 
-    // 重み行列 (終端のみ別重み、ステア状態には重みを掛けない)
     Eigen::VectorXd qdiag(3 * N);
     for (int k = 1; k <= N; ++k) {
         const int r = (k - 1) * 3;
@@ -156,7 +146,6 @@ double LateralMpc::computeSteering(
     }
     const Eigen::MatrixXd Qbar = qdiag.asDiagonal();
 
-    // ステアレート差分行列 D と参照オフセット p (Δu_0 = u_0 - prev_steer)
     Eigen::MatrixXd D = Eigen::MatrixXd::Zero(N, N);
     Eigen::VectorXd pvec = Eigen::VectorXd::Zero(N);
     for (int k = 0; k < N; ++k) {
@@ -170,8 +159,6 @@ double LateralMpc::computeSteering(
 
     const Eigen::VectorXd x0vec = (Eigen::Vector3d() << e_y, e_yaw, prev_steer_).finished();
 
-    // J(U) = (Sx x0 + Su U + Sw)^T Q (..) + R U^T U + Rd (D U - p)^T (D U - p)
-    // dJ/dU = 0 -> M U = rhs
     const Eigen::MatrixXd SuTQ = Su.transpose() * Qbar;
     Eigen::MatrixXd M = SuTQ * Su + R * Eigen::MatrixXd::Identity(N, N) + Rd * (D.transpose() * D);
     const Eigen::VectorXd rhs = -(SuTQ * (Sx * x0vec + Sw)) + Rd * (D.transpose() * pvec);
@@ -192,4 +179,4 @@ void LateralMpc::reset()
     prev_steer_ = 0.0;
 }
 
-}  // namespace trajectory_follower
+}

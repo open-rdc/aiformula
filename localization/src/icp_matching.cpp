@@ -185,4 +185,4 @@ IcpResult IcpMatcher::align_translation_only(
     return {true, translation, last_correspondences, last_mean_error};
 }
 
-}  // namespace localization
+}

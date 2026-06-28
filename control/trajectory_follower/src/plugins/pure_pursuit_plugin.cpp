@@ -105,6 +105,6 @@ bool PurePursuitPlugin::find_lookahead_target(
     return false;
 }
 
-}  // namespace trajectory_follower
+}
 
 PLUGINLIB_EXPORT_CLASS(trajectory_follower::PurePursuitPlugin, trajectory_follower::ControllerPlugin)

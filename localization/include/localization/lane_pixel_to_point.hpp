@@ -31,7 +31,6 @@ struct GroundProjectionEntry
     float y_base;
 };
 
-// Stores valid ground-projectable pixel locations sampled at pixel_step intervals.
 struct GroundProjectionLUT
 {
     int image_width{0};
@@ -56,4 +55,4 @@ std::vector<Eigen::Vector2d> lane_pixels_to_base_points(
 
 Eigen::Matrix3d rotation_matrix_from_rpy(double roll, double pitch, double yaw);
 
-}  // namespace localization
+}

@@ -42,7 +42,7 @@ std_msgs::msg::ColorRGBA line_string_color(const LineString& line_string)
     return make_color(1.0F, 1.0F, 1.0F, 1.0F);
 }
 
-}  // namespace
+}
 
 visualization_msgs::msg::MarkerArray create_vector_map_marker_array(
     const vectormap_msgs::msg::VectorMap& map_msg)
@@ -81,4 +81,4 @@ void update_marker_array_stamp(
     }
 }
 
-}  // namespace vectormap_server
+}

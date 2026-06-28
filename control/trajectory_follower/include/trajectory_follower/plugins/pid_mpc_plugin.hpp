@@ -7,9 +7,6 @@
 namespace trajectory_follower
 {
 
-// 縦(並進)方向の速度制御を PID、横方向を MPC で行う追従制御プラグイン。
-// Autoware / pilot.auto の pid_longitudinal_controller + mpc_lateral_controller を
-// 本ワークスペースの速度指令型インターフェースへ適合したもの。
 class PidMpcPlugin : public ControllerPlugin
 {
 public:
@@ -31,4 +28,4 @@ private:
     LateralMpc lateral_;
 };
 
-}  // namespace trajectory_follower
+}

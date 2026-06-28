@@ -21,11 +21,6 @@ OdomTfNode::OdomTfNode(
     const rclcpp::NodeOptions& options)
 : rclcpp::Node("odom_tf_node", name_space, options),
   publish_period_ms_(get_parameter("publish_period_ms").as_int()),
-  odom_frame_id_(get_parameter("odom_frame_id").as_string()),
-  base_frame_id_(get_parameter("base_frame_id").as_string()),
-  imu_topic_(get_parameter("imu_topic").as_string()),
-  velocity_topic_(get_parameter("velocity_topic").as_string()),
-  odom_topic_(get_parameter("odom_topic").as_string()),
   imu_yaw_convention_(get_parameter("imu_yaw_convention").as_string()),
   max_integration_dt_(get_parameter("max_integration_dt").as_double()),
   qos_(rclcpp::QoS(10)),
@@ -42,12 +37,6 @@ OdomTfNode::OdomTfNode(
     if (publish_period_ms_ <= 0) {
         throw std::invalid_argument("publish_period_ms must be greater than 0");
     }
-    if (odom_frame_id_.empty() || base_frame_id_.empty()) {
-        throw std::invalid_argument("odom_frame_id and base_frame_id must not be empty");
-    }
-    if (imu_topic_.empty() || velocity_topic_.empty() || odom_topic_.empty()) {
-        throw std::invalid_argument("odom_tf_node topic parameters must not be empty");
-    }
     if (imu_yaw_convention_ != "heading_north_cw" &&
         imu_yaw_convention_ != "heading_north_ccw" &&
         imu_yaw_convention_ != "ros_enu")
@@ -60,14 +49,14 @@ OdomTfNode::OdomTfNode(
     }
 
     imu_subscription_ = create_subscription<sensor_msgs::msg::Imu>(
-        imu_topic_,
+        "/vectornav/imu",
         qos_,
         std::bind(&OdomTfNode::imu_callback, this, std::placeholders::_1));
     velocity_subscription_ = create_subscription<geometry_msgs::msg::TwistWithCovarianceStamped>(
-        velocity_topic_,
+        "/vectornav/velocity_body",
         qos_,
         std::bind(&OdomTfNode::velocity_callback, this, std::placeholders::_1));
-    odom_publisher_ = create_publisher<nav_msgs::msg::Odometry>(odom_topic_, qos_);
+    odom_publisher_ = create_publisher<nav_msgs::msg::Odometry>("/localization/odom", qos_);
     tf_broadcaster_ = std::make_unique<tf2_ros::TransformBroadcaster>(*this);
     timer_ = create_wall_timer(
         std::chrono::milliseconds(publish_period_ms_),
@@ -101,9 +90,9 @@ void OdomTfNode::velocity_callback(
     if (!msg) {
         throw std::runtime_error("velocity message must not be null");
     }
-    if (msg->header.frame_id != base_frame_id_ && msg->header.frame_id != "vectornav") {
+    if (msg->header.frame_id != "base_link" && msg->header.frame_id != "vectornav") {
         throw std::runtime_error(
-            "velocity_body frame_id must be " + base_frame_id_ + " or vectornav, got " + msg->header.frame_id);
+            "velocity_body frame_id must be base_link or vectornav, got " + msg->header.frame_id);
     }
 
     const rclcpp::Time stamp(msg->header.stamp, get_clock()->get_clock_type());
@@ -197,8 +186,8 @@ geometry_msgs::msg::TransformStamped OdomTfNode::make_transform(const rclcpp::Ti
 {
     geometry_msgs::msg::TransformStamped transform;
     transform.header.stamp = stamp;
-    transform.header.frame_id = odom_frame_id_;
-    transform.child_frame_id = base_frame_id_;
+    transform.header.frame_id = "odom";
+    transform.child_frame_id = "base_link";
     transform.transform.translation.x = x_;
     transform.transform.translation.y = y_;
     transform.transform.translation.z = 0.0;
@@ -210,8 +199,8 @@ nav_msgs::msg::Odometry OdomTfNode::make_odometry(const rclcpp::Time& stamp) con
 {
     nav_msgs::msg::Odometry odometry;
     odometry.header.stamp = stamp;
-    odometry.header.frame_id = odom_frame_id_;
-    odometry.child_frame_id = base_frame_id_;
+    odometry.header.frame_id = "odom";
+    odometry.child_frame_id = "base_link";
     odometry.pose.pose.position.x = x_;
     odometry.pose.pose.position.y = y_;
     odometry.pose.pose.position.z = 0.0;
@@ -262,4 +251,4 @@ double OdomTfNode::normalize_angle(double angle)
     return angle;
 }
 
-}  // namespace localization
+}

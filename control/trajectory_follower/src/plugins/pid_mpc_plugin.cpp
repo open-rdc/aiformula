@@ -34,7 +34,7 @@ double menger_curvature(
     }
     return 2.0 * area2 / denom;
 }
-}  // namespace
+}
 
 void PidMpcPlugin::initialize(
     const rclcpp::Logger & logger,
@@ -110,7 +110,6 @@ std::optional<steered_drive_msg::msg::SteeredDrive> PidMpcPlugin::computeCommand
         path_xy.push_back({pose.pose.position.x, pose.pose.position.y});
     }
 
-    // 累積距離と最近傍点
     std::vector<double> arc(n, 0.0);
     for (int i = 1; i < n; ++i) {
         arc[i] = arc[i - 1] + std::hypot(path_xy[i][0] - path_xy[i - 1][0],
@@ -128,9 +127,8 @@ std::optional<steered_drive_msg::msg::SteeredDrive> PidMpcPlugin::computeCommand
 
     const double dist_to_end = arc[n - 1] - arc[nearest];
 
-    // 前方ウィンドウの最大曲率で参照速度を制限 (カーブ手前で減速)
     double curvature = 0.0;
-    const double window = 3.0;  // [m]
+    const double window = 3.0;
     for (int i = std::max(1, nearest); i < n - 1; ++i) {
         if (arc[i] - arc[nearest] > window) break;
         curvature = std::max(curvature, std::abs(menger_curvature(path_xy[i - 1], path_xy[i], path_xy[i + 1])));
@@ -140,7 +138,6 @@ std::optional<steered_drive_msg::msg::SteeredDrive> PidMpcPlugin::computeCommand
     const double v_cmd = longitudinal_.update(v_ref, current_velocity);
     const double steer = lateral_.computeSteering(path_xy, v_ref);
 
-    // 可視化用の目標点 (前方 lookahead 上の経路点)
     int target_idx = nearest;
     for (int i = nearest; i < n; ++i) {
         if (arc[i] - arc[nearest] >= 2.0) {
@@ -160,6 +157,6 @@ std::optional<steered_drive_msg::msg::SteeredDrive> PidMpcPlugin::computeCommand
     return command;
 }
 
-}  // namespace trajectory_follower
+}
 
 PLUGINLIB_EXPORT_CLASS(trajectory_follower::PidMpcPlugin, trajectory_follower::ControllerPlugin)

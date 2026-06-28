@@ -285,7 +285,7 @@ void require_id_exists(
     }
 }
 
-}  // namespace
+}
 
 vectormap_msgs::msg::VectorMap load_vector_map_from_osm(const std::string& map_path)
 {
@@ -418,4 +418,4 @@ vectormap_msgs::msg::VectorMap load_vector_map_from_osm(const std::string& map_p
     return map_msg;
 }
 
-}  // namespace vectormap_server
+}

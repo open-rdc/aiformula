@@ -22,7 +22,6 @@ namespace
 
 using LineString = vectormap_msgs::msg::LineString;
 
-// WGS84 楕円体定数
 constexpr double WGS84_A = 6378137.0;
 constexpr double WGS84_E2 = 6.6943799901414e-3;
 constexpr double DEG2RAD = M_PI / 180.0;
@@ -161,7 +160,7 @@ cv_bridge::CvImageConstPtr image_to_cv_share(const sensor_msgs::msg::Image::Shar
     throw std::invalid_argument("unsupported image encoding: " + image_msg->encoding);
 }
 
-}  // namespace
+}
 
 LocalizationNode::LocalizationNode(const rclcpp::NodeOptions& options)
 : LocalizationNode("", options)
@@ -173,11 +172,6 @@ LocalizationNode::LocalizationNode(
     const rclcpp::NodeOptions& options)
 : rclcpp::Node("localization_node", name_space, options),
   update_period_ms_(get_parameter("update_period_ms").as_int()),
-  map_frame_id_(get_parameter("map_frame_id").as_string()),
-  base_frame_id_(get_parameter("base_frame_id").as_string()),
-  localized_pose_topic_(get_parameter("localized_pose_topic").as_string()),
-  raw_pose_topic_(get_parameter("raw_pose_topic").as_string()),
-  velocity_topic_(get_parameter("velocity_topic").as_string()),
   imu_yaw_convention_(get_parameter("imu_yaw_convention").as_string()),
   map_origin_lat_(get_parameter("map_origin_geodetic.latitude").as_double()),
   map_origin_lon_(get_parameter("map_origin_geodetic.longitude").as_double()),
@@ -198,12 +192,6 @@ LocalizationNode::LocalizationNode(
 {
     if (update_period_ms_ <= 0) {
         throw std::invalid_argument("update_period_ms must be greater than 0");
-    }
-    if (map_frame_id_.empty() || base_frame_id_.empty()) {
-        throw std::invalid_argument("map_frame_id and base_frame_id must not be empty");
-    }
-    if (localized_pose_topic_.empty() || raw_pose_topic_.empty() || velocity_topic_.empty()) {
-        throw std::invalid_argument("localization topic parameters must not be empty");
     }
     if (imu_yaw_convention_ != "heading_north_cw" &&
         imu_yaw_convention_ != "heading_north_ccw" &&
@@ -246,15 +234,15 @@ LocalizationNode::LocalizationNode(
         std::bind(&LocalizationNode::imu_callback, this, std::placeholders::_1));
     velocity_subscription_ =
         this->create_subscription<geometry_msgs::msg::TwistWithCovarianceStamped>(
-            velocity_topic_,
+            "/vectornav/velocity_body",
             qos_,
             std::bind(&LocalizationNode::velocity_callback, this, std::placeholders::_1));
 
     localized_pose_publisher_ = this->create_publisher<geometry_msgs::msg::PoseWithCovarianceStamped>(
-        localized_pose_topic_,
+        "/localization/pose",
         qos_);
     raw_pose_publisher_ = this->create_publisher<geometry_msgs::msg::PoseWithCovarianceStamped>(
-        raw_pose_topic_,
+        "/localization/pose_raw",
         qos_);
     lane_line_publisher_ =
         this->create_publisher<visualization_msgs::msg::MarkerArray>("/perception/lane_line", qos_);
@@ -300,7 +288,7 @@ void LocalizationNode::velocity_callback(
     }
     if (!is_valid_velocity_frame(msg->header.frame_id)) {
         throw std::runtime_error(
-            "velocity_body frame_id must be " + base_frame_id_ + " or vectornav, got " +
+            "velocity_body frame_id must be base_link or vectornav, got " +
             msg->header.frame_id);
     }
     if (!std::isfinite(msg->twist.twist.linear.x) ||
@@ -337,9 +325,9 @@ void LocalizationNode::velocity_callback(
 
 void LocalizationNode::rebuild_map_points(const vectormap_msgs::msg::VectorMap& map_msg)
 {
-    if (map_msg.header.frame_id != map_frame_id_) {
+    if (map_msg.header.frame_id != "map") {
         throw std::runtime_error(
-            "VectorMap frame_id must be " + map_frame_id_ + ", got " + map_msg.header.frame_id);
+            "VectorMap frame_id must be map, got " + map_msg.header.frame_id);
     }
 
     std::vector<Eigen::Vector2d> points;
@@ -384,8 +372,6 @@ bool LocalizationNode::gnss_to_map_pose(
         throw std::runtime_error("GNSS latitude or longitude is not finite");
     }
 
-    // lat/lon → ENU ローカル接平面
-    // 子午線曲率半径 M と卯酉線曲率半径 N で緯度経度差をメートルに変換
     const double lat0_rad = map_origin_lat_ * DEG2RAD;
     const double sin_lat0 = std::sin(lat0_rad);
     const double sin2_lat0 = sin_lat0 * sin_lat0;
@@ -398,7 +384,6 @@ bool LocalizationNode::gnss_to_map_pose(
     const double north = M * delta_lat;
     const double east = N * std::cos(lat0_rad) * delta_lon;
 
-    // ENU → map: [x_map, y_map]^T = R_map_enu * [east, north]^T
     const double cos_yaw = std::cos(map_yaw_from_east_);
     const double sin_yaw = std::sin(map_yaw_from_east_);
     const double x_map = cos_yaw * east + sin_yaw * north;
@@ -410,7 +395,7 @@ bool LocalizationNode::gnss_to_map_pose(
     const double yaw_map = normalize_angle(yaw_enu - map_yaw_from_east_);
 
     pose_out.header.stamp = gnss_msg.header.stamp;
-    pose_out.header.frame_id = map_frame_id_;
+    pose_out.header.frame_id = "map";
     pose_out.pose.pose.position.x = x_map;
     pose_out.pose.pose.position.y = y_map;
     pose_out.pose.pose.position.z = 0.0;
@@ -427,7 +412,7 @@ geometry_msgs::msg::PoseWithCovarianceStamped LocalizationNode::update_ekf_with_
 {
     if (!is_valid_velocity_frame(velocity_msg.header.frame_id)) {
         throw std::runtime_error(
-            "velocity_body frame_id must be " + base_frame_id_ + " or vectornav, got " +
+            "velocity_body frame_id must be base_link or vectornav, got " +
             velocity_msg.header.frame_id);
     }
     if (!std::isfinite(velocity_msg.twist.twist.linear.x) ||
@@ -453,7 +438,7 @@ geometry_msgs::msg::PoseWithCovarianceStamped LocalizationNode::update_ekf_with_
         last_gnss_update_stamp_ = raw_pose.header.stamp;
         has_last_imu_update_stamp_ = true;
         last_imu_update_stamp_ = imu_msg.header.stamp;
-        return ekf_localizer_.make_pose(this->now(), map_frame_id_);
+        return ekf_localizer_.make_pose(this->now(), "map");
     }
 
     if (!has_last_gnss_update_stamp_ || !same_stamp(raw_pose.header.stamp, last_gnss_update_stamp_)) {
@@ -476,12 +461,12 @@ geometry_msgs::msg::PoseWithCovarianceStamped LocalizationNode::update_ekf_with_
         last_imu_update_stamp_ = imu_msg.header.stamp;
     }
 
-    return ekf_localizer_.make_pose(this->now(), map_frame_id_);
+    return ekf_localizer_.make_pose(this->now(), "map");
 }
 
 bool LocalizationNode::is_valid_velocity_frame(const std::string& frame_id) const
 {
-    return frame_id == base_frame_id_ || frame_id == "vectornav";
+    return frame_id == "base_link" || frame_id == "vectornav";
 }
 
 bool LocalizationNode::same_stamp(
@@ -521,7 +506,7 @@ geometry_msgs::msg::PoseWithCovarianceStamped LocalizationNode::update_ekf_with_
             get_logger(), *get_clock(), 1000,
             "ICP position update rejected by Mahalanobis gate (%.2f, %.2f)", x, y);
     }
-    return ekf_localizer_.make_pose(this->now(), map_frame_id_);
+    return ekf_localizer_.make_pose(this->now(), "map");
 }
 
 visualization_msgs::msg::MarkerArray LocalizationNode::make_lane_line_map_marker_array(
@@ -533,7 +518,7 @@ visualization_msgs::msg::MarkerArray LocalizationNode::make_lane_line_map_marker
 
     visualization_msgs::msg::Marker delete_marker;
     delete_marker.header.stamp = this->now();
-    delete_marker.header.frame_id = map_frame_id_;
+    delete_marker.header.frame_id = "map";
     delete_marker.action = visualization_msgs::msg::Marker::DELETEALL;
     marker_array.markers.push_back(delete_marker);
 
@@ -600,7 +585,7 @@ void LocalizationNode::timer_callback()
             std::lock_guard<std::mutex> lock(data_mutex_);
             if (ekf_localizer_.initialized()) {
                 localized_pose_publisher_->publish(
-                    ekf_localizer_.make_pose(this->now(), map_frame_id_));
+                    ekf_localizer_.make_pose(this->now(), "map"));
             }
             return;
         }
@@ -652,7 +637,6 @@ void LocalizationNode::timer_callback()
             mask_threshold_,
             max_observed_points_);
 
-        // EKF pose で map 座標に変換して publish（TF チェーン不要）
         const auto source_points = observed_points_in_initial_map(base_points, initial_pose);
         lane_line_publisher_->publish(
             make_lane_line_map_marker_array(source_points, "lane_line", 0.0F, 1.0F, 0.2F));
@@ -717,4 +701,4 @@ void LocalizationNode::timer_callback()
     }
 }
 
-}  // namespace localization
+}

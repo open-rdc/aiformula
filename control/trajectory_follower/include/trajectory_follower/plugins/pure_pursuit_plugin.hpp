@@ -36,4 +36,4 @@ private:
     double steering_max_angle_rad_{0.0};
 };
 
-}  // namespace trajectory_follower
+}
