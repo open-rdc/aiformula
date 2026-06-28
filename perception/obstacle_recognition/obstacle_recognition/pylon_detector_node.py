@@ -7,7 +7,7 @@ from ament_index_python.packages import get_package_share_directory
 import rclpy
 from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data
-from sensor_msgs.msg import Image
+from sensor_msgs.msg import Image, CameraInfo
 from visualization_msgs.msg import Marker, MarkerArray
 from object_detection_msgs.msg import ObjectInfo, ObjectInfoArray
 
@@ -46,10 +46,7 @@ class PylonDetectorNode(Node):
         self.declare_parameter('objects_topic', '/perception/pylons')
         self.declare_parameter('target_frame', 'base_link')
         self.declare_parameter('pylon_class_id', 0)
-        self.declare_parameter('fx', 525.0)
-        self.declare_parameter('fy', 525.0)
-        self.declare_parameter('cx', 640.0)
-        self.declare_parameter('cy', 360.0)
+        self.declare_parameter('camera_info_topic', '/zed/zed_node/rgb/camera_info')
         self.declare_parameter('cam_xyz', [0.055, 0.0, 0.54])   # カメラ取付位置[m] (base_link基準)
         self.declare_parameter('cam_rpy', [0.0, 0.0, 0.0])      # 取付姿勢[rad] (点群frame X前/Y左/Z上 → base)
         self.declare_parameter('ground_z', 0.0)
@@ -57,8 +54,7 @@ class PylonDetectorNode(Node):
         g = lambda k: self.get_parameter(k).value
         self.target_frame = g('target_frame')
         self.pylon_class_id = g('pylon_class_id')
-        self.fx, self.fy = float(g('fx')), float(g('fy'))
-        self.cx, self.cy = float(g('cx')), float(g('cy'))
+        self.fx = self.fy = self.cx = self.cy = None    # camera_info受信で埋まる
         self.ground_z = float(g('ground_z'))
         self._t = np.array(g('cam_xyz'), dtype=float)
         self._R = rpy_to_matrix(*g('cam_rpy')) @OPT_TO_BODY
@@ -76,6 +72,7 @@ class PylonDetectorNode(Node):
 
         # ros入出力
         self.bridge = CvBridge()
+        self.create_subscription(CameraInfo, g('camera_info_topic'), self.camera_info_cb, qos_profile_sensor_data)
         self.create_subscription(Image, g('image_topic'), self.image_cb, qos_profile_sensor_data)
         self.object_pub = self.create_publisher(ObjectInfoArray, g('objects_topic'), 10)
         self.marker_pub = self.create_publisher(MarkerArray, '/perception/pylons_visualize', 10)
@@ -98,6 +95,12 @@ class PylonDetectorNode(Node):
                 boxes_out.append((float(x1), float(y1), float(x2), float(y2)))
         return boxes_out
             
+    # camera_info から内部パラメータを取得
+    def camera_info_cb(self, msg):
+        k = msg.k
+        self.fx, self.fy = k[0], k[4]
+        self.cx, self.cy = k[2], k[5]
+
     # ピクセル(u,v)の視線を地面平面と交差させ base_link 座標を求める
     def pixel_to_ground(self, u, v):
         d_opt = np.array([(u - self.cx) / self.fx, (v - self.cy) / self.fy, 1.0])
@@ -111,6 +114,9 @@ class PylonDetectorNode(Node):
         return (float(p[0]), float(p[1]), float(p[2]))
 
     def image_cb(self, img_msg):
+        if self.fx is None:
+            self.get_logger().warn('waiting camera_info...', throttle_duration_sec=2.0)
+            return
         img = self.bridge.imgmsg_to_cv2(img_msg, desired_encoding='bgr8')
         boxes = self.detect(img)
 
