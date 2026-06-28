@@ -75,14 +75,56 @@ MissionPlannerNode::PathPoint interpolate_raw_path(
     return MissionPlannerNode::PathPoint{clamped_s, x, y, yaw, lanelet_id};
 }
 
-}  // namespace
+}
 
-void MissionPlannerNode::build_global_path_once(
+uint64_t MissionPlannerNode::select_start_lanelet(
+    const std::unordered_map<uint64_t, std::vector<Point2D>>& centerlines,
+    const Point2D& point,
+    const double yaw,
+    const double yaw_threshold_rad)
+{
+    uint64_t best_lanelet_id = 0U;
+    double best_distance_sq = std::numeric_limits<double>::max();
+
+    for (const auto& [lanelet_id, centerline_points] : centerlines) {
+        if (centerline_points.size() < 2U) {
+            continue;
+        }
+
+        double nearest_distance_sq = std::numeric_limits<double>::max();
+        double nearest_segment_yaw = 0.0;
+        for (std::size_t i = 1U; i < centerline_points.size(); ++i) {
+            const auto& start = centerline_points[i - 1U];
+            const auto& end = centerline_points[i];
+            const double distance_sq = point_segment_distance_sq(point, start, end);
+            if (distance_sq < nearest_distance_sq) {
+                nearest_distance_sq = distance_sq;
+                nearest_segment_yaw = std::atan2(end.y - start.y, end.x - start.x);
+            }
+        }
+
+        const double yaw_difference = std::atan2(
+            std::sin(yaw - nearest_segment_yaw),
+            std::cos(yaw - nearest_segment_yaw));
+        if (std::abs(yaw_difference) > yaw_threshold_rad) {
+            continue;
+        }
+
+        if (nearest_distance_sq < best_distance_sq) {
+            best_distance_sq = nearest_distance_sq;
+            best_lanelet_id = lanelet_id;
+        }
+    }
+
+    return best_lanelet_id;
+}
+
+void MissionPlannerNode::build_map_lookup(
     const vectormap_msgs::msg::VectorMap& map_msg)
 {
-    if (map_msg.header.frame_id != map_frame_id_) {
+    if (map_msg.header.frame_id != "map") {
         throw std::runtime_error(
-            "VectorMap frame_id must be " + map_frame_id_ + ", got " + map_msg.header.frame_id);
+            "VectorMap frame_id must be map, got " + map_msg.header.frame_id);
     }
 
     lanelet_by_id_.clear();
@@ -140,26 +182,25 @@ void MissionPlannerNode::build_global_path_once(
         lanelet_centerline_points_by_id_.emplace(lanelet_id, std::move(centerline_points));
     }
 
-    std::size_t fallback_count = 0U;
-    const auto route_lanelet_ids = build_route_sequence_from_graph(
-        static_cast<uint64_t>(route_lanelet_ids_param_.front()),
-        fallback_count);
-    if (fallback_count > 0U) {
-        RCLCPP_WARN(
-            get_logger(),
-            "initial route used nav_cmd fallback %zu times: requested=%s",
-            fallback_count,
-            turn_direction_to_string(last_nav_cmd_turn_).c_str());
-    }
-    build_route_from_lanelet_ids(route_lanelet_ids);
     path_frame_id_ = map_msg.header.frame_id;
-    global_path_ready_ = true;
+    map_ready_ = true;
     RCLCPP_INFO(
         get_logger(),
-        "built vector map global path: %zu points, route_lanelets=%zu, loop=%s",
-        global_samples_.size(),
-        route_lanelet_ids.size(),
-        route_is_loop_ ? "true" : "false");
+        "built vector map lookup: lanelets=%zu, centerlines=%zu",
+        lanelet_by_id_.size(),
+        lanelet_centerline_points_by_id_.size());
+}
+
+bool MissionPlannerNode::try_build_initial_route(const Point2D& ego, const double yaw)
+{
+    const uint64_t start_lanelet_id = select_start_lanelet(
+        lanelet_centerline_points_by_id_, ego, yaw, start_lanelet_yaw_threshold_rad_);
+    if (start_lanelet_id == 0U) {
+        return false;
+    }
+    rebuild_route_from_lanelet(start_lanelet_id, "initial");
+    global_path_ready_ = true;
+    return true;
 }
 
 void MissionPlannerNode::build_route_from_lanelet_ids(
@@ -566,4 +607,4 @@ double MissionPlannerNode::normalize_path_s(const double s) const
     return normalized;
 }
 
-}  // namespace mission_planner
+}

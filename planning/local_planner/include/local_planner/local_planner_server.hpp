@@ -39,11 +39,6 @@ private:
     LocalPlannerPlugin::SharedPtr plugin_;
 
     const int update_period_ms_;
-    const std::string global_path_topic_;
-    const std::string local_path_topic_;
-    const std::string localization_pose_topic_;
-    const std::string velocity_topic_;
-    const std::string objects_topic_;
     const rclcpp::QoS qos_;
 
     geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr latest_pose_;
@@ -59,4 +54,4 @@ private:
     rclcpp::TimerBase::SharedPtr timer_;
 };
 
-}  // namespace local_planner
+}

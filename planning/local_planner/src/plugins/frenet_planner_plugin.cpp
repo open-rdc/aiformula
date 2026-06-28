@@ -13,7 +13,7 @@ namespace local_planner
 namespace
 {
 constexpr double EPSILON = 1.0e-6;
-}  // namespace
+}
 
 void FrenetPlannerPlugin::initialize(
     const rclcpp::Logger & logger,
@@ -53,10 +53,6 @@ void FrenetPlannerPlugin::initialize(
         params->get_parameter("frenet_weight_lateral_change").get_value<double>();
     frenet_weight_avoidance_shift_ =
         params->get_parameter("frenet_weight_avoidance_shift").get_value<double>();
-    map_frame_id_ =
-        params->get_parameter("map_frame_id").get_value<std::string>();
-    base_frame_id_ =
-        params->get_parameter("base_frame_id").get_value<std::string>();
 
     if (local_path_horizon_m_ <= local_path_resample_interval_m_) {
         throw std::invalid_argument(
@@ -538,6 +534,6 @@ nav_msgs::msg::Path FrenetPlannerPlugin::make_path_message(
     return path;
 }
 
-}  // namespace local_planner
+}
 
 PLUGINLIB_EXPORT_CLASS(local_planner::FrenetPlannerPlugin, local_planner::LocalPlannerPlugin)

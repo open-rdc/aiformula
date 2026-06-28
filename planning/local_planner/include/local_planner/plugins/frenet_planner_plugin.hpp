@@ -102,8 +102,6 @@ private:
     double frenet_weight_lateral_offset_{1.0};
     double frenet_weight_lateral_change_{0.2};
     double frenet_weight_avoidance_shift_{0.1};
-    std::string map_frame_id_{"map"};
-    std::string base_frame_id_{"base_link"};
 
     bool global_path_ready_{false};
     bool route_is_loop_{false};
@@ -112,4 +110,4 @@ private:
     std::vector<PathPoint> global_samples_;
 };
 
-}  // namespace local_planner
+}

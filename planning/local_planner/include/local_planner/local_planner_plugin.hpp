@@ -31,4 +31,4 @@ public:
         const object_detection_msgs::msg::ObjectInfoArray * objects) = 0;
 };
 
-}  // namespace local_planner
+}
