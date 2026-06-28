@@ -10,18 +10,11 @@ namespace mission_planner
 namespace
 {
 
-std::vector<int64_t> read_route_lanelet_ids(rclcpp::Node& node)
+double yaw_from_quaternion(const geometry_msgs::msg::Quaternion& quaternion)
 {
-    const auto route = node.get_parameter("route_lanelet_ids").as_integer_array();
-    if (route.empty()) {
-        throw std::invalid_argument("route_lanelet_ids must not be empty");
-    }
-    for (const auto id : route) {
-        if (id <= 0) {
-            throw std::invalid_argument("route_lanelet_ids must contain positive lanelet ids");
-        }
-    }
-    return route;
+    const double siny_cosp = 2.0 * (quaternion.w * quaternion.z + quaternion.x * quaternion.y);
+    const double cosy_cosp = 1.0 - 2.0 * (quaternion.y * quaternion.y + quaternion.z * quaternion.z);
+    return std::atan2(siny_cosp, cosy_cosp);
 }
 
 std::vector<std::string> read_nav_cmd_fallback_order(rclcpp::Node& node)
@@ -33,7 +26,7 @@ std::vector<std::string> read_nav_cmd_fallback_order(rclcpp::Node& node)
     return order;
 }
 
-}  // namespace
+}
 
 MissionPlannerNode::MissionPlannerNode(const rclcpp::NodeOptions& options)
 : MissionPlannerNode("", options)
@@ -45,21 +38,17 @@ MissionPlannerNode::MissionPlannerNode(
     const rclcpp::NodeOptions& options)
 : rclcpp::Node("mission_planner_node", name_space, options),
   update_period_ms_(get_parameter("update_period_ms").as_int()),
-  map_frame_id_(get_parameter("map_frame_id").as_string()),
-  base_frame_id_(get_parameter("base_frame_id").as_string()),
-  vector_map_topic_(get_parameter("vector_map_topic").as_string()),
-  localization_pose_topic_(get_parameter("localization_pose_topic").as_string()),
-  nav_cmd_topic_(get_parameter("nav_cmd_topic").as_string()),
   default_nav_cmd_(get_parameter("default_nav_cmd").as_string()),
-  lane_change_topic_(get_parameter("lane_change_topic").as_string()),
-  global_path_topic_(get_parameter("global_path_topic").as_string()),
-  route_lanelet_ids_param_(read_route_lanelet_ids(*this)),
   nav_cmd_fallback_order_param_(read_nav_cmd_fallback_order(*this)),
   global_path_resample_interval_m_(get_parameter("global_path_resample_interval_m").as_double()),
   max_centerline_connection_gap_m_(get_parameter("max_centerline_connection_gap_m").as_double()),
   off_route_distance_threshold_m_(get_parameter("off_route_distance_threshold_m").as_double()),
   route_lookahead_lanelet_count_(get_parameter("route_lookahead_lanelet_count").as_int()),
+  start_lanelet_yaw_threshold_rad_(get_parameter("start_lanelet_yaw_threshold_rad").as_double()),
+  start_pose_position_variance_threshold_(
+      get_parameter("start_pose_position_variance_threshold").as_double()),
   qos_(rclcpp::QoS(10)),
+  map_ready_(false),
   global_path_ready_(false),
   route_is_loop_(false),
   pending_route_rebuild_(false),
@@ -68,17 +57,6 @@ MissionPlannerNode::MissionPlannerNode(
 {
     if (update_period_ms_ <= 0) {
         throw std::invalid_argument("update_period_ms must be greater than 0");
-    }
-    if (map_frame_id_.empty() || base_frame_id_.empty()) {
-        throw std::invalid_argument("frame id parameters must not be empty");
-    }
-    if (vector_map_topic_.empty() ||
-        localization_pose_topic_.empty() ||
-        nav_cmd_topic_.empty() ||
-        lane_change_topic_.empty() ||
-        global_path_topic_.empty())
-    {
-        throw std::invalid_argument("topic parameters must not be empty");
     }
     if (global_path_resample_interval_m_ <= 0.0) {
         throw std::invalid_argument("global_path_resample_interval_m must be greater than 0");
@@ -92,6 +70,12 @@ MissionPlannerNode::MissionPlannerNode(
     if (route_lookahead_lanelet_count_ < 3) {
         throw std::invalid_argument("route_lookahead_lanelet_count must be at least 3");
     }
+    if (start_lanelet_yaw_threshold_rad_ <= 0.0) {
+        throw std::invalid_argument("start_lanelet_yaw_threshold_rad must be greater than 0");
+    }
+    if (start_pose_position_variance_threshold_ <= 0.0) {
+        throw std::invalid_argument("start_pose_position_variance_threshold must be greater than 0");
+    }
 
     last_nav_cmd_turn_ = parse_nav_cmd(default_nav_cmd_);
     nav_cmd_fallback_order_.reserve(nav_cmd_fallback_order_param_.size());
@@ -100,23 +84,23 @@ MissionPlannerNode::MissionPlannerNode(
     }
 
     vector_map_subscription_ = create_subscription<vectormap_msgs::msg::VectorMap>(
-        vector_map_topic_,
+        "/vector_map",
         qos_,
         std::bind(&MissionPlannerNode::vector_map_callback, this, std::placeholders::_1));
     pose_subscription_ = create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>(
-        localization_pose_topic_,
+        "/localization/pose",
         qos_,
         std::bind(&MissionPlannerNode::pose_callback, this, std::placeholders::_1));
     nav_cmd_subscription_ = create_subscription<std_msgs::msg::String>(
-        nav_cmd_topic_,
+        "/planning/nav_cmd",
         qos_,
         std::bind(&MissionPlannerNode::nav_cmd_callback, this, std::placeholders::_1));
     lane_change_subscription_ = create_subscription<std_msgs::msg::Empty>(
-        lane_change_topic_,
+        "/flag",
         qos_,
         std::bind(&MissionPlannerNode::lane_change_callback, this, std::placeholders::_1));
 
-    global_path_publisher_ = create_publisher<nav_msgs::msg::Path>(global_path_topic_, qos_);
+    global_path_publisher_ = create_publisher<nav_msgs::msg::Path>("/planner/global_path", qos_);
     timer_ = create_wall_timer(
         std::chrono::milliseconds(update_period_ms_),
         std::bind(&MissionPlannerNode::timer_callback, this));
@@ -129,11 +113,10 @@ void MissionPlannerNode::vector_map_callback(
         throw std::runtime_error("VectorMap message must not be null");
     }
     std::lock_guard<std::mutex> lock(data_mutex_);
-    if (global_path_ready_) {
+    if (map_ready_) {
         return;
     }
-    build_global_path_once(*msg);
-    global_path_publisher_->publish(make_global_path_message(now()));
+    build_map_lookup(*msg);
 }
 
 void MissionPlannerNode::pose_callback(
@@ -221,16 +204,47 @@ void MissionPlannerNode::lane_change_callback(const std_msgs::msg::Empty::Shared
 void MissionPlannerNode::timer_callback()
 {
     std::lock_guard<std::mutex> lock(data_mutex_);
-    if (!global_path_ready_ || !latest_pose_) {
+    if (!map_ready_ || !latest_pose_) {
         RCLCPP_WARN_THROTTLE(
             get_logger(),
             *get_clock(),
             2000,
-            "waiting for vector map route and localization pose");
+            "waiting for vector map and localization pose");
         return;
     }
 
     const Point2D ego{latest_pose_->pose.pose.position.x, latest_pose_->pose.pose.position.y};
+
+    if (!global_path_ready_) {
+        const double position_variance_x = latest_pose_->pose.covariance[0];
+        const double position_variance_y = latest_pose_->pose.covariance[7];
+        if (position_variance_x > start_pose_position_variance_threshold_ ||
+            position_variance_y > start_pose_position_variance_threshold_)
+        {
+            RCLCPP_WARN_THROTTLE(
+                get_logger(),
+                *get_clock(),
+                2000,
+                "waiting for localization pose to converge before building initial route "
+                "(var=%.3f,%.3f threshold=%.3f)",
+                position_variance_x,
+                position_variance_y,
+                start_pose_position_variance_threshold_);
+            return;
+        }
+
+        const double yaw = yaw_from_quaternion(latest_pose_->pose.pose.orientation);
+        if (!try_build_initial_route(ego, yaw)) {
+            RCLCPP_WARN_THROTTLE(
+                get_logger(),
+                *get_clock(),
+                2000,
+                "waiting for a yaw-consistent start lanelet near ego pose");
+            return;
+        }
+        global_path_publisher_->publish(make_global_path_message(now()));
+        return;
+    }
 
     if (pending_route_rebuild_) {
         rebuild_route_from_pose(ego, pending_route_rebuild_reason_);
@@ -246,19 +260,16 @@ void MissionPlannerNode::timer_callback()
     }
 
     if (distance > off_route_distance_threshold_m_) {
-        // Vehicle has deviated beyond the threshold from all route lanelets
         rebuild_route_from_pose(ego, "out_of_route");
         global_path_publisher_->publish(make_global_path_message(now()));
         return;
     }
 
-    // Search is confined to current_route_lanelet_ids_, so route_it is always valid
     const auto route_it = std::find(
         current_route_lanelet_ids_.begin(),
         current_route_lanelet_ids_.end(),
         current_lanelet_id);
 
-    // Rebuild only when the vehicle reaches the last lanelet in the route
     const std::size_t remaining = static_cast<std::size_t>(
         std::distance(route_it, current_route_lanelet_ids_.end()));
     if (remaining == 1U) {
@@ -272,7 +283,7 @@ nav_msgs::msg::Path MissionPlannerNode::make_global_path_message(
 {
     nav_msgs::msg::Path path;
     path.header.stamp = stamp;
-    path.header.frame_id = path_frame_id_.empty() ? map_frame_id_ : path_frame_id_;
+    path.header.frame_id = path_frame_id_.empty() ? "map" : path_frame_id_;
     path.poses.reserve(global_samples_.size());
     for (const auto& point : global_samples_) {
         geometry_msgs::msg::PoseStamped pose;
@@ -296,4 +307,4 @@ geometry_msgs::msg::Quaternion MissionPlannerNode::yaw_to_quaternion(const doubl
     return q;
 }
 
-}  // namespace mission_planner
+}

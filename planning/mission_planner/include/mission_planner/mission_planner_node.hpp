@@ -71,7 +71,8 @@ private:
     void lane_change_callback(const std_msgs::msg::Empty::SharedPtr msg);
     void timer_callback();
 
-    void build_global_path_once(const vectormap_msgs::msg::VectorMap& map_msg);
+    void build_map_lookup(const vectormap_msgs::msg::VectorMap& map_msg);
+    bool try_build_initial_route(const Point2D& ego, double yaw);
     void build_route_from_lanelet_ids(const std::vector<uint64_t>& route_lanelet_ids);
     void rebuild_route_from_lanelet(uint64_t start_lanelet_id, const std::string& reason);
     void request_route_rebuild(const std::string& reason);
@@ -93,25 +94,25 @@ private:
     uint8_t parse_nav_cmd(const std::string& command) const;
     std::string turn_direction_to_string(uint8_t turn_direction) const;
     nav_msgs::msg::Path make_global_path_message(const rclcpp::Time& stamp) const;
+    static uint64_t select_start_lanelet(
+        const std::unordered_map<uint64_t, std::vector<Point2D>>& centerlines,
+        const Point2D& point,
+        double yaw,
+        double yaw_threshold_rad);
     static geometry_msgs::msg::Quaternion yaw_to_quaternion(double yaw);
 
     const int update_period_ms_;
-    const std::string map_frame_id_;
-    const std::string base_frame_id_;
-    const std::string vector_map_topic_;
-    const std::string localization_pose_topic_;
-    const std::string nav_cmd_topic_;
     const std::string default_nav_cmd_;
-    const std::string lane_change_topic_;
-    const std::string global_path_topic_;
-    const std::vector<int64_t> route_lanelet_ids_param_;
     const std::vector<std::string> nav_cmd_fallback_order_param_;
     const double global_path_resample_interval_m_;
     const double max_centerline_connection_gap_m_;
     const double off_route_distance_threshold_m_;
     const int route_lookahead_lanelet_count_;
+    const double start_lanelet_yaw_threshold_rad_;
+    const double start_pose_position_variance_threshold_;
     const rclcpp::QoS qos_;
 
+    bool map_ready_;
     bool global_path_ready_;
     bool route_is_loop_;
     bool pending_route_rebuild_;
@@ -140,4 +141,4 @@ private:
     rclcpp::TimerBase::SharedPtr timer_;
 };
 
-}  // namespace mission_planner
+}
