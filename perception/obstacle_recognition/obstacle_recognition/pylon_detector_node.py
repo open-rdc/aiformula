@@ -7,12 +7,12 @@ from ament_index_python.packages import get_package_share_directory
 import rclpy
 from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data
-from sensor_msgs.msg import Image, PointCloud2
+from sensor_msgs.msg import Image
 from visualization_msgs.msg import Marker, MarkerArray
 from object_detection_msgs.msg import ObjectInfo, ObjectInfoArray
 
+import cv2
 from cv_bridge import CvBridge
-from sensor_msgs_py import point_cloud2
 
 from yolox.exp import get_exp
 from yolox.utils import postprocess
@@ -28,31 +28,40 @@ def rpy_to_matrix(roll, pitch, yaw):
     Rz = np.array([[cy, -sy, 0.0], [sy, cy, 0.0], [0.0, 0.0, 1.0]])
     return Rz @ Ry @ Rx
 
+OPT_TO_BODY = np.array([[0.0, 0.0, 1.0],
+                        [-1.0, 0.0, 0.0],
+                        [0.0, -1.0, 0.0]])
+
 
 class PylonDetectorNode(Node):
     def __init__(self):
         pkg = get_package_share_directory('obstacle_recognition')
         super().__init__('pylon_detector_node')
 
-        self.declare_parameter('exp_file', os.path.join(pkg, 'YOLOX/exps/yolox_s_cone_full.py'))
-        self.declare_parameter('ckpt', os.path.join(pkg, 'data/weights/best_ckpt_full.pth'))
+        self.declare_parameter('exp_file', os.path.join(pkg, 'YOLOX/exps/yolox_s_cone_nhd.py'))
+        self.declare_parameter('ckpt', os.path.join(pkg, 'data/weights/best_ckpt_nhd.pth'))
         self.declare_parameter('conf_thre', 0.3)
         self.declare_parameter('nms_thre', 0.45)
         self.declare_parameter('image_topic', '/zed/zed_node/rgb/image_rect_color')
-        self.declare_parameter('pointcloud_topic', '/zed/zed_node/point_cloud')
         self.declare_parameter('objects_topic', '/perception/pylons')
         self.declare_parameter('target_frame', 'base_link')
         self.declare_parameter('pylon_class_id', 0)
-        self.declare_parameter('patch_radius', 2)
+        self.declare_parameter('fx', 525.0)
+        self.declare_parameter('fy', 525.0)
+        self.declare_parameter('cx', 640.0)
+        self.declare_parameter('cy', 360.0)
         self.declare_parameter('cam_xyz', [0.055, 0.0, 0.54])   # カメラ取付位置[m] (base_link基準)
         self.declare_parameter('cam_rpy', [0.0, 0.0, 0.0])      # 取付姿勢[rad] (点群frame X前/Y左/Z上 → base)
+        self.declare_parameter('ground_z', 0.0)
 
         g = lambda k: self.get_parameter(k).value
         self.target_frame = g('target_frame')
         self.pylon_class_id = g('pylon_class_id')
-        self.patch_radius = g('patch_radius')
-        self._R = rpy_to_matrix(*g('cam_rpy'))                  # カメラ→base 回転
-        self._t = np.array(g('cam_xyz'), dtype=float)           # カメラ→base 並進
+        self.fx, self.fy = float(g('fx')), float(g('fy'))
+        self.cx, self.cy = float(g('cx')), float(g('cy'))
+        self.ground_z = float(g('ground_z'))
+        self._t = np.array(g('cam_xyz'), dtype=float)
+        self._R = rpy_to_matrix(*g('cam_rpy')) @OPT_TO_BODY
 
         # YOLOXのロード
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -67,14 +76,11 @@ class PylonDetectorNode(Node):
 
         # ros入出力
         self.bridge = CvBridge()
-        self.latest_cloud = None
-        self.create_subscription(PointCloud2, g('pointcloud_topic'), self.pointcloud_cb, qos_profile_sensor_data)
         self.create_subscription(Image, g('image_topic'), self.image_cb, qos_profile_sensor_data)
         self.object_pub = self.create_publisher(ObjectInfoArray, g('objects_topic'), 10)
         self.marker_pub = self.create_publisher(MarkerArray, '/perception/pylons_visualize', 10)
+        self.debug_image_pub = self.create_publisher(Image, '/perception/pylons_debug_image', 10)
 
-    def pointcloud_cb(self, msg):
-        self.latest_cloud = msg
     
     # YOLOX推論
     def detect(self, img):
@@ -90,63 +96,46 @@ class PylonDetectorNode(Node):
             boxes = outputs.cpu()[:, 0:4] / ratio
             for x1, y1, x2, y2 in boxes:
                 boxes_out.append((float(x1), float(y1), float(x2), float(y2)))
-        return boxes_out, (w, h)
+        return boxes_out
             
-    # 座標変換
-    def pixel_to_xyz(self, pc, u, v):
-        pts = list(point_cloud2.read_points(
-            pc, field_names=['x', 'y', 'z'], skip_nans=False, uvs=[(int(u), int(v))]
-        ))
-        if not pts:
+    # ピクセル(u,v)の視線を地面平面と交差させ base_link 座標を求める
+    def pixel_to_ground(self, u, v):
+        d_opt = np.array([(u - self.cx) / self.fx, (v - self.cy) / self.fy, 1.0])
+        d = self._R @ d_opt
+        if d[2] >= -1e-6:
             return None
-        x, y, z = pts[0]
-        if any(math.isnan(c) or math.isinf(c) for c in (x, y, z)):
+        s = (self.ground_z - self._t[2]) / d[2]
+        if s <= 0:
             return None
-        return (float(x), float(y), float(z))
-    
-    def patch_xyz(self, pc, u, v):
-        r = self.patch_radius
-        xs, ys, zs = [], [], []
-        for du in range(-r, r + 1):
-            for dv in range(-r, r + 1):
-                p = self.pixel_to_xyz(pc, u + du, v + dv)
-                if p:
-                    xs.append(p[0]); ys.append(p[1]); zs.append(p[2])
-        if not xs:
-            return None
-        return (float(np.median(xs)), float(np.median(ys)), float(np.median(zs)))
-    
-    def transform_point(self, x, y, z):
-        # 点群frame(X前/Y左/Z上) → base_link を手計算: p_base = R·p_cam + t
-        p = self._R @ np.array([x, y, z]) + self._t
+        p = self._t + s * d
         return (float(p[0]), float(p[1]), float(p[2]))
-        
-    def image_cb(self, img_msg):
-        if self.latest_cloud is None:
-            self.get_logger().warn('waiting point cloud....', throttle_duration_sec=2.0)
-            return
-        pc = self.latest_cloud
-        img = self.bridge.imgmsg_to_cv2(img_msg, desired_encoding='bgr8')
-        boxes, (img_w, img_h) = self.detect(img)
 
-        sx = pc.width / img_w
-        sy = pc.height / img_h
+    def image_cb(self, img_msg):
+        img = self.bridge.imgmsg_to_cv2(img_msg, desired_encoding='bgr8')
+        boxes = self.detect(img)
 
         cones = []
         for (x1, y1, x2, y2) in boxes:
-            v = y2
-            pL = self.patch_xyz(pc, x1 * sx, v * sy)
-            pR = self.patch_xyz(pc, x2 * sx, v * sy)
-            pC = self.patch_xyz(pc, (x1 + x2) / 2 * sx, v * sy)
+            v = y2                                       # bbox底辺(接地点)
+            pC = self.pixel_to_ground((x1 + x2) / 2, v)
+            pL = self.pixel_to_ground(x1, v)
+            pR = self.pixel_to_ground(x2, v)
 
+            # デバッグ描画(bbox)
+            cv2.rectangle(img, (int(x1), int(y1)), (int(x2), int(y2)), (0, 165, 255), 2)
             if pC is None or pL is None or pR is None:
                 continue
             width = math.hypot(pL[0] - pR[0], pL[1] - pR[1])
             dist = math.hypot(pC[0], pC[1])
-            tp = self.transform_point(*pC)
-            cones.append((tp[0], tp[1], width))
+            cones.append((pC[0], pC[1], width))
+            cv2.putText(img, f'{dist:.2f}m {width:.2f}m', (int(x1), int(y1) - 5),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 165, 255), 2)
             self.get_logger().info(f'pylon dist={dist:.2f}m width={width:.2f}m', throttle_duration_sec=1.0)
-        
+
+        debug_msg = self.bridge.cv2_to_imgmsg(img, encoding='bgr8')
+        debug_msg.header = img_msg.header
+        self.debug_image_pub.publish(debug_msg)
+
         self.object_pub.publish(self.make_objects(cones, img_msg.header.stamp))
         self.marker_pub.publish(self.make_markers(cones, img_msg.header.stamp))
         self.get_logger().info(f'pylons: {len(cones)}', throttle_duration_sec=1.0)
