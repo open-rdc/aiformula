@@ -44,11 +44,6 @@ private:
     static double normalize_angle(double angle);
 
     const int publish_period_ms_;
-    const std::string odom_frame_id_;
-    const std::string base_frame_id_;
-    const std::string imu_topic_;
-    const std::string velocity_topic_;
-    const std::string odom_topic_;
     const std::string imu_yaw_convention_;
     const double max_integration_dt_;
     const rclcpp::QoS qos_;
@@ -72,4 +67,4 @@ private:
     rclcpp::TimerBase::SharedPtr timer_;
 };
 
-}  // namespace localization
+}

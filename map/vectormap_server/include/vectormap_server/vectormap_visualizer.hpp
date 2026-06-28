@@ -15,4 +15,4 @@ void update_marker_array_stamp(
     visualization_msgs::msg::MarkerArray& marker_array,
     const builtin_interfaces::msg::Time& stamp);
 
-}  // namespace vectormap_server
+}

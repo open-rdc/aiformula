@@ -24,7 +24,6 @@ VectormapServerNode::VectormapServerNode(
 : rclcpp::Node("vectormap_server_node", name_space, options),
   map_path_(get_parameter("map_path").as_string()),
   publish_period_ms_(get_parameter("publish_period_ms").as_int()),
-  earth_frame_id_(get_parameter("earth_frame_id").as_string()),
   map_axis_convention_(get_parameter("map_axis_convention").as_string()),
   map_origin_pixel_x_(get_parameter("map_origin_pixel.x").as_double()),
   map_origin_pixel_y_(get_parameter("map_origin_pixel.y").as_double()),
@@ -36,9 +35,6 @@ VectormapServerNode::VectormapServerNode(
 {
     if (publish_period_ms_ <= 0) {
         throw std::invalid_argument("publish_period_ms must be greater than 0");
-    }
-    if (earth_frame_id_.empty()) {
-        throw std::invalid_argument("earth_frame_id must not be empty");
     }
     if (meter_per_pixel_ <= 0.0) {
         throw std::invalid_argument("meter_per_pixel must be greater than 0");
@@ -97,15 +93,11 @@ std::string VectormapServerNode::resolve_map_path(const std::string& map_path)
 
 geometry_msgs::msg::TransformStamped VectormapServerNode::create_earth_to_map_transform() const
 {
-    // earth (ENU: x=East, y=North) -> map
-    // map の +x 軸は East から map_yaw_from_east_ [rad] だけ CCW に回転した方向
-    // earth フレームと map フレームは同一原点を持つため平行移動なし
-    // TF の回転: map フレームが earth フレームに対して map_yaw_from_east_ だけ z 軸回りに回転している
     const double half_yaw = map_yaw_from_east_ * 0.5;
 
     geometry_msgs::msg::TransformStamped transform;
     transform.header.stamp = this->now();
-    transform.header.frame_id = earth_frame_id_;
+    transform.header.frame_id = "earth";
     transform.child_frame_id = map_msg_.header.frame_id;
     transform.transform.translation.x = 0.0;
     transform.transform.translation.y = 0.0;
@@ -140,4 +132,4 @@ void VectormapServerNode::publish_callback()
     marker_array_publisher_->publish(marker_array_);
 }
 
-}  // namespace vectormap_server
+}

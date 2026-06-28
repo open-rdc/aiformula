@@ -76,4 +76,4 @@ private:
     IcpConfig config_;
 };
 
-}  // namespace localization
+}

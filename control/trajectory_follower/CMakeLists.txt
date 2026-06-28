@@ -9,7 +9,6 @@ find_package(ament_cmake_auto REQUIRED)
 ament_auto_find_build_dependencies()
 find_package(Eigen3 REQUIRED)
 
-# Server node library
 ament_auto_add_library(controller_server SHARED
   src/controller_server.cpp
 )
@@ -20,7 +19,6 @@ target_include_directories(controller_server PUBLIC
   $<INSTALL_INTERFACE:include>
 )
 
-# Pure Pursuit plugin library
 ament_auto_add_library(pure_pursuit_plugin SHARED
   src/plugins/pure_pursuit_plugin.cpp
 )
@@ -30,7 +28,6 @@ target_include_directories(pure_pursuit_plugin PUBLIC
   $<INSTALL_INTERFACE:include>
 )
 
-# PID(縦) + MPC(横) コア (ROS 非依存・単体テスト対象)
 ament_auto_add_library(pid_mpc_core SHARED
   src/mpc/longitudinal_pid.cpp
   src/mpc/lateral_mpc.cpp
@@ -43,7 +40,6 @@ target_include_directories(pid_mpc_core PUBLIC
 )
 target_link_libraries(pid_mpc_core Eigen3::Eigen)
 
-# PID(縦) + MPC(横) plugin library
 ament_auto_add_library(pid_mpc_plugin SHARED
   src/plugins/pid_mpc_plugin.cpp
 )

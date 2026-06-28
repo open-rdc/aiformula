@@ -9,18 +9,15 @@
 namespace zed_wrapper
 {
 
-// --- PIMPL body -----------------------------------------------------------
 struct ZedWrapperNode::Impl
 {
     sl::Camera           zed;
     sl::RuntimeParameters runtime_params;
 };
 
-// --- helpers --------------------------------------------------------------
 namespace
 {
 
-// ZED X が出力対応するセンサ解像度（HD720/VGA/HD2K は非対応）
 sl::RESOLUTION parse_resolution(const std::string & s)
 {
     if (s == "HD1200") { return sl::RESOLUTION::HD1200; }
@@ -30,7 +27,6 @@ sl::RESOLUTION parse_resolution(const std::string & s)
         "ZedWrapperNode: unsupported resolution for ZED X: " + s);
 }
 
-// ZED SDK 4.X の DEPTH_MODE 全選択肢
 sl::DEPTH_MODE parse_depth_mode(const std::string & s)
 {
     if (s == "NONE")        { return sl::DEPTH_MODE::NONE; }
@@ -43,12 +39,10 @@ sl::DEPTH_MODE parse_depth_mode(const std::string & s)
         "ZedWrapperNode: unsupported depth_mode: " + s);
 }
 
-// publish 解像度（ZED X 想定: 640x360 へリサイズ）
 const sl::Resolution kPublishResolution(640, 360);
 
-}  // namespace
+}
 
-// --- constructors / destructor --------------------------------------------
 ZedWrapperNode::ZedWrapperNode(const rclcpp::NodeOptions & options)
 : ZedWrapperNode("", options) {}
 
@@ -63,7 +57,6 @@ ZedWrapperNode::ZedWrapperNode(
     const auto   depth_mode = get_parameter("depth_mode").as_string();
     const int    confidence = get_parameter("confidence_threshold").as_int();
     const int    serial_num = get_parameter("serial_number").as_int();
-    camera_frame_id_        = get_parameter("camera_frame_id").as_string();
 
     if (grab_fps <= 0) {
         throw std::invalid_argument("ZedWrapperNode: grab_fps must be > 0");
@@ -107,7 +100,6 @@ ZedWrapperNode::~ZedWrapperNode()
     impl_->zed.close();
 }
 
-// --- timer callback -------------------------------------------------------
 void ZedWrapperNode::grab_callback()
 {
     const sl::ERROR_CODE ec = impl_->zed.grab(impl_->runtime_params);
@@ -124,7 +116,7 @@ void ZedWrapperNode::grab_callback()
     {
         sensor_msgs::msg::Image msg;
         msg.header.stamp    = stamp;
-        msg.header.frame_id = camera_frame_id_;
+        msg.header.frame_id = "camera_depth_link";
         msg.width    = static_cast<uint32_t>(left_image.getWidth());
         msg.height   = static_cast<uint32_t>(left_image.getHeight());
         msg.encoding = "bgra8";
@@ -135,17 +127,16 @@ void ZedWrapperNode::grab_callback()
         image_publisher_->publish(msg);
     }
 
-    // XYZRGBA point cloud
     sl::Mat pc_mat;
     impl_->zed.retrieveMeasure(pc_mat, sl::MEASURE::XYZRGBA, sl::MEM::CPU);
     {
         sensor_msgs::msg::PointCloud2 msg;
         msg.header.stamp    = stamp;
-        msg.header.frame_id = camera_frame_id_;
+        msg.header.frame_id = "camera_depth_link";
         msg.height     = static_cast<uint32_t>(pc_mat.getHeight());
         msg.width      = static_cast<uint32_t>(pc_mat.getWidth());
         msg.is_dense   = false;
-        msg.point_step = 16;  // 4 x float32: x, y, z, rgba
+        msg.point_step = 16;
         msg.row_step   = msg.point_step * msg.width;
 
         msg.fields.resize(4);
@@ -164,39 +155,32 @@ void ZedWrapperNode::grab_callback()
         pointcloud_publisher_->publish(msg);
     }
 
-    // Camera info (constant intrinsics, only stamp changes each frame)
     camera_info_cache_.header.stamp = stamp;
     camera_info_publisher_->publish(camera_info_cache_);
 }
 
-// --- camera info construction (called once after open) --------------------
 sensor_msgs::msg::CameraInfo ZedWrapperNode::build_camera_info()
 {
-    // 取得サイズ（=publish サイズ）に合わせて intrinsics をスケール済みで取得
     const sl::CameraInformation cam_info = impl_->zed.getCameraInformation(kPublishResolution);
     const auto & calib = cam_info.camera_configuration.calibration_parameters.left_cam;
     const auto & res   = kPublishResolution;
 
     sensor_msgs::msg::CameraInfo msg;
-    msg.header.frame_id  = camera_frame_id_;
+    msg.header.frame_id  = "camera_depth_link";
     msg.width            = static_cast<uint32_t>(res.width);
     msg.height           = static_cast<uint32_t>(res.height);
     msg.distortion_model = "plumb_bob";
 
-    // D: k1, k2, p1, p2, k3
     msg.d = {calib.disto[0], calib.disto[1], calib.disto[2], calib.disto[3], calib.disto[4]};
 
-    // K: row-major 3x3
     msg.k = {
         calib.fx, 0.0,      calib.cx,
         0.0,      calib.fy, calib.cy,
         0.0,      0.0,      1.0
     };
 
-    // R: identity (images are already rectified by ZED SDK)
     msg.r = {1.0, 0.0, 0.0,  0.0, 1.0, 0.0,  0.0, 0.0, 1.0};
 
-    // P: row-major 3x4
     msg.p = {
         calib.fx, 0.0,      calib.cx, 0.0,
         0.0,      calib.fy, calib.cy, 0.0,
@@ -206,4 +190,4 @@ sensor_msgs::msg::CameraInfo ZedWrapperNode::build_camera_info()
     return msg;
 }
 
-}  // namespace zed_wrapper
+}

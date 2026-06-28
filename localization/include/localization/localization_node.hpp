@@ -46,7 +46,6 @@ private:
 
     void rebuild_map_points(const vectormap_msgs::msg::VectorMap& map_msg);
 
-    // lat/lon → ENU → map 座標変換。GNSS fix 未取得の場合は false を返す
     bool gnss_to_map_pose(
         const sensor_msgs::msg::NavSatFix& gnss_msg,
         const sensor_msgs::msg::Imu& imu_msg,
@@ -70,11 +69,6 @@ private:
         float r, float g, float b) const;
 
     const int update_period_ms_;
-    const std::string map_frame_id_;
-    const std::string base_frame_id_;
-    const std::string localized_pose_topic_;
-    const std::string raw_pose_topic_;
-    const std::string velocity_topic_;
     const std::string imu_yaw_convention_;
     const double map_origin_lat_;
     const double map_origin_lon_;
@@ -116,4 +110,4 @@ private:
     rclcpp::TimerBase::SharedPtr timer_;
 };
 
-}  // namespace localization
+}

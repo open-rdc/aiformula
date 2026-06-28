@@ -132,7 +132,6 @@ bool EkfLocalizer::update_position(
     const Eigen::Matrix2d innovation_covariance =
         observation * covariance_ * observation.transpose() + measurement_noise;
 
-    // Mahalanobis gate: reject outliers before applying update
     const double mahalanobis_sq =
         residual.transpose() * innovation_covariance.inverse() * residual;
     if (std::sqrt(mahalanobis_sq) > config_.position_gate_dist) {
@@ -168,7 +167,6 @@ bool EkfLocalizer::update_yaw(
     const double innovation_covariance =
         (observation * covariance_ * observation.transpose())(0, 0) + variance;
 
-    // Mahalanobis gate: reject outliers before applying update
     const double mahalanobis_sq = residual * residual / innovation_covariance;
     if (std::sqrt(mahalanobis_sq) > config_.yaw_gate_dist) {
         return false;
@@ -238,4 +236,4 @@ void EkfLocalizer::validate_variance(
     }
 }
 
-}  // namespace localization
+}

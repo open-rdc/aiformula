@@ -28,8 +28,6 @@ ObjectDetectorNode::ObjectDetectorNode(
     const std::string& name_space,
     const rclcpp::NodeOptions& options)
 : rclcpp::Node("object_detector_node", name_space, options),
-  map_frame_id_(get_parameter("map_frame_id").as_string()),
-  base_frame_id_(get_parameter("base_frame_id").as_string()),
   ground_z_threshold_m_(get_parameter("ground_z_threshold_m").as_double()),
   voxel_leaf_size_m_(get_parameter("voxel_leaf_size_m").as_double()),
   cluster_tolerance_m_(get_parameter("cluster_tolerance_m").as_double()),
@@ -69,16 +67,15 @@ void ObjectDetectorNode::pointcloud_callback(const sensor_msgs::msg::PointCloud2
         msg->header.frame_id.c_str(), msg->width, msg->height,
         static_cast<std::size_t>(msg->width) * msg->height);
 
-    // Step 1: Transform PointCloud2 from camera frame to base_link frame
     geometry_msgs::msg::TransformStamped tf_to_base;
     try {
         tf_to_base = tf_buffer_->lookupTransform(
-            base_frame_id_, msg->header.frame_id, rclcpp::Time(0));
+            "base_link", msg->header.frame_id, rclcpp::Time(0));
     } catch (const tf2::TransformException& ex) {
         RCLCPP_WARN(
             get_logger(),
             "TF lookup failed (%s -> %s): %s",
-            msg->header.frame_id.c_str(), base_frame_id_.c_str(), ex.what());
+            msg->header.frame_id.c_str(), "base_link", ex.what());
         return;
     }
 
@@ -94,7 +91,6 @@ void ObjectDetectorNode::pointcloud_callback(const sensor_msgs::msg::PointCloud2
         return;
     }
 
-    // Ground filter: keep points above ground_z_threshold_m in base_link frame
     pcl::PointCloud<pcl::PointXYZ>::Ptr filtered(new pcl::PointCloud<pcl::PointXYZ>);
     {
         pcl::PassThrough<pcl::PointXYZ> pass;
@@ -120,7 +116,6 @@ void ObjectDetectorNode::pointcloud_callback(const sensor_msgs::msg::PointCloud2
         return;
     }
 
-    // VoxelGrid downsampling
     pcl::PointCloud<pcl::PointXYZ>::Ptr voxeled(new pcl::PointCloud<pcl::PointXYZ>);
     {
         pcl::VoxelGrid<pcl::PointXYZ> vg;
@@ -141,7 +136,6 @@ void ObjectDetectorNode::pointcloud_callback(const sensor_msgs::msg::PointCloud2
         return;
     }
 
-    // Euclidean Cluster Extraction
     pcl::search::KdTree<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ>);
     tree->setInputCloud(voxeled);
     std::vector<pcl::PointIndices> cluster_indices;
@@ -170,22 +164,21 @@ void ObjectDetectorNode::pointcloud_callback(const sensor_msgs::msg::PointCloud2
         return;
     }
 
-    // Step 2: Lookup TF for centroid transform: base_link -> map
     geometry_msgs::msg::TransformStamped tf_to_map;
     try {
         tf_to_map = tf_buffer_->lookupTransform(
-            map_frame_id_, base_frame_id_, rclcpp::Time(0));
+            "map", "base_link", rclcpp::Time(0));
     } catch (const tf2::TransformException& ex) {
         RCLCPP_WARN(
             get_logger(),
             "TF lookup failed (%s -> %s): %s",
-            base_frame_id_.c_str(), map_frame_id_.c_str(), ex.what());
+            "base_link", "map", ex.what());
         return;
     }
 
     object_detection_msgs::msg::ObjectInfoArray objects_msg;
     objects_msg.header.stamp = msg->header.stamp;
-    objects_msg.header.frame_id = map_frame_id_;
+    objects_msg.header.frame_id = "map";
 
     visualization_msgs::msg::MarkerArray marker_array;
 
@@ -210,10 +203,9 @@ void ObjectDetectorNode::pointcloud_callback(const sensor_msgs::msg::PointCloud2
         const double count = static_cast<double>(indices.indices.size());
         const float width = std::max(max_x - min_x, max_y - min_y);
 
-        // Transform centroid from base_link to map frame
         geometry_msgs::msg::PointStamped centroid_base;
         centroid_base.header.stamp = msg->header.stamp;
-        centroid_base.header.frame_id = base_frame_id_;
+        centroid_base.header.frame_id = "base_link";
         centroid_base.point.x = sum_x / count;
         centroid_base.point.y = sum_y / count;
         centroid_base.point.z = 0.0;
@@ -233,7 +225,7 @@ void ObjectDetectorNode::pointcloud_callback(const sensor_msgs::msg::PointCloud2
 
         visualization_msgs::msg::Marker marker;
         marker.header.stamp = msg->header.stamp;
-        marker.header.frame_id = map_frame_id_;
+        marker.header.frame_id = "map";
         marker.ns = "objects";
         marker.id = static_cast<int32_t>(id);
         marker.type = visualization_msgs::msg::Marker::CYLINDER;
@@ -263,11 +255,11 @@ void ObjectDetectorNode::publish_empty(const rclcpp::Time& stamp)
 {
     object_detection_msgs::msg::ObjectInfoArray objects_msg;
     objects_msg.header.stamp = stamp;
-    objects_msg.header.frame_id = map_frame_id_;
+    objects_msg.header.frame_id = "map";
     objects_publisher_->publish(objects_msg);
 
     visualization_msgs::msg::MarkerArray marker_array;
     marker_publisher_->publish(marker_array);
 }
 
-}  // namespace object_detector
+}

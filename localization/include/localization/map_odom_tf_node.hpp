@@ -34,10 +34,6 @@ private:
 
     const int publish_period_ms_;
     const double stale_warn_timeout_s_;
-    const std::string map_frame_id_;
-    const std::string odom_frame_id_;
-    const std::string base_frame_id_;
-    const std::string localized_pose_topic_;
     const rclcpp::QoS qos_;
 
     geometry_msgs::msg::TransformStamped cached_transform_;
@@ -52,4 +48,4 @@ private:
     rclcpp::TimerBase::SharedPtr timer_;
 };
 
-}  // namespace localization
+}

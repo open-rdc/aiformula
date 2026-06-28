@@ -15,25 +15,9 @@ ControllerServer::ControllerServer(
     const std::string & name_space,
     const rclcpp::NodeOptions & options)
 : rclcpp::Node("controller_server_node", name_space, options),
-  path_topic_(get_parameter("path_topic").as_string()),
-  pose_topic_(get_parameter("pose_topic").as_string()),
-  velocity_topic_(get_parameter("velocity_topic").as_string()),
-  autonomous_topic_(get_parameter("autonomous_topic").as_string()),
-  cmd_vel_topic_(get_parameter("cmd_vel_topic").as_string()),
-  target_pose_topic_(get_parameter("target_pose_topic").as_string()),
-  map_frame_id_(get_parameter("map_frame_id").as_string()),
-  base_frame_id_(get_parameter("base_frame_id").as_string()),
   control_period_ms_(get_parameter("control_period_ms").as_int()),
   plugin_loader_("trajectory_follower", "trajectory_follower::ControllerPlugin")
 {
-    if (path_topic_.empty() || pose_topic_.empty() || velocity_topic_.empty() ||
-        autonomous_topic_.empty() || cmd_vel_topic_.empty() || target_pose_topic_.empty())
-    {
-        throw std::invalid_argument("controller server topic parameters must not be empty");
-    }
-    if (map_frame_id_.empty() || base_frame_id_.empty()) {
-        throw std::invalid_argument("controller server frame parameters must not be empty");
-    }
     if (control_period_ms_ <= 0) {
         throw std::invalid_argument("control_period_ms must be greater than 0");
     }
@@ -48,24 +32,24 @@ ControllerServer::ControllerServer(
 
     const rclcpp::QoS qos(10);
     path_subscription_ = create_subscription<nav_msgs::msg::Path>(
-        path_topic_, qos,
+        "/planner/local_path", qos,
         std::bind(&ControllerServer::path_callback, this, std::placeholders::_1));
     pose_subscription_ =
         create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>(
-            pose_topic_, qos,
+            "/localization/pose", qos,
             std::bind(&ControllerServer::pose_callback, this, std::placeholders::_1));
     velocity_subscription_ =
         create_subscription<geometry_msgs::msg::TwistWithCovarianceStamped>(
-            velocity_topic_, qos,
+            "/vectornav/velocity_body", qos,
             std::bind(&ControllerServer::velocity_callback, this, std::placeholders::_1));
     autonomous_subscription_ = create_subscription<std_msgs::msg::Bool>(
-        autonomous_topic_, qos,
+        "/autonomous", qos,
         std::bind(
             &ControllerServer::autonomous_callback, this, std::placeholders::_1));
     command_publisher_ =
-        create_publisher<steered_drive_msg::msg::SteeredDrive>(cmd_vel_topic_, qos);
+        create_publisher<steered_drive_msg::msg::SteeredDrive>("/cmd_vel", qos);
     target_pose_publisher_ =
-        create_publisher<geometry_msgs::msg::PoseStamped>(target_pose_topic_, qos);
+        create_publisher<geometry_msgs::msg::PoseStamped>("/vectormap_control/target_pose", qos);
 
     timer_ = create_wall_timer(
         std::chrono::milliseconds(control_period_ms_),
@@ -77,8 +61,6 @@ void ControllerServer::path_callback(const nav_msgs::msg::Path::SharedPtr msg)
     if (!msg) {
         throw std::runtime_error("path message must not be null");
     }
-    // Decouple control rate from planning rate: only cache the latest path here,
-    // and let timer_callback compute commands at a fixed control frequency.
     std::lock_guard<std::mutex> lock(data_mutex_);
     latest_path_ = msg;
 }
@@ -110,7 +92,7 @@ void ControllerServer::timer_callback()
         RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000, "received empty local path");
         return;
     }
-    if (path->header.frame_id == map_frame_id_ && !latest_pose) {
+    if (path->header.frame_id == "map" && !latest_pose) {
         RCLCPP_WARN_THROTTLE(
             get_logger(), *get_clock(), 1000,
             "waiting for localization pose before tracking map-frame path");
@@ -118,11 +100,9 @@ void ControllerServer::timer_callback()
     }
 
     nav_msgs::msg::Path path_in_base;
-    if (path->header.frame_id == base_frame_id_) {
+    if (path->header.frame_id == "base_link") {
         path_in_base = *path;
-    } else if (path->header.frame_id == map_frame_id_) {
-        // Re-transform the cached map-frame path using the latest pose so that
-        // tracking stays correct even when control runs faster than planning.
+    } else if (path->header.frame_id == "map") {
         path_in_base = transform_path_to_base(*path, *latest_pose);
     } else {
         RCLCPP_WARN_THROTTLE(
@@ -139,7 +119,7 @@ void ControllerServer::timer_callback()
 
     command_publisher_->publish(*command);
     target_pose.header.stamp = now();
-    target_pose.header.frame_id = base_frame_id_;
+    target_pose.header.frame_id = "base_link";
     target_pose_publisher_->publish(target_pose);
 }
 
@@ -149,10 +129,9 @@ void ControllerServer::pose_callback(
     if (!msg) {
         throw std::runtime_error("localization pose message must not be null");
     }
-    if (msg->header.frame_id != map_frame_id_) {
+    if (msg->header.frame_id != "map") {
         throw std::runtime_error(
-            "localization pose frame_id must be " + map_frame_id_ +
-            ", got " + msg->header.frame_id);
+            "localization pose frame_id must be map, got " + msg->header.frame_id);
     }
     std::lock_guard<std::mutex> lock(data_mutex_);
     latest_pose_ = msg;
@@ -188,7 +167,7 @@ nav_msgs::msg::Path ControllerServer::transform_path_to_base(
     const double ego_y = ego_pose.pose.pose.position.y;
 
     nav_msgs::msg::Path path_in_base;
-    path_in_base.header.frame_id = base_frame_id_;
+    path_in_base.header.frame_id = "base_link";
     path_in_base.header.stamp = path.header.stamp;
     path_in_base.poses.reserve(path.poses.size());
 
@@ -213,4 +192,4 @@ double ControllerServer::yaw_from_quaternion(const geometry_msgs::msg::Quaternio
     return std::atan2(siny_cosp, cosy_cosp);
 }
 
-}  // namespace trajectory_follower
+}

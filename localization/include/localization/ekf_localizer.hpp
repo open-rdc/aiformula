@@ -22,7 +22,6 @@ struct EkfLocalizerConfig
     double gnss_position_variance;
     double imu_yaw_variance;
     double icp_position_variance;
-    // Mahalanobis gate: reject updates whose distance exceeds this threshold
     double position_gate_dist;
     double yaw_gate_dist;
 };
@@ -41,7 +40,6 @@ public:
         double yaw_rate,
         const rclcpp::Time& stamp);
     void predict(double velocity, double yaw_rate, const rclcpp::Time& stamp);
-    // Returns true if the update was accepted, false if rejected by the Mahalanobis gate
     bool update_position(double x, double y, double variance);
     bool update_yaw(double yaw, double variance);
 
@@ -61,4 +59,4 @@ private:
     bool initialized_;
 };
 
-}  // namespace localization
+}

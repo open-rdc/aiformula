@@ -35,7 +35,6 @@ private:
 
     const std::string map_path_;
     const int64_t publish_period_ms_;
-    const std::string earth_frame_id_;
     const std::string map_axis_convention_;
     const double map_origin_pixel_x_;
     const double map_origin_pixel_y_;
@@ -54,4 +53,4 @@ private:
     rclcpp::TimerBase::SharedPtr timer_;
 };
 
-}  // namespace vectormap_server
+}

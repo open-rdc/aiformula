@@ -47,14 +47,6 @@ private:
 
     static double yaw_from_quaternion(const geometry_msgs::msg::Quaternion & q);
 
-    const std::string path_topic_;
-    const std::string pose_topic_;
-    const std::string velocity_topic_;
-    const std::string autonomous_topic_;
-    const std::string cmd_vel_topic_;
-    const std::string target_pose_topic_;
-    const std::string map_frame_id_;
-    const std::string base_frame_id_;
     const int control_period_ms_;
 
     pluginlib::ClassLoader<ControllerPlugin> plugin_loader_;
@@ -77,4 +69,4 @@ private:
     rclcpp::TimerBase::SharedPtr timer_;
 };
 
-}  // namespace trajectory_follower
+}
