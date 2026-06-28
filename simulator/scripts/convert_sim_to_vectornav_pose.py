@@ -39,7 +39,6 @@ class SimVectornavConverter(Node):
             f"/vectornav/imu, /vectornav/gnss, /vectornav/pose を配信します"
         )
 
-    # ------------------------------------------------------------------
     def _imu_callback(self, msg: Imu):
         out = Imu()
         out.header = msg.header
@@ -78,7 +77,6 @@ class SimVectornavConverter(Node):
 
         self._pose_pub.publish(pose)
 
-    # ------------------------------------------------------------------
     @staticmethod
     def _apply_yaw_offset(quaternion, yaw_degrees):
         rot = Rotation.from_quat(quaternion)

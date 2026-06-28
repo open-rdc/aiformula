@@ -28,13 +28,10 @@ def generate_launch_description():
         executable='parameter_bridge',
         arguments=[
             '/clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock',
-            # RGB camera (color image only)
             '/camera_info@sensor_msgs/msg/CameraInfo@gz.msgs.CameraInfo',
             '/image_raw@sensor_msgs/msg/Image@gz.msgs.Image',
-            # Depth camera (depth image and point cloud only)
             '/depth_image_raw/depth_image@sensor_msgs/msg/Image@gz.msgs.Image',
             '/depth_image_raw/points@sensor_msgs/msg/PointCloud2@gz.msgs.PointCloudPacked',
-            # Other sensors
             '/odom@nav_msgs/msg/Odometry@gz.msgs.Odometry',
             '/navsat@sensor_msgs/msg/NavSatFix@gz.msgs.NavSat',
             '/imu_raw@sensor_msgs/msg/Imu@gz.msgs.IMU',
@@ -44,7 +41,6 @@ def generate_launch_description():
             ('/image_raw', '/zed/zed_node/rgb/image_rect_color'),
             ('/depth_image', '/zed/zed_node/depth/depth_registered'),
             ('/depth_image_raw/points', '/zed/zed_node/pointcloud'),
-            # ('/imu_raw', '/vectornav/imu')
         ]
     )
 
