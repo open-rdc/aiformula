@@ -57,9 +57,9 @@ void ColorControl::PreUpdate(const UpdateInfo &_info,
   const double b = 0.0;
   std::string color = "";
 
-  if ((frameCount / 100) % 2 == 0){
+  if ((frameCount / 2000) % 2 == 0){
     r = 1.0;
-    g = 1.0;
+    g = 0.0;
     color = "Red";
   }else{
     r = 0.0;

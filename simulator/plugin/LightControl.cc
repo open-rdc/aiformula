@@ -26,8 +26,12 @@ void LightControl::FindLightEntities(EntityComponentManager &_ecm)
           const components::Light *,
           const components::Name *_name) -> bool
       {
-        this->lightEntites.push_back(_entity);
-        return true;
+        if (_name->Data() == "led")
+        {
+          this->lightEntites.push_back(_entity);
+          return true;
+        }
+        return false;
       });
 }
 
@@ -38,18 +42,24 @@ void LightControl::PreUpdate(const UpdateInfo &_info,
   if (_info.paused)
     return;
 
-  this->time += std::chrono::duration_cast<std::chrono::duration<double>>(
-                    _info.dt)
-                    .count();
+  static uint64_t frameCount = 0;
+  frameCount++;
 
   this->FindLightEntities(_ecm);
   if (this->lightEntites.empty())
     return;
 
   // Animated RGB in [0,1]
-  const double r = 0.5 * (1.0 + std::sin(this->time * 0.5));
-  const double g = 0.5 * (1.0 + std::sin(this->time * 0.5 + 2.0));
-  const double b = 0.5 * (1.0 + std::sin(this->time * 0.5 + 4.0));
+  double r = 0.0;
+  double g = 0.0;
+  const double b = 0.0;
+  if ((frameCount / 2000) % 2 == 0){
+    r = 1.0;
+    g = 0.0;
+  }else{
+    r = 0.0;
+    g = 1.0;
+  } 
   ignition::math::Color newColor(r, g, b, 1.0);
 
   for (const Entity e : this->lightEntites)
