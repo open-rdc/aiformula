@@ -22,6 +22,7 @@ public:
   void PreUpdate(const UpdateInfo &_info, EntityComponentManager &_ecm) override;
 
 private:
+  Entity modelEntity{kNullEntity};
   // Function to find the color entity by name
   void FindColorEntities(EntityComponentManager &_ecm);
 
