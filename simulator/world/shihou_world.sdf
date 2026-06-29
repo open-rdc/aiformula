@@ -49,6 +49,10 @@
             filename="ignition-gazebo-navsat-system"
             name="ignition::gazebo::systems::NavSat">
         </plugin>
+
+        <plugin filename="LightControl"
+            name="ignition::gazebo::LightControl">
+        </plugin>
         
 
         <light type="directional" name="sun">
@@ -137,7 +141,7 @@
           </link>
         </model> -->
 	    <model name="panel">
-          <pose>0.0 0.0 0.5 0.0 0.0 0.0</pose>
+          <pose>0.0 0.0 0.5 0.0 0.0 3.14</pose>
           <static>true</static>
           <link name="link">
             <visual name="visual">
@@ -147,68 +151,35 @@
                   <scale>1 1 1</scale>
                 </mesh>
               </geometry>
-      
-	      
-
             </visual>
     
-            <light type="spot" name="red_led_source"> <pose>0 -0.3 0.3 -1.57 0 0</pose> 
-  
-            <diffuse>1.0 0.0 0.0 1.0</diffuse>
-            <specular>1.0 0.0 0.0 1.0</specular>
-  
-            <attenuation>
-                <range>10.0</range>
-                <linear>0.05</linear>
-                <constant>0.01</constant>
-                <quadratic>0.1</quadratic>
-            </attenuation>
-  
-            <spot>
-                <inner_angle>1.0</inner_angle>
-                <outer_angle>1.5</outer_angle>
-                <falloff>1.0</falloff>
-            </spot>
-  
-            <cast_shadows>true</cast_shadows>
+            <light type="spot" name="led"> 
+                <pose>0 -0.3 0.3 -1.57 0 0</pose> 
+                <diffuse>1.0 0.0 0.0 1.0</diffuse>
+                <specular>1.0 0.0 0.0 1.0</specular>
+                <attenuation>
+                    <range>10.0</range>
+                    <linear>0.05</linear>
+                    <constant>0.01</constant>
+                    <quadratic>0.1</quadratic>
+                </attenuation>
+                <spot>
+                    <inner_angle>1.0</inner_angle>
+                    <outer_angle>1.5</outer_angle>
+                    <falloff>1.0</falloff>
+                </spot>
+                <cast_shadows>true</cast_shadows>
             </light>
           </link>
         </model>
-        <plugin filename="LightControl"
-            name="ignition::gazebo::LightControl">
-    </plugin>
 
-    <light type="point" name="disco_light">
-      <pose>0 0 2 0 0 0</pose>
-      <diffuse>1.0 1.0 1.0 1.0</diffuse>
-      <specular>0.5 0.5 0.5 1.0</specular>
-      <attenuation>
-        <range>20</range>
-        <linear>0.2</linear>
-        <constant>0.5</constant>
-        <quadratic>0.01</quadratic>
-      </attenuation>
-      <cast_shadows>true</cast_shadows>
-    </light>
-        <!-- <model name="light">
-            <static>true</static>
-            <link name="link">
-            <visual name="visual">
-                <geometry>
-                    <box>
-                        
-                    </box>
-                </geometry>
-            </visual>
-            </link>
-        </model> -->
         <include>
             <uri>package://simulator/models/ai_car1/model.sdf</uri>
             <pose>0 0.0 0 0 0 -1.5</pose>
         </include>
         <include>
             <uri>package://simulator/models/ai_car1/box.sdf</uri>
-            <pose>0 -0.0 0.5 0 0 0</pose>
+            <pose>0 -0.0 0.5 0 0 3.14</pose>
         </include>
 
     <!-- 用調整 -->
