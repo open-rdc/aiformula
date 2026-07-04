@@ -1,5 +1,5 @@
 
-FROM kyo0221/cudagl:12.6.0-devel-ubuntu22.04-torch-humble
+FROM kyo0221/cudagl:12.8.1-devel-ubuntu22.04-torch-humble
 
 ENV USER_NAME=nvidia
 ENV MYWORKSPACE_NAME=formula_ws
