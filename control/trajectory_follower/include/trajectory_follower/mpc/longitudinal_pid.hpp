@@ -14,7 +14,6 @@ struct LongitudinalParams
     double ki = 0.1;
     double kd = 0.0;
     double lpf_vel_error_gain = 0.9;
-    double stop_distance = 0.5;
     double dt = 0.05;
 };
 
@@ -28,10 +27,6 @@ public:
     double update(double v_ref, double v_meas);
 
     void reset();
-
-    double commandedVelocity() const { return v_cmd_; }
-    double commandedAcceleration() const { return prev_a_cmd_; }
-    double integral() const { return integral_; }
 
 private:
     LongitudinalParams p_{};

@@ -35,12 +35,6 @@ private:
 
     const std::string map_path_;
     const int64_t publish_period_ms_;
-    const std::string map_axis_convention_;
-    const double map_origin_pixel_x_;
-    const double map_origin_pixel_y_;
-    const double meter_per_pixel_;
-    const double map_origin_lat_;
-    const double map_origin_lon_;
     const double map_yaw_from_east_;
     const rclcpp::QoS qos_;
 

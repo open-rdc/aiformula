@@ -24,26 +24,11 @@ VectormapServerNode::VectormapServerNode(
 : rclcpp::Node("vectormap_server_node", name_space, options),
   map_path_(get_parameter("map_path").as_string()),
   publish_period_ms_(get_parameter("publish_period_ms").as_int()),
-  map_axis_convention_(get_parameter("map_axis_convention").as_string()),
-  map_origin_pixel_x_(get_parameter("map_origin_pixel.x").as_double()),
-  map_origin_pixel_y_(get_parameter("map_origin_pixel.y").as_double()),
-  meter_per_pixel_(get_parameter("meter_per_pixel").as_double()),
-  map_origin_lat_(get_parameter("map_origin_geodetic.latitude").as_double()),
-  map_origin_lon_(get_parameter("map_origin_geodetic.longitude").as_double()),
   map_yaw_from_east_(get_parameter("map_yaw_from_east").as_double()),
   qos_(rclcpp::QoS(10))
 {
     if (publish_period_ms_ <= 0) {
         throw std::invalid_argument("publish_period_ms must be greater than 0");
-    }
-    if (meter_per_pixel_ <= 0.0) {
-        throw std::invalid_argument("meter_per_pixel must be greater than 0");
-    }
-    if (map_axis_convention_ != "image_x_right_y_up") {
-        throw std::invalid_argument("map_axis_convention must be image_x_right_y_up");
-    }
-    if (!std::isfinite(map_origin_lat_) || !std::isfinite(map_origin_lon_)) {
-        throw std::invalid_argument("map_origin_geodetic latitude and longitude must be finite");
     }
     if (!std::isfinite(map_yaw_from_east_)) {
         throw std::invalid_argument("map_yaw_from_east must be finite");

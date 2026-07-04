@@ -50,9 +50,6 @@ MissionPlannerNode::MissionPlannerNode(
   qos_(rclcpp::QoS(10)),
   map_ready_(false),
   global_path_ready_(false),
-  route_is_loop_(false),
-  pending_route_rebuild_(false),
-  pending_route_rebuild_reason_(""),
   last_nav_cmd_turn_(vectormap_msgs::msg::LaneConnection::TURN_STRAIGHT)
 {
     if (update_period_ms_ <= 0) {
@@ -243,14 +240,6 @@ void MissionPlannerNode::timer_callback()
             return;
         }
         global_path_publisher_->publish(make_global_path_message(now()));
-        return;
-    }
-
-    if (pending_route_rebuild_) {
-        rebuild_route_from_pose(ego, pending_route_rebuild_reason_);
-        global_path_publisher_->publish(make_global_path_message(now()));
-        pending_route_rebuild_ = false;
-        pending_route_rebuild_reason_.clear();
         return;
     }
 

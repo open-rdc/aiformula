@@ -31,8 +31,6 @@ public:
     explicit IcpTargetMap(std::vector<Eigen::Vector2d> points);
 
     bool empty() const;
-    std::size_t size() const;
-    const std::vector<Eigen::Vector2d>& points() const;
 
     bool nearest(
         const Eigen::Vector2d& query,
