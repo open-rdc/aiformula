@@ -222,7 +222,7 @@ LocalizationNode::LocalizationNode(
         std::bind(&LocalizationNode::mask_callback, this, std::placeholders::_1));
     vector_map_subscription_ = this->create_subscription<vectormap_msgs::msg::VectorMap>(
         "/vector_map",
-        qos_,
+        rclcpp::QoS(1).transient_local(),
         std::bind(&LocalizationNode::vector_map_callback, this, std::placeholders::_1));
     gnss_subscription_ = this->create_subscription<sensor_msgs::msg::NavSatFix>(
         "/vectornav/gnss",

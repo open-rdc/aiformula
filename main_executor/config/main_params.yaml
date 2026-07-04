@@ -34,7 +34,6 @@ controller_node:
 vectormap_server_node:
   ros__parameters:
     map_path : "aiformula_course.osm"
-    publish_period_ms : 1000
     map_yaw_from_east : 0.02686650
 
 localization_node:

@@ -4,7 +4,6 @@
 
 #include <cmath>
 #include <filesystem>
-#include <functional>
 #include <stdexcept>
 
 #include "vectormap_server/osm_parser.hpp"
@@ -23,13 +22,8 @@ VectormapServerNode::VectormapServerNode(
     const rclcpp::NodeOptions& options)
 : rclcpp::Node("vectormap_server_node", name_space, options),
   map_path_(get_parameter("map_path").as_string()),
-  publish_period_ms_(get_parameter("publish_period_ms").as_int()),
-  map_yaw_from_east_(get_parameter("map_yaw_from_east").as_double()),
-  qos_(rclcpp::QoS(10))
+  map_yaw_from_east_(get_parameter("map_yaw_from_east").as_double())
 {
-    if (publish_period_ms_ <= 0) {
-        throw std::invalid_argument("publish_period_ms must be greater than 0");
-    }
     if (!std::isfinite(map_yaw_from_east_)) {
         throw std::invalid_argument("map_yaw_from_east must be finite");
     }
@@ -39,14 +33,13 @@ VectormapServerNode::VectormapServerNode(
     marker_array_ = create_vector_map_marker_array(map_msg_);
     static_tf_broadcaster_ = std::make_shared<tf2_ros::StaticTransformBroadcaster>(this);
 
-    vector_map_publisher_ = this->create_publisher<vectormap_msgs::msg::VectorMap>("vector_map", qos_);
-    marker_array_publisher_ =
-        this->create_publisher<visualization_msgs::msg::MarkerArray>("vector_map/visualize", qos_);
+    vector_map_publisher_ = this->create_publisher<vectormap_msgs::msg::VectorMap>(
+        "vector_map", rclcpp::QoS(1).transient_local());
+    marker_array_publisher_ = this->create_publisher<visualization_msgs::msg::MarkerArray>(
+        "vector_map/visualize", rclcpp::QoS(1).transient_local());
 
-    timer_ = this->create_wall_timer(
-        std::chrono::milliseconds(publish_period_ms_),
-        std::bind(&VectormapServerNode::publish_callback, this));
     publish_static_transforms();
+    publish_map();
 
     RCLCPP_INFO(
         this->get_logger(),
@@ -107,7 +100,7 @@ void VectormapServerNode::publish_static_transforms()
         map_yaw_from_east_ * 180.0 / M_PI);
 }
 
-void VectormapServerNode::publish_callback()
+void VectormapServerNode::publish_map()
 {
     const auto stamp = this->now();
     map_msg_.header.stamp = stamp;
