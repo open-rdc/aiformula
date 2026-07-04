@@ -1,6 +1,5 @@
 #pragma once
 
-#include <chrono>
 #include <memory>
 #include <string>
 
@@ -31,12 +30,10 @@ private:
 
     geometry_msgs::msg::TransformStamped create_earth_to_map_transform() const;
     void publish_static_transforms();
-    void publish_callback();
+    void publish_map();
 
     const std::string map_path_;
-    const int64_t publish_period_ms_;
     const double map_yaw_from_east_;
-    const rclcpp::QoS qos_;
 
     vectormap_msgs::msg::VectorMap map_msg_;
     visualization_msgs::msg::MarkerArray marker_array_;
@@ -44,7 +41,6 @@ private:
     std::shared_ptr<tf2_ros::StaticTransformBroadcaster> static_tf_broadcaster_;
     rclcpp::Publisher<vectormap_msgs::msg::VectorMap>::SharedPtr vector_map_publisher_;
     rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr marker_array_publisher_;
-    rclcpp::TimerBase::SharedPtr timer_;
 };
 
 }

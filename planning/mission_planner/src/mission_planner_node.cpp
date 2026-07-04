@@ -82,7 +82,7 @@ MissionPlannerNode::MissionPlannerNode(
 
     vector_map_subscription_ = create_subscription<vectormap_msgs::msg::VectorMap>(
         "/vector_map",
-        qos_,
+        rclcpp::QoS(1).transient_local(),
         std::bind(&MissionPlannerNode::vector_map_callback, this, std::placeholders::_1));
     pose_subscription_ = create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>(
         "/localization/pose",
