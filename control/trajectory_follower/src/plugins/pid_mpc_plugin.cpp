@@ -63,7 +63,6 @@ void PidMpcPlugin::initialize(
     lon.ki = get_d("mpc.longitudinal.ki", 0.1);
     lon.kd = get_d("mpc.longitudinal.kd", 0.0);
     lon.lpf_vel_error_gain = get_d("mpc.longitudinal.lpf_vel_error_gain", 0.9);
-    lon.stop_distance = get_d("mpc.longitudinal.stop_distance", 0.5);
     lon.dt = dt;
     longitudinal_.configure(lon);
 

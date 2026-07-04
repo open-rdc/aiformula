@@ -49,8 +49,7 @@ double point_segment_distance_sq(
 MissionPlannerNode::PathPoint interpolate_raw_path(
     const std::vector<MissionPlannerNode::Point2D>& points,
     const std::vector<double>& s_values,
-    const double target_s,
-    const uint64_t lanelet_id)
+    const double target_s)
 {
     if (points.size() != s_values.size() || points.size() < 2U) {
         throw std::runtime_error("raw path is invalid");
@@ -72,7 +71,7 @@ MissionPlannerNode::PathPoint interpolate_raw_path(
     const double x = start.x + ratio * (end.x - start.x);
     const double y = start.y + ratio * (end.y - start.y);
     const double yaw = std::atan2(end.y - start.y, end.x - start.x);
-    return MissionPlannerNode::PathPoint{clamped_s, x, y, yaw, lanelet_id};
+    return MissionPlannerNode::PathPoint{x, y, yaw};
 }
 
 }
@@ -212,8 +211,6 @@ void MissionPlannerNode::build_route_from_lanelet_ids(
 
     std::vector<Point2D> route_points;
     std::vector<double> raw_s;
-    lanelet_ranges_.clear();
-    route_is_loop_ = false;
     route_points.reserve(route_lanelet_ids.size() * 16U);
 
     double accumulated_s = 0.0;
@@ -255,7 +252,6 @@ void MissionPlannerNode::build_route_from_lanelet_ids(
             }
         }
 
-        const double lanelet_start_s = accumulated_s;
         for (const auto& point : centerline_points) {
             if (!route_points.empty()) {
                 const double ds = distance_2d(route_points.back(), point);
@@ -267,7 +263,6 @@ void MissionPlannerNode::build_route_from_lanelet_ids(
             route_points.push_back(point);
             raw_s.push_back(accumulated_s);
         }
-        lanelet_ranges_.push_back(LaneletRange{lanelet_id, lanelet_start_s, accumulated_s});
     }
 
     if (route_points.size() < 2U) {
@@ -277,14 +272,14 @@ void MissionPlannerNode::build_route_from_lanelet_ids(
     const uint64_t first_lanelet_id = route_lanelet_ids.front();
     const uint64_t last_lanelet_id = route_lanelet_ids.back();
     const auto last_connections_it = connection_edges_by_from_lanelet_id_.find(last_lanelet_id);
-    route_is_loop_ = last_connections_it != connection_edges_by_from_lanelet_id_.end() &&
+    const bool route_is_loop = last_connections_it != connection_edges_by_from_lanelet_id_.end() &&
         std::find_if(
             last_connections_it->second.begin(),
             last_connections_it->second.end(),
             [first_lanelet_id](const RouteEdge& edge) {
                 return edge.to_lanelet_id == first_lanelet_id;
             }) != last_connections_it->second.end();
-    if (route_is_loop_) {
+    if (route_is_loop) {
         const double closing_gap = distance_2d(route_points.back(), route_points.front());
         if (closing_gap > max_centerline_connection_gap_m_) {
             throw std::runtime_error(
@@ -294,7 +289,6 @@ void MissionPlannerNode::build_route_from_lanelet_ids(
             accumulated_s += closing_gap;
             route_points.push_back(route_points.front());
             raw_s.push_back(accumulated_s);
-            lanelet_ranges_.back().end_s = accumulated_s;
         }
     }
 
@@ -302,10 +296,9 @@ void MissionPlannerNode::build_route_from_lanelet_ids(
     global_samples_.reserve(
         static_cast<std::size_t>(std::ceil(raw_s.back() / global_path_resample_interval_m_)) + 2U);
     for (double s = 0.0; s < raw_s.back(); s += global_path_resample_interval_m_) {
-        global_samples_.push_back(interpolate_raw_path(route_points, raw_s, s, lanelet_at_s(s)));
+        global_samples_.push_back(interpolate_raw_path(route_points, raw_s, s));
     }
-    global_samples_.push_back(
-        interpolate_raw_path(route_points, raw_s, raw_s.back(), lanelet_at_s(raw_s.back())));
+    global_samples_.push_back(interpolate_raw_path(route_points, raw_s, raw_s.back()));
     current_route_lanelet_ids_ = route_lanelet_ids;
 }
 
@@ -329,16 +322,6 @@ void MissionPlannerNode::rebuild_route_from_lanelet(
             "route rebuild used nav_cmd fallback %zu times: requested=%s",
             fallback_count,
             turn_direction_to_string(last_nav_cmd_turn_).c_str());
-    }
-}
-
-void MissionPlannerNode::request_route_rebuild(const std::string& reason)
-{
-    pending_route_rebuild_ = true;
-    if (pending_route_rebuild_reason_.empty()) {
-        pending_route_rebuild_reason_ = reason;
-    } else if (pending_route_rebuild_reason_.find(reason) == std::string::npos) {
-        pending_route_rebuild_reason_ += "," + reason;
     }
 }
 
@@ -379,12 +362,10 @@ std::vector<uint64_t> MissionPlannerNode::build_route_sequence_from_graph(
     route_lanelet_ids.push_back(start_lanelet_id);
 
     while (route_lanelet_ids.size() < static_cast<std::size_t>(route_lookahead_lanelet_count_)) {
-        uint8_t selected_turn = vectormap_msgs::msg::LaneConnection::TURN_UNKNOWN;
         bool used_fallback = false;
         const uint64_t next_lanelet_id = select_next_lanelet(
             route_lanelet_ids.back(),
             last_nav_cmd_turn_,
-            selected_turn,
             used_fallback);
         if (next_lanelet_id == 0U || next_lanelet_id == start_lanelet_id) {
             break;
@@ -416,7 +397,6 @@ std::vector<uint64_t> MissionPlannerNode::build_route_sequence_from_graph(
 uint64_t MissionPlannerNode::select_next_lanelet(
     const uint64_t from_lanelet_id,
     const uint8_t requested_turn,
-    uint8_t& selected_turn,
     bool& used_fallback) const
 {
     const auto edges_it = connection_edges_by_from_lanelet_id_.find(from_lanelet_id);
@@ -439,7 +419,6 @@ uint64_t MissionPlannerNode::select_next_lanelet(
 
     const auto requested_it = find_min_cost_edge(requested_turn);
     if (requested_it != edges_it->second.end() && requested_it->turn_direction == requested_turn) {
-        selected_turn = requested_turn;
         used_fallback = false;
         return requested_it->to_lanelet_id;
     }
@@ -452,7 +431,6 @@ uint64_t MissionPlannerNode::select_next_lanelet(
         if (fallback_it != edges_it->second.end() &&
             fallback_it->turn_direction == fallback_turn)
         {
-            selected_turn = fallback_turn;
             used_fallback = true;
             return fallback_it->to_lanelet_id;
         }
@@ -564,47 +542,6 @@ std::pair<uint64_t, double> MissionPlannerNode::find_nearest_lanelet_within_rout
         ? std::sqrt(best_distance_sq)
         : std::numeric_limits<double>::max();
     return {best_lanelet_id, distance};
-}
-
-uint64_t MissionPlannerNode::lanelet_at_s(const double s) const
-{
-    if (lanelet_ranges_.empty()) {
-        return 0U;
-    }
-    const double normalized_s = normalize_path_s(s);
-    const auto it = std::find_if(
-        lanelet_ranges_.begin(),
-        lanelet_ranges_.end(),
-        [normalized_s](const LaneletRange& range) {
-            return normalized_s >= range.start_s && normalized_s <= range.end_s;
-        });
-    if (it != lanelet_ranges_.end()) {
-        return it->lanelet_id;
-    }
-    return lanelet_ranges_.back().lanelet_id;
-}
-
-double MissionPlannerNode::normalize_path_s(const double s) const
-{
-    double path_length = 0.0;
-    if (!global_samples_.empty()) {
-        path_length = global_samples_.back().s;
-    } else if (!lanelet_ranges_.empty()) {
-        path_length = lanelet_ranges_.back().end_s;
-    }
-
-    if (path_length <= EPSILON) {
-        return s;
-    }
-    if (!route_is_loop_) {
-        return std::clamp(s, 0.0, path_length);
-    }
-
-    double normalized = std::fmod(s, path_length);
-    if (normalized < 0.0) {
-        normalized += path_length;
-    }
-    return normalized;
 }
 
 }

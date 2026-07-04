@@ -35,14 +35,6 @@ vectormap_server_node:
   ros__parameters:
     map_path : "aiformula_course.osm"
     publish_period_ms : 1000
-    map_axis_convention : "image_x_right_y_up"
-    map_origin_pixel:
-      x : 0.0
-      y : 0.0
-    meter_per_pixel : 0.1739579
-    map_origin_geodetic:
-      latitude :  36.11313110136178
-      longitude: 139.98107529988687
     map_yaw_from_east : 0.02686650
 
 localization_node:
@@ -165,7 +157,6 @@ controller_server_node:
         ki                 : 0.1
         kd                 : 0.0
         lpf_vel_error_gain : 0.9
-        stop_distance      : 0.5
       lateral:
         horizon                       : 20
         prediction_dt                 : 0.1

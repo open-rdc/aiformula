@@ -16,11 +16,10 @@ constexpr double EPSILON = 1.0e-6;
 }
 
 void FrenetPlannerPlugin::initialize(
-    const rclcpp::Logger & logger,
+    [[maybe_unused]] const rclcpp::Logger & logger,
     const rclcpp::Clock::SharedPtr & clock,
     const rclcpp::node_interfaces::NodeParametersInterface::SharedPtr & params)
 {
-    logger_ = logger;
     clock_ = clock;
 
     local_path_horizon_m_ =
@@ -190,7 +189,7 @@ std::vector<FrenetPlannerPlugin::PathPoint> FrenetPlannerPlugin::generate_local_
         if (has_obstacle && !is_collision_free(candidate, obstacle)) {
             continue;
         }
-        const double cost = evaluate_frenet_candidate(candidate, 0.0, candidate_shift);
+        const double cost = evaluate_frenet_candidate(candidate, candidate_shift);
         if (cost < best_cost) {
             best_cost = cost;
             best_path = std::move(candidate);
@@ -250,9 +249,7 @@ std::vector<FrenetPlannerPlugin::PathPoint> FrenetPlannerPlugin::sample_frenet_p
 
     if (!points.empty() && end_s - points.back().s > EPSILON) {
         const auto base_point = path_point_at_s(end_s);
-        const double offset = points.back().s < end_s ?
-            project_to_path(Point2D{points.back().x, points.back().y}).d :
-            start_d;
+        const double offset = project_to_path(Point2D{points.back().x, points.back().y}).d;
         points.push_back(PathPoint{
             end_s,
             base_point.x - std::sin(base_point.yaw) * offset,
@@ -299,7 +296,6 @@ bool FrenetPlannerPlugin::is_collision_free(
 
 double FrenetPlannerPlugin::evaluate_frenet_candidate(
     const std::vector<PathPoint>& candidate,
-    const double target_offset,
     const double avoidance_shift) const
 {
     if (candidate.empty()) {
@@ -315,7 +311,7 @@ double FrenetPlannerPlugin::evaluate_frenet_candidate(
         previous_d = d;
     }
     const double final_d = previous_d;
-    return frenet_weight_lateral_offset_ * std::abs(final_d - target_offset) +
+    return frenet_weight_lateral_offset_ * std::abs(final_d) +
         frenet_weight_lateral_change_ * lateral_change_sum +
         frenet_weight_avoidance_shift_ * std::abs(avoidance_shift);
 }
@@ -489,29 +485,6 @@ geometry_msgs::msg::Quaternion FrenetPlannerPlugin::yaw_to_quaternion(const doub
     q.z = std::sin(yaw * 0.5);
     q.w = std::cos(yaw * 0.5);
     return q;
-}
-
-double FrenetPlannerPlugin::point_segment_distance_sq(
-    const Point2D& point,
-    const Point2D& start,
-    const Point2D& end)
-{
-    const double vx = end.x - start.x;
-    const double vy = end.y - start.y;
-    const double length_sq = vx * vx + vy * vy;
-    if (length_sq <= EPSILON) {
-        const double dx = point.x - start.x;
-        const double dy = point.y - start.y;
-        return dx * dx + dy * dy;
-    }
-    const double wx = point.x - start.x;
-    const double wy = point.y - start.y;
-    const double t = std::clamp((wx * vx + wy * vy) / length_sq, 0.0, 1.0);
-    const double px = start.x + t * vx;
-    const double py = start.y + t * vy;
-    const double dx = point.x - px;
-    const double dy = point.y - py;
-    return dx * dx + dy * dy;
 }
 
 nav_msgs::msg::Path FrenetPlannerPlugin::make_path_message(

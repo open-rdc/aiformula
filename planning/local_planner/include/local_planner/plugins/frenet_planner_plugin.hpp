@@ -60,7 +60,6 @@ private:
         const FrenetObstacle & obstacle) const;
     double evaluate_frenet_candidate(
         const std::vector<PathPoint> & candidate,
-        double target_offset,
         double avoidance_shift) const;
     bool find_static_obstacle(
         double current_s,
@@ -77,14 +76,11 @@ private:
     static double smooth_step(double t);
     static double yaw_from_quaternion(const geometry_msgs::msg::Quaternion & q);
     static geometry_msgs::msg::Quaternion yaw_to_quaternion(double yaw);
-    static double point_segment_distance_sq(
-        const Point2D & point, const Point2D & start, const Point2D & end);
 
     nav_msgs::msg::Path make_path_message(
         const std::vector<PathPoint> & points,
         const rclcpp::Time & stamp) const;
 
-    rclcpp::Logger logger_{rclcpp::get_logger("frenet_planner_plugin")};
     rclcpp::Clock::SharedPtr clock_;
 
     double local_path_horizon_m_{15.0};

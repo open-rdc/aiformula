@@ -31,16 +31,6 @@ bool IcpTargetMap::empty() const
     return points_.empty();
 }
 
-std::size_t IcpTargetMap::size() const
-{
-    return points_.size();
-}
-
-const std::vector<Eigen::Vector2d>& IcpTargetMap::points() const
-{
-    return points_;
-}
-
 int IcpTargetMap::build_tree(
     std::vector<std::size_t>& indices,
     const std::size_t begin,
