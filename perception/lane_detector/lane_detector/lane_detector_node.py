@@ -77,7 +77,7 @@ class LaneDetectorNode(Node):
 
         ll_seg_resize_mask = cv2.resize(ll_seg_mask, (origin_shape[1], origin_shape[0]), interpolation=cv2.INTER_NEAREST)
 
-        self.ll_seg_publish(ll_seg_resize_mask)
+        self.ll_seg_publish(ll_seg_resize_mask, msg.header)
         if self.visualize_flag:
             self.visualize(cv_img, ll_seg_resize_mask)
 
@@ -87,10 +87,10 @@ class LaneDetectorNode(Node):
         cv2.imshow('lane_detector', vis)
         cv2.waitKey(1)
 
-    def ll_seg_publish(self, ll_seg_mask):
+    def ll_seg_publish(self, ll_seg_mask, header):
         ll_seg_mask = (ll_seg_mask * 255).astype(np.uint8)
         ll_seg_msg = self.bridge.cv2_to_imgmsg(ll_seg_mask, encoding="mono8")
-        ll_seg_msg.header.stamp = self.get_clock().now().to_msg()
+        ll_seg_msg.header = header
         self.ll_seg_publisher.publish(ll_seg_msg)
 
 def main(args=None):
