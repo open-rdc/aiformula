@@ -70,7 +70,8 @@ void ObjectDetectorNode::pointcloud_callback(const sensor_msgs::msg::PointCloud2
     geometry_msgs::msg::TransformStamped tf_to_base;
     try {
         tf_to_base = tf_buffer_->lookupTransform(
-            "base_link", msg->header.frame_id, rclcpp::Time(0));
+            "base_link", msg->header.frame_id, msg->header.stamp,
+            rclcpp::Duration::from_seconds(0.1));
     } catch (const tf2::TransformException& ex) {
         RCLCPP_WARN(
             get_logger(),
@@ -167,7 +168,8 @@ void ObjectDetectorNode::pointcloud_callback(const sensor_msgs::msg::PointCloud2
     geometry_msgs::msg::TransformStamped tf_to_map;
     try {
         tf_to_map = tf_buffer_->lookupTransform(
-            "map", "base_link", rclcpp::Time(0));
+            "map", "base_link", msg->header.stamp,
+            rclcpp::Duration::from_seconds(0.1));
     } catch (const tf2::TransformException& ex) {
         RCLCPP_WARN(
             get_logger(),
