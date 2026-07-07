@@ -26,21 +26,18 @@ public:
         const rclcpp::NodeOptions& options = rclcpp::NodeOptions());
 
 private:
-    static std::string resolve_map_path(const std::string& map_path);
-
     geometry_msgs::msg::TransformStamped create_earth_to_map_transform() const;
     void publish_static_transforms();
     void publish_map();
 
     const std::string map_path_;
-    const double map_yaw_from_east_;
 
     vectormap_msgs::msg::VectorMap map_msg_;
     visualization_msgs::msg::MarkerArray marker_array_;
 
     std::shared_ptr<tf2_ros::StaticTransformBroadcaster> static_tf_broadcaster_;
-    rclcpp::Publisher<vectormap_msgs::msg::VectorMap>::SharedPtr vector_map_publisher_;
-    rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr marker_array_publisher_;
+    rclcpp::Publisher<vectormap_msgs::msg::VectorMap>::SharedPtr vectormap_publisher_;
+    rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr vectormap_visualize_marker_publisher;
 };
 
 }
