@@ -6,7 +6,7 @@
 
 #include <Eigen/Core>
 
-namespace localization
+namespace pose_estimater
 {
 
 struct IcpConfig
@@ -15,6 +15,13 @@ struct IcpConfig
     double max_correspondence_distance;
     double convergence_translation_epsilon;
     std::size_t min_correspondences;
+    double max_mean_error;
+};
+
+struct IcpMapPoint
+{
+    Eigen::Vector2d position;
+    Eigen::Vector2d normal;
 };
 
 struct IcpResult
@@ -23,20 +30,23 @@ struct IcpResult
     Eigen::Vector2d translation;
     std::size_t correspondences;
     double mean_error;
+    Eigen::Matrix2d normal_matrix;
 };
 
 class IcpTargetMap
 {
 public:
-    explicit IcpTargetMap(std::vector<Eigen::Vector2d> points);
+    explicit IcpTargetMap(std::vector<IcpMapPoint> points);
 
     bool empty() const;
 
     bool nearest(
         const Eigen::Vector2d& query,
         double max_distance_sq,
-        Eigen::Vector2d& nearest_point,
+        std::size_t& nearest_index,
         double& nearest_distance_sq) const;
+
+    const IcpMapPoint& point(std::size_t index) const;
 
 private:
     struct KdNode
@@ -52,11 +62,11 @@ private:
         int node_index,
         const Eigen::Vector2d& query,
         double max_distance_sq,
-        Eigen::Vector2d& nearest_point,
+        std::size_t& nearest_index,
         double& nearest_distance_sq,
         bool& found) const;
 
-    std::vector<Eigen::Vector2d> points_;
+    std::vector<IcpMapPoint> points_;
     std::vector<KdNode> nodes_;
     int root_index_;
 };

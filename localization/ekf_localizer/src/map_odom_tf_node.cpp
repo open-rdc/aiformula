@@ -1,34 +1,14 @@
-#include "localization/map_odom_tf_node.hpp"
+#include "ekf_localizer/map_odom_tf_node.hpp"
 
 #include <cmath>
-#include <stdexcept>
 
 #include <tf2/exceptions.h>
 #include <tf2/time.h>
 
-namespace localization
-{
-namespace
-{
+#include "utilities/utils.hpp"
 
-double yaw_from_quaternion(const geometry_msgs::msg::Quaternion& q)
+namespace ekf_localizer
 {
-    return std::atan2(
-        2.0 * (q.w * q.z + q.x * q.y),
-        1.0 - 2.0 * (q.y * q.y + q.z * q.z));
-}
-
-geometry_msgs::msg::Quaternion yaw_to_quaternion(const double yaw)
-{
-    geometry_msgs::msg::Quaternion q;
-    q.x = 0.0;
-    q.y = 0.0;
-    q.z = std::sin(yaw * 0.5);
-    q.w = std::cos(yaw * 0.5);
-    return q;
-}
-
-}
 
 MapOdomTfNode::MapOdomTfNode(const rclcpp::NodeOptions& options)
 : MapOdomTfNode("", options)
@@ -44,13 +24,6 @@ MapOdomTfNode::MapOdomTfNode(
   qos_(rclcpp::QoS(10)),
   last_update_time_(0, 0, get_clock()->get_clock_type())
 {
-    if (publish_period_ms_ <= 0) {
-        throw std::invalid_argument("publish_period_ms must be greater than 0");
-    }
-    if (stale_warn_timeout_s_ <= 0.0) {
-        throw std::invalid_argument("stale_warn_timeout_s must be greater than 0");
-    }
-
     tf_buffer_   = std::make_shared<tf2_ros::Buffer>(get_clock());
     tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
     tf_broadcaster_ = std::make_unique<tf2_ros::TransformBroadcaster>(*this);
@@ -69,8 +42,11 @@ void MapOdomTfNode::localized_pose_callback(
     const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg)
 {
     if (msg->header.frame_id != "map") {
-        throw std::runtime_error(
-            "localized pose frame_id must be map, got " + msg->header.frame_id);
+        RCLCPP_WARN_THROTTLE(
+            get_logger(), *get_clock(), 1000,
+            "localized poseのframe_idはmapである必要があるが%sを受信したため無視する",
+            msg->header.frame_id.c_str());
+        return;
     }
 
     geometry_msgs::msg::TransformStamped odom_to_base;
@@ -89,11 +65,11 @@ void MapOdomTfNode::localized_pose_callback(
 
     const double x_m   = msg->pose.pose.position.x;
     const double y_m   = msg->pose.pose.position.y;
-    const double yaw_m = yaw_from_quaternion(msg->pose.pose.orientation);
+    const double yaw_m = utils::yaw_from_quaternion(msg->pose.pose.orientation);
 
     const double x_o   = odom_to_base.transform.translation.x;
     const double y_o   = odom_to_base.transform.translation.y;
-    const double yaw_o = yaw_from_quaternion(odom_to_base.transform.rotation);
+    const double yaw_o = utils::yaw_from_quaternion(odom_to_base.transform.rotation);
 
     const double yaw_mo = yaw_m - yaw_o;
     const double cos_mo = std::cos(yaw_mo);
@@ -105,7 +81,7 @@ void MapOdomTfNode::localized_pose_callback(
     new_transform.transform.translation.x = x_m - (cos_mo * x_o - sin_mo * y_o);
     new_transform.transform.translation.y = y_m - (sin_mo * x_o + cos_mo * y_o);
     new_transform.transform.translation.z = 0.0;
-    new_transform.transform.rotation = yaw_to_quaternion(yaw_mo);
+    new_transform.transform.rotation = utils::yaw_to_quaternion(yaw_mo);
 
     std::lock_guard<std::mutex> lock(cache_mutex_);
     cached_transform_    = new_transform;
