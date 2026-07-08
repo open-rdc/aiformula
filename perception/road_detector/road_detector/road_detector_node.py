@@ -9,14 +9,14 @@ import os
 from rclpy.qos import qos_profile_system_default
 from ament_index_python.packages import get_package_share_directory
 
-from .utils.utils import letterbox, lane_line_mask
+from .utils.utils import letterbox, lane_line_mask, unletterbox_mask
 
 INPUT_SHAPE = (640, 640)
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-class LaneDetectorNode(Node):
+class RoadDetectorNode(Node):
     def __init__(self, context=None):
-        super().__init__('lane_detector_node', context=context)
+        super().__init__('road_detector_node', context=context)
         self.logger = self.get_logger()
         self.logger.info(f"Using device: {DEVICE}")
 
@@ -46,7 +46,7 @@ class LaneDetectorNode(Node):
         )
         self.bridge = CvBridge()
 
-        package_share_directory = get_package_share_directory('lane_detector')
+        package_share_directory = get_package_share_directory('road_detector')
         model_path = os.path.join(package_share_directory, 'data', 'weights', 'yolopv2.pt')
 
         self.logger.info(f'Loading PyTorch model from: {model_path}')
@@ -75,7 +75,8 @@ class LaneDetectorNode(Node):
         ll_seg_mask = lane_line_mask(ll)
         ll_seg_mask = ll_seg_mask.astype(np.uint8)
 
-        ll_seg_resize_mask = cv2.resize(ll_seg_mask, (origin_shape[1], origin_shape[0]), interpolation=cv2.INTER_NEAREST)
+        ll_seg_resize_mask = unletterbox_mask(
+            ll_seg_mask, img_resized.shape[:2], ratio, (pad_left, pad_top), origin_shape)
 
         self.ll_seg_publish(ll_seg_resize_mask, msg.header)
         if self.visualize_flag:
@@ -84,7 +85,7 @@ class LaneDetectorNode(Node):
     def visualize(self, img, mask):
         vis = img.copy()
         vis[mask == 1] = [0, 0, 255]
-        cv2.imshow('lane_detector', vis)
+        cv2.imshow('road_detector', vis)
         cv2.waitKey(1)
 
     def ll_seg_publish(self, ll_seg_mask, header):
@@ -95,9 +96,9 @@ class LaneDetectorNode(Node):
 
 def main(args=None):
     rclpy.init(args=args)
-    lane_detector_node = LaneDetectorNode()
-    rclpy.spin(lane_detector_node)
-    lane_detector_node.destroy_node()
+    road_detector_node = RoadDetectorNode()
+    rclpy.spin(road_detector_node)
+    road_detector_node.destroy_node()
     rclpy.shutdown()
 
 if __name__ == '__main__':

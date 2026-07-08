@@ -455,6 +455,21 @@ def letterbox(img, new_shape=(640, 640), color=(114, 114, 114), auto=True, scale
 
     return img, ratio, (dw, dh)
 
+def unletterbox_mask(mask, letterboxed_shape, ratio, pad, origin_shape):
+    top = int(round(pad[1] - 0.1))
+    left = int(round(pad[0] - 0.1))
+    content_h = int(round(origin_shape[0] * ratio[1]))
+    content_w = int(round(origin_shape[1] * ratio[0]))
+    scale_y = mask.shape[0] / letterboxed_shape[0]
+    scale_x = mask.shape[1] / letterboxed_shape[1]
+    content = mask[
+        int(round(top * scale_y)):int(round((top + content_h) * scale_y)),
+        int(round(left * scale_x)):int(round((left + content_w) * scale_x)),
+    ]
+    if content.shape[0] == origin_shape[0] and content.shape[1] == origin_shape[1]:
+        return content
+    return cv2.resize(content, (origin_shape[1], origin_shape[0]), interpolation=cv2.INTER_NEAREST)
+
 def driving_area_mask(seg = None):
     da_predict = seg[:, :, 12:372,:]
     da_seg_mask = torch.nn.functional.interpolate(da_predict, scale_factor=2, mode='bilinear')

@@ -2,7 +2,7 @@ from setuptools import setup
 from setuptools import find_packages
 from glob import glob
 
-package_name = 'lane_detector'
+package_name = 'road_detector'
 
 setup(
     name=package_name,
@@ -20,10 +20,9 @@ setup(
     maintainer_email='s25s1045sc@chibateck.ac.jp',
     description='ROS2 node for YOLOP object detection and BEV transformation.',
     license='MIT',
-    tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'lane_detector_node = lane_detector.lane_detector_node:main',
+            'road_detector_node = road_detector.road_detector_node:main',
         ],
     },
 )

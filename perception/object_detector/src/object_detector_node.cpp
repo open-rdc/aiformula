@@ -173,8 +173,9 @@ void ObjectDetectorNode::pointcloud_callback(const sensor_msgs::msg::PointCloud2
     } catch (const tf2::TransformException& ex) {
         RCLCPP_WARN(
             get_logger(),
-            "TF lookup failed (%s -> %s): %s",
+            "mapへのTF取得に失敗したため障害物なしとしてpublishする (%s -> %s): %s",
             "base_link", "map", ex.what());
+        publish_empty(msg->header.stamp);
         return;
     }
 
