@@ -11,18 +11,18 @@
 #include <sensor_msgs/msg/imu.hpp>
 #include <tf2_ros/transform_broadcaster.h>
 
-#include "localization/visibility_control.h"
+#include "ekf_localizer/visibility_control.h"
 
-namespace localization
+namespace ekf_localizer
 {
 
 class OdomTfNode : public rclcpp::Node
 {
 public:
-    LOCALIZATION_PUBLIC
+    EKF_LOCALIZER_PUBLIC
     explicit OdomTfNode(const rclcpp::NodeOptions& options = rclcpp::NodeOptions());
 
-    LOCALIZATION_PUBLIC
+    EKF_LOCALIZER_PUBLIC
     explicit OdomTfNode(
         const std::string& name_space,
         const rclcpp::NodeOptions& options = rclcpp::NodeOptions());
@@ -38,13 +38,7 @@ private:
     geometry_msgs::msg::TransformStamped make_transform(const rclcpp::Time& stamp) const;
     nav_msgs::msg::Odometry make_odometry(const rclcpp::Time& stamp) const;
 
-    static double yaw_from_quaternion(const geometry_msgs::msg::Quaternion& quaternion);
-    double imu_yaw_to_enu_yaw(double imu_yaw) const;
-    static geometry_msgs::msg::Quaternion yaw_to_quaternion(double yaw);
-    static double normalize_angle(double angle);
-
     const int publish_period_ms_;
-    const std::string imu_yaw_convention_;
     const double max_integration_dt_;
     const rclcpp::QoS qos_;
 

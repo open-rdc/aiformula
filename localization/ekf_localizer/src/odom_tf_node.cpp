@@ -1,14 +1,26 @@
-#include "localization/odom_tf_node.hpp"
+#include "ekf_localizer/odom_tf_node.hpp"
 
 #include <cmath>
-#include <stdexcept>
 
-namespace localization
+#include "utilities/utils.hpp"
+
+namespace ekf_localizer
 {
 namespace
 {
 constexpr double PI = 3.14159265358979323846;
 constexpr double HALF_PI = PI * 0.5;
+
+double normalize_angle(double angle)
+{
+    while (angle > PI) {
+        angle -= 2.0 * PI;
+    }
+    while (angle < -PI) {
+        angle += 2.0 * PI;
+    }
+    return angle;
+}
 }
 
 OdomTfNode::OdomTfNode(const rclcpp::NodeOptions& options)
@@ -21,7 +33,6 @@ OdomTfNode::OdomTfNode(
     const rclcpp::NodeOptions& options)
 : rclcpp::Node("odom_tf_node", name_space, options),
   publish_period_ms_(get_parameter("publish_period_ms").as_int()),
-  imu_yaw_convention_(get_parameter("imu_yaw_convention").as_string()),
   max_integration_dt_(get_parameter("max_integration_dt").as_double()),
   qos_(rclcpp::QoS(10)),
   x_(0.0),
@@ -34,20 +45,6 @@ OdomTfNode::OdomTfNode(
   has_odom_state_(false),
   latest_velocity_stamp_(0, 0, get_clock()->get_clock_type())
 {
-    if (publish_period_ms_ <= 0) {
-        throw std::invalid_argument("publish_period_ms must be greater than 0");
-    }
-    if (imu_yaw_convention_ != "heading_north_cw" &&
-        imu_yaw_convention_ != "heading_north_ccw" &&
-        imu_yaw_convention_ != "ros_enu")
-    {
-        throw std::invalid_argument(
-            "imu_yaw_convention must be heading_north_cw, heading_north_ccw, or ros_enu");
-    }
-    if (max_integration_dt_ <= 0.0) {
-        throw std::invalid_argument("max_integration_dt must be greater than 0");
-    }
-
     imu_subscription_ = create_subscription<sensor_msgs::msg::Imu>(
         "/vectornav/imu",
         qos_,
@@ -66,11 +63,13 @@ OdomTfNode::OdomTfNode(
 void OdomTfNode::imu_callback(const sensor_msgs::msg::Imu::SharedPtr msg)
 {
     if (!msg) {
-        throw std::runtime_error("IMU message must not be null");
+        RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000, "IMUメッセージがnullのため無視する");
+        return;
     }
-    const double imu_yaw = imu_yaw_to_enu_yaw(yaw_from_quaternion(msg->orientation));
+    const double imu_yaw = normalize_angle(HALF_PI + utils::yaw_from_quaternion(msg->orientation));
     if (!std::isfinite(imu_yaw)) {
-        throw std::runtime_error("IMU yaw is not finite");
+        RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000, "IMUのyawが非有限値のため無視する");
+        return;
     }
 
     std::lock_guard<std::mutex> lock(data_mutex_);
@@ -88,11 +87,15 @@ void OdomTfNode::velocity_callback(
     const geometry_msgs::msg::TwistWithCovarianceStamped::SharedPtr msg)
 {
     if (!msg) {
-        throw std::runtime_error("velocity message must not be null");
+        RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000, "velocity_bodyメッセージがnullのため無視する");
+        return;
     }
     if (msg->header.frame_id != "base_link" && msg->header.frame_id != "vectornav") {
-        throw std::runtime_error(
-            "velocity_body frame_id must be base_link or vectornav, got " + msg->header.frame_id);
+        RCLCPP_WARN_THROTTLE(
+            get_logger(), *get_clock(), 1000,
+            "velocity_bodyのframe_idはbase_linkまたはvectornavである必要があるが%sを受信したため無視する",
+            msg->header.frame_id.c_str());
+        return;
     }
 
     const rclcpp::Time stamp(msg->header.stamp, get_clock()->get_clock_type());
@@ -116,7 +119,10 @@ void OdomTfNode::integrate_velocity(
         !std::isfinite(velocity_msg.twist.twist.linear.y) ||
         !std::isfinite(velocity_msg.twist.twist.angular.z))
     {
-        throw std::runtime_error("velocity_body twist contains non-finite values");
+        RCLCPP_WARN_THROTTLE(
+            get_logger(), *get_clock(), 1000,
+            "velocity_bodyのtwistに非有限値が含まれるため積分をスキップする");
+        return;
     }
 
     latest_twist_ = velocity_msg.twist.twist;
@@ -191,7 +197,7 @@ geometry_msgs::msg::TransformStamped OdomTfNode::make_transform(const rclcpp::Ti
     transform.transform.translation.x = x_;
     transform.transform.translation.y = y_;
     transform.transform.translation.z = 0.0;
-    transform.transform.rotation = yaw_to_quaternion(yaw_);
+    transform.transform.rotation = utils::yaw_to_quaternion(yaw_);
     return transform;
 }
 
@@ -204,51 +210,9 @@ nav_msgs::msg::Odometry OdomTfNode::make_odometry(const rclcpp::Time& stamp) con
     odometry.pose.pose.position.x = x_;
     odometry.pose.pose.position.y = y_;
     odometry.pose.pose.position.z = 0.0;
-    odometry.pose.pose.orientation = yaw_to_quaternion(yaw_);
+    odometry.pose.pose.orientation = utils::yaw_to_quaternion(yaw_);
     odometry.twist.twist = latest_twist_;
     return odometry;
-}
-
-double OdomTfNode::yaw_from_quaternion(const geometry_msgs::msg::Quaternion& quaternion)
-{
-    const double siny_cosp = 2.0 * (quaternion.w * quaternion.z + quaternion.x * quaternion.y);
-    const double cosy_cosp = 1.0 - 2.0 * (quaternion.y * quaternion.y + quaternion.z * quaternion.z);
-    return std::atan2(siny_cosp, cosy_cosp);
-}
-
-double OdomTfNode::imu_yaw_to_enu_yaw(const double imu_yaw) const
-{
-    if (imu_yaw_convention_ == "heading_north_cw") {
-        return normalize_angle(HALF_PI - imu_yaw);
-    }
-    if (imu_yaw_convention_ == "heading_north_ccw") {
-        return normalize_angle(HALF_PI + imu_yaw);
-    }
-    if (imu_yaw_convention_ == "ros_enu") {
-        return normalize_angle(imu_yaw);
-    }
-    throw std::runtime_error("unsupported imu_yaw_convention: " + imu_yaw_convention_);
-}
-
-geometry_msgs::msg::Quaternion OdomTfNode::yaw_to_quaternion(const double yaw)
-{
-    geometry_msgs::msg::Quaternion quaternion;
-    quaternion.x = 0.0;
-    quaternion.y = 0.0;
-    quaternion.z = std::sin(yaw * 0.5);
-    quaternion.w = std::cos(yaw * 0.5);
-    return quaternion;
-}
-
-double OdomTfNode::normalize_angle(double angle)
-{
-    while (angle > PI) {
-        angle -= 2.0 * PI;
-    }
-    while (angle < -PI) {
-        angle += 2.0 * PI;
-    }
-    return angle;
 }
 
 }

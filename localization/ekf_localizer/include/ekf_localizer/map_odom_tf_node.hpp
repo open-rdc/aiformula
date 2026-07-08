@@ -11,18 +11,18 @@
 #include <tf2_ros/transform_broadcaster.h>
 #include <tf2_ros/transform_listener.h>
 
-#include "localization/visibility_control.h"
+#include "ekf_localizer/visibility_control.h"
 
-namespace localization
+namespace ekf_localizer
 {
 
 class MapOdomTfNode : public rclcpp::Node
 {
 public:
-    LOCALIZATION_PUBLIC
+    EKF_LOCALIZER_PUBLIC
     explicit MapOdomTfNode(const rclcpp::NodeOptions& options = rclcpp::NodeOptions());
 
-    LOCALIZATION_PUBLIC
+    EKF_LOCALIZER_PUBLIC
     explicit MapOdomTfNode(
         const std::string& name_space,
         const rclcpp::NodeOptions& options = rclcpp::NodeOptions());
