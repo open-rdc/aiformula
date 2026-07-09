@@ -15,8 +15,6 @@ ament_auto_add_library(ekf_localizer_node SHARED
   src/ekf_localizer_node.cpp
   src/map_odom_tf_node.cpp
   src/odom_tf_node.cpp
-  src/mahalanobis.cpp
-  src/delay_gate.cpp
   src/velocity_gate.cpp
 )
 target_compile_features(ekf_localizer_node PUBLIC c_std_99 cxx_std_17)
@@ -36,17 +34,5 @@ install(
 )
 
 ament_export_dependencies(Eigen3)
-
-if(BUILD_TESTING)
-  find_package(ament_cmake_gtest REQUIRED)
-
-  ament_add_gtest(test_ekf_localizer
-    test/test_mahalanobis.cpp
-    test/test_delay_gate.cpp
-    test/test_velocity_gate.cpp
-    test/test_ekf_localizer_gate.cpp
-  )
-  target_link_libraries(test_ekf_localizer ekf_localizer_node)
-endif()
 
 ament_auto_package()

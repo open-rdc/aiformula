@@ -3,10 +3,8 @@
 #include <memory>
 #include <mutex>
 #include <string>
-#include <vector>
 
 #include <Eigen/Core>
-#include <builtin_interfaces/msg/time.hpp>
 #include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/imu.hpp>
@@ -38,30 +36,24 @@ private:
     void imu_callback(const sensor_msgs::msg::Imu::SharedPtr msg);
     void timer_callback();
 
-    bool rebuild_map_points(const vectormap_msgs::msg::VectorMap& map_msg);
+    void rebuild_map_points(const vectormap_msgs::msg::VectorMap& map_msg);
 
     bool gnss_to_map_pose(
         const sensor_msgs::msg::NavSatFix& gnss_msg,
         const sensor_msgs::msg::Imu& imu_msg,
-        geometry_msgs::msg::PoseWithCovarianceStamped& pose_out);
+        geometry_msgs::msg::PoseWithCovarianceStamped& pose_out) const;
 
-    static std::vector<Eigen::Vector2d> lane_line_points_from_cloud(
-        const sensor_msgs::msg::PointCloud2& cloud);
-    std::vector<Eigen::Vector2d> observed_points_in_map(
-        const std::vector<Eigen::Vector2d>& base_points,
-        double x, double y, double yaw) const;
     Eigen::Matrix2d icp_measurement_covariance(const IcpResult& result) const;
     geometry_msgs::msg::PoseWithCovarianceStamped make_icp_pose(
         const geometry_msgs::msg::PoseWithCovarianceStamped& raw_pose,
         double x, double y, const Eigen::Matrix2d& position_covariance) const;
-    geometry_msgs::msg::PoseWithCovarianceStamped fallback_icp_pose(
-        const geometry_msgs::msg::PoseWithCovarianceStamped& raw_pose) const;
 
     const int interval_ms_;
-    const double input_timeout_s_;
     const double map_origin_lat_;
     const double map_origin_lon_;
     const double map_yaw_from_east_;
+    const double meters_per_rad_lat_;
+    const double meters_per_rad_lon_;
     const std::size_t min_observed_points_;
     const double map_sample_interval_m_;
     const double gnss_position_variance_;
@@ -73,9 +65,8 @@ private:
     sensor_msgs::msg::PointCloud2::SharedPtr latest_lane_line_points_;
     sensor_msgs::msg::NavSatFix::SharedPtr latest_gnss_msg_;
     sensor_msgs::msg::Imu::SharedPtr latest_imu_msg_;
-    mutable std::mutex data_mutex_;
-    bool has_last_lane_line_update_stamp_;
-    builtin_interfaces::msg::Time last_lane_line_update_stamp_;
+    std::mutex data_mutex_;
+    sensor_msgs::msg::PointCloud2::SharedPtr processed_lane_line_points_;
 
     rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr lane_line_points_subscription_;
     rclcpp::Subscription<vectormap_msgs::msg::VectorMap>::SharedPtr vector_map_subscription_;

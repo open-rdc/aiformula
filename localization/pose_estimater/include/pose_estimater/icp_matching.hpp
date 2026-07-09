@@ -1,7 +1,6 @@
 #pragma once
 
 #include <cstddef>
-#include <memory>
 #include <vector>
 
 #include <Eigen/Core>
@@ -26,11 +25,11 @@ struct IcpMapPoint
 
 struct IcpResult
 {
-    bool converged;
-    Eigen::Vector2d translation;
-    std::size_t correspondences;
-    double mean_error;
-    Eigen::Matrix2d normal_matrix;
+    bool converged = false;
+    Eigen::Vector2d translation = Eigen::Vector2d::Zero();
+    std::size_t correspondences = 0U;
+    double mean_error = 0.0;
+    Eigen::Matrix2d normal_matrix = Eigen::Matrix2d::Zero();
 };
 
 class IcpTargetMap
@@ -43,8 +42,7 @@ public:
     bool nearest(
         const Eigen::Vector2d& query,
         double max_distance_sq,
-        std::size_t& nearest_index,
-        double& nearest_distance_sq) const;
+        std::size_t& nearest_index) const;
 
     const IcpMapPoint& point(std::size_t index) const;
 
@@ -61,7 +59,6 @@ private:
     void nearest_recursive(
         int node_index,
         const Eigen::Vector2d& query,
-        double max_distance_sq,
         std::size_t& nearest_index,
         double& nearest_distance_sq,
         bool& found) const;

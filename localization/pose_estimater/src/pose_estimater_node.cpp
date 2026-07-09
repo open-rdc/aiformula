@@ -6,9 +6,9 @@
 #include <exception>
 #include <functional>
 #include <utility>
+#include <vector>
 
 #include <Eigen/Eigenvalues>
-#include <Eigen/Geometry>
 #include <sensor_msgs/point_cloud2_iterator.hpp>
 
 #include "utilities/utils.hpp"
@@ -37,6 +37,19 @@ IcpConfig make_icp_config(rclcpp::Node& node)
     return config;
 }
 
+double meters_per_rad_latitude(const double lat0_rad)
+{
+    const double sin_lat0 = std::sin(lat0_rad);
+    const double denom = std::sqrt(1.0 - WGS84_E2 * sin_lat0 * sin_lat0);
+    return WGS84_A * (1.0 - WGS84_E2) / (denom * denom * denom);
+}
+
+double meters_per_rad_longitude(const double lat0_rad)
+{
+    const double sin_lat0 = std::sin(lat0_rad);
+    return WGS84_A / std::sqrt(1.0 - WGS84_E2 * sin_lat0 * sin_lat0) * std::cos(lat0_rad);
+}
+
 double normalize_angle(double angle)
 {
     while (angle > M_PI) {
@@ -61,6 +74,33 @@ void fill_pose_covariance(
     covariance[35] = yaw_variance;
 }
 
+std::vector<Eigen::Vector2d> lane_line_points_from_cloud(const sensor_msgs::msg::PointCloud2& cloud)
+{
+    std::vector<Eigen::Vector2d> points;
+    points.reserve(static_cast<std::size_t>(cloud.width) * cloud.height);
+
+    sensor_msgs::PointCloud2ConstIterator<float> iter_x(cloud, "x");
+    sensor_msgs::PointCloud2ConstIterator<float> iter_y(cloud, "y");
+    for (; iter_x != iter_x.end(); ++iter_x, ++iter_y) {
+        points.emplace_back(static_cast<double>(*iter_x), static_cast<double>(*iter_y));
+    }
+    return points;
+}
+
+void transform_points_to_map(
+    std::vector<Eigen::Vector2d>& points,
+    const double x, const double y, const double yaw)
+{
+    const double cos_yaw = std::cos(yaw);
+    const double sin_yaw = std::sin(yaw);
+    const Eigen::Vector2d translation(x, y);
+    for (auto& point : points) {
+        point = translation + Eigen::Vector2d(
+            cos_yaw * point.x() - sin_yaw * point.y(),
+            sin_yaw * point.x() + cos_yaw * point.y());
+    }
+}
+
 }
 
 PoseEstimaterNode::PoseEstimaterNode(const rclcpp::NodeOptions& options)
@@ -73,17 +113,17 @@ PoseEstimaterNode::PoseEstimaterNode(
     const rclcpp::NodeOptions& options)
 : rclcpp::Node("pose_estimater_node", name_space, options),
   interval_ms_(get_parameter("interval_ms").as_int()),
-  input_timeout_s_(get_parameter("input_timeout_s").as_double()),
   map_origin_lat_(get_parameter("map_origin_geodetic.latitude").as_double()),
   map_origin_lon_(get_parameter("map_origin_geodetic.longitude").as_double()),
   map_yaw_from_east_(get_parameter("map_yaw_from_east").as_double()),
+  meters_per_rad_lat_(meters_per_rad_latitude(utils::dtor(map_origin_lat_))),
+  meters_per_rad_lon_(meters_per_rad_longitude(utils::dtor(map_origin_lat_))),
   min_observed_points_(static_cast<std::size_t>(get_parameter("min_observed_points").as_int())),
   map_sample_interval_m_(get_parameter("map_sample_interval_m").as_double()),
   gnss_position_variance_(get_parameter("gnss_position_variance").as_double()),
   imu_yaw_variance_(get_parameter("imu_yaw_variance").as_double()),
   icp_position_variance_(get_parameter("icp_position_variance").as_double()),
-  icp_matcher_(make_icp_config(*this)),
-  has_last_lane_line_update_stamp_(false)
+  icp_matcher_(make_icp_config(*this))
 {
     lane_line_points_subscription_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
         "/perception/lane_line_points", rclcpp::SensorDataQoS().keep_last(1),
@@ -130,7 +170,7 @@ void PoseEstimaterNode::imu_callback(const sensor_msgs::msg::Imu::SharedPtr msg)
     latest_imu_msg_ = msg;
 }
 
-bool PoseEstimaterNode::rebuild_map_points(const vectormap_msgs::msg::VectorMap& map_msg)
+void PoseEstimaterNode::rebuild_map_points(const vectormap_msgs::msg::VectorMap& map_msg)
 {
     std::vector<IcpMapPoint> points;
     for (const auto& line_string : map_msg.line_strings) {
@@ -158,35 +198,19 @@ bool PoseEstimaterNode::rebuild_map_points(const vectormap_msgs::msg::VectorMap&
     auto target_map = std::make_shared<IcpTargetMap>(std::move(points));
     std::lock_guard<std::mutex> lock(data_mutex_);
     map_points_ = target_map;
-    return true;
 }
 
 bool PoseEstimaterNode::gnss_to_map_pose(
     const sensor_msgs::msg::NavSatFix& gnss_msg,
     const sensor_msgs::msg::Imu& imu_msg,
-    geometry_msgs::msg::PoseWithCovarianceStamped& pose_out)
+    geometry_msgs::msg::PoseWithCovarianceStamped& pose_out) const
 {
     if (gnss_msg.status.status < sensor_msgs::msg::NavSatStatus::STATUS_FIX) {
         return false;
     }
-    if (!std::isfinite(gnss_msg.latitude) || !std::isfinite(gnss_msg.longitude)) {
-        RCLCPP_WARN_THROTTLE(
-            get_logger(), *get_clock(), 1000,
-            "GNSSの緯度または経度が非有限値のためこの観測をスキップする");
-        return false;
-    }
 
-    const double lat0_rad = utils::dtor(map_origin_lat_);
-    const double sin_lat0 = std::sin(lat0_rad);
-    const double sin2_lat0 = sin_lat0 * sin_lat0;
-    const double denom = std::sqrt(1.0 - WGS84_E2 * sin2_lat0);
-    const double N = WGS84_A / denom;
-    const double M = WGS84_A * (1.0 - WGS84_E2) / (denom * denom * denom);
-
-    const double delta_lat = utils::dtor(gnss_msg.latitude - map_origin_lat_);
-    const double delta_lon = utils::dtor(gnss_msg.longitude - map_origin_lon_);
-    const double north = M * delta_lat;
-    const double east = N * std::cos(lat0_rad) * delta_lon;
+    const double north = meters_per_rad_lat_ * utils::dtor(gnss_msg.latitude - map_origin_lat_);
+    const double east = meters_per_rad_lon_ * utils::dtor(gnss_msg.longitude - map_origin_lon_);
 
     const double cos_yaw = std::cos(map_yaw_from_east_);
     const double sin_yaw = std::sin(map_yaw_from_east_);
@@ -208,39 +232,6 @@ bool PoseEstimaterNode::gnss_to_map_pose(
         imu_yaw_variance_);
 
     return true;
-}
-
-std::vector<Eigen::Vector2d> PoseEstimaterNode::lane_line_points_from_cloud(
-    const sensor_msgs::msg::PointCloud2& cloud)
-{
-    std::vector<Eigen::Vector2d> points;
-    points.reserve(static_cast<std::size_t>(cloud.width) * cloud.height);
-
-    sensor_msgs::PointCloud2ConstIterator<float> iter_x(cloud, "x");
-    sensor_msgs::PointCloud2ConstIterator<float> iter_y(cloud, "y");
-    for (; iter_x != iter_x.end(); ++iter_x, ++iter_y) {
-        points.emplace_back(static_cast<double>(*iter_x), static_cast<double>(*iter_y));
-    }
-    return points;
-}
-
-std::vector<Eigen::Vector2d> PoseEstimaterNode::observed_points_in_map(
-    const std::vector<Eigen::Vector2d>& base_points,
-    const double x, const double y, const double yaw) const
-{
-    const double cos_yaw = std::cos(yaw);
-    const double sin_yaw = std::sin(yaw);
-    const Eigen::Vector2d translation(x, y);
-
-    std::vector<Eigen::Vector2d> map_points;
-    map_points.reserve(base_points.size());
-    for (const auto& base_point : base_points) {
-        const Eigen::Vector2d rotated(
-            cos_yaw * base_point.x() - sin_yaw * base_point.y(),
-            sin_yaw * base_point.x() + cos_yaw * base_point.y());
-        map_points.push_back(translation + rotated);
-    }
-    return map_points;
 }
 
 Eigen::Matrix2d PoseEstimaterNode::icp_measurement_covariance(const IcpResult& result) const
@@ -271,16 +262,6 @@ geometry_msgs::msg::PoseWithCovarianceStamped PoseEstimaterNode::make_icp_pose(
     return icp_pose;
 }
 
-geometry_msgs::msg::PoseWithCovarianceStamped PoseEstimaterNode::fallback_icp_pose(
-    const geometry_msgs::msg::PoseWithCovarianceStamped& raw_pose) const
-{
-    return make_icp_pose(
-        raw_pose,
-        raw_pose.pose.pose.position.x,
-        raw_pose.pose.pose.position.y,
-        Eigen::Matrix2d::Identity() * gnss_position_variance_);
-}
-
 void PoseEstimaterNode::timer_callback()
 {
     sensor_msgs::msg::PointCloud2::SharedPtr lane_line_points_msg;
@@ -302,19 +283,6 @@ void PoseEstimaterNode::timer_callback()
         return;
     }
 
-    const rclcpp::Time current_time = this->now();
-    const rclcpp::Time gnss_stamp(gnss_msg->header.stamp, current_time.get_clock_type());
-    const rclcpp::Time imu_stamp(imu_msg->header.stamp, current_time.get_clock_type());
-    if ((current_time - gnss_stamp).seconds() > input_timeout_s_ ||
-        (current_time - imu_stamp).seconds() > input_timeout_s_)
-    {
-        RCLCPP_WARN_THROTTLE(
-            this->get_logger(), *this->get_clock(), 1000,
-            "GNSS/IMU が %.1fs 以上途絶しているため自己位置のpublishを停止する",
-            input_timeout_s_);
-        return;
-    }
-
     try {
         geometry_msgs::msg::PoseWithCovarianceStamped raw_pose;
         if (!gnss_to_map_pose(*gnss_msg, *imu_msg, raw_pose)) {
@@ -325,39 +293,31 @@ void PoseEstimaterNode::timer_callback()
         }
         raw_pose_publisher_->publish(raw_pose);
 
-        bool has_new_lane_line = false;
-        {
-            std::lock_guard<std::mutex> lock(data_mutex_);
-            has_new_lane_line = lane_line_points_msg &&
-                (!has_last_lane_line_update_stamp_ ||
-                 lane_line_points_msg->header.stamp.sec != last_lane_line_update_stamp_.sec ||
-                 lane_line_points_msg->header.stamp.nanosec != last_lane_line_update_stamp_.nanosec);
-            if (has_new_lane_line) {
-                has_last_lane_line_update_stamp_ = true;
-                last_lane_line_update_stamp_ = lane_line_points_msg->header.stamp;
-            }
-        }
+        const bool has_new_lane_line =
+            lane_line_points_msg && lane_line_points_msg != processed_lane_line_points_;
+        processed_lane_line_points_ = lane_line_points_msg;
 
         if (!has_new_lane_line || !map_points || map_points->empty()) {
             RCLCPP_WARN_THROTTLE(
                 this->get_logger(), *this->get_clock(), 2000,
                 "waiting for a new lane line scan and vector map");
-            icp_pose_publisher_->publish(fallback_icp_pose(raw_pose));
+            icp_pose_publisher_->publish(raw_pose);
             return;
         }
 
-        const auto base_points = lane_line_points_from_cloud(*lane_line_points_msg);
-        const double raw_yaw = utils::yaw_from_quaternion(raw_pose.pose.pose.orientation);
-        const auto source_points = observed_points_in_map(
-            base_points, raw_pose.pose.pose.position.x, raw_pose.pose.pose.position.y, raw_yaw);
-
-        if (base_points.size() < min_observed_points_) {
+        auto source_points = lane_line_points_from_cloud(*lane_line_points_msg);
+        if (source_points.size() < min_observed_points_) {
             RCLCPP_WARN_THROTTLE(
                 this->get_logger(), *this->get_clock(), 1000,
-                "not enough observed lane points: %zu", base_points.size());
-            icp_pose_publisher_->publish(fallback_icp_pose(raw_pose));
+                "not enough observed lane points: %zu", source_points.size());
+            icp_pose_publisher_->publish(raw_pose);
             return;
         }
+
+        const double raw_yaw = utils::yaw_from_quaternion(raw_pose.pose.pose.orientation);
+        transform_points_to_map(
+            source_points,
+            raw_pose.pose.pose.position.x, raw_pose.pose.pose.position.y, raw_yaw);
 
         const auto result = icp_matcher_.align_translation_only(source_points, *map_points);
         if (!result.converged) {
@@ -365,7 +325,7 @@ void PoseEstimaterNode::timer_callback()
                 this->get_logger(), *this->get_clock(), 1000,
                 "ICP failed: correspondences=%zu, mean_error=%.3f",
                 result.correspondences, result.mean_error);
-            icp_pose_publisher_->publish(fallback_icp_pose(raw_pose));
+            icp_pose_publisher_->publish(raw_pose);
             return;
         }
 

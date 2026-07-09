@@ -10,6 +10,18 @@
 namespace ekf_localizer
 {
 
+struct DelayGateResult
+{
+    double delay_time_s;
+    bool passed;
+};
+
+double mahalanobis(const Eigen::VectorXd& residual, const Eigen::MatrixXd& covariance);
+DelayGateResult check_delay_gate(
+    const rclcpp::Time& now,
+    const rclcpp::Time& stamp,
+    double max_delay_s);
+
 struct EkfLocalizerConfig
 {
     double initial_position_variance;

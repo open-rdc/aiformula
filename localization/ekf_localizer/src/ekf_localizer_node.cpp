@@ -2,7 +2,6 @@
 
 #include <cmath>
 
-#include "ekf_localizer/delay_gate.hpp"
 #include "utilities/utils.hpp"
 
 namespace ekf_localizer
@@ -35,26 +34,18 @@ EkfLocalizerNode::EkfLocalizerNode(
     const std::string& name_space,
     const rclcpp::NodeOptions& options)
 : rclcpp::Node("ekf_localizer_node", name_space, options),
-  input_timeout_s_(get_parameter("input_timeout_s").as_double()),
   predict_interval_ms_(get_parameter("predict_interval_ms").as_int()),
   tf_interval_ms_(get_parameter("tf_interval_ms").as_int()),
-  icp_pose_additional_delay_s_(get_parameter("icp_pose_additional_delay_s").as_double()),
   icp_pose_max_delay_s_(get_parameter("icp_pose_max_delay_s").as_double()),
-  velocity_additional_delay_s_(get_parameter("velocity_additional_delay_s").as_double()),
   velocity_max_delay_s_(get_parameter("velocity_max_delay_s").as_double()),
   ekf_config_(make_ekf_config(*this)),
   ekf_localizer_(ekf_config_),
   velocity_gate_(
-      get_parameter("velocity_gate_process_variance").as_double(),
-      get_parameter("yaw_rate_gate_process_variance").as_double(),
+        ekf_config_.process_velocity_variance,
+        ekf_config_.process_yaw_rate_variance,
       get_parameter("velocity_gate_dist").as_double()),
-  has_icp_pose_stamp_(false),
-  last_icp_pose_stamp_(0, 0, get_clock()->get_clock_type()),
-  has_velocity_(false),
-  latest_velocity_(0.0),
-  latest_yaw_rate_(0.0),
-  has_velocity_stamp_(false),
-  last_velocity_stamp_(0, 0, get_clock()->get_clock_type())
+    last_icp_pose_stamp_(0, 0, get_clock()->get_clock_type()),
+    last_velocity_stamp_(0, 0, get_clock()->get_clock_type())
 {
     icp_pose_subscription_ = create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>(
         "/localization/icp_pose", rclcpp::QoS(1),
@@ -99,7 +90,7 @@ void EkfLocalizerNode::icp_pose_callback(
     }
 
     const DelayGateResult delay_gate = check_delay_gate(
-        get_clock()->now(), stamp, icp_pose_additional_delay_s_, icp_pose_max_delay_s_);
+        get_clock()->now(), stamp, icp_pose_max_delay_s_);
     if (!delay_gate.passed) {
         RCLCPP_WARN_THROTTLE(
             get_logger(), *get_clock(), 1000,
@@ -152,7 +143,7 @@ void EkfLocalizerNode::velocity_callback(
     std::lock_guard<std::mutex> lock(state_mutex_);
 
     const DelayGateResult delay_gate = check_delay_gate(
-        get_clock()->now(), stamp, velocity_additional_delay_s_, velocity_max_delay_s_);
+        get_clock()->now(), stamp, velocity_max_delay_s_);
     if (!delay_gate.passed) {
         RCLCPP_WARN_THROTTLE(
             get_logger(), *get_clock(), 1000,
@@ -203,14 +194,6 @@ void EkfLocalizerNode::tf_timer_callback()
 {
     std::lock_guard<std::mutex> lock(state_mutex_);
     if (!ekf_localizer_.initialized()) {
-        return;
-    }
-
-    const rclcpp::Time now_time = get_clock()->now();
-    if (!has_icp_pose_stamp_ || (now_time - last_icp_pose_stamp_).seconds() > input_timeout_s_) {
-        RCLCPP_WARN_THROTTLE(
-            get_logger(), *get_clock(), 1000,
-            "icp_pose が %.1fs 以上途絶しているため自己位置のpublishを停止する", input_timeout_s_);
         return;
     }
     pose_publisher_->publish(ekf_localizer_.make_pose("map"));

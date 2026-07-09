@@ -6,7 +6,6 @@
 
 #include <Eigen/LU>
 
-#include "ekf_localizer/mahalanobis.hpp"
 #include "utilities/utils.hpp"
 
 namespace ekf_localizer
@@ -27,6 +26,21 @@ double normalize_angle(double angle)
     return angle;
 }
 
+}
+
+double mahalanobis(const Eigen::VectorXd& residual, const Eigen::MatrixXd& covariance)
+{
+    return std::sqrt(residual.transpose() * covariance.inverse() * residual);
+}
+
+DelayGateResult check_delay_gate(
+    const rclcpp::Time& now,
+    const rclcpp::Time& stamp,
+    const double max_delay_s)
+{
+    const double raw_delay_time_s = (now - stamp).seconds();
+    const double delay_time_s = std::max(raw_delay_time_s, 0.0);
+    return DelayGateResult{delay_time_s, delay_time_s <= max_delay_s};
 }
 
 EkfLocalizer::EkfLocalizer(const EkfLocalizerConfig& config)

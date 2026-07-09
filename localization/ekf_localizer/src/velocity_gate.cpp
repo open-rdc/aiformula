@@ -6,7 +6,7 @@
 
 #include <Eigen/Core>
 
-#include "ekf_localizer/mahalanobis.hpp"
+#include "ekf_localizer/ekf_localizer.hpp"
 
 namespace ekf_localizer
 {
@@ -33,12 +33,6 @@ VelocityGateResult VelocityGate::update(
     const double yaw_rate_variance,
     const double dt)
 {
-    if (!std::isfinite(velocity_variance) || !std::isfinite(yaw_rate_variance) ||
-        velocity_variance <= 0.0 || yaw_rate_variance <= 0.0)
-    {
-        throw std::invalid_argument("velocity measurement covariance must be finite and positive");
-    }
-
     if (!initialized_) {
         velocity_ = velocity;
         velocity_variance_ = velocity_variance;

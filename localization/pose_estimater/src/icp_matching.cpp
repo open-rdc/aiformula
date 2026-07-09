@@ -2,7 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
-#include <limits>
+#include <numeric>
 #include <utility>
 
 #include <Eigen/Eigenvalues>
@@ -24,11 +24,8 @@ IcpTargetMap::IcpTargetMap(std::vector<IcpMapPoint> points)
         return;
     }
 
-    std::vector<std::size_t> indices;
-    indices.reserve(points_.size());
-    for (std::size_t i = 0U; i < points_.size(); ++i) {
-        indices.push_back(i);
-    }
+    std::vector<std::size_t> indices(points_.size());
+    std::iota(indices.begin(), indices.end(), 0U);
     nodes_.reserve(points_.size());
     root_index_ = build_tree(indices, 0U, indices.size(), 0);
 }
@@ -40,7 +37,7 @@ bool IcpTargetMap::empty() const
 
 const IcpMapPoint& IcpTargetMap::point(const std::size_t index) const
 {
-    return points_.at(index);
+    return points_[index];
 }
 
 int IcpTargetMap::build_tree(
@@ -73,23 +70,21 @@ int IcpTargetMap::build_tree(
 bool IcpTargetMap::nearest(
     const Eigen::Vector2d& query,
     const double max_distance_sq,
-    std::size_t& nearest_index,
-    double& nearest_distance_sq) const
+    std::size_t& nearest_index) const
 {
-    if (root_index_ < 0 || max_distance_sq <= 0.0) {
+    if (root_index_ < 0) {
         return false;
     }
 
     bool found = false;
-    nearest_distance_sq = max_distance_sq;
-    nearest_recursive(root_index_, query, max_distance_sq, nearest_index, nearest_distance_sq, found);
+    double nearest_distance_sq = max_distance_sq;
+    nearest_recursive(root_index_, query, nearest_index, nearest_distance_sq, found);
     return found;
 }
 
 void IcpTargetMap::nearest_recursive(
     const int node_index,
     const Eigen::Vector2d& query,
-    const double max_distance_sq,
     std::size_t& nearest_index,
     double& nearest_distance_sq,
     bool& found) const
@@ -101,7 +96,7 @@ void IcpTargetMap::nearest_recursive(
     const auto& node = nodes_[static_cast<std::size_t>(node_index)];
     const Eigen::Vector2d& point = points_[node.point_index].position;
     const double distance_sq = (point - query).squaredNorm();
-    if (distance_sq <= max_distance_sq && distance_sq < nearest_distance_sq) {
+    if (distance_sq < nearest_distance_sq) {
         nearest_distance_sq = distance_sq;
         nearest_index = node.point_index;
         found = true;
@@ -111,9 +106,9 @@ void IcpTargetMap::nearest_recursive(
     const int near_child = axis_delta < 0.0 ? node.left : node.right;
     const int far_child = axis_delta < 0.0 ? node.right : node.left;
 
-    nearest_recursive(near_child, query, max_distance_sq, nearest_index, nearest_distance_sq, found);
+    nearest_recursive(near_child, query, nearest_index, nearest_distance_sq, found);
     if (axis_delta * axis_delta <= nearest_distance_sq) {
-        nearest_recursive(far_child, query, max_distance_sq, nearest_index, nearest_distance_sq, found);
+        nearest_recursive(far_child, query, nearest_index, nearest_distance_sq, found);
     }
 }
 
@@ -126,7 +121,7 @@ IcpResult IcpMatcher::align_translation_only(
     const std::vector<Eigen::Vector2d>& source_points,
     const IcpTargetMap& target_map) const
 {
-    IcpResult result{false, Eigen::Vector2d::Zero(), 0U, 0.0, Eigen::Matrix2d::Zero()};
+    IcpResult result;
     if (source_points.empty() || target_map.empty()) {
         return result;
     }
@@ -143,13 +138,7 @@ IcpResult IcpMatcher::align_translation_only(
         for (const auto& source_point : source_points) {
             const Eigen::Vector2d transformed_source = source_point + result.translation;
             std::size_t nearest_index = 0U;
-            double nearest_distance_sq = std::numeric_limits<double>::max();
-            if (target_map.nearest(
-                    transformed_source,
-                    max_distance_sq,
-                    nearest_index,
-                    nearest_distance_sq))
-            {
+            if (target_map.nearest(transformed_source, max_distance_sq, nearest_index)) {
                 const auto& map_point = target_map.point(nearest_index);
                 const double normal_error =
                     map_point.normal.dot(map_point.position - transformed_source);
@@ -165,7 +154,6 @@ IcpResult IcpMatcher::align_translation_only(
             correspondences == 0U ? 0.0 : error_sum / static_cast<double>(correspondences);
         result.normal_matrix = normal_matrix;
         if (correspondences < config_.min_correspondences) {
-            result.converged = false;
             return result;
         }
 
@@ -187,7 +175,6 @@ IcpResult IcpMatcher::align_translation_only(
         }
     }
 
-    result.converged = false;
     return result;
 }
 

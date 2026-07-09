@@ -33,23 +33,20 @@ private:
     void predict_timer_callback();
     void tf_timer_callback();
 
-    const double input_timeout_s_;
     const int predict_interval_ms_;
     const int tf_interval_ms_;
-    const double icp_pose_additional_delay_s_;
     const double icp_pose_max_delay_s_;
-    const double velocity_additional_delay_s_;
     const double velocity_max_delay_s_;
     EkfLocalizerConfig ekf_config_;
     EkfLocalizer ekf_localizer_;
     VelocityGate velocity_gate_;
 
-    bool has_icp_pose_stamp_;
+    bool has_icp_pose_stamp_ = false;
     rclcpp::Time last_icp_pose_stamp_;
-    bool has_velocity_;
-    double latest_velocity_;
-    double latest_yaw_rate_;
-    bool has_velocity_stamp_;
+    bool has_velocity_ = false;
+    double latest_velocity_ = 0.0;
+    double latest_yaw_rate_ = 0.0;
+    bool has_velocity_stamp_ = false;
     rclcpp::Time last_velocity_stamp_;
     mutable std::mutex state_mutex_;
 
