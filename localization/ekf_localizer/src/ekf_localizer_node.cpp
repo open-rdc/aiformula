@@ -40,13 +40,21 @@ EkfLocalizerNode::EkfLocalizerNode(
   tf_interval_ms_(get_parameter("tf_interval_ms").as_int()),
   icp_pose_additional_delay_s_(get_parameter("icp_pose_additional_delay_s").as_double()),
   icp_pose_max_delay_s_(get_parameter("icp_pose_max_delay_s").as_double()),
+  velocity_additional_delay_s_(get_parameter("velocity_additional_delay_s").as_double()),
+  velocity_max_delay_s_(get_parameter("velocity_max_delay_s").as_double()),
   ekf_config_(make_ekf_config(*this)),
   ekf_localizer_(ekf_config_),
+  velocity_gate_(
+      get_parameter("velocity_gate_process_variance").as_double(),
+      get_parameter("yaw_rate_gate_process_variance").as_double(),
+      get_parameter("velocity_gate_dist").as_double()),
   has_icp_pose_stamp_(false),
   last_icp_pose_stamp_(0, 0, get_clock()->get_clock_type()),
   has_velocity_(false),
   latest_velocity_(0.0),
-  latest_yaw_rate_(0.0)
+  latest_yaw_rate_(0.0),
+  has_velocity_stamp_(false),
+  last_velocity_stamp_(0, 0, get_clock()->get_clock_type())
 {
     icp_pose_subscription_ = create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>(
         "/localization/icp_pose", rclcpp::QoS(1),
@@ -128,10 +136,50 @@ void EkfLocalizerNode::velocity_callback(
         return;
     }
 
+    const double velocity_variance = msg->twist.covariance[0];
+    const double yaw_rate_variance = msg->twist.covariance[35];
+    if (!std::isfinite(velocity_variance) || !std::isfinite(yaw_rate_variance) ||
+        velocity_variance <= 0.0 || yaw_rate_variance <= 0.0)
+    {
+        RCLCPP_WARN_THROTTLE(
+            get_logger(), *get_clock(), 1000,
+            "velocity_bodyの共分散が不正なため無視する");
+        return;
+    }
+
+    const rclcpp::Time stamp(msg->header.stamp, get_clock()->get_clock_type());
+
     std::lock_guard<std::mutex> lock(state_mutex_);
+
+    const DelayGateResult delay_gate = check_delay_gate(
+        get_clock()->now(), stamp, velocity_additional_delay_s_, velocity_max_delay_s_);
+    if (!delay_gate.passed) {
+        RCLCPP_WARN_THROTTLE(
+            get_logger(), *get_clock(), 1000,
+            "velocity_bodyの遅延%.3fsが上限%.3fsを超えたためdelay gateで棄却する",
+            delay_gate.delay_time_s, velocity_max_delay_s_);
+        return;
+    }
+
+    const double dt = has_velocity_stamp_ ?
+        std::max((stamp - last_velocity_stamp_).seconds(), 0.0) : 0.0;
+    last_velocity_stamp_ = stamp;
+    has_velocity_stamp_ = true;
+
+    const VelocityGateResult gate_result = velocity_gate_.update(
+        msg->twist.twist.linear.x, msg->twist.twist.angular.z,
+        velocity_variance, yaw_rate_variance, dt);
+    if (!gate_result.passed) {
+        RCLCPP_WARN_THROTTLE(
+            get_logger(), *get_clock(), 1000,
+            "velocity_bodyがmahalanobis gateで外れ値として棄却された (v=%.2f, yaw_rate=%.2f)",
+            msg->twist.twist.linear.x, msg->twist.twist.angular.z);
+        return;
+    }
+
     has_velocity_ = true;
-    latest_velocity_ = msg->twist.twist.linear.x;
-    latest_yaw_rate_ = msg->twist.twist.angular.z;
+    latest_velocity_ = gate_result.velocity;
+    latest_yaw_rate_ = gate_result.yaw_rate;
 }
 
 void EkfLocalizerNode::predict_timer_callback()

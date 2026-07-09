@@ -10,6 +10,7 @@
 #include <rclcpp/rclcpp.hpp>
 
 #include "ekf_localizer/ekf_localizer.hpp"
+#include "ekf_localizer/velocity_gate.hpp"
 #include "ekf_localizer/visibility_control.h"
 
 namespace ekf_localizer
@@ -37,14 +38,19 @@ private:
     const int tf_interval_ms_;
     const double icp_pose_additional_delay_s_;
     const double icp_pose_max_delay_s_;
+    const double velocity_additional_delay_s_;
+    const double velocity_max_delay_s_;
     EkfLocalizerConfig ekf_config_;
     EkfLocalizer ekf_localizer_;
+    VelocityGate velocity_gate_;
 
     bool has_icp_pose_stamp_;
     rclcpp::Time last_icp_pose_stamp_;
     bool has_velocity_;
     double latest_velocity_;
     double latest_yaw_rate_;
+    bool has_velocity_stamp_;
+    rclcpp::Time last_velocity_stamp_;
     mutable std::mutex state_mutex_;
 
     rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr icp_pose_subscription_;
