@@ -6,6 +6,7 @@
 
 #include <Eigen/LU>
 
+#include "ekf_localizer/mahalanobis.hpp"
 #include "utilities/utils.hpp"
 
 namespace ekf_localizer
@@ -139,9 +140,7 @@ bool EkfLocalizer::apply_position_update(
     const Eigen::Matrix2d innovation_covariance =
         observation * covariance_ * observation.transpose() + covariance;
 
-    const double mahalanobis_sq =
-        residual.transpose() * innovation_covariance.inverse() * residual;
-    if (std::sqrt(mahalanobis_sq) > config_.position_gate_dist) {
+    if (mahalanobis(residual, innovation_covariance) > config_.position_gate_dist) {
         return false;
     }
 
@@ -181,8 +180,12 @@ bool EkfLocalizer::apply_yaw_update(
     const double innovation_covariance =
         (observation * covariance_ * observation.transpose())(0, 0) + variance;
 
-    const double mahalanobis_sq = residual * residual / innovation_covariance;
-    if (std::sqrt(mahalanobis_sq) > config_.yaw_gate_dist) {
+    Eigen::VectorXd residual_vec(1);
+    residual_vec(0) = residual;
+    Eigen::MatrixXd innovation_covariance_mat(1, 1);
+    innovation_covariance_mat(0, 0) = innovation_covariance;
+
+    if (mahalanobis(residual_vec, innovation_covariance_mat) > config_.yaw_gate_dist) {
         return false;
     }
 
