@@ -35,6 +35,8 @@ private:
     const double input_timeout_s_;
     const int predict_interval_ms_;
     const int tf_interval_ms_;
+    const double icp_pose_additional_delay_s_;
+    const double icp_pose_max_delay_s_;
     EkfLocalizerConfig ekf_config_;
     EkfLocalizer ekf_localizer_;
 

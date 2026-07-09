@@ -2,6 +2,7 @@
 
 #include <cmath>
 
+#include "ekf_localizer/delay_gate.hpp"
 #include "utilities/utils.hpp"
 
 namespace ekf_localizer
@@ -37,6 +38,8 @@ EkfLocalizerNode::EkfLocalizerNode(
   input_timeout_s_(get_parameter("input_timeout_s").as_double()),
   predict_interval_ms_(get_parameter("predict_interval_ms").as_int()),
   tf_interval_ms_(get_parameter("tf_interval_ms").as_int()),
+  icp_pose_additional_delay_s_(get_parameter("icp_pose_additional_delay_s").as_double()),
+  icp_pose_max_delay_s_(get_parameter("icp_pose_max_delay_s").as_double()),
   ekf_config_(make_ekf_config(*this)),
   ekf_localizer_(ekf_config_),
   has_icp_pose_stamp_(false),
@@ -84,6 +87,16 @@ void EkfLocalizerNode::icp_pose_callback(
 
     if (!ekf_localizer_.initialized()) {
         ekf_localizer_.initialize(x, y, yaw, stamp);
+        return;
+    }
+
+    const DelayGateResult delay_gate = check_delay_gate(
+        get_clock()->now(), stamp, icp_pose_additional_delay_s_, icp_pose_max_delay_s_);
+    if (!delay_gate.passed) {
+        RCLCPP_WARN_THROTTLE(
+            get_logger(), *get_clock(), 1000,
+            "icp_poseの遅延%.3fsが上限%.3fsを超えたためdelay gateで棄却する",
+            delay_gate.delay_time_s, icp_pose_max_delay_s_);
         return;
     }
 
