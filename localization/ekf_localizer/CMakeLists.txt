@@ -16,6 +16,7 @@ ament_auto_add_library(ekf_localizer_node SHARED
   src/map_odom_tf_node.cpp
   src/odom_tf_node.cpp
   src/mahalanobis.cpp
+  src/delay_gate.cpp
 )
 target_compile_features(ekf_localizer_node PUBLIC c_std_99 cxx_std_17)
 target_compile_definitions(ekf_localizer_node PRIVATE "EKF_LOCALIZER_BUILDING_LIBRARY")
