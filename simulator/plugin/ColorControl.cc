@@ -4,13 +4,26 @@
 #include <ignition/gazebo/components/Material.hh>
 #include <ignition/gazebo/components/Visual.hh>
 #include <ignition/gazebo/components/VisualCmd.hh>
-
-// #include <ignition/gazebo/components/Name.hh>
-// #include <sdf/Material.hh>
 #include <ignition/msgs/visual.pb.h>
+
+#include <ignition/gazebo/components/Model.hh>
+#include <ignition/gazebo/components/Pose.hh>
+#include <ignition/gazebo/components/Name.hh>
 
 using namespace ignition;
 using namespace gazebo;
+
+namespace {
+  const std::string ROBOT_MODEL_NAME = "ai_car1";
+  const ignition::math::Vector3d TARGET_POSITION(80.0, 5.0, 0.0);
+  const double DETECTION_RADIUS = 10.0;
+
+  Entity robotEntity = kNullEntity;
+  bool target_reached = false;
+  std::chrono::steady_clock::duration reach_time;
+  bool timer_started = false;
+  bool color_changed = false;
+}
 
 void ColorControl::FindColorEntities(EntityComponentManager &_ecm)
 {
@@ -38,34 +51,79 @@ void ColorControl::PreUpdate(const UpdateInfo &_info,
 
   std::cout << "[ColorControl] PreUpdate Loop Pythonic Test!" << std::endl;
 
-  static uint64_t frameCount = 0;
-  frameCount++;
-  // double simTimeInSeconds = std::chrono::duration_cast<std::chrono::duration<double>>(_info.simTime).count();
+  if (robotEntity == kNullEntity)
+  {
+    _ecm.Each<components::Model, components::Name>(
+        [&](const Entity &_entity, const components::Model *, const components::Name *_name) -> bool
+        {
+          if (_name->Data() == ROBOT_MODEL_NAME)
+          {
+            robotEntity = _entity;
+            return false;
+          }
+          return true;
+        });
+  }
+
   if (this->ColorEntities.empty())
   {  
     this->FindColorEntities(_ecm);
     if (this->ColorEntities.empty())
       return;
   }
-  if (frameCount % 1000 == 0)
+
+  double distance = 20.0;
+  if (robotEntity != kNullEntity)
   {
-    ignmsg << "Plugin is looping! Frame Count: " << frameCount 
-           << " | Gazebo SimTime: " << _info.simTime.count() << " ns\n";
+    auto poseComp = _ecm.Component<components::Pose>(robotEntity);
+    if (poseComp)
+    {
+      ignition::math::Vector3d currentPos = poseComp->Data().Pos();
+
+      distance = currentPos.Distance(TARGET_POSITION);
+
+      if (distance <= DETECTION_RADIUS)
+      {
+        if (!timer_started)
+        {
+          reach_time = _info.simTime;
+          timer_started = true;
+          ignmsg << "Robot reached target point! Color change in 6 seconds. SimTime: " 
+               << std::chrono::duration_cast<std::chrono::seconds>(_info.simTime).count() << "s\n";
+        }
+      }
+    }
   }
-  double r = 0.0;
+
+  double r = 1.0;
   double g = 0.0;
   const double b = 0.0;
-  std::string color = "";
+  std::string color = "Red";
 
-  if ((frameCount / 2000) % 2 == 0){
+  if (timer_started)
+  {
+    auto elapsed = _info.simTime - reach_time;
+    if (elapsed >= std::chrono::seconds(6))
+    {
+      r = 0.0;
+      g = 1.0;
+      color = "Green";
+      if (!color_changed)
+      {
+        ignmsg << "6 seconds elapsed since target reach. Changing color to Green! SimTime: " 
+               << std::chrono::duration_cast<std::chrono::seconds>(_info.simTime).count() << "s\n";
+        color_changed = true;
+      }
+    }
+  }
+  if (!(distance <= DETECTION_RADIUS))
+  {
     r = 1.0;
     g = 0.0;
     color = "Red";
-  }else{
-    r = 0.0;
-    g = 1.0;
-    color = "Green";
-  } 
+    timer_started = false;
+    color_changed = false;
+  }
 
   ignition::math::Color newColor(r, g, b, 1.0);
 
@@ -73,12 +131,6 @@ void ColorControl::PreUpdate(const UpdateInfo &_info,
   for (const Entity e : this->ColorEntities)
   {
     std::cout << "Set" << color << "!!!!" << std::endl;
-
-    // auto cmd = _ecm.Component<components::VisualCmd>(e);
-
-    // std::cout << "VisualCmd exists = "
-    //       << (cmd != nullptr)
-    //       << std::endl;
 
     ignition::msgs::Visual visual;
     auto *mat = visual.mutable_material();

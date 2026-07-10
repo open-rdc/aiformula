@@ -24,7 +24,5 @@
             filename="ColorControl"
             name="ignition::gazebo::ColorControl">
           </plugin>
-        </model>
-	    
-  
+  </model>
 </sdf>

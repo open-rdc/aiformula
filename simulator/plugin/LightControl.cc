@@ -11,16 +11,30 @@
 
 #include <sdf/Light.hh>
 #include <ignition/gazebo/Conversions.hh>
+#include <ignition/gazebo/components/Model.hh>
+#include <ignition/gazebo/components/Pose.hh>
+
 
 using namespace ignition;
 using namespace ignition::gazebo;
+
+namespace {
+  const std::string ROBOT_MODEL_NAME = "ai_car1";
+  const ignition::math::Vector3d TARGET_POSITION(80.0, 5.0, 0.0);
+  const double DETECTION_RADIUS = 10.0;
+
+  Entity robotEntity = kNullEntity;
+  bool target_reached = false;
+  std::chrono::steady_clock::duration reach_time;
+  bool timer_started = false;
+  bool color_changed = false;
+}
 
 // Find all light entities
 void LightControl::FindLightEntities(EntityComponentManager &_ecm)
 {
   this->lightEntites.clear();
 
-  // check for such components which has Light, Name components
   _ecm.Each<components::Light, components::Name>(
       [&](const Entity &_entity,
           const components::Light *,
@@ -35,60 +49,106 @@ void LightControl::FindLightEntities(EntityComponentManager &_ecm)
       });
 }
 
-// ---------------------------------------------------------------------
 void LightControl::PreUpdate(const UpdateInfo &_info,
                              EntityComponentManager &_ecm)
 {
   if (_info.paused)
     return;
 
-  static uint64_t frameCount = 0;
-  frameCount++;
+  if (robotEntity == kNullEntity)
+  {
+    _ecm.Each<components::Model, components::Name>(
+        [&](const Entity &_entity, const components::Model *, const components::Name *_name) -> bool
+        {
+          if (_name->Data() == ROBOT_MODEL_NAME)
+          {
+            robotEntity = _entity;
+            return false;
+          }
+          return true;
+        });
+  }
 
   this->FindLightEntities(_ecm);
   if (this->lightEntites.empty())
     return;
 
-  // Animated RGB in [0,1]
-  double r = 0.0;
+  double distance = 20.0;
+  if (robotEntity != kNullEntity)
+  {
+    auto poseComp = _ecm.Component<components::Pose>(robotEntity);
+    if (poseComp)
+    {
+      ignition::math::Vector3d currentPos = poseComp->Data().Pos();
+
+      distance = currentPos.Distance(TARGET_POSITION);
+
+      if (distance <= DETECTION_RADIUS)
+      {
+        if (!timer_started)
+        {
+          reach_time = _info.simTime;
+          timer_started = true;
+          ignmsg << "Robot reached target point! Color change in 6 seconds. SimTime: " 
+               << std::chrono::duration_cast<std::chrono::seconds>(_info.simTime).count() << "s\n";
+        }
+      }
+    }
+  }
+
+  double r = 1.0;
   double g = 0.0;
   const double b = 0.0;
-  if ((frameCount / 2000) % 2 == 0){
+  std::string color = "Red";
+
+  if (timer_started)
+  {
+    auto elapsed = _info.simTime - reach_time;
+    if (elapsed >= std::chrono::seconds(6))
+    {
+      r = 0.0;
+      g = 1.0;
+      color = "Green";
+      if (!color_changed)
+      {
+        ignmsg << "6 seconds elapsed since target reach. Changing color to Green! SimTime: " 
+               << std::chrono::duration_cast<std::chrono::seconds>(_info.simTime).count() << "s\n";
+        color_changed = true;
+      }
+    }
+  }
+  if (!(distance <= DETECTION_RADIUS))
+  {
     r = 1.0;
     g = 0.0;
-  }else{
-    r = 0.0;
-    g = 1.0;
-  } 
+    color = "Red";
+    timer_started = false;
+    color_changed = false;
+  }
+
   ignition::math::Color newColor(r, g, b, 1.0);
 
   for (const Entity e : this->lightEntites)
   {
-    // read data of Light
     auto lightComp = _ecm.Component<components::Light>(e);
     if (!lightComp)
       continue;
 
     const sdf::Light &sdfLight = lightComp->Data();
 
-    // convert sdf light msg to ignition light msg
     ignition::msgs::Light msg = ignition::gazebo::convert<ignition::msgs::Light>(sdfLight);
 
-    // using Set() to set the fields of light msg
     ignition::msgs::Set(msg.mutable_diffuse(),  newColor);
     ignition::msgs::Set(msg.mutable_specular(), newColor);
 
-    // method2
     _ecm.SetComponentData<components::LightCmd>(e, msg);
 
-    // in case of light we need to trigger update so that rendering system knows it updated
     _ecm.SetChanged(e,
                     components::LightCmd::typeId,
                     ComponentState::PeriodicChange);
   }
 }
 
-// Register the plugin
 IGNITION_ADD_PLUGIN(
     LightControl,
     ignition::gazebo::System,
