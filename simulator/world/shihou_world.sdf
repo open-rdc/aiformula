@@ -141,7 +141,7 @@
           </link>
         </model> -->
 	    <model name="panel">
-          <pose>0.0 0.0 0.5 0.0 0.0 3.14</pose>
+          <pose>80 5.0 0.5 0.0 0.0 0.0</pose>
           <static>true</static>
           <link name="link">
             <visual name="visual">
@@ -179,7 +179,7 @@
         </include>
         <include>
             <uri>package://simulator/models/ai_car1/box.sdf</uri>
-            <pose>0 -0.0 0.5 0 0 3.14</pose>
+            <pose>80 5.0 0.5 0 0 0</pose>
         </include>
 
     <!-- 用調整 -->
