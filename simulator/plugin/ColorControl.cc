@@ -13,35 +13,61 @@
 using namespace ignition;
 using namespace gazebo;
 
-namespace {
-  const std::string ROBOT_MODEL_NAME = "ai_car1";
-  const ignition::math::Vector3d TARGET_POSITION(80.0, 5.0, 0.0);
-  const double DETECTION_RADIUS = 10.0;
-
-  Entity robotEntity = kNullEntity;
-  bool target_reached = false;
-  std::chrono::steady_clock::duration reach_time;
-  bool timer_started = false;
-  bool color_changed = false;
-}
 
 void ColorControl::FindColorEntities(EntityComponentManager &_ecm)
 {
   this->ColorEntities.clear();
-
   _ecm.Each<components::Visual, components::Name>(
       [&](const Entity &_entity,
           const components::Visual *,
           const components::Name *_name) -> bool
       {
-        if (_name->Data() == "screen_visual")
+        if (_name->Data() == COLOR_ENTITY_NAME)
         {
+          // this->ColorEntities.push_back(_entity);
           this->ColorEntities.push_back(_entity);
+          return false;
         }
         return true;
       });
-  
 }
+
+void ColorControl::FindModelEntities(EntityComponentManager &_ecm)
+{
+  _ecm.Each<components::Model, components::Name>(
+      [&](const Entity &_entity,
+          const components::Model *,
+          const components::Name *_name) -> bool
+      {
+        if (_name->Data() == ROBOT_MODEL_NAME)
+        {
+          this->RobotEntity = _entity;
+          return false;
+        }
+        return true;
+      });
+}
+
+void ColorControl::SetGreen()
+{
+  this->r = 0.0;
+  this->g = 1.0;
+  this->color = "Green";
+}
+
+void ColorControl::SetRed()
+{
+  this->r = 1.0;
+  this->g = 0.0;
+  this->color = "Red";
+}
+
+void ColorControl::TimerReset()
+{
+  this->timer_started = false;
+  this->color_changed = false;
+}
+
 
 void ColorControl::PreUpdate(const UpdateInfo &_info,
                              EntityComponentManager &_ecm)
@@ -49,20 +75,11 @@ void ColorControl::PreUpdate(const UpdateInfo &_info,
   if (_info.paused)
     return;
 
-  std::cout << "[ColorControl] PreUpdate Loop Pythonic Test!" << std::endl;
-
-  if (robotEntity == kNullEntity)
+  if (this->RobotEntity == kNullEntity)
   {
-    _ecm.Each<components::Model, components::Name>(
-        [&](const Entity &_entity, const components::Model *, const components::Name *_name) -> bool
-        {
-          if (_name->Data() == ROBOT_MODEL_NAME)
-          {
-            robotEntity = _entity;
-            return false;
-          }
-          return true;
-        });
+    this->FindModelEntities(_ecm);
+    if (this->RobotEntity == kNullEntity)
+      return;
   }
 
   if (this->ColorEntities.empty())
@@ -72,65 +89,52 @@ void ColorControl::PreUpdate(const UpdateInfo &_info,
       return;
   }
 
-  double distance = 20.0;
-  if (robotEntity != kNullEntity)
+  if (this->RobotEntity != kNullEntity)
   {
-    auto poseComp = _ecm.Component<components::Pose>(robotEntity);
+    auto poseComp = _ecm.Component<components::Pose>(this->RobotEntity);
     if (poseComp)
     {
       ignition::math::Vector3d currentPos = poseComp->Data().Pos();
+      this->distance = currentPos.Distance(this->TARGET_POSITION);
 
-      distance = currentPos.Distance(TARGET_POSITION);
-
-      if (distance <= DETECTION_RADIUS)
+      if (this->distance <= this->DETECTION_RADIUS)
       {
-        if (!timer_started)
+        if (!this->timer_started)
         {
-          reach_time = _info.simTime;
-          timer_started = true;
-          ignmsg << "Robot reached target point! Color change in 6 seconds. SimTime: " 
-               << std::chrono::duration_cast<std::chrono::seconds>(_info.simTime).count() << "s\n";
+          this->reach_time = _info.simTime;
+          this->timer_started = true;
+          std::cout << "Robot reached target point! Color change in 6 seconds. SimTime: " 
+                    << std::chrono::duration_cast<std::chrono::seconds>(_info.simTime).count() << "s\n";
         }
       }
     }
   }
 
-  double r = 1.0;
-  double g = 0.0;
-  const double b = 0.0;
-  std::string color = "Red";
-
-  if (timer_started)
+  if (this->timer_started)
   {
-    auto elapsed = _info.simTime - reach_time;
+    auto elapsed = _info.simTime - this->reach_time;
     if (elapsed >= std::chrono::seconds(6))
     {
-      r = 0.0;
-      g = 1.0;
-      color = "Green";
-      if (!color_changed)
+      this->SetGreen();
+      if (!this->color_changed)
       {
-        ignmsg << "6 seconds elapsed since target reach. Changing color to Green! SimTime: " 
+        std::cout << "6 seconds elapsed since target reach. Changing color to Green! SimTime: " 
                << std::chrono::duration_cast<std::chrono::seconds>(_info.simTime).count() << "s\n";
-        color_changed = true;
+        this->color_changed = true;
       }
     }
   }
-  if (!(distance <= DETECTION_RADIUS))
+  if (!(this->distance <= this->DETECTION_RADIUS))
   {
-    r = 1.0;
-    g = 0.0;
-    color = "Red";
-    timer_started = false;
-    color_changed = false;
+    this->SetRed();
+    this->TimerReset();
   }
 
-  ignition::math::Color newColor(r, g, b, 1.0);
-
+  ignition::math::Color newColor(this->r, this->g, this->b, 1.0);
 
   for (const Entity e : this->ColorEntities)
   {
-    std::cout << "Set" << color << "!!!!" << std::endl;
+    //std::cout << "Set" << this->color << "!!!!" << std::endl;
 
     ignition::msgs::Visual visual;
     auto *mat = visual.mutable_material();
@@ -139,18 +143,6 @@ void ColorControl::PreUpdate(const UpdateInfo &_info,
     ignition::msgs::Set(mat->mutable_diffuse(), newColor);
     ignition::msgs::Set(mat->mutable_specular(), newColor);
     ignition::msgs::Set(mat->mutable_emissive(), newColor);
-    auto cmdComp = _ecm.Component<components::VisualCmd>(e);
-    if (!cmdComp)
-      _ecm.CreateComponent(e, components::VisualCmd(visual));
-    else
-    {
-
-      cmdComp->Data() = visual;
-
-
-    }
-    auto materialComp = _ecm.Component<components::Material>(e);
-
 
     _ecm.SetComponentData<components::VisualCmd>(e, visual);
     
@@ -159,7 +151,6 @@ void ColorControl::PreUpdate(const UpdateInfo &_info,
                      ComponentState::OneTimeChange);
   }
 }
-
 
 IGNITION_ADD_PLUGIN(
     ColorControl,

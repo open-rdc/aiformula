@@ -14,40 +14,62 @@
 #include <ignition/gazebo/components/Model.hh>
 #include <ignition/gazebo/components/Pose.hh>
 
-
 using namespace ignition;
 using namespace ignition::gazebo;
 
-namespace {
-  const std::string ROBOT_MODEL_NAME = "ai_car1";
-  const ignition::math::Vector3d TARGET_POSITION(80.0, 5.0, 0.0);
-  const double DETECTION_RADIUS = 10.0;
-
-  Entity robotEntity = kNullEntity;
-  bool target_reached = false;
-  std::chrono::steady_clock::duration reach_time;
-  bool timer_started = false;
-  bool color_changed = false;
-}
 
 // Find all light entities
 void LightControl::FindLightEntities(EntityComponentManager &_ecm)
 {
-  this->lightEntites.clear();
-
+  this->LightEntities.clear();
   _ecm.Each<components::Light, components::Name>(
       [&](const Entity &_entity,
           const components::Light *,
           const components::Name *_name) -> bool
       {
-        if (_name->Data() == "led")
+        if (_name->Data() == this->LIGHT_ENTITY_NAME)
         {
-          this->lightEntites.push_back(_entity);
-          return true;
+          this->LightEntities.push_back(_entity);
+          return false;
         }
-        return false;
+        return true;
       });
 }
+
+void LightControl::FindModelEntities(EntityComponentManager &_ecm)
+{
+  _ecm.Each<components::Model, components::Name>(
+      [&](const Entity &_entity, const components::Model *, const components::Name *_name) -> bool
+      {
+        if (_name->Data() == this->ROBOT_MODEL_NAME)
+        {
+          this->RobotEntity = _entity;
+          return false;
+        }
+        return true;
+      });
+}
+
+void LightControl::SetGreen()
+{
+  this->r = 0.0;
+  this->g = 1.0;
+  this->color = "Green";
+}
+
+void LightControl::SetRed()
+{
+  this->r = 1.0;
+  this->g = 0.0;
+  this->color = "Red";
+}
+
+void LightControl::TimerReset()
+{
+  this->timer_started = false;
+  this->color_changed = false;
+}
+
 
 void LightControl::PreUpdate(const UpdateInfo &_info,
                              EntityComponentManager &_ecm)
@@ -55,40 +77,31 @@ void LightControl::PreUpdate(const UpdateInfo &_info,
   if (_info.paused)
     return;
 
-  if (robotEntity == kNullEntity)
+  if (this->RobotEntity == kNullEntity)
   {
-    _ecm.Each<components::Model, components::Name>(
-        [&](const Entity &_entity, const components::Model *, const components::Name *_name) -> bool
-        {
-          if (_name->Data() == ROBOT_MODEL_NAME)
-          {
-            robotEntity = _entity;
-            return false;
-          }
-          return true;
-        });
+    this->FindModelEntities(_ecm);
+    if (this->RobotEntity == kNullEntity)
+      return;
   }
 
   this->FindLightEntities(_ecm);
-  if (this->lightEntites.empty())
+  if (this->LightEntities.empty())
     return;
 
-  double distance = 20.0;
-  if (robotEntity != kNullEntity)
+  if (this->RobotEntity != kNullEntity)
   {
-    auto poseComp = _ecm.Component<components::Pose>(robotEntity);
+    auto poseComp = _ecm.Component<components::Pose>(this->RobotEntity);
     if (poseComp)
     {
       ignition::math::Vector3d currentPos = poseComp->Data().Pos();
+      this->distance = currentPos.Distance(this->TARGET_POSITION);
 
-      distance = currentPos.Distance(TARGET_POSITION);
-
-      if (distance <= DETECTION_RADIUS)
+      if (this->distance <= this->DETECTION_RADIUS)
       {
-        if (!timer_started)
+        if (!this->timer_started)
         {
-          reach_time = _info.simTime;
-          timer_started = true;
+          this->reach_time = _info.simTime;
+          this->timer_started = true;
           ignmsg << "Robot reached target point! Color change in 6 seconds. SimTime: " 
                << std::chrono::duration_cast<std::chrono::seconds>(_info.simTime).count() << "s\n";
         }
@@ -96,39 +109,29 @@ void LightControl::PreUpdate(const UpdateInfo &_info,
     }
   }
 
-  double r = 1.0;
-  double g = 0.0;
-  const double b = 0.0;
-  std::string color = "Red";
-
-  if (timer_started)
+  if (this->timer_started)
   {
-    auto elapsed = _info.simTime - reach_time;
+    auto elapsed = _info.simTime - this->reach_time;
     if (elapsed >= std::chrono::seconds(6))
     {
-      r = 0.0;
-      g = 1.0;
-      color = "Green";
-      if (!color_changed)
+      this->SetGreen();
+      if (!this->color_changed)
       {
         ignmsg << "6 seconds elapsed since target reach. Changing color to Green! SimTime: " 
                << std::chrono::duration_cast<std::chrono::seconds>(_info.simTime).count() << "s\n";
-        color_changed = true;
+        this->color_changed = true;
       }
     }
   }
-  if (!(distance <= DETECTION_RADIUS))
+  if (!(this->distance <= this->DETECTION_RADIUS))
   {
-    r = 1.0;
-    g = 0.0;
-    color = "Red";
-    timer_started = false;
-    color_changed = false;
+    this->SetRed();
+    this->TimerReset();
   }
 
-  ignition::math::Color newColor(r, g, b, 1.0);
-
-  for (const Entity e : this->lightEntites)
+  ignition::math::Color newColor(this->r, this->g, this->b, 1.0);
+  
+  for (const Entity e : this->LightEntities)
   {
     auto lightComp = _ecm.Component<components::Light>(e);
     if (!lightComp)
