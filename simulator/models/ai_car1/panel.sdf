@@ -1,0 +1,57 @@
+<?xml version="1.0" ?>
+<sdf version="1.5">
+  <model name="panel">
+    <static>true</static>
+      <link name="panel">
+        <visual name="visual">
+          <geometry>
+            <mesh>
+              <uri>package://simulator/world/meshes/red_panel.dae</uri>
+              <scale>1 1 1</scale>
+            </mesh>
+          </geometry>
+        </visual>
+      </link>
+      <link name="screen">
+        <visual name="screen_visual">
+          <geometry>
+            <mesh>
+              <uri>package://simulator/world/meshes/screen.dae</uri>
+              <scale>1 1 1</scale>
+            </mesh>
+          </geometry>
+            <material>
+                <ambient>1.0 0.0 0.0 1.0</ambient>
+                <diffuse>1.0 0.0 0.0 1.0</diffuse>
+                <specular>1.0 1.0 1.0 1.0</specular>
+                <emissive>1.0 0.0 0.0 1.0</emissive>
+            </material>
+        </visual>
+        <light type="spot" name="led"> 
+            <pose>0 -0.3 0.3 -1.57 0 0</pose> 
+            <diffuse>1.0 0.0 0.0 1.0</diffuse>
+            <specular>1.0 0.0 0.0 1.0</specular>
+            <attenuation>
+                <range>10.0</range>
+                <linear>0.05</linear>
+                <constant>0.01</constant>
+                <quadratic>0.1</quadratic>
+            </attenuation>
+            <spot>
+                <inner_angle>1.0</inner_angle>
+                <outer_angle>1.5</outer_angle>
+                <falloff>1.0</falloff>
+            </spot>
+            <cast_shadows>true</cast_shadows>
+        </light>
+      </link>
+      <plugin
+        filename="ColorControl"
+        name="ignition::gazebo::ColorControl">
+      </plugin>
+      <plugin
+        filename="LightControl"
+        name="ignition::gazebo::LightControl">
+      </plugin>
+  </model>
+</sdf>
