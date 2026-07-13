@@ -1,17 +1,17 @@
 launch: #起動パラメータ
   ros__parameters:
     joy: true
-    vectornav : true
-    odrive : true
-    socketcan : true
-    zed : true
-    sim : false
+    vectornav : false
+    odrive : false
+    socketcan : false
+    zed : false
+    sim : true
 
 /**:  #ワイルドカード(ここのパラメータは全ノードから読める: <名前に注意>)
   ros__parameters:
     # 並進  速度[m/s],加速度[m/s^2],加減速度[-m/s^2],躍度[m/s^3]
     linear_max:
-      vel : 3.0
+      vel : 2.0
       acc: 5.0
       jer: 0.0
     # 舵角  位置[deg]
@@ -145,6 +145,7 @@ lane_planner_node:
     vector_map_topic : "/vector_map"
     localization_pose_topic : "/localization/pose"
     nav_cmd_topic : "/planning/nav_cmd"
+    lane_change_topic : "/flag"
     default_nav_cmd : "straight"
     nav_cmd_fallback_order : ["straight", "left", "right"]
     global_path_topic : "/planner/global_path"
@@ -209,7 +210,7 @@ controller_server_node:
     base_frame_id      : "base_link"
     # PurePursuitPlugin params (linear_max.*, steering_max.*, wheelbase は /** から継承)
     lookahead_distance : 5.0
-    steered_gain       : 1.8
+    steered_gain : 1.8
 
 chassis_driver_node:
   ros__parameters:

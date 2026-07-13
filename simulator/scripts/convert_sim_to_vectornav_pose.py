@@ -12,8 +12,9 @@ from sensor_msgs.msg import Imu, NavSatFix
 class SimVectornavConverter(Node):
     """
     シミュレータのセンサデータを実機 VectorNav 相当に変換して再配信する。
-    - /imu_raw       → yaw オフセット適用 → /vectornav/imu
-    - /vectornav/gnss + /vectornav/imu(補正後) → ECEF 位置 + 補正姿勢 → /vectornav/pose
+    - /imu_raw → yaw オフセット適用 → /vectornav/imu
+    - /navsat  → そのまま再配信 → /vectornav/gnss
+    - /navsat + /vectornav/imu(補正後) → ECEF 位置 + 補正姿勢 → /vectornav/pose
     """
 
     def __init__(self):
@@ -26,15 +27,16 @@ class SimVectornavConverter(Node):
         self._latest_corrected_imu: Imu | None = None
 
         self.create_subscription(Imu, "/imu_raw", self._imu_callback, 10)
-        self.create_subscription(NavSatFix, "/vectornav/gnss", self._gnss_callback, 10)
+        self.create_subscription(NavSatFix, "/navsat", self._gnss_callback, 10)
 
         self._imu_pub  = self.create_publisher(Imu, "/vectornav/imu", 10)
+        self._gnss_pub = self.create_publisher(NavSatFix, "/vectornav/gnss", 10)
         self._pose_pub = self.create_publisher(PoseWithCovarianceStamped, "/vectornav/pose", 10)
 
         self.get_logger().info(
             f"yaw オフセット {self.yaw_offset_deg} 度を適用し，"
             f"imu_frame_id={self.imu_frame_id} として "
-            f"/vectornav/imu と /vectornav/pose を配信します"
+            f"/vectornav/imu, /vectornav/gnss, /vectornav/pose を配信します"
         )
 
     # ------------------------------------------------------------------
@@ -59,6 +61,8 @@ class SimVectornavConverter(Node):
         self._imu_pub.publish(out)
 
     def _gnss_callback(self, msg: NavSatFix):
+        self._gnss_pub.publish(msg)
+
         if self._latest_corrected_imu is None:
             return
 
