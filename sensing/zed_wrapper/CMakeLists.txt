@@ -10,8 +10,16 @@ ament_auto_find_build_dependencies()
 
 # ZED SDK is a system library — not a ROS package
 set(ZED_DIR "/usr/local/zed/")
-find_package(zed REQUIRED)
+find_package(zed QUIET)
+if(NOT zed_FOUND)
+  message(WARNING "ZED SDK not found at ${ZED_DIR} — skipping zed_wrapper build")
+  ament_auto_package()
+  return()
+endif()
 find_package(CUDA ${ZED_CUDA_VERSION} REQUIRED)
+
+# let dependent packages (main_executor) know the ZED node is available
+ament_export_definitions("ENABLE_ZED")
 
 ament_auto_add_library(zed_wrapper_node SHARED
   src/zed_wrapper_node.cpp

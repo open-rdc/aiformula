@@ -1,45 +1,96 @@
-# aiformula2026_docker
-これはAIForemulaにおける環境構築のためのDockerfileです。
-こちらを使用する前にDockerをインストールしてください。
-以下が手順になります。
+# docker
 
-## 手順
+AIFormulaの開発環境を構築するための Docker 環境です。
+
+## 前提
+
+- [Docker](https://docs.docker.com/get-docker/) がインストール済みであること
+- GPU を使う場合は [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) がインストール済みであること
+
+## 使い方
+
+以下のスクリプトはすべて `docker/` ディレクトリ内で実行してください。
+
+### 1. イメージのビルド
+
 ```bash
-#ホスト側
-git clone https://github.com/open-rdc/aiformula
-cd docker
-docker build -t <your-image-name> .
-#例
-docker run -it -d --name <your_container_name> <your_image_name>
-docker exec -it <your_container_name> /bin/bash
-#コンテナ内
-cd ~/ros2_ws
-colcon build
+./build.sh
+```
+
+`aiformula:humble` というイメージが作成されます。
+
+### 2. コンテナの起動
+
+```bash
+# GPU を使わない場合
+./run.sh
+
+# GPU を使う場合
+./run_gpu.sh
+```
+
+`my-aiformula-humble` という名前でコンテナが起動し、そのまま bash に入ります。
+（GUIが表示されない場合はホスト側で `xhost +local:docker` を実行してください）。
+
+### 3. ワークスペースのビルド（初回のみ）
+
+コンテナ内で以下を実行します。
+
+```bash
+cd ~/formula_ws
+cb        # colcon build --symlink-install のエイリアス
 source ~/.bashrc
 ```
-## GPUをお使いの場合
-GPUを使っており、cudaやcuDNNを利用したい場合は以下のサイトを参考にベースイメージ名を変更してください。
 
-- [参考サイト](https://hub.docker.com/r/nvidia/cuda/)
+### コンテナへの再接続
 
-GPUをお使いの場合の実行例は以下のようになります。
+`exit` するとコンテナは停止します。再度入る場合は次のようにします。
+
 ```bash
-docker run -it \
-  --net=host \
-  --ipc=host \
-  --pid=host \
-  --gpus all \
-  --name <your_container_name> \
-  -e DISPLAY=$DISPLAY \
-  -e WAYLAND_DISPLAY=$WAYLAND_DISPLAY \
-  -e XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR \
-  -e PULSE_SERVER=$PULSE_SERVER \
-  -e XAUTHORITY=/tmp/.docker.xauth \
-  -v $HOME/.Xauthority:/tmp/.docker.xauth \
-  -v /mnt/wslg:/mnt/wslg \
-  -v /tmp/.X11-unix:/tmp/.X11-unix \
-  -v $(realpath <your_workspace>):/home/<yourname>/<your_workspace> \
-  <your_image_name>
+# 停止中のコンテナを起動して入る
+docker start -i my-aiformula-humble
 
-xhost +local:docker > /dev/null && docker start <your_container_name> > /dev/null && docker exec -it <your_container_name> bash
+# 起動中のコンテナに別シェルから入る
+docker exec -it my-aiformula-humble bash
 ```
+
+## 補足
+
+### シェルの便利機能
+
+#### bash（エイリアス / 関数）
+
+| コマンド | 内容 |
+| --- | --- |
+| `cb` | `colcon build --symlink-install` |
+| `cbcl` | `install/ build/ log/` を削除してからクリーンビルド |
+| `bashrc` | `~/.bashrc` を再読み込み |
+| `ros_make` | ワークスペースへ移動してビルドし、元のディレクトリへ戻る |
+
+- プロンプトにカレントディレクトリの git ブランチを表示します。
+- 起動時に `/opt/ros/humble/setup.bash` と `~/formula_ws/install/setup.bash` を自動で source します。
+- `ROS_DOMAIN_ID=10` を設定済みです。
+
+#### tmux
+
+| 操作 | キー |
+| --- | --- |
+| prefix | `C-a`（`C-b` から変更） |
+| ペインを垂直分割 | `prefix` + `\` |
+| ペインを水平分割 | `prefix` + `-` |
+| ペイン移動 | `C-h` / `C-j` / `C-k` / `C-l`（`C-o` で順送り） |
+| ペインのリサイズ | `prefix` + `H` / `J` / `K` / `L` |
+| ウィンドウ切り替え | `Shift` + `←` / `→` |
+| 設定のリロード | `prefix` + `r` |
+
+- マウス操作が有効です。
+- ステータスラインは 256 色対応、ウィンドウ一覧は右寄せ表示です。
+
+#### vim
+
+- 行番号を表示します（`set number`）。
+
+### ホストとのファイル共有
+
+`docker/docker_share/` がコンテナ内の `/home/host_files` にマウントされます。
+ホストとコンテナの間でファイルをやり取りしたいときはこのディレクトリを使ってください。
