@@ -18,18 +18,34 @@ using namespace ignition;
 using namespace ignition::gazebo;
 
 
-// Find all light entities
+void LightControl::Configure(const Entity &_entity,
+                              const std::shared_ptr<const sdf::Element> &_sdf,
+                              EntityComponentManager &_ecm,
+                              EventManager &_eventMgr)
+{
+  time = (_sdf && _sdf->HasElement("duration")) ? _sdf->Get<int>("duration") : 10;
+  ROBOT_MODEL_NAME = (_sdf && _sdf->HasElement("robot_name")) ? _sdf->Get<std::string>("robot_name") : "model";
+  LIGHT_ENTITY_NAME = (_sdf && _sdf->HasElement("control_name")) ? _sdf->Get<std::string>("control_name") : "led";
+  TARGET_POSITION = (_sdf && _sdf->HasElement("target_position")) ? _sdf->Get<ignition::math::Vector3d>("target_position") : ignition::math::Vector3d(0.0, 0.0, 0.0);
+  DETECTION_RADIUS = (_sdf && _sdf->HasElement("detection_radius")) ? _sdf->Get<double>("detection_radius") : 0.0;
+  color_value = (_sdf && _sdf->HasElement("color")) ? _sdf->Get<ignition::math::Color>("color") : ignition::math::Color(0.0, 0.0, 0.0, 1.0);
+  color_name = (_sdf && _sdf->HasElement("color_name")) ? _sdf->Get<std::string>("color_name") : "None";
+  r = color_value.R();
+  g = color_value.G();
+  b = color_value.B();
+}
+
 void LightControl::FindLightEntities(EntityComponentManager &_ecm)
 {
-  this->LightEntities.clear();
+  LightEntities.clear();
   _ecm.Each<components::Light, components::Name>(
       [&](const Entity &_entity,
           const components::Light *,
           const components::Name *_name) -> bool
       {
-        if (_name->Data() == this->LIGHT_ENTITY_NAME)
+        if (_name->Data() == LIGHT_ENTITY_NAME)
         {
-          this->LightEntities.push_back(_entity);
+          LightEntities.push_back(_entity);
           return false;
         }
         return true;
@@ -41,9 +57,9 @@ void LightControl::FindModelEntities(EntityComponentManager &_ecm)
   _ecm.Each<components::Model, components::Name>(
       [&](const Entity &_entity, const components::Model *, const components::Name *_name) -> bool
       {
-        if (_name->Data() == this->ROBOT_MODEL_NAME)
+        if (_name->Data() == ROBOT_MODEL_NAME)
         {
-          this->RobotEntity = _entity;
+          RobotEntity = _entity;
           return false;
         }
         return true;
@@ -52,22 +68,22 @@ void LightControl::FindModelEntities(EntityComponentManager &_ecm)
 
 void LightControl::SetGreen()
 {
-  this->r = 0.0;
-  this->g = 1.0;
-  this->color = "Green";
+  r = 0.0;
+  g = 1.0;
+  color_name = "Green";
 }
 
 void LightControl::SetRed()
 {
-  this->r = 1.0;
-  this->g = 0.0;
-  this->color = "Red";
+  r = 1.0;
+  g = 0.0;
+  color_name = "Red";
 }
 
 void LightControl::TimerReset()
 {
-  this->timer_started = false;
-  this->color_changed = false;
+  timer_started = false;
+  color_changed = false;
 }
 
 
@@ -77,61 +93,61 @@ void LightControl::PreUpdate(const UpdateInfo &_info,
   if (_info.paused)
     return;
 
-  if (this->RobotEntity == kNullEntity)
+  if (RobotEntity == kNullEntity)
   {
-    this->FindModelEntities(_ecm);
-    if (this->RobotEntity == kNullEntity)
+    FindModelEntities(_ecm);
+    if (RobotEntity == kNullEntity)
       return;
   }
 
-  this->FindLightEntities(_ecm);
-  if (this->LightEntities.empty())
+  FindLightEntities(_ecm);
+  if (LightEntities.empty())
     return;
 
-  if (this->RobotEntity != kNullEntity)
+  if (RobotEntity != kNullEntity)
   {
-    auto poseComp = _ecm.Component<components::Pose>(this->RobotEntity);
+    auto poseComp = _ecm.Component<components::Pose>(RobotEntity);
     if (poseComp)
     {
       ignition::math::Vector3d currentPos = poseComp->Data().Pos();
-      this->distance = currentPos.Distance(this->TARGET_POSITION);
+      distance = currentPos.Distance(TARGET_POSITION);
 
-      if (this->distance <= this->DETECTION_RADIUS)
+      if (distance <= DETECTION_RADIUS)
       {
-        if (!this->timer_started)
+        if (!timer_started)
         {
-          this->reach_time = _info.simTime;
-          this->timer_started = true;
-          ignmsg << "Robot reached target point! Color change in 6 seconds. SimTime: " 
+          reach_time = _info.simTime;
+          timer_started = true;
+          ignmsg << "Robot reached target point! Color change in " << time << " seconds. SimTime: " 
                << std::chrono::duration_cast<std::chrono::seconds>(_info.simTime).count() << "s\n";
         }
       }
     }
   }
 
-  if (this->timer_started)
+  if (timer_started)
   {
-    auto elapsed = _info.simTime - this->reach_time;
-    if (elapsed >= std::chrono::seconds(6))
+    auto elapsed = _info.simTime - reach_time;
+    if (elapsed >= std::chrono::seconds(time))
     {
-      this->SetGreen();
-      if (!this->color_changed)
+      SetGreen();
+      if (!color_changed)
       {
-        ignmsg << "6 seconds elapsed since target reach. Changing color to Green! SimTime: " 
+        ignmsg << time << " seconds elapsed since target reach. Changing color to Green! SimTime: " 
                << std::chrono::duration_cast<std::chrono::seconds>(_info.simTime).count() << "s\n";
-        this->color_changed = true;
+        color_changed = true;
       }
     }
   }
-  if (!(this->distance <= this->DETECTION_RADIUS))
+  if (!(distance <= DETECTION_RADIUS))
   {
-    this->SetRed();
-    this->TimerReset();
+    SetRed();
+    TimerReset();
   }
 
-  ignition::math::Color newColor(this->r, this->g, this->b, 1.0);
+  ignition::math::Color newColor(r, g, b, 1.0);
   
-  for (const Entity e : this->LightEntities)
+  for (const Entity e : LightEntities)
   {
     auto lightComp = _ecm.Component<components::Light>(e);
     if (!lightComp)
@@ -155,6 +171,7 @@ void LightControl::PreUpdate(const UpdateInfo &_info,
 IGNITION_ADD_PLUGIN(
     LightControl,
     ignition::gazebo::System,
+    LightControl::ISystemConfigure,
     LightControl::ISystemPreUpdate)
 
 IGNITION_ADD_PLUGIN_ALIAS(LightControl, "ignition::gazebo::LightControl")

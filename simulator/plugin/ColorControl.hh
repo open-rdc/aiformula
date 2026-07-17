@@ -12,18 +12,20 @@ namespace ignition
 {
 namespace gazebo
 {
-class ColorControl : public System, public ISystemPreUpdate
+class ColorControl : public System, public ISystemConfigure, public ISystemPreUpdate
 {
 public:
   // Constructor
-  ColorControl();
-  ColorControl(const std::shared_ptr<const sdf::Element> &_sdf);
+  ColorControl() = default;
+
+  // ISystemConfigure method
+  void Configure(const Entity &_entity, const std::shared_ptr<const sdf::Element> &_sdf,
+                 EntityComponentManager &_ecm, EventManager &_eventMgr) override;
 
   // ISystemPreUpdate method
   void PreUpdate(const UpdateInfo &_info, EntityComponentManager &_ecm) override;
 
 private:
-  // Function to find the color entity by name
   void FindColorEntities(EntityComponentManager &_ecm);
   void FindModelEntities(EntityComponentManager &_ecm);
   void SetGreen();
@@ -32,20 +34,19 @@ private:
 
   std::vector<Entity> ColorEntities;
   Entity RobotEntity = kNullEntity;
-  const int time;
-  const std::string ROBOT_MODEL_NAME;
-  const std::string COLOR_ENTITY_NAME;
-  const ignition::math::Vector3d TARGET_POSITION;
-  const double DETECTION_RADIUS;
+  
+  int time;
+  std::string ROBOT_MODEL_NAME;
+  std::string COLOR_ENTITY_NAME;
+  ignition::math::Vector3d TARGET_POSITION;
+  double DETECTION_RADIUS;
   ignition::math::Color color_value;
   std::string color_name;
   double r;
   double g;
   double b;
-  std::string color;
 
-  double distance = 2 * DETECTION_RADIUS;
-  // bool target_reached = false;
+  double distance = 2 * this->DETECTION_RADIUS;
   std::chrono::steady_clock::duration reach_time;
   bool timer_started = false;
   bool color_changed = false;

@@ -15,37 +15,26 @@
 using namespace ignition;
 using namespace gazebo;
 
-ColorControl::ColorControl()
-    : time(10),
-      ROBOT_MODEL_NAME("model"),
-      COLOR_ENTITY_NAME("screen_visual"),
-      TARGET_POSITION(0.0, 0.0, 0.0),
-      DETECTION_RADIUS(0.0),
-      color_value(0.0, 0.0, 0.0, 1.0),
-      color_name("None"),
-      r(color_value.R()),
-      g(color_value.G()),
-      b(color_value.B())
+void ColorControl::Configure(const Entity &_entity,
+                              const std::shared_ptr<const sdf::Element> &_sdf,
+                              EntityComponentManager &_ecm,
+                              EventManager &_eventMgr)
 {
-}
-
-ColorControl::ColorControl(const std::shared_ptr<const sdf::Element> &_sdf)
-    : time(_sdf && _sdf->HasElement("duration_time") ? _sdf->Get<int>("duration_time") : 10),
-      ROBOT_MODEL_NAME(_sdf && _sdf->HasElement("robot_name") ? _sdf->Get<std::string>("robot_name") : "model"),
-      COLOR_ENTITY_NAME(_sdf && _sdf->HasElement("control_name") ? _sdf->Get<std::string>("control_name") : "screen_visual"),
-      TARGET_POSITION(_sdf && _sdf->HasElement("target_position") ? _sdf->Get<ignition::math::Vector3d>("target_position") : ignition::math::Vector3d(0.0, 0.0, 0.0)),
-      DETECTION_RADIUS(_sdf && _sdf->HasElement("detection_radius") ? _sdf->Get<double>("detection_radius") : 0.0),
-      color_value(_sdf && _sdf->HasElement("color") ? _sdf->Get<ignition::math::Color>("color") : ignition::math::Color(0.0, 0.0, 0.0, 1.0)),
-      color_name(_sdf && _sdf->HasElement("color_name") ? _sdf->Get<std::string>("color_name") : "None"),
-      r(color_value.R()),
-      g(color_value.G()),
-      b(color_value.B())
-{
+  time = (_sdf && _sdf->HasElement("duration_time")) ? _sdf->Get<int>("duration_time") : 10;
+  ROBOT_MODEL_NAME = (_sdf && _sdf->HasElement("robot_name")) ? _sdf->Get<std::string>("robot_name") : "model";
+  COLOR_ENTITY_NAME = (_sdf && _sdf->HasElement("control_name")) ? _sdf->Get<std::string>("control_name") : "screen_visual";
+  TARGET_POSITION = (_sdf && _sdf->HasElement("target_position")) ? _sdf->Get<ignition::math::Vector3d>("target_position") : ignition::math::Vector3d(0.0, 0.0, 0.0);
+  DETECTION_RADIUS = (_sdf && _sdf->HasElement("detection_radius")) ? _sdf->Get<double>("detection_radius") : 0.0;
+  color_value = (_sdf && _sdf->HasElement("color")) ? _sdf->Get<ignition::math::Color>("color") : ignition::math::Color(0.0, 0.0, 0.0, 1.0);
+  color_name = (_sdf && _sdf->HasElement("color_name")) ? _sdf->Get<std::string>("color_name") : "None";
+  r = color_value.R();
+  g = color_value.G();
+  b = color_value.B();
 }
 
 void ColorControl::FindColorEntities(EntityComponentManager &_ecm)
 {
-  this->ColorEntities.clear();
+  ColorEntities.clear();
   _ecm.Each<components::Visual, components::Name>(
       [&](const Entity &_entity,
           const components::Visual *,
@@ -53,8 +42,7 @@ void ColorControl::FindColorEntities(EntityComponentManager &_ecm)
       {
         if (_name->Data() == COLOR_ENTITY_NAME)
         {
-          // this->ColorEntities.push_back(_entity);
-          this->ColorEntities.push_back(_entity);
+          ColorEntities.push_back(_entity);
           return false;
         }
         return true;
@@ -70,7 +58,7 @@ void ColorControl::FindModelEntities(EntityComponentManager &_ecm)
       {
         if (_name->Data() == ROBOT_MODEL_NAME)
         {
-          this->RobotEntity = _entity;
+          RobotEntity = _entity;
           return false;
         }
         return true;
@@ -79,24 +67,24 @@ void ColorControl::FindModelEntities(EntityComponentManager &_ecm)
 
 void ColorControl::SetGreen()
 {
-  this->r = 0.0;
-  this->g = 1.0;
-  this->b = 0.0;
-  this->color_name = "Green"; // Set the color name to "Green"
+  r = 0.0;
+  g = 1.0;
+  b = 0.0;
+  color_name = "Green";
 }
 
 void ColorControl::SetRed()
 {
-  this->r = 1.0;
-  this->g = 0.0;
-  this->b = 0.0;
-  this->color_name = "Red";
+  r = 1.0;
+  g = 0.0;
+  b = 0.0;
+  color_name = "Red";
 }
 
 void ColorControl::TimerReset()
 {
-  this->timer_started = false;
-  this->color_changed = false;
+  timer_started = false;
+  color_changed = false;
 }
 
 
@@ -106,67 +94,65 @@ void ColorControl::PreUpdate(const UpdateInfo &_info,
   if (_info.paused)
     return;
 
-  if (this->RobotEntity == kNullEntity)
+  if (RobotEntity == kNullEntity)
   {
-    this->FindModelEntities(_ecm);
-    if (this->RobotEntity == kNullEntity)
+    FindModelEntities(_ecm);
+    if (RobotEntity == kNullEntity)
       return;
   }
 
-  if (this->ColorEntities.empty())
+  if (ColorEntities.empty())
   {  
-    this->FindColorEntities(_ecm);
-    if (this->ColorEntities.empty())
+    FindColorEntities(_ecm);
+    if (ColorEntities.empty())
       return;
   }
 
-  if (this->RobotEntity != kNullEntity)
+  if (RobotEntity != kNullEntity)
   {
-    auto poseComp = _ecm.Component<components::Pose>(this->RobotEntity);
+    auto poseComp = _ecm.Component<components::Pose>(RobotEntity);
     if (poseComp)
     {
       ignition::math::Vector3d currentPos = poseComp->Data().Pos();
-      this->distance = currentPos.Distance(this->TARGET_POSITION);
+      distance = currentPos.Distance(TARGET_POSITION);
 
-      if (this->distance <= this->DETECTION_RADIUS)
+      if (distance <= DETECTION_RADIUS)
       {
-        if (!this->timer_started)
+        if (!timer_started)
         {
-          this->reach_time = _info.simTime;
-          this->timer_started = true;
-          std::cout << "Robot reached target point! Color change in 6 seconds. SimTime: " 
+          reach_time = _info.simTime;
+          timer_started = true;
+          std::cout << "Robot reached target point! Color change in " << time << " seconds. SimTime: " 
                     << std::chrono::duration_cast<std::chrono::seconds>(_info.simTime).count() << "s\n";
         }
       }
     }
   }
 
-  if (this->timer_started)
+  if (timer_started)
   {
-    auto elapsed = _info.simTime - this->reach_time;
+    auto elapsed = _info.simTime - reach_time;
     if (elapsed >= std::chrono::seconds(time))
     {
-      this->SetGreen();
-      if (!this->color_changed)
+      SetGreen();
+      if (!color_changed)
       {
-        std::cout << "6 seconds elapsed since target reach. Changing color to Green! SimTime: " 
+        std::cout << time << " seconds elapsed since target reach. Changing color to Green! SimTime: " 
                << std::chrono::duration_cast<std::chrono::seconds>(_info.simTime).count() << "s\n";
-        this->color_changed = true;
+        color_changed = true;
       }
     }
   }
-  if (!(this->distance <= this->DETECTION_RADIUS))
+  if (!(distance <= DETECTION_RADIUS))
   {
-    this->SetRed();
-    this->TimerReset();
+    SetRed();
+    TimerReset();
   }
 
-  ignition::math::Color newColor(this->r, this->g, this->b, 1.0);
+  ignition::math::Color newColor(r, g, b, 1.0);
 
-  for (const Entity e : this->ColorEntities)
+  for (const Entity e : ColorEntities)
   {
-    //std::cout << "Set" << this->color_name << "!!!!" << std::endl;
-
     ignition::msgs::Visual visual;
     auto *mat = visual.mutable_material();
 
@@ -186,6 +172,7 @@ void ColorControl::PreUpdate(const UpdateInfo &_info,
 IGNITION_ADD_PLUGIN(
     ColorControl,
     ignition::gazebo::System,
+    ColorControl::ISystemConfigure,
     ColorControl::ISystemPreUpdate)
 
 IGNITION_ADD_PLUGIN_ALIAS(ColorControl, "ignition::gazebo::ColorControl")
