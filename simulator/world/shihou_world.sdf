@@ -163,7 +163,7 @@
         </include>
         <include>
             <uri>package://simulator/models/ai_car1/panel.sdf</uri>
-            <pose>80 5.0 0.5 0 0 0</pose>
+            <pose>80.0 5.0 0.5 0 0 0</pose>
         </include>
 
     <!-- 用調整 -->

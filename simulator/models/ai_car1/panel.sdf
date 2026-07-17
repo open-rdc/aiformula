@@ -48,10 +48,10 @@
       <plugin
         filename="ColorControl"
         name="ignition::gazebo::ColorControl">
+        <duration_time>10</duration_time>
         <robot_name>ai_car1</robot_name>
         <control_name>screen_visual</control_name>
-        <target_position>80.0 5.0 0.0</target_position>
-        <duration>6</duration>
+        <target_position>80.0 5.0 0.5</target_position>
         <detection_radius>10.0</detection_radius>
         <color>1.0 0.0 0.0 1.0</color>
         <color_name>Red</color_name>
@@ -59,10 +59,10 @@
       <plugin
         filename="LightControl"
         name="ignition::gazebo::LightControl">
+        <duration>10</duration>
         <robot_name>ai_car1</robot_name>
         <control_name>led</control_name>
-        <target_position>80.0 5.0 0.0</target_position>
-        <duration>6</duration>
+        <target_position>80.0 5.0 0.5</target_position>
         <detection_radius>10.0</detection_radius>
         <color>1.0 0.0 0.0 1.0</color>
         <color_name>Red</color_name>
