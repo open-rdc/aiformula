@@ -1,5 +1,7 @@
 #include "ColorControl.hh"
 
+#include <memory>
+
 #include <ignition/plugin/Register.hh>
 #include <ignition/gazebo/components/Material.hh>
 #include <ignition/gazebo/components/Visual.hh>
@@ -13,6 +15,33 @@
 using namespace ignition;
 using namespace gazebo;
 
+ColorControl::ColorControl()
+    : time(10),
+      ROBOT_MODEL_NAME("model"),
+      COLOR_ENTITY_NAME("screen_visual"),
+      TARGET_POSITION(0.0, 0.0, 0.0),
+      DETECTION_RADIUS(0.0),
+      color_value(0.0, 0.0, 0.0, 1.0),
+      color_name("None"),
+      r(color_value.R()),
+      g(color_value.G()),
+      b(color_value.B())
+{
+}
+
+ColorControl::ColorControl(const std::shared_ptr<const sdf::Element> &_sdf)
+    : time(_sdf && _sdf->HasElement("duration_time") ? _sdf->Get<int>("duration_time") : 10),
+      ROBOT_MODEL_NAME(_sdf && _sdf->HasElement("robot_name") ? _sdf->Get<std::string>("robot_name") : "model"),
+      COLOR_ENTITY_NAME(_sdf && _sdf->HasElement("control_name") ? _sdf->Get<std::string>("control_name") : "screen_visual"),
+      TARGET_POSITION(_sdf && _sdf->HasElement("target_position") ? _sdf->Get<ignition::math::Vector3d>("target_position") : ignition::math::Vector3d(0.0, 0.0, 0.0)),
+      DETECTION_RADIUS(_sdf && _sdf->HasElement("detection_radius") ? _sdf->Get<double>("detection_radius") : 0.0),
+      color_value(_sdf && _sdf->HasElement("color") ? _sdf->Get<ignition::math::Color>("color") : ignition::math::Color(0.0, 0.0, 0.0, 1.0)),
+      color_name(_sdf && _sdf->HasElement("color_name") ? _sdf->Get<std::string>("color_name") : "None"),
+      r(color_value.R()),
+      g(color_value.G()),
+      b(color_value.B())
+{
+}
 
 void ColorControl::FindColorEntities(EntityComponentManager &_ecm)
 {
@@ -52,14 +81,16 @@ void ColorControl::SetGreen()
 {
   this->r = 0.0;
   this->g = 1.0;
-  this->color = "Green";
+  this->b = 0.0;
+  this->color_name = "Green"; // Set the color name to "Green"
 }
 
 void ColorControl::SetRed()
 {
   this->r = 1.0;
   this->g = 0.0;
-  this->color = "Red";
+  this->b = 0.0;
+  this->color_name = "Red";
 }
 
 void ColorControl::TimerReset()
@@ -113,7 +144,7 @@ void ColorControl::PreUpdate(const UpdateInfo &_info,
   if (this->timer_started)
   {
     auto elapsed = _info.simTime - this->reach_time;
-    if (elapsed >= std::chrono::seconds(6))
+    if (elapsed >= std::chrono::seconds(time))
     {
       this->SetGreen();
       if (!this->color_changed)
@@ -134,7 +165,7 @@ void ColorControl::PreUpdate(const UpdateInfo &_info,
 
   for (const Entity e : this->ColorEntities)
   {
-    //std::cout << "Set" << this->color << "!!!!" << std::endl;
+    //std::cout << "Set" << this->color_name << "!!!!" << std::endl;
 
     ignition::msgs::Visual visual;
     auto *mat = visual.mutable_material();

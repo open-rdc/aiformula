@@ -16,7 +16,8 @@ class ColorControl : public System, public ISystemPreUpdate
 {
 public:
   // Constructor
-  ColorControl() = default;
+  ColorControl();
+  ColorControl(const std::shared_ptr<const sdf::Element> &_sdf);
 
   // ISystemPreUpdate method
   void PreUpdate(const UpdateInfo &_info, EntityComponentManager &_ecm) override;
@@ -31,24 +32,25 @@ private:
 
   std::vector<Entity> ColorEntities;
   Entity RobotEntity = kNullEntity;
-  
-  const std::string ROBOT_MODEL_NAME = "ai_car1";
-  const ignition::math::Vector3d TARGET_POSITION{80.0, 5.0, 0.0};
-  const double DETECTION_RADIUS = 10.0;
-  double distance = 20.0;
+  const int time;
+  const std::string ROBOT_MODEL_NAME;
+  const std::string COLOR_ENTITY_NAME;
+  const ignition::math::Vector3d TARGET_POSITION;
+  const double DETECTION_RADIUS;
+  ignition::math::Color color_value;
+  std::string color_name;
+  double r;
+  double g;
+  double b;
+  std::string color;
 
+  double distance = 2 * DETECTION_RADIUS;
   // bool target_reached = false;
   std::chrono::steady_clock::duration reach_time;
   bool timer_started = false;
   bool color_changed = false;
 
-  const std::string COLOR_ENTITY_NAME = "screen_visual";
-  double r = 1.0;
-  double g = 0.0;
-  const double b = 0.0;
-  std::string color = "Red";
-
-
+  
 };
 }  // namespace gazebo
 }  // namespace ignition

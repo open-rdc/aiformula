@@ -45,7 +45,7 @@ private:
 
   double r = 1.0;
   double g = 0.0;
-  const double b = 0.0;
+  double b = 0.0;
   std::string color = "Red";
   const std::string LIGHT_ENTITY_NAME = "led";
 };
