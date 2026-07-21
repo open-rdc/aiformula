@@ -196,3 +196,104 @@ TEST(ParticleFilterTest, SystematicResamplingRespectsLowVarianceBound)
     EXPECT_LE(count_at_2, 1);  // ceil(0.05*3)=1
     EXPECT_EQ(count_at_0 + count_at_1 + count_at_2, 3);
 }
+
+TEST(ParticleFilterTest, UpdateWeightsFavorsCloserParticle)
+{
+    ParticleFilterConfig config = make_default_config();
+    config.num_particles = 3U;
+    config.likelihood_sigma_m = 0.3;
+    config.max_correspondence_distance = 2.0;
+    ParticleFilter filter(config, 5U);
+
+    filter.set_particles_for_test({
+        Particle{4.0, 0.0, 0.0, 1.0},       // (1,0)->(5,0): 完全一致
+        Particle{3.0, 0.0, 0.0, 1.0},       // (1,0)->(4,0): 残差1.0m
+        Particle{100.0, 100.0, 0.0, 1.0},   // 対応点なし
+    });
+
+    const PfTargetMap target_map(std::vector<PfMapPoint>{PfMapPoint{Eigen::Vector2d(5.0, 0.0)}});
+    const std::vector<Eigen::Vector2d> source_points{Eigen::Vector2d(1.0, 0.0)};
+
+    filter.update_weights(source_points, target_map);
+
+    const auto& particles = filter.particles();
+    EXPECT_GT(particles[0].weight, particles[1].weight);
+    EXPECT_GT(particles[1].weight, particles[2].weight);
+    EXPECT_NEAR(particles[2].weight, 0.0, 1e-9);
+
+    double weight_sum = 0.0;
+    for (const auto& particle : particles) {
+        weight_sum += particle.weight;
+    }
+    EXPECT_NEAR(weight_sum, 1.0, 1e-9);
+}
+
+TEST(ParticleFilterTest, UpdateWeightsFallsBackToUniformWhenAllParticlesHaveZeroWeight)
+{
+    ParticleFilterConfig config = make_default_config();
+    config.num_particles = 2U;
+    config.max_correspondence_distance = 0.5;
+    ParticleFilter filter(config, 5U);
+
+    filter.set_particles_for_test({
+        Particle{100.0, 100.0, 0.0, 1.0},
+        Particle{200.0, 200.0, 0.0, 1.0},
+    });
+
+    const PfTargetMap target_map(std::vector<PfMapPoint>{PfMapPoint{Eigen::Vector2d(5.0, 0.0)}});
+    const std::vector<Eigen::Vector2d> source_points{Eigen::Vector2d(1.0, 0.0)};
+
+    filter.update_weights(source_points, target_map);
+
+    for (const auto& particle : filter.particles()) {
+        EXPECT_NEAR(particle.weight, 0.5, 1e-9);
+    }
+}
+
+TEST(ParticleFilterTest, NeedsReinitializationAfterConsecutiveLowEssFrames)
+{
+    ParticleFilterConfig config = make_default_config();
+    config.num_particles = 2U;
+    config.max_correspondence_distance = 0.5;  // 対応点が絶対に見つからない設定
+    config.reinit_ess_ratio_threshold = 0.5;
+    config.reinit_consecutive_frames = 3;
+    ParticleFilter filter(config, 5U);
+    filter.set_particles_for_test({
+        Particle{100.0, 100.0, 0.0, 0.5},
+        Particle{200.0, 200.0, 0.0, 0.5},
+    });
+
+    const PfTargetMap target_map(std::vector<PfMapPoint>{PfMapPoint{Eigen::Vector2d(5.0, 0.0)}});
+    const std::vector<Eigen::Vector2d> source_points{Eigen::Vector2d(1.0, 0.0)};
+
+    EXPECT_FALSE(filter.needs_reinitialization());
+    filter.update_weights(source_points, target_map);  // streak=1（全滅フォールバック）
+    EXPECT_FALSE(filter.needs_reinitialization());
+    filter.update_weights(source_points, target_map);  // streak=2
+    EXPECT_FALSE(filter.needs_reinitialization());
+    filter.update_weights(source_points, target_map);  // streak=3 >= reinit_consecutive_frames
+    EXPECT_TRUE(filter.needs_reinitialization());
+}
+
+TEST(ParticleFilterTest, GoodEssRatioResetsReinitStreak)
+{
+    ParticleFilterConfig config = make_default_config();
+    config.num_particles = 1U;
+    config.likelihood_sigma_m = 0.3;
+    config.max_correspondence_distance = 2.0;
+    config.reinit_ess_ratio_threshold = 0.5;
+    config.reinit_consecutive_frames = 1;
+    ParticleFilter filter(config, 5U);
+
+    const PfTargetMap target_map(std::vector<PfMapPoint>{PfMapPoint{Eigen::Vector2d(5.0, 0.0)}});
+    const std::vector<Eigen::Vector2d> matching_source{Eigen::Vector2d(1.0, 0.0)};
+    const std::vector<Eigen::Vector2d> missing_source{Eigen::Vector2d(-1000.0, -1000.0)};
+
+    filter.set_particles_for_test({Particle{100.0, 100.0, 0.0, 1.0}});
+    filter.update_weights(missing_source, target_map);
+    EXPECT_TRUE(filter.needs_reinitialization());  // streak=1 >= reinit_consecutive_frames=1
+
+    filter.set_particles_for_test({Particle{4.0, 0.0, 0.0, 1.0}});  // (1,0)->(5,0): 完全一致
+    filter.update_weights(matching_source, target_map);
+    EXPECT_FALSE(filter.needs_reinitialization());  // 良好なESS比でストリークがリセットされる
+}

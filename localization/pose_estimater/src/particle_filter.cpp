@@ -243,4 +243,61 @@ void ParticleFilter::resample()
     particles_ = std::move(resampled);
 }
 
+void ParticleFilter::update_weights(
+    const std::vector<Eigen::Vector2d>& source_points_base_link,
+    const PfTargetMap& target_map)
+{
+    const double max_distance_sq = config_.max_correspondence_distance * config_.max_correspondence_distance;
+    const double inv_two_sigma_sq = 1.0 / (2.0 * config_.likelihood_sigma_m * config_.likelihood_sigma_m);
+
+    double weight_sum = 0.0;
+    for (auto& particle : particles_) {
+        const double cos_yaw = std::cos(particle.yaw);
+        const double sin_yaw = std::sin(particle.yaw);
+
+        double log_likelihood = 0.0;
+        bool has_correspondence = false;
+        for (const auto& source_point : source_points_base_link) {
+            const Eigen::Vector2d transformed(
+                particle.x + cos_yaw * source_point.x() - sin_yaw * source_point.y(),
+                particle.y + sin_yaw * source_point.x() + cos_yaw * source_point.y());
+
+            std::size_t nearest_index = 0U;
+            if (target_map.nearest(transformed, max_distance_sq, nearest_index)) {
+                const double distance_sq =
+                    (target_map.point(nearest_index).position - transformed).squaredNorm();
+                log_likelihood += -distance_sq * inv_two_sigma_sq;
+                has_correspondence = true;
+            }
+        }
+
+        particle.weight *= has_correspondence ? std::exp(log_likelihood) : 0.0;
+        weight_sum += particle.weight;
+    }
+
+    if (weight_sum <= 0.0) {
+        const double uniform_weight = 1.0 / static_cast<double>(particles_.size());
+        for (auto& particle : particles_) {
+            particle.weight = uniform_weight;
+        }
+        ++low_ess_streak_;
+        return;
+    }
+
+    for (auto& particle : particles_) {
+        particle.weight /= weight_sum;
+    }
+
+    if (effective_sample_size_ratio() < config_.reinit_ess_ratio_threshold) {
+        ++low_ess_streak_;
+    } else {
+        low_ess_streak_ = 0;
+    }
+}
+
+bool ParticleFilter::needs_reinitialization() const
+{
+    return low_ess_streak_ >= config_.reinit_consecutive_frames;
+}
+
 }
