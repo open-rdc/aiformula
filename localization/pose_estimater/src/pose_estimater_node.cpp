@@ -314,10 +314,13 @@ void PoseEstimaterNode::timer_callback()
             lane_line_points_msg && lane_line_points_msg != processed_lane_line_points_;
         processed_lane_line_points_ = lane_line_points_msg;
 
+        builtin_interfaces::msg::Time estimate_stamp = this->get_clock()->now();
+
         if (has_new_lane_line && map_points && !map_points->empty()) {
             auto source_points = lane_line_points_from_cloud(*lane_line_points_msg);
             if (source_points.size() >= min_observed_points_) {
                 particle_filter_.update_weights(source_points, *map_points);
+                estimate_stamp = lane_line_points_msg->header.stamp;
 
                 if (particle_filter_.needs_reinitialization() && has_raw_pose) {
                     initialize_particle_filter(raw_pose);
@@ -332,7 +335,7 @@ void PoseEstimaterNode::timer_callback()
         }
 
         icp_pose_publisher_->publish(
-            make_pose(this->get_clock()->now(), particle_filter_.estimate()));
+            make_pose(estimate_stamp, particle_filter_.estimate()));
     } catch (const std::exception& error) {
         RCLCPP_WARN_THROTTLE(
             this->get_logger(), *this->get_clock(), 1000,
