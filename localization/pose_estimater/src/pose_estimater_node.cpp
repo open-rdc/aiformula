@@ -5,10 +5,10 @@
 #include <cmath>
 #include <exception>
 #include <functional>
+#include <random>
 #include <utility>
 #include <vector>
 
-#include <Eigen/Eigenvalues>
 #include <sensor_msgs/point_cloud2_iterator.hpp>
 
 #include "utilities/utils.hpp"
@@ -24,16 +24,28 @@ using LineString = vectormap_msgs::msg::LineString;
 constexpr double WGS84_A = 6378137.0;
 constexpr double WGS84_E2 = 6.6943799901414e-3;
 constexpr double HALF_PI = M_PI * 0.5;
-constexpr double MIN_ICP_EIGENVALUE_RATIO = 1e-4;
 
-IcpConfig make_icp_config(rclcpp::Node& node)
+ParticleFilterConfig make_particle_filter_config(rclcpp::Node& node)
 {
-    IcpConfig config;
-    config.max_iterations = node.get_parameter("icp.max_iterations").as_int();
-    config.max_correspondence_distance = node.get_parameter("icp.max_correspondence_distance").as_double();
-    config.convergence_translation_epsilon = node.get_parameter("icp.convergence_translation_epsilon").as_double();
-    config.min_correspondences = static_cast<std::size_t>(node.get_parameter("icp.min_correspondences").as_int());
-    config.max_mean_error = node.get_parameter("icp.max_mean_error").as_double();
+    ParticleFilterConfig config;
+    config.num_particles = static_cast<std::size_t>(node.get_parameter("pf.num_particles").as_int());
+    config.process_position_noise_std_per_m =
+        node.get_parameter("pf.process_position_noise_std_per_m").as_double();
+    config.process_position_noise_std_per_s =
+        node.get_parameter("pf.process_position_noise_std_per_s").as_double();
+    config.process_yaw_noise_std_per_rad =
+        node.get_parameter("pf.process_yaw_noise_std_per_rad").as_double();
+    config.process_yaw_noise_std_per_s =
+        node.get_parameter("pf.process_yaw_noise_std_per_s").as_double();
+    config.likelihood_sigma_m = node.get_parameter("pf.likelihood_sigma_m").as_double();
+    config.max_correspondence_distance =
+        node.get_parameter("pf.max_correspondence_distance_m").as_double();
+    config.resample_ess_ratio_threshold =
+        node.get_parameter("pf.resample_ess_ratio_threshold").as_double();
+    config.reinit_ess_ratio_threshold =
+        node.get_parameter("pf.reinit_ess_ratio_threshold").as_double();
+    config.reinit_consecutive_frames =
+        static_cast<int>(node.get_parameter("pf.reinit_consecutive_frames").as_int());
     return config;
 }
 
@@ -87,21 +99,7 @@ std::vector<Eigen::Vector2d> lane_line_points_from_cloud(const sensor_msgs::msg:
     return points;
 }
 
-void transform_points_to_map(
-    std::vector<Eigen::Vector2d>& points,
-    const double x, const double y, const double yaw)
-{
-    const double cos_yaw = std::cos(yaw);
-    const double sin_yaw = std::sin(yaw);
-    const Eigen::Vector2d translation(x, y);
-    for (auto& point : points) {
-        point = translation + Eigen::Vector2d(
-            cos_yaw * point.x() - sin_yaw * point.y(),
-            sin_yaw * point.x() + cos_yaw * point.y());
-    }
-}
-
-}
+}  // namespace
 
 PoseEstimaterNode::PoseEstimaterNode(const rclcpp::NodeOptions& options)
 : PoseEstimaterNode("", options)
@@ -122,8 +120,7 @@ PoseEstimaterNode::PoseEstimaterNode(
   map_sample_interval_m_(get_parameter("map_sample_interval_m").as_double()),
   gnss_position_variance_(get_parameter("gnss_position_variance").as_double()),
   imu_yaw_variance_(get_parameter("imu_yaw_variance").as_double()),
-  icp_position_variance_(get_parameter("icp_position_variance").as_double()),
-  icp_matcher_(make_icp_config(*this))
+  particle_filter_(make_particle_filter_config(*this), std::random_device{}())
 {
     lane_line_points_subscription_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
         "/perception/lane_line_points", rclcpp::SensorDataQoS().keep_last(1),
@@ -137,6 +134,9 @@ PoseEstimaterNode::PoseEstimaterNode(
     imu_subscription_ = this->create_subscription<sensor_msgs::msg::Imu>(
         "/vectornav/imu", rclcpp::SensorDataQoS().keep_last(1),
         std::bind(&PoseEstimaterNode::imu_callback, this, std::placeholders::_1));
+    velocity_subscription_ = this->create_subscription<geometry_msgs::msg::TwistWithCovarianceStamped>(
+        "/vectornav/velocity_body", rclcpp::SensorDataQoS().keep_last(1),
+        std::bind(&PoseEstimaterNode::velocity_callback, this, std::placeholders::_1));
 
     icp_pose_publisher_ = this->create_publisher<geometry_msgs::msg::PoseWithCovarianceStamped>(
         "/localization/icp_pose", rclcpp::SensorDataQoS().keep_last(1));
@@ -170,9 +170,16 @@ void PoseEstimaterNode::imu_callback(const sensor_msgs::msg::Imu::SharedPtr msg)
     latest_imu_msg_ = msg;
 }
 
+void PoseEstimaterNode::velocity_callback(
+    const geometry_msgs::msg::TwistWithCovarianceStamped::SharedPtr msg)
+{
+    std::lock_guard<std::mutex> lock(data_mutex_);
+    latest_velocity_msg_ = msg;
+}
+
 void PoseEstimaterNode::rebuild_map_points(const vectormap_msgs::msg::VectorMap& map_msg)
 {
-    std::vector<IcpMapPoint> points;
+    std::vector<PfMapPoint> points;
     for (const auto& line_string : map_msg.line_strings) {
         if (!line_string.is_observable || line_string.marking_type == LineString::MARKING_VIRTUAL) {
             continue;
@@ -180,22 +187,19 @@ void PoseEstimaterNode::rebuild_map_points(const vectormap_msgs::msg::VectorMap&
         for (std::size_t i = 1U; i < line_string.points.size(); ++i) {
             const Eigen::Vector2d start(line_string.points[i - 1U].x, line_string.points[i - 1U].y);
             const Eigen::Vector2d end(line_string.points[i].x, line_string.points[i].y);
-            const Eigen::Vector2d delta = end - start;
-            const double length = delta.norm();
+            const double length = (end - start).norm();
             if (length <= 0.0) {
                 continue;
             }
-            const Eigen::Vector2d direction = delta / length;
-            const Eigen::Vector2d normal(-direction.y(), direction.x());
             const int samples = std::max(1, static_cast<int>(std::ceil(length / map_sample_interval_m_)));
             for (int sample = 0; sample <= samples; ++sample) {
                 const double ratio = static_cast<double>(sample) / static_cast<double>(samples);
-                points.push_back(IcpMapPoint{start + ratio * delta, normal});
+                points.push_back(PfMapPoint{start + ratio * (end - start)});
             }
         }
     }
 
-    auto target_map = std::make_shared<IcpTargetMap>(std::move(points));
+    auto target_map = std::make_shared<PfTargetMap>(std::move(points));
     std::lock_guard<std::mutex> lock(data_mutex_);
     map_points_ = target_map;
 }
@@ -234,32 +238,27 @@ bool PoseEstimaterNode::gnss_to_map_pose(
     return true;
 }
 
-Eigen::Matrix2d PoseEstimaterNode::icp_measurement_covariance(const IcpResult& result) const
+void PoseEstimaterNode::initialize_particle_filter(
+    const geometry_msgs::msg::PoseWithCovarianceStamped& raw_pose)
 {
-    const Eigen::SelfAdjointEigenSolver<Eigen::Matrix2d> solver(
-        result.normal_matrix / static_cast<double>(result.correspondences));
-    const double max_eigenvalue = solver.eigenvalues()(1);
-
-    Eigen::Matrix2d covariance = Eigen::Matrix2d::Zero();
-    for (int i = 0; i < 2; ++i) {
-        const double ratio =
-            std::max(solver.eigenvalues()(i) / max_eigenvalue, MIN_ICP_EIGENVALUE_RATIO);
-        const Eigen::Vector2d direction = solver.eigenvectors().col(i);
-        covariance += (icp_position_variance_ / ratio) *
-            direction * direction.transpose();
-    }
-    return covariance;
+    const double raw_yaw = utils::yaw_from_quaternion(raw_pose.pose.pose.orientation);
+    particle_filter_.initialize(
+        raw_pose.pose.pose.position.x, raw_pose.pose.pose.position.y, raw_yaw,
+        std::sqrt(gnss_position_variance_), std::sqrt(imu_yaw_variance_));
 }
 
-geometry_msgs::msg::PoseWithCovarianceStamped PoseEstimaterNode::make_icp_pose(
-    const geometry_msgs::msg::PoseWithCovarianceStamped& raw_pose,
-    const double x, const double y, const Eigen::Matrix2d& position_covariance) const
+geometry_msgs::msg::PoseWithCovarianceStamped PoseEstimaterNode::make_pose(
+    const builtin_interfaces::msg::Time& stamp, const PoseEstimate2D& estimate) const
 {
-    geometry_msgs::msg::PoseWithCovarianceStamped icp_pose = raw_pose;
-    icp_pose.pose.pose.position.x = x;
-    icp_pose.pose.pose.position.y = y;
-    fill_pose_covariance(icp_pose.pose.covariance, position_covariance, imu_yaw_variance_);
-    return icp_pose;
+    geometry_msgs::msg::PoseWithCovarianceStamped pose;
+    pose.header.stamp = stamp;
+    pose.header.frame_id = "map";
+    pose.pose.pose.position.x = estimate.x;
+    pose.pose.pose.position.y = estimate.y;
+    pose.pose.pose.position.z = 0.0;
+    pose.pose.pose.orientation = utils::yaw_to_quaternion(estimate.yaw);
+    fill_pose_covariance(pose.pose.covariance, estimate.position_covariance, estimate.yaw_variance);
+    return pose;
 }
 
 void PoseEstimaterNode::timer_callback()
@@ -267,78 +266,73 @@ void PoseEstimaterNode::timer_callback()
     sensor_msgs::msg::PointCloud2::SharedPtr lane_line_points_msg;
     sensor_msgs::msg::NavSatFix::SharedPtr gnss_msg;
     sensor_msgs::msg::Imu::SharedPtr imu_msg;
-    std::shared_ptr<const IcpTargetMap> map_points;
+    geometry_msgs::msg::TwistWithCovarianceStamped::SharedPtr velocity_msg;
+    std::shared_ptr<const PfTargetMap> map_points;
     {
         std::lock_guard<std::mutex> lock(data_mutex_);
         lane_line_points_msg = latest_lane_line_points_;
         gnss_msg = latest_gnss_msg_;
         imu_msg = latest_imu_msg_;
+        velocity_msg = latest_velocity_msg_;
         map_points = map_points_;
-    }
-
-    if (!gnss_msg || !imu_msg) {
-        RCLCPP_WARN_THROTTLE(
-            this->get_logger(), *this->get_clock(), 2000,
-            "waiting for GNSS and IMU");
-        return;
     }
 
     try {
         geometry_msgs::msg::PoseWithCovarianceStamped raw_pose;
-        if (!gnss_to_map_pose(*gnss_msg, *imu_msg, raw_pose)) {
-            RCLCPP_WARN_THROTTLE(
-                this->get_logger(), *this->get_clock(), 2000,
-                "GNSS fix not available");
+        const bool has_raw_pose =
+            gnss_msg && imu_msg && gnss_to_map_pose(*gnss_msg, *imu_msg, raw_pose);
+        if (has_raw_pose) {
+            raw_pose_publisher_->publish(raw_pose);
+        }
+
+        if (!particle_filter_.initialized()) {
+            if (!has_raw_pose) {
+                RCLCPP_WARN_THROTTLE(
+                    this->get_logger(), *this->get_clock(), 2000,
+                    "waiting for GNSS and IMU");
+                return;
+            }
+            if (!map_points || map_points->empty()) {
+                RCLCPP_WARN_THROTTLE(
+                    this->get_logger(), *this->get_clock(), 2000,
+                    "waiting for vector map");
+                icp_pose_publisher_->publish(raw_pose);
+                return;
+            }
+            initialize_particle_filter(raw_pose);
+            icp_pose_publisher_->publish(raw_pose);
             return;
         }
-        raw_pose_publisher_->publish(raw_pose);
+
+        if (velocity_msg) {
+            const double dt = static_cast<double>(interval_ms_) / 1000.0;
+            particle_filter_.predict(
+                velocity_msg->twist.twist.linear.x, velocity_msg->twist.twist.angular.z, dt);
+        }
 
         const bool has_new_lane_line =
             lane_line_points_msg && lane_line_points_msg != processed_lane_line_points_;
         processed_lane_line_points_ = lane_line_points_msg;
 
-        if (!has_new_lane_line || !map_points || map_points->empty()) {
-            RCLCPP_WARN_THROTTLE(
-                this->get_logger(), *this->get_clock(), 2000,
-                "waiting for a new lane line scan and vector map");
-            icp_pose_publisher_->publish(raw_pose);
-            return;
+        if (has_new_lane_line && map_points && !map_points->empty()) {
+            auto source_points = lane_line_points_from_cloud(*lane_line_points_msg);
+            if (source_points.size() >= min_observed_points_) {
+                particle_filter_.update_weights(source_points, *map_points);
+
+                if (particle_filter_.needs_reinitialization() && has_raw_pose) {
+                    initialize_particle_filter(raw_pose);
+                } else if (particle_filter_.should_resample()) {
+                    particle_filter_.resample();
+                }
+            } else {
+                RCLCPP_WARN_THROTTLE(
+                    this->get_logger(), *this->get_clock(), 1000,
+                    "not enough observed lane points: %zu", source_points.size());
+            }
         }
 
-        auto source_points = lane_line_points_from_cloud(*lane_line_points_msg);
-        if (source_points.size() < min_observed_points_) {
-            RCLCPP_WARN_THROTTLE(
-                this->get_logger(), *this->get_clock(), 1000,
-                "not enough observed lane points: %zu", source_points.size());
-            icp_pose_publisher_->publish(raw_pose);
-            return;
-        }
-
-        const double raw_yaw = utils::yaw_from_quaternion(raw_pose.pose.pose.orientation);
-        transform_points_to_map(
-            source_points,
-            raw_pose.pose.pose.position.x, raw_pose.pose.pose.position.y, raw_yaw);
-
-        const auto result = icp_matcher_.align_translation_only(source_points, *map_points);
-        if (!result.converged) {
-            RCLCPP_WARN_THROTTLE(
-                this->get_logger(), *this->get_clock(), 1000,
-                "ICP failed: correspondences=%zu, mean_error=%.3f",
-                result.correspondences, result.mean_error);
-            icp_pose_publisher_->publish(raw_pose);
-            return;
-        }
-
-        const double icp_x = raw_pose.pose.pose.position.x + result.translation.x();
-        const double icp_y = raw_pose.pose.pose.position.y + result.translation.y();
         icp_pose_publisher_->publish(
-            make_icp_pose(raw_pose, icp_x, icp_y, icp_measurement_covariance(result)));
-
-        RCLCPP_DEBUG(
-            this->get_logger(),
-            "localized correction=(%.3f, %.3f), correspondences=%zu, mean_error=%.3f",
-            result.translation.x(), result.translation.y(),
-            result.correspondences, result.mean_error);
+            make_pose(this->get_clock()->now(), particle_filter_.estimate()));
     } catch (const std::exception& error) {
         RCLCPP_WARN_THROTTLE(
             this->get_logger(), *this->get_clock(), 1000,
@@ -346,4 +340,4 @@ void PoseEstimaterNode::timer_callback()
     }
 }
 
-}
+}  // namespace pose_estimater
