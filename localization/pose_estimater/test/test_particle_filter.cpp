@@ -85,3 +85,48 @@ TEST(ParticleFilterTest, InitializeSamplesAroundSeedPoseWithinExpectedSpread)
     EXPECT_NEAR(sum_y / particles.size(), -5.0, 0.15);
     EXPECT_NEAR(sum_weight, 1.0, 1e-9);
 }
+
+TEST(ParticleFilterTest, PredictAppliesUnicycleMotionWithZeroNoise)
+{
+    ParticleFilterConfig config = make_default_config();
+    config.num_particles = 1U;
+    config.process_position_noise_std_per_m = 0.0;
+    config.process_position_noise_std_per_s = 0.0;
+    config.process_yaw_noise_std_per_rad = 0.0;
+    config.process_yaw_noise_std_per_s = 0.0;
+    ParticleFilter filter(config, 3U);
+    filter.set_particles_for_test({Particle{0.0, 0.0, 0.0, 1.0}});
+
+    filter.predict(/*linear_velocity=*/2.0, /*yaw_rate=*/0.5, /*dt=*/0.1);
+
+    const auto& particles = filter.particles();
+    ASSERT_EQ(particles.size(), 1U);
+    EXPECT_NEAR(particles[0].x, 0.2, 1e-9);
+    EXPECT_NEAR(particles[0].y, 0.0, 1e-9);
+    EXPECT_NEAR(particles[0].yaw, 0.05, 1e-9);
+}
+
+TEST(ParticleFilterTest, PredictNoiseProducesExpectedSpread)
+{
+    ParticleFilterConfig config = make_default_config();
+    config.num_particles = 2000U;
+    config.process_position_noise_std_per_m = 0.0;
+    config.process_position_noise_std_per_s = 0.5;  // dt=0.1 -> std=0.05
+    config.process_yaw_noise_std_per_rad = 0.0;
+    config.process_yaw_noise_std_per_s = 0.0;
+    ParticleFilter filter(config, 11U);
+
+    std::vector<Particle> particles(2000U, Particle{0.0, 0.0, 0.0, 1.0 / 2000.0});
+    filter.set_particles_for_test(particles);
+
+    filter.predict(/*linear_velocity=*/0.0, /*yaw_rate=*/0.0, /*dt=*/0.1);
+
+    double sum_sq = 0.0;
+    for (const auto& particle : filter.particles()) {
+        sum_sq += particle.x * particle.x;
+    }
+    const double sample_std = std::sqrt(sum_sq / filter.particles().size());
+    const double expected_std = 0.05;
+
+    EXPECT_NEAR(sample_std, expected_std, expected_std * 0.3);
+}

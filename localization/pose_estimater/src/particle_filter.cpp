@@ -167,4 +167,22 @@ void ParticleFilter::set_particles_for_test(std::vector<Particle> particles)
     initialized_ = true;
 }
 
+void ParticleFilter::predict(const double linear_velocity, const double yaw_rate, const double dt)
+{
+    const double position_noise_std =
+        config_.process_position_noise_std_per_m * std::abs(linear_velocity) * dt +
+        config_.process_position_noise_std_per_s * dt;
+    const double yaw_noise_std =
+        config_.process_yaw_noise_std_per_rad * std::abs(yaw_rate) * dt +
+        config_.process_yaw_noise_std_per_s * dt;
+
+    for (auto& particle : particles_) {
+        const double dx = linear_velocity * dt * std::cos(particle.yaw);
+        const double dy = linear_velocity * dt * std::sin(particle.yaw);
+        particle.x += dx + sample_gaussian(rng_, position_noise_std);
+        particle.y += dy + sample_gaussian(rng_, position_noise_std);
+        particle.yaw = normalize_angle(particle.yaw + yaw_rate * dt + sample_gaussian(rng_, yaw_noise_std));
+    }
+}
+
 }
