@@ -185,4 +185,62 @@ void ParticleFilter::predict(const double linear_velocity, const double yaw_rate
     }
 }
 
+double ParticleFilter::effective_sample_size_ratio() const
+{
+    if (particles_.empty()) {
+        return 0.0;
+    }
+
+    double sum_sq = 0.0;
+    for (const auto& particle : particles_) {
+        sum_sq += particle.weight * particle.weight;
+    }
+    if (sum_sq <= 0.0) {
+        return 0.0;
+    }
+
+    const double effective_sample_size = 1.0 / sum_sq;
+    return effective_sample_size / static_cast<double>(particles_.size());
+}
+
+bool ParticleFilter::should_resample() const
+{
+    return effective_sample_size_ratio() < config_.resample_ess_ratio_threshold;
+}
+
+void ParticleFilter::resample()
+{
+    const std::size_t n = particles_.size();
+    if (n == 0U) {
+        return;
+    }
+
+    std::vector<double> cumulative_weight(n);
+    double running = 0.0;
+    for (std::size_t i = 0U; i < n; ++i) {
+        running += particles_[i].weight;
+        cumulative_weight[i] = running;
+    }
+
+    std::uniform_real_distribution<double> offset_distribution(0.0, 1.0 / static_cast<double>(n));
+    const double start = offset_distribution(rng_);
+
+    std::vector<Particle> resampled;
+    resampled.reserve(n);
+    std::size_t source_index = 0U;
+    for (std::size_t i = 0U; i < n; ++i) {
+        const double target = start + static_cast<double>(i) / static_cast<double>(n);
+        while (source_index + 1U < n && cumulative_weight[source_index] < target) {
+            ++source_index;
+        }
+        resampled.push_back(particles_[source_index]);
+    }
+
+    const double uniform_weight = 1.0 / static_cast<double>(n);
+    for (auto& particle : resampled) {
+        particle.weight = uniform_weight;
+    }
+    particles_ = std::move(resampled);
+}
+
 }

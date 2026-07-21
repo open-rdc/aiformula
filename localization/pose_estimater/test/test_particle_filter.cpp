@@ -130,3 +130,69 @@ TEST(ParticleFilterTest, PredictNoiseProducesExpectedSpread)
 
     EXPECT_NEAR(sample_std, expected_std, expected_std * 0.3);
 }
+
+TEST(ParticleFilterTest, EffectiveSampleSizeRatioIsOneForUniformWeights)
+{
+    ParticleFilterConfig config = make_default_config();
+    config.num_particles = 4U;
+    ParticleFilter filter(config, 5U);
+    filter.set_particles_for_test({
+        Particle{0.0, 0.0, 0.0, 0.25},
+        Particle{1.0, 0.0, 0.0, 0.25},
+        Particle{2.0, 0.0, 0.0, 0.25},
+        Particle{3.0, 0.0, 0.0, 0.25},
+    });
+
+    EXPECT_NEAR(filter.effective_sample_size_ratio(), 1.0, 1e-9);
+}
+
+TEST(ParticleFilterTest, ShouldResampleTriggersWhenEssRatioBelowThreshold)
+{
+    ParticleFilterConfig config = make_default_config();
+    config.num_particles = 3U;
+    config.resample_ess_ratio_threshold = 0.5;
+    ParticleFilter filter(config, 5U);
+    filter.set_particles_for_test({
+        Particle{0.0, 0.0, 0.0, 0.9},
+        Particle{1.0, 0.0, 0.0, 0.05},
+        Particle{2.0, 0.0, 0.0, 0.05},
+    });
+
+    EXPECT_TRUE(filter.should_resample());
+}
+
+TEST(ParticleFilterTest, SystematicResamplingRespectsLowVarianceBound)
+{
+    ParticleFilterConfig config = make_default_config();
+    config.num_particles = 3U;
+    ParticleFilter filter(config, 42U);
+    filter.set_particles_for_test({
+        Particle{0.0, 0.0, 0.0, 0.9},
+        Particle{1.0, 0.0, 0.0, 0.05},
+        Particle{2.0, 0.0, 0.0, 0.05},
+    });
+
+    filter.resample();
+
+    ASSERT_EQ(filter.particles().size(), 3U);
+    int count_at_0 = 0;
+    int count_at_1 = 0;
+    int count_at_2 = 0;
+    for (const auto& particle : filter.particles()) {
+        if (particle.x == 0.0) {
+            ++count_at_0;
+        } else if (particle.x == 1.0) {
+            ++count_at_1;
+        } else {
+            ++count_at_2;
+        }
+        EXPECT_DOUBLE_EQ(particle.weight, 1.0 / 3.0);
+    }
+
+    // systematic resampling の低分散性: count は floor(N*w) か ceil(N*w) のいずれか。
+    EXPECT_GE(count_at_0, 2);  // floor(0.9*3)=2
+    EXPECT_LE(count_at_0, 3);  // ceil(0.9*3)=3
+    EXPECT_LE(count_at_1, 1);  // ceil(0.05*3)=1
+    EXPECT_LE(count_at_2, 1);  // ceil(0.05*3)=1
+    EXPECT_EQ(count_at_0 + count_at_1 + count_at_2, 3);
+}
