@@ -16,6 +16,8 @@
   <depend>vectormap_msgs</depend>
   <depend>Eigen3</depend>
 
+  <test_depend>ament_cmake_gtest</test_depend>
+
   <export>
     <build_type>ament_cmake</build_type>
   </export>

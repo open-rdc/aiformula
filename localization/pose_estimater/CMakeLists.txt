@@ -12,6 +12,7 @@ find_package(Eigen3 REQUIRED)
 
 ament_auto_add_library(pose_estimater_node SHARED
   src/icp_matching.cpp
+  src/particle_filter.cpp
   src/pose_estimater_node.cpp
 )
 target_compile_features(pose_estimater_node PUBLIC c_std_99 cxx_std_17)
@@ -24,6 +25,12 @@ target_include_directories(pose_estimater_node PUBLIC
 target_link_libraries(pose_estimater_node
   Eigen3::Eigen
 )
+
+if(BUILD_TESTING)
+  find_package(ament_cmake_gtest REQUIRED)
+  ament_add_gtest(test_particle_filter test/test_particle_filter.cpp)
+  target_link_libraries(test_particle_filter pose_estimater_node)
+endif()
 
 install(
   DIRECTORY include/
