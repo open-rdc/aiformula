@@ -297,3 +297,37 @@ TEST(ParticleFilterTest, GoodEssRatioResetsReinitStreak)
     filter.update_weights(matching_source, target_map);
     EXPECT_FALSE(filter.needs_reinitialization());  // 良好なESS比でストリークがリセットされる
 }
+
+TEST(ParticleFilterTest, EstimateComputesWeightedMeanAndCovariance)
+{
+    ParticleFilterConfig config = make_default_config();
+    config.num_particles = 2U;
+    ParticleFilter filter(config, 1U);
+    filter.set_particles_for_test({
+        Particle{0.0, 0.0, 0.0, 0.5},
+        Particle{2.0, 0.0, 0.0, 0.5},
+    });
+
+    const auto estimate = filter.estimate();
+
+    EXPECT_NEAR(estimate.x, 1.0, 1e-9);
+    EXPECT_NEAR(estimate.y, 0.0, 1e-9);
+    EXPECT_NEAR(estimate.yaw, 0.0, 1e-9);
+    EXPECT_NEAR(estimate.position_covariance(0, 0), 1.0, 1e-9);
+}
+
+TEST(ParticleFilterTest, EstimateYawHandlesWrapAroundNearPi)
+{
+    ParticleFilterConfig config = make_default_config();
+    config.num_particles = 2U;
+    ParticleFilter filter(config, 1U);
+    const double near_pi = M_PI - 0.01;
+    filter.set_particles_for_test({
+        Particle{0.0, 0.0, near_pi, 0.5},
+        Particle{0.0, 0.0, -near_pi, 0.5},
+    });
+
+    const auto estimate = filter.estimate();
+
+    EXPECT_NEAR(std::abs(estimate.yaw), M_PI, 1e-2);
+}

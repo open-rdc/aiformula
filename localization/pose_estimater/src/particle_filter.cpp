@@ -300,4 +300,47 @@ bool ParticleFilter::needs_reinitialization() const
     return low_ess_streak_ >= config_.reinit_consecutive_frames;
 }
 
+PoseEstimate2D ParticleFilter::estimate() const
+{
+    PoseEstimate2D result;
+    if (particles_.empty()) {
+        return result;
+    }
+
+    double weighted_x = 0.0;
+    double weighted_y = 0.0;
+    double weighted_sin = 0.0;
+    double weighted_cos = 0.0;
+    double weight_sum = 0.0;
+    for (const auto& particle : particles_) {
+        weighted_x += particle.weight * particle.x;
+        weighted_y += particle.weight * particle.y;
+        weighted_sin += particle.weight * std::sin(particle.yaw);
+        weighted_cos += particle.weight * std::cos(particle.yaw);
+        weight_sum += particle.weight;
+    }
+    if (weight_sum <= 0.0) {
+        return result;
+    }
+
+    result.x = weighted_x / weight_sum;
+    result.y = weighted_y / weight_sum;
+    result.yaw = std::atan2(weighted_sin / weight_sum, weighted_cos / weight_sum);
+
+    Eigen::Matrix2d position_covariance = Eigen::Matrix2d::Zero();
+    double yaw_variance = 0.0;
+    for (const auto& particle : particles_) {
+        const double normalized_weight = particle.weight / weight_sum;
+        const Eigen::Vector2d position_delta(particle.x - result.x, particle.y - result.y);
+        position_covariance += normalized_weight * position_delta * position_delta.transpose();
+
+        const double yaw_delta = normalize_angle(particle.yaw - result.yaw);
+        yaw_variance += normalized_weight * yaw_delta * yaw_delta;
+    }
+    result.position_covariance = position_covariance;
+    result.yaw_variance = yaw_variance;
+
+    return result;
+}
+
 }
