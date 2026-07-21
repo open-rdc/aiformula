@@ -1,11 +1,37 @@
 #include "pose_estimater/particle_filter.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <numeric>
 #include <utility>
 
 namespace pose_estimater
 {
+
+namespace
+{
+
+double sample_gaussian(std::mt19937& rng, const double std_dev)
+{
+    if (std_dev <= 0.0) {
+        return 0.0;
+    }
+    std::normal_distribution<double> distribution(0.0, std_dev);
+    return distribution(rng);
+}
+
+double normalize_angle(double angle)
+{
+    while (angle > M_PI) {
+        angle -= 2.0 * M_PI;
+    }
+    while (angle < -M_PI) {
+        angle += 2.0 * M_PI;
+    }
+    return angle;
+}
+
+}  // namespace
 
 PfTargetMap::PfTargetMap(std::vector<PfMapPoint> points)
 : points_(std::move(points)),
@@ -101,6 +127,44 @@ void PfTargetMap::nearest_recursive(
     if (axis_delta * axis_delta <= nearest_distance_sq) {
         nearest_recursive(far_child, query, nearest_index, nearest_distance_sq, found);
     }
+}
+
+ParticleFilter::ParticleFilter(const ParticleFilterConfig& config, const std::uint32_t seed)
+: config_(config),
+  rng_(seed)
+{
+}
+
+bool ParticleFilter::initialized() const
+{
+    return initialized_;
+}
+
+void ParticleFilter::initialize(
+    const double x, const double y, const double yaw,
+    const double position_std, const double yaw_std)
+{
+    const double uniform_weight = 1.0 / static_cast<double>(config_.num_particles);
+    particles_.assign(config_.num_particles, Particle{});
+    for (auto& particle : particles_) {
+        particle.x = x + sample_gaussian(rng_, position_std);
+        particle.y = y + sample_gaussian(rng_, position_std);
+        particle.yaw = normalize_angle(yaw + sample_gaussian(rng_, yaw_std));
+        particle.weight = uniform_weight;
+    }
+    initialized_ = true;
+    low_ess_streak_ = 0;
+}
+
+const std::vector<Particle>& ParticleFilter::particles() const
+{
+    return particles_;
+}
+
+void ParticleFilter::set_particles_for_test(std::vector<Particle> particles)
+{
+    particles_ = std::move(particles);
+    initialized_ = true;
 }
 
 }

@@ -31,3 +31,57 @@ TEST(PfTargetMapTest, EmptyMapReportsEmpty)
     std::size_t nearest_index = 0U;
     EXPECT_FALSE(map.nearest(Eigen::Vector2d(0.0, 0.0), 1.0, nearest_index));
 }
+
+using pose_estimater::Particle;
+using pose_estimater::ParticleFilter;
+using pose_estimater::ParticleFilterConfig;
+
+namespace
+{
+
+ParticleFilterConfig make_default_config()
+{
+    ParticleFilterConfig config;
+    config.num_particles = 10U;
+    config.process_position_noise_std_per_m = 0.05;
+    config.process_position_noise_std_per_s = 0.02;
+    config.process_yaw_noise_std_per_rad = 0.05;
+    config.process_yaw_noise_std_per_s = 0.01;
+    config.likelihood_sigma_m = 0.3;
+    config.max_correspondence_distance = 1.5;
+    config.resample_ess_ratio_threshold = 0.5;
+    config.reinit_ess_ratio_threshold = 0.1;
+    config.reinit_consecutive_frames = 5;
+    return config;
+}
+
+}  // namespace
+
+TEST(ParticleFilterTest, InitializeSamplesAroundSeedPoseWithinExpectedSpread)
+{
+    ParticleFilterConfig config = make_default_config();
+    config.num_particles = 2000U;
+    ParticleFilter filter(config, 7U);
+
+    EXPECT_FALSE(filter.initialized());
+    filter.initialize(10.0, -5.0, 0.5, /*position_std=*/1.0, /*yaw_std=*/0.1);
+    EXPECT_TRUE(filter.initialized());
+
+    const auto& particles = filter.particles();
+    ASSERT_EQ(particles.size(), 2000U);
+
+    double sum_x = 0.0;
+    double sum_y = 0.0;
+    double sum_weight = 0.0;
+    for (const auto& particle : particles) {
+        sum_x += particle.x;
+        sum_y += particle.y;
+        sum_weight += particle.weight;
+        EXPECT_DOUBLE_EQ(particle.weight, 1.0 / 2000.0);
+    }
+
+    // N=2000, std=1.0 の標準誤差は約0.022。5シグマ相当の余裕を持たせる。
+    EXPECT_NEAR(sum_x / particles.size(), 10.0, 0.15);
+    EXPECT_NEAR(sum_y / particles.size(), -5.0, 0.15);
+    EXPECT_NEAR(sum_weight, 1.0, 1e-9);
+}
