@@ -60,7 +60,7 @@ def main():
     )
 
     model = PilotNet(output_dim=cfg['model']['output_dim']).to(device)
-    criterion = build_loss(**cfg['loss'])
+    criterion = build_loss(**cfg['loss']).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=cfg['train']['lr'])
 
     save_dir = Path(cfg['train']['save_dir'])

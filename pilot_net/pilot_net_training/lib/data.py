@@ -19,7 +19,7 @@ def to_model_input(bgr_image: np.ndarray) -> np.ndarray:
 class PilotNetDataset(Dataset):
     def __init__(self, data_dir: str | Path):
         data_dir = Path(data_dir)
-        self.images = np.load(data_dir / 'images.npy')
+        self.images = np.load(data_dir / 'images.npy', mmap_mode='r')
         self.targets = np.load(data_dir / 'targets.npy')
         if len(self.images) != len(self.targets):
             raise ValueError(

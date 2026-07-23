@@ -19,5 +19,5 @@ python3 convert_weight.py \
 まとめて実行する場合:
 
 ```bash
-./run_pipeline.bash <bag_path>
+./run_pipeline.bash <bag_path> [val_ratio=0.2] [config=config/train.yaml] [out_weights=../pilot_net_controller/weights/pilotnet_weights.npy]
 ```
