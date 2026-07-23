@@ -36,54 +36,25 @@ vectormap_server_node:
     map_path : "aiformula_course.osm"
     map_yaw_from_east : 0.02686650
 
-localization_node:
+pose_estimater_node:
   ros__parameters:
-    update_period_ms : 100
-    imu_yaw_convention : "heading_north_ccw"
+    interval_ms : 100
+    input_timeout_s : 1.0
     map_origin_geodetic:
       latitude :  36.11313110136178
       longitude: 139.98107529988687
     map_yaw_from_east : 0.02686650
-    mask_threshold : 128
-    pixel_step : 4
-    max_observed_points : 2000
     min_observed_points : 5
-    min_map_points : 5
     map_sample_interval_m : 0.25
-    ground_plane_z_base : 0.0
-    min_ground_intersection_distance : 0.2
-    max_ground_intersection_distance : 30.0
-    camera:
-      fx : 246.55866667
-      fy : 246.389
-      cx : 318.345
-      cy : 186.59033333
-    camera_to_base:
-      x : 0.055
-      y : 0.0
-      z : 0.54
-      roll : -1.61442956
-      pitch : -0.00349065850
-      yaw : -1.57428698530
+    gnss_position_variance : 1.0
+    imu_yaw_variance : 0.05
+    icp_position_variance : 0.15
     icp:
       max_iterations : 20
       max_correspondence_distance : 1.5
       convergence_translation_epsilon : 0.01
       min_correspondences : 5
-    ekf:
-      initial_position_variance : 1.0
-      initial_yaw_variance : 0.3
-      initial_velocity_variance : 1.0
-      initial_yaw_rate_variance : 0.5
-      process_position_variance : 0.1
-      process_yaw_variance : 0.05
-      process_velocity_variance : 0.5
-      process_yaw_rate_variance : 0.2
-      gnss_position_variance : 1.0
-      imu_yaw_variance : 0.05
-      icp_position_variance : 0.15
-      position_gate_dist : 3.0
-      yaw_gate_dist : 3.0
+      max_mean_error : 0.2
 
 odom_tf_node:
   ros__parameters:

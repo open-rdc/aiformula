@@ -17,7 +17,8 @@
   <depend>frenet_planner</depend>
   <depend>path_tracker</depend>
   <depend>utilities</depend>
-  <depend>localization</depend>
+  <depend>ekf_localizer</depend>
+  <depend>pose_estimater</depend>
   <depend>trajectory_follower</depend>
   <depend>mission_planner</depend>
   <depend>local_planner</depend>
