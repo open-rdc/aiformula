@@ -24,6 +24,7 @@ install(
     scripts/steered_to_twist.py
     scripts/convert_sim_to_vectornav_pose.py
     scripts/convert_sim_to_vectornav_velocity_body.py
+    scripts/convert_image_encoding.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

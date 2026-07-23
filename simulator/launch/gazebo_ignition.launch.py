@@ -38,10 +38,20 @@ def generate_launch_description():
             '/cmd_vel_twist@geometry_msgs/msg/Twist@gz.msgs.Twist'],
         output='screen',
         remappings=[
-            ('/image_raw', '/zed/zed_node/rgb/image_rect_color'),
             ('/depth_image', '/zed/zed_node/depth/depth_registered'),
             ('/depth_image_raw/points', '/zed/zed_node/pointcloud'),
         ]
+    )
+
+    convert_image_encoding = Node(
+        package='simulator',
+        executable='convert_image_encoding.py',
+        output='screen',
+        parameters=[{
+            'input_topic': '/image_raw',
+            'output_topic': '/zed/zed_node/rgb/image_rect_color',
+            'encoding': 'bgr8',
+        }]
     )
 
     steered_to_twist = Node(
@@ -125,6 +135,7 @@ def generate_launch_description():
         ),
         steered_to_twist,
         bridge,
+        convert_image_encoding,
         robot_state_publisher,
         convert_vectornav_pose,
         convert_vectornav_velocity_body,
