@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pilot_net_training"
+version = "0.0.0"
+description = "Training pipeline for the PilotNet (end-to-end) steering model."
+requires-python = ">=3.10"
+dependencies = [
+    "torch",
+    "numpy<2",
+    "opencv-python",
+    "pyyaml",
+    "tqdm",
+    "tensorboard",
+]
+
+[tool.setuptools.packages.find]
+include = ["lib*"]
