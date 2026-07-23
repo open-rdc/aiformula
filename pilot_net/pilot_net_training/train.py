@@ -31,34 +31,40 @@ def run_epoch(model, loader, criterion, optimizer, device, train: bool):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', default='config/train.yaml')
+    parser.add_argument('--save-dir', default=None)
+    parser.add_argument('--log-dir', default=None)
     args = parser.parse_args()
 
     with open(args.config) as f:
         cfg = yaml.safe_load(f)
 
+    if args.save_dir is not None:
+        cfg['train']['save_dir'] = args.save_dir
+    if args.log_dir is not None:
+        cfg['train']['log_dir'] = args.log_dir
+
     torch.manual_seed(cfg['train']['seed'])
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    dataset_dir = Path(cfg['data']['dataset_dir'])
     train_loader = DataLoader(
-        PilotNetDataset(dataset_dir / 'train'),
+        PilotNetDataset(cfg['data']['train_dir']),
         batch_size=cfg['train']['batch_size'],
         shuffle=True,
         num_workers=cfg['train']['num_workers'],
     )
     val_loader = DataLoader(
-        PilotNetDataset(dataset_dir / 'val'),
+        PilotNetDataset(cfg['data']['val_dir']),
         batch_size=cfg['train']['batch_size'],
         shuffle=False,
         num_workers=cfg['train']['num_workers'],
     )
 
     model = PilotNet(output_dim=cfg['model']['output_dim']).to(device)
-    criterion = build_loss(cfg['train']['loss'], weights=cfg['train'].get('loss_weights'))
+    criterion = build_loss(**cfg['loss'])
     optimizer = torch.optim.Adam(model.parameters(), lr=cfg['train']['lr'])
 
-    checkpoint_dir = Path(cfg['train']['checkpoint_dir'])
-    checkpoint_dir.mkdir(parents=True, exist_ok=True)
+    save_dir = Path(cfg['train']['save_dir'])
+    save_dir.mkdir(parents=True, exist_ok=True)
     writer = SummaryWriter(cfg['train']['log_dir'])
 
     best_val_loss = float('inf')
@@ -72,9 +78,9 @@ def main():
 
         if val_loss < best_val_loss:
             best_val_loss = val_loss
-            torch.save(model.state_dict(), checkpoint_dir / 'best_model.pth')
+            torch.save(model.state_dict(), save_dir / 'best_model.pth')
 
-    torch.save(model.state_dict(), checkpoint_dir / 'last_model.pth')
+    torch.save(model.state_dict(), save_dir / 'last_model.pth')
     writer.close()
 
 

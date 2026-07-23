@@ -1,24 +1,19 @@
 data:
-  bag_path: "data/rosbag"
-  raw_dir: "data/raw"
-  dataset_dir: "data/dataset"
-  image_topic: "/zed/zed_node/rgb/image_rect_color"
-  cmd_topic: "/cmd_vel"
-  val_ratio: 0.2
-  horizontal_flip: true
-  steering_max: 15.0
-  velocity_max: 5.0
+  train_dir: "data/dataset/train"
+  val_dir: "data/dataset/val"
 
 train:
   epochs: 100
   batch_size: 64
-  lr: 0.001
+  lr: 0.0005
   num_workers: 4
-  loss: weighted_smooth_l1
-  loss_weights: [1.0, 0.5]
   seed: 42
-  checkpoint_dir: "checkpoints"
-  log_dir: "runs"
+  save_dir: "weights"
+  log_dir: "logs"
+
+loss:
+  steer_weight: 1.0
+  linear_weight: 1.0
 
 model:
   output_dim: 2

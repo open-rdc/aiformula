@@ -2,22 +2,16 @@ import torch
 import torch.nn as nn
 
 
-class WeightedSmoothL1Loss(nn.Module):
-    def __init__(self, weights: list[float] | None = None, beta: float = 1.0):
+class WeightedMSELoss(nn.Module):
+    def __init__(self, steer_weight: float = 1.0, linear_weight: float = 1.0):
         super().__init__()
-        self.weights = torch.tensor(weights) if weights is not None else None
-        self.smooth_l1 = nn.SmoothL1Loss(beta=beta, reduction='none')
+        self.register_buffer('weights', torch.tensor([steer_weight, linear_weight]))
+        self.mse = nn.MSELoss(reduction='none')
 
     def forward(self, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
-        loss = self.smooth_l1(pred, target)
-        if self.weights is not None:
-            loss = loss * self.weights.to(loss.device)
-        return loss.mean()
+        loss = self.mse(pred, target)
+        return (loss * self.weights).mean()
 
 
-def build_loss(name: str, **kwargs) -> nn.Module:
-    if name == 'mse':
-        return nn.MSELoss()
-    if name == 'weighted_smooth_l1':
-        return WeightedSmoothL1Loss(**kwargs)
-    raise ValueError(f'unknown loss: {name}')
+def build_loss(steer_weight: float = 1.0, linear_weight: float = 1.0) -> nn.Module:
+    return WeightedMSELoss(steer_weight=steer_weight, linear_weight=linear_weight)

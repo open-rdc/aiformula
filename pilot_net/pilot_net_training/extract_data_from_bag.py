@@ -10,6 +10,9 @@ from rosidl_runtime_py.utilities import get_message
 from sensor_msgs.msg import Image
 from steered_drive_msg.msg import SteeredDrive
 
+IMAGE_TOPIC = '/zed/zed_node/rgb/image_rect_color'
+CMD_TOPIC = '/cmd_vel'
+
 
 def read_bag(bag_path: str, image_topic: str, cmd_topic: str):
     storage_options = rosbag2_py.StorageOptions(uri=bag_path, storage_id='sqlite3')
@@ -57,11 +60,9 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--bag', required=True)
     parser.add_argument('--out', required=True)
-    parser.add_argument('--image-topic', default='/zed/zed_node/rgb/image_rect_color')
-    parser.add_argument('--cmd-topic', default='/cmd_vel')
     args = parser.parse_args()
 
-    images, cmds = read_bag(args.bag, args.image_topic, args.cmd_topic)
+    images, cmds = read_bag(args.bag, IMAGE_TOPIC, CMD_TOPIC)
     out_images, out_targets = sync_nearest(images, cmds)
 
     out_dir = Path(args.out)
