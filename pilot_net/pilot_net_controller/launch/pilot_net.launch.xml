@@ -1,0 +1,5 @@
+<launch>
+  <node pkg="pilot_net_controller" exec="pilot_net" name="pilot_net_controller_node">
+    <param from="$(find-pkg-share pilot_net_controller)/config/pilot_net_node.param.yaml" />
+  </node>
+</launch>
