@@ -13,7 +13,7 @@ python3 train.py --config config/train.yaml
 
 python3 convert_weight.py \
   --checkpoint checkpoints/best_model.pth \
-  --out ../pilot_net_controller/ckpt/pilotnet_weights.npy
+  --out ../pilot_net_controller/weights/pilotnet_weights.npy
 ```
 
 まとめて実行する場合:
