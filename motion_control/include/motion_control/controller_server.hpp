@@ -35,6 +35,7 @@ private:
     void pose_callback(
         const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg);
     void autonomous_callback(const std_msgs::msg::Bool::SharedPtr msg);
+    void pfoe_driving_callback(const std_msgs::msg::Bool::SharedPtr msg);
 
     nav_msgs::msg::Path transform_path_to_base(
         const nav_msgs::msg::Path & path,
@@ -47,6 +48,7 @@ private:
     const std::string autonomous_topic_;
     const std::string cmd_vel_topic_;
     const std::string target_pose_topic_;
+    const std::string pfoe_driving_topic_;
     const std::string map_frame_id_;
     const std::string base_frame_id_;
 
@@ -54,6 +56,7 @@ private:
     ControllerPlugin::SharedPtr plugin_;
 
     bool autonomous_enabled_{false};
+    bool pfoedriving_enabled_{false};
     geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr latest_pose_;
     mutable std::mutex data_mutex_;
 
@@ -61,6 +64,7 @@ private:
     rclcpp::Subscription<
         geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr pose_subscription_;
     rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr autonomous_subscription_;
+    rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr enablepfoe_subscription_;
     rclcpp::Publisher<steered_drive_msg::msg::SteeredDrive>::SharedPtr command_publisher_;
     rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr target_pose_publisher_;
 };
