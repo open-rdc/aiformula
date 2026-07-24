@@ -42,7 +42,8 @@
                 <outer_angle>1.5</outer_angle>
                 <falloff>1.0</falloff>
             </spot>
-            <cast_shadows>true</cast_shadows>
+            <cast_shadows>false</cast_shadows>
+            <visualize>false</visualize>
         </light>
       </link>
       <plugin
