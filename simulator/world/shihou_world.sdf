@@ -193,7 +193,7 @@
         </model>
 
         <include>
-            <uri>package://simulator/models/ai_car1</uri>
+            <uri>package://simulator/models/ai_car1/dynamic_obstacle.sdf</uri>
             <pose>0 0.0 0 0 0 -1.5</pose>
         </include>
 
