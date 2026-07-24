@@ -73,7 +73,7 @@ void ParticleFilter::cycle(const std::vector<float>& feat){
     resampling();
 }
  
-float ParticleFilter::decision(){
+Decision ParticleFilter::decision(){
     /*
     std::map<std::pair<int,int>, int> votes;
 
@@ -120,9 +120,14 @@ float ParticleFilter::decision(){
                count[1], count[2], count[3]);
     }
 
-    int modal_cmd = episodes_[most_event_.first]
-                   .events[most_event_.second].command;
-    return modal_cmd;
+    const auto& model = episodes_[most_event_.first].events[most_event_.second];
+
+    return Decision{
+        model.command,
+        model.linear_vel,
+        model.angular_vel,
+        model.pfoe_en
+    };
 
 }
 
@@ -132,8 +137,7 @@ void ParticleFilter::selftest(int ep_idx){
     for (size_t i = 0; i < ep.events.size(); i++) {
         cycle(ep.events[i].features);   // 教師の特徴量そのものを入力
         std::cerr << "i=" << i
-                  << " true=" << ep.events[i].command
-                  << " pred=" << decision() << std::endl;
+                  << " true=" << ep.events[i].command<< std::endl;
     }
 }
 
@@ -157,6 +161,9 @@ int ParticleFilter::loadEpisode(const std::string& path)
         e.features.assign(rec.begin(), rec.begin() + FEAT_DIM);
         e.joy_value = rec[FEAT_DIM];
         e.command   = static_cast<int>(rec[FEAT_DIM + 1]);
+        e.linear_vel  = rec[FEAT_DIM + 2];
+        e.angular_vel = rec[FEAT_DIM + 3];
+        e.pfoe_en = rec[FEAT_DIM + 4];
         ep.events.push_back(std::move(e));
     }
 

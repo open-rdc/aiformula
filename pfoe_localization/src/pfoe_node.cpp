@@ -10,7 +10,8 @@ PfoeNode::PfoeNode(const std::string& name_space, const rclcpp::NodeOptions& opt
 : rclcpp::Node("pfoe_node", name_space, options)
 {
   pub_ = create_publisher<std_msgs::msg::String>("/planning/nav_cmd", 10);
-  debug_pub_ = create_publisher<std_msgs::msg::Int32>("/pfoe_cmd", 10);
+  pub_vel_ = create_publisher<steered_drive_msg::msg::SteeredDrive>("cmd_vel", 10);
+  bool_pub_ = create_publisher<std_msgs::msg::Bool>("/pfoe_driving", 10);
 
   sub_ = create_subscription<std_msgs::msg::Float32MultiArray>(
     "pfoe/features",
@@ -38,14 +39,21 @@ void PfoeNode::featureCallback(const std_msgs::msg::Float32MultiArray::SharedPtr
   }
   pf_.cycle(msg->data);
 
-  const int cmd = static_cast<int>(pf_.decision());
+  const auto result = pf_.decision();
   std_msgs::msg::String out;
-  out.data =  (cmd == 2) ? "left" : (cmd == 3) ? "right" : "straight";
+  out.data =  (result.command == 2) ? "left" : (result.command == 3) ? "right" : "straight";
   pub_ -> publish(out);
 
-  std_msgs::msg::Int32 dbg;
-  dbg.data = cmd;
-  debug_pub_->publish(dbg);
+  std_msgs::msg::Bool en;
+  en.data = result.pfoe_en;
+  bool_pub_ -> publish(en);
+
+  auto msg_vel = std::make_shared<steered_drive_msg::msg::SteeredDrive>();
+  msg_vel->velocity = result.linear_vel;
+  msg_vel->steering_angle = result.angular_vel;
+  if (result.pfoe_en){
+    pub_vel_->publish(*msg_vel);
+  }
 
 }
   

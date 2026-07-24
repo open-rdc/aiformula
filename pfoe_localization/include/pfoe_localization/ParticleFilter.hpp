@@ -12,13 +12,16 @@
 #include <map>
 
 static constexpr int FEAT_DIM = 1280;
-static constexpr int REC_DIM  = 1282;
+static constexpr int REC_DIM  = 1285;
 
 struct Event
 {
     std::vector<float> features;  // (1280,)
     float joy_value;
     int command;
+    float linear_vel;
+    float angular_vel;
+    bool pfoe_en;
 };
 
 struct Episode
@@ -34,12 +37,19 @@ struct Particle
     double weight;
 };
 
+struct Decision {
+    int   command;
+    float linear_vel;
+    float angular_vel;
+    bool pfoe_en;
+};
+
 class ParticleFilter{
 public:
     ParticleFilter();
     int init(const std::string& data_dir, int predictio_range);
     void cycle(const std::vector<float>& feat);
-    float decision();
+    Decision decision();
     int mostevent();
     void selftest(int ep_idx = 0);
 private:

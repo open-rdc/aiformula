@@ -9,6 +9,7 @@ import csv
 from pathlib import Path
 from typing import Optional
 from rclpy.qos import qos_profile_sensor_data
+from steered_drive_msg.msg import SteeredDrive
 from feature_extractor import ImageFeatureExtractor
 
 try:
@@ -38,9 +39,12 @@ class DataCollectionNode(Node):
 
         self.is_paused = True
         self.prev_button_state = 0
+        self.is_enable = False
+        self.prev_enabl_pfoe_state = 0
         self.next_command = 1
         self.joy_value = None
         self.last_sample_time = None
+        self.record_vel = None
 
         package_root = Path(__file__).parent.parent
         data_base_dir = package_root / 'data'
@@ -53,7 +57,7 @@ class DataCollectionNode(Node):
         self.log_path = dataset_dir / 'log.csv'
         self.log_file = open(str(self.log_path), 'w', newline='')
         self.log_writer = csv.writer(self.log_file)
-        self.log_writer.writerow(['row', 'joy_value', 'command'])
+        self.log_writer.writerow(['row', 'joy_value', 'command', 'vel', 'angular'])
 
         if self.sdk_flag_:
             if not ZED_SDK_AVAILABLE:
@@ -62,6 +66,13 @@ class DataCollectionNode(Node):
             self._initialize_zed_camera()
         else:
             self.create_subscription(Image, '/zed/zed_node/rgb/image_rect_color', self.image_callback, qos_profile_sensor_data)
+
+        self.create_subscription(
+            SteeredDrive,
+            '/cmd_vel',
+            self.cmd_callback,
+            10,
+        )
 
         self.create_subscription(Joy, '/joy', self.joy_callback, 10)
         self.create_timer(0.1, self.timer_callback)
@@ -95,6 +106,9 @@ class DataCollectionNode(Node):
 
     def image_callback(self, msg: Image) -> None:
         self.latest_image = msg
+
+    def cmd_callback(self, msg: SteeredDrive) -> None:
+        self.record_vel = msg
     
     def joy_callback(self, msg: Joy) -> None:
         current_button_state = msg.buttons[2]
@@ -107,6 +121,17 @@ class DataCollectionNode(Node):
                 self.get_logger().info('▶️ Data collection resumed')
 
         self.prev_button_state = current_button_state
+
+        enabl_pfoe_state = msg.buttons[3]
+        if enabl_pfoe_state == 1 and self.prev_enabl_pfoe_state == 0:
+            self.is_enable = not self.is_enable
+            if self.is_enable:
+                self.get_logger().info('pfoe only run')
+            else:
+                self.last_sample_time = None
+                self.get_logger().info('not pfoe run')
+
+        self.prev_enabl_pfoe_state = enabl_pfoe_state
 
         if msg.buttons[4] == 1:
             command = 2
@@ -132,32 +157,38 @@ class DataCollectionNode(Node):
 
         if self.sdk_flag_:
             image = self._capture_data_from_zed()
-            if image is None or self.joy_value is None:
+            if image is None or self.joy_value is None or self.record_vel is None:
                 return
             
             if self.last_sample_time is None or current_time - self.last_sample_time >= SAMPLE_INTERVAL:
                 get_image_tensor = self.feature_extractor.extract(image).astype(np.float32)
+                velocity = self.record_vel.velocity
+                steering_angle = self.record_vel.steering_angle
+                enable_pfoe = self.is_enable
                 row = np.concatenate([
                     get_image_tensor,
-                    np.array([self.joy_value, self.next_command], dtype=np.float32)
+                    np.array([self.joy_value, self.next_command, velocity, steering_angle, enable_pfoe], dtype=np.float32)
                 ])
                 self.bin_file.write(row.tobytes())
-                self.log_writer.writerow([self.row_count, self.joy_value, self.next_command])
+                self.log_writer.writerow([self.row_count, self.joy_value, self.next_command, velocity, steering_angle, enable_pfoe])
                 self.row_count += 1
                 self.last_sample_time = current_time
 
         else:
-            if self.latest_image is None or self.joy_value is None:
+            if self.latest_image is None or self.joy_value is None or self.record_vel is None:
                 return
             if self.last_sample_time is None or current_time - self.last_sample_time >= SAMPLE_INTERVAL:
                 cv_image = self.bridge.imgmsg_to_cv2(self.latest_image, desired_encoding='rgb8')
+                velocity = self.record_vel.velocity
+                steering_angle = self.record_vel.steering_angle
+                enable_pfoe = self.is_enable
                 get_image_tensor = self.feature_extractor.extract(cv_image).astype(np.float32)
                 row = np.concatenate([
                     get_image_tensor,
-                    np.array([self.joy_value, self.next_command], dtype=np.float32)
+                    np.array([self.joy_value, self.next_command, velocity, steering_angle,enable_pfoe], dtype=np.float32)
                 ])
                 self.bin_file.write(row.tobytes())
-                self.log_writer.writerow([self.row_count, self.joy_value, self.next_command])
+                self.log_writer.writerow([self.row_count, self.joy_value, self.next_command, velocity, steering_angle,enable_pfoe])
                 self.row_count += 1
                 self.last_sample_time = current_time
 

@@ -10,6 +10,7 @@ find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(ament_index_cpp REQUIRED)
+find_package(steered_drive_msg REQUIRED)
 
 add_library(${PROJECT_NAME}
   src/pfoe_node.cpp
@@ -20,6 +21,7 @@ ament_target_dependencies(${PROJECT_NAME}
   rclcpp
   std_msgs
   ament_index_cpp
+  steered_drive_msg
 )
 
 add_executable(pfoe_test src/main_test.cpp)
