@@ -80,7 +80,10 @@ void ControllerServer::path_callback(const nav_msgs::msg::Path::SharedPtr msg)
         pfoedriving_enabled = pfoedriving_enabled_;
     }
 
-    if (!autonomous_enabled || pfoedriving_enabled) {
+    if (!autonomous_enabled) {
+        return;
+    }
+    if (pfoedriving_enabled) {
         return;
     }
     if (msg->poses.empty()) {

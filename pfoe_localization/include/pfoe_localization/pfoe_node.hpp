@@ -20,10 +20,20 @@ public:
 
     void featureCallback(const std_msgs::msg::Float32MultiArray::SharedPtr msg);
 private:
+
     ParticleFilter pf_;
-    rclcpp::Publisher<std_msgs::msg::String>::SharedPtr pub_;
-    rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr bool_pub_;
-    rclcpp::Publisher<steered_drive_msg::msg::SteeredDrive>::SharedPtr pub_vel_;
-    rclcpp::Subscription<std_msgs::msg::Float32MultiArray>::SharedPtr sub_;
+    rclcpp::Publisher<std_msgs::msg::String>::SharedPtr nav_cmd_publisher_;
+    rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr pfoe_driving_publisher_;
+    rclcpp::Publisher<steered_drive_msg::msg::SteeredDrive>::SharedPtr cmd_vel_publisher_;
+    rclcpp::Subscription<std_msgs::msg::Float32MultiArray>::SharedPtr feature_subscription_;
+
+    bool pfoe_enabled_;
+    bool pfoe_direct_action_enabled_;
+    const std::string nav_cmd_topic_;
+    const std::string cmd_vel_topic_;
+    const std::string feature_topic_;
+    const std::string pfoe_driving_topic_;
+    int prediction_range_;
+
 };
 }

@@ -62,40 +62,12 @@ void ParticleFilter::cycle(const std::vector<float>& feat){
             max_particles = p.weight;
         }
     }
-    
-    printf("particles_range = %f\n", min_particles / max_particles);
-    printf("ESS = %f\n", (sum_particles * sum_particles / square_particles));
-    printf("1/n =  %f\n", (1.0 / 1000.0) / max_particles);
-    //ここで見るでいいかな？
-    //ここで何を見ればいいのかわかってないので更に解説
 
     normalize();
     resampling();
 }
  
 Decision ParticleFilter::decision(){
-    /*
-    std::map<std::pair<int,int>, int> votes;
-
-    for (const auto& p : particles_) {
-        votes[{p.episode_idx, p.event_idx}]++;
-    }
-
-    std::pair<int,int> best;
-    std::vector<std::pair<int,int>> best_votes;
-    int max_count = -1;
-
-    for (const auto& [cell, count] : votes) {
-        if (count > max_count){
-            max_count = count;
-            best_votes.clear();
-            best_votes.push_back(cell);
-        }else if(count == max_count){
-            best_votes.push_back(cell);
-        }
-    }
-    */
-
     int count[4] = {0, 0, 0, 0};
     std::map<std::pair<int,int>, int> votes;
     std::pair<int,int> most_event_{0, 0};
@@ -111,13 +83,8 @@ Decision ParticleFilter::decision(){
             votes.begin(), votes.end(),
             [](const auto& a, const auto& b){ return a.second < b.second; });
 
-        most_event_ = bestcell->first;          // (ep, ev) をメンバ保存
-        int max_vote = bestcell->second;        // そのセルの粒子数
-
-        printf("most_ep=%d most_ev=%d max_vote=%d/%d  count=%d/%d/%d\n",
-               most_event_.first, most_event_.second,
-               max_vote, (int)particles_.size(),
-               count[1], count[2], count[3]);
+        most_event_ = bestcell->first;
+        int max_vote = bestcell->second;
     }
 
     const auto& model = episodes_[most_event_.first].events[most_event_.second];

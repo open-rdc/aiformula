@@ -24,12 +24,6 @@ ament_target_dependencies(${PROJECT_NAME}
   steered_drive_msg
 )
 
-add_executable(pfoe_test src/main_test.cpp)
-target_link_libraries(pfoe_test ${PROJECT_NAME})   # ↑のlibraryをリンク
-ament_target_dependencies(pfoe_test rclcpp)
-install(TARGETS pfoe_test
-  DESTINATION lib/${PROJECT_NAME})
-
 target_include_directories(${PROJECT_NAME} PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)

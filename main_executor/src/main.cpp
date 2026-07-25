@@ -11,6 +11,7 @@
 #include "local_planner/local_planner_server.hpp"
 #include "object_detector/object_detector_node.hpp"
 #include "vectormap_server/vectormap_server_node.hpp"
+#include "pfoe_localization/pfoe_node.hpp"
 
 int main(int argc, char * argv[]){
     rclcpp::init(argc,argv);
@@ -38,6 +39,7 @@ int main(int argc, char * argv[]){
     auto local_planner_server_node = std::make_shared<local_planner::LocalPlannerServer>(nodes_option);
     auto controller_server_node = std::make_shared<motion_control::ControllerServer>(nodes_option);
     auto object_detector_node = std::make_shared<object_detector::ObjectDetectorNode>(nodes_option);
+    auto pfoe_localization_node = std::make_shared<pfoe_localization::PfoeNode>(nodes_option);
 
 #ifdef ENABLE_ZED
     std::shared_ptr<zed_wrapper::ZedWrapperNode> zed_wrapper_node;
@@ -47,6 +49,7 @@ int main(int argc, char * argv[]){
     }
 #endif
     exec.add_node(controller_node);
+
     exec.add_node(chassis_driver_node);
     exec.add_node(vectormap_server_node);
     exec.add_node(localization_node);
@@ -56,6 +59,7 @@ int main(int argc, char * argv[]){
     exec.add_node(local_planner_server_node);
     exec.add_node(controller_server_node);
     exec.add_node(object_detector_node);
+    exec.add_node(pfoe_localization_node);
 
     exec.spin();
     rclcpp::shutdown();
