@@ -21,6 +21,8 @@ planning/e2e_planner/runs/
 pilot_net/pilot_net_training/data/
 pilot_net/pilot_net_training/checkpoints/
 pilot_net/pilot_net_training/runs/
+pilot_net/pilot_net_controller/weights/
+
 #ファイル名で指定
 AGENTS.md
 CLAUDE.md
