@@ -25,6 +25,7 @@
   <depend>zed_wrapper</depend>
   <depend>vectormap_server</depend>
   <depend>gnssnav</depend>
+  <depend>pfoe_localization</depend>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 

@@ -20,12 +20,13 @@ ControllerServer::ControllerServer(
   autonomous_topic_(get_parameter("autonomous_topic").as_string()),
   cmd_vel_topic_(get_parameter("cmd_vel_topic").as_string()),
   target_pose_topic_(get_parameter("target_pose_topic").as_string()),
+  pfoe_driving_topic_(get_parameter("pfoe_driving_topic").as_string()),
   map_frame_id_(get_parameter("map_frame_id").as_string()),
   base_frame_id_(get_parameter("base_frame_id").as_string()),
   plugin_loader_("motion_control", "motion_control::ControllerPlugin")
 {
     if (path_topic_.empty() || pose_topic_.empty() || autonomous_topic_.empty() ||
-        cmd_vel_topic_.empty() || target_pose_topic_.empty())
+        cmd_vel_topic_.empty() || target_pose_topic_.empty() || pfoe_driving_topic_.empty())
     {
         throw std::invalid_argument("controller server topic parameters must not be empty");
     }
@@ -57,6 +58,10 @@ ControllerServer::ControllerServer(
         create_publisher<steered_drive_msg::msg::SteeredDrive>(cmd_vel_topic_, qos);
     target_pose_publisher_ =
         create_publisher<geometry_msgs::msg::PoseStamped>(target_pose_topic_, qos);
+    enablepfoe_subscription_ = create_subscription<std_msgs::msg::Bool>(
+        pfoe_driving_topic_, qos,
+        std::bind(&ControllerServer::pfoe_driving_callback, this, std::placeholders::_1));
+    
 }
 
 void ControllerServer::path_callback(const nav_msgs::msg::Path::SharedPtr msg)
@@ -67,13 +72,18 @@ void ControllerServer::path_callback(const nav_msgs::msg::Path::SharedPtr msg)
 
     geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr latest_pose;
     bool autonomous_enabled = false;
+    bool pfoedriving_enabled = false;
     {
         std::lock_guard<std::mutex> lock(data_mutex_);
         latest_pose = latest_pose_;
         autonomous_enabled = autonomous_enabled_;
+        pfoedriving_enabled = pfoedriving_enabled_;
     }
 
     if (!autonomous_enabled) {
+        return;
+    }
+    if (pfoedriving_enabled) {
         return;
     }
     if (msg->poses.empty()) {
@@ -133,6 +143,15 @@ void ControllerServer::autonomous_callback(const std_msgs::msg::Bool::SharedPtr 
     }
     std::lock_guard<std::mutex> lock(data_mutex_);
     autonomous_enabled_ = msg->data;
+}
+
+void ControllerServer::pfoe_driving_callback(const std_msgs::msg::Bool::SharedPtr msg)
+{
+    if (!msg) {
+        throw std::runtime_error("pfoe_driving message must not be null");
+    }
+    std::lock_guard<std::mutex> lock(data_mutex_);
+    pfoedriving_enabled_ = msg->data;
 }
 
 nav_msgs::msg::Path ControllerServer::transform_path_to_base(
