@@ -2,6 +2,8 @@ import rclpy
 from ament_index_python.packages import get_package_share_directory
 from cv_bridge import CvBridge
 from rclpy.node import Node
+from rclpy.qos import HistoryPolicy, QoSProfile, ReliabilityPolicy
+from std_msgs.msg import Bool
 from sensor_msgs.msg import Image
 from steered_drive_msg.msg import SteeredDrive
 
@@ -25,14 +27,26 @@ class PilotNetControllerNode(Node):
         velocity_max = self.get_parameter('velocity_max').value
 
         share_dir = get_package_share_directory('pilot_net_controller')
-        self.core = PilotNetControllerCore(
-            f'{share_dir}/weights/{weights_path}', steering_max, velocity_max)
+        self.core = PilotNetControllerCore(f'{share_dir}/weights/{weights_path}', steering_max, velocity_max)
+
+        self.autonomous_flag = False
 
         self.bridge = CvBridge()
         self.cmd_publisher = self.create_publisher(SteeredDrive, cmd_topic, 10)
-        self.image_subscription = self.create_subscription(Image, image_topic, self.image_callback, 10)
+        self.image_subscription = self.create_subscription(Image, image_topic, self.image_callback, 
+            QoSProfile(
+                reliability=ReliabilityPolicy.BEST_EFFORT,
+                history=HistoryPolicy.KEEP_LAST,
+                depth=1))
+        self.autonomous_subscription = self.create_subscription(Bool, '/autonomous', self.autonomous_callback, 10)
+
+    def autonomous_callback(self, msg: Bool):
+        self.autonomous_flag = msg.data
 
     def image_callback(self, msg: Image):
+        if not self.autonomous_flag:
+            return
+
         bgr_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
         steering_angle, velocity = self.core.infer(bgr_image)
 

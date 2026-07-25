@@ -7,15 +7,18 @@ def conv2d(x: np.ndarray, weight: np.ndarray, bias: np.ndarray, stride: int) -> 
     out_height = (in_height - kernel_height) // stride + 1
     out_width = (in_width - kernel_width) // stride + 1
 
-    windows = np.lib.stride_tricks.sliding_window_view(x, (kernel_height, kernel_width), axis=(2, 3))
-    windows = windows[:, :, ::stride, ::stride, :, :]
-    windows = windows.reshape(batch, in_channels, out_height, out_width, kernel_height * kernel_width)
-    windows = windows.transpose(0, 2, 3, 1, 4).reshape(
-        batch, out_height, out_width, in_channels * kernel_height * kernel_width)
+    columns = np.empty(
+        (batch, in_channels, kernel_height, kernel_width, out_height, out_width), dtype=x.dtype)
+    for i in range(kernel_height):
+        for j in range(kernel_width):
+            columns[:, :, i, j] = x[
+                :, :,
+                i:i + stride * out_height:stride,
+                j:j + stride * out_width:stride]
 
     weight_matrix = weight.reshape(out_channels, in_channels * kernel_height * kernel_width)
-    out = windows @ weight_matrix.T + bias
-    return out.transpose(0, 3, 1, 2)
+    out = weight_matrix @ columns.reshape(batch, -1, out_height * out_width) + bias[:, np.newaxis]
+    return out.reshape(batch, out_channels, out_height, out_width)
 
 
 def linear(x: np.ndarray, weight: np.ndarray, bias: np.ndarray) -> np.ndarray:
