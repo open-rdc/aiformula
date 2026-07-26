@@ -18,16 +18,16 @@ class PilotNetControllerNode(Node):
         self.declare_parameter('cmd_topic', '/cmd_vel')
         self.declare_parameter('weights_path', 'pilotnet_weights.npy')
         self.declare_parameter('steering_max', 15.0)
-        self.declare_parameter('velocity_max', 5.0)
+        self.declare_parameter('target_velocity', 3.0)
 
         image_topic = self.get_parameter('image_topic').value
         cmd_topic = self.get_parameter('cmd_topic').value
         weights_path = self.get_parameter('weights_path').value
-        steering_max = self.get_parameter('steering_max').value
-        velocity_max = self.get_parameter('velocity_max').value
+        steering_max_deg = self.get_parameter('steering_max').value
+        self.target_velocity = self.get_parameter('target_velocity').value
 
         share_dir = get_package_share_directory('pilot_net_controller')
-        self.core = PilotNetControllerCore(f'{share_dir}/weights/{weights_path}', steering_max, velocity_max)
+        self.core = PilotNetControllerCore(f'{share_dir}/weights/{weights_path}', steering_max_deg)
 
         self.autonomous_flag = False
 
@@ -48,11 +48,10 @@ class PilotNetControllerNode(Node):
             return
 
         bgr_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
-        steering_angle, velocity = self.core.infer(bgr_image)
 
         cmd_msg = SteeredDrive()
-        cmd_msg.steering_angle = steering_angle
-        cmd_msg.velocity = velocity
+        cmd_msg.steering_angle = self.core.infer(bgr_image)
+        cmd_msg.velocity = self.target_velocity
         self.cmd_publisher.publish(cmd_msg)
 
 

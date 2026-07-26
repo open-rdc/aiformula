@@ -4,4 +4,4 @@ pilot_net_controller_node:
     cmd_topic: "/cmd_vel"
     weights_path: "pilotnet_weights.npy"
     steering_max: 15.0
-    velocity_max: 5.0
+    target_velocity: 3.0
