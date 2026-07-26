@@ -18,8 +18,9 @@ log/
 simulator_old/
 planning/e2e_planner/data/
 planning/e2e_planner/runs/
+pilot_net/pilot_net_training/log*
 pilot_net/pilot_net_training/data/
-pilot_net/pilot_net_training/checkpoints/
+pilot_net/pilot_net_training/weights/
 pilot_net/pilot_net_training/runs/
 pilot_net/pilot_net_controller/weights/
 
