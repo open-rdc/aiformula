@@ -3,7 +3,7 @@ import torch.nn as nn
 
 
 class PilotNet(nn.Module):
-    def __init__(self, output_dim: int = 2):
+    def __init__(self, output_dim: int = 1):
         super().__init__()
         self.conv1 = nn.Conv2d(3, 24, kernel_size=5, stride=2)
         self.conv2 = nn.Conv2d(24, 36, kernel_size=5, stride=2)

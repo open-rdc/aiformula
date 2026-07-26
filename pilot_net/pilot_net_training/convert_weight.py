@@ -10,7 +10,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--checkpoint', required=True)
     parser.add_argument('--out', required=True)
-    parser.add_argument('--output-dim', type=int, default=2)
+    parser.add_argument('--output-dim', type=int, default=1)
     args = parser.parse_args()
 
     model = PilotNet(output_dim=args.output_dim)
