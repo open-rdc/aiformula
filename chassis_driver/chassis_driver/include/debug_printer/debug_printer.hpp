@@ -11,17 +11,17 @@ public:
 private:
     rclcpp::Subscription<socketcan_interface_msg::msg::SocketcanIF>::SharedPtr _subscription_rpm_rx;
     rclcpp::Subscription<socketcan_interface_msg::msg::SocketcanIF>::SharedPtr _subscription_can_tx;
-    rclcpp::Subscription<socketcan_interface_msg::msg::SocketcanIF>::SharedPtr _subscription_potentio;
+    rclcpp::Subscription<socketcan_interface_msg::msg::SocketcanIF>::SharedPtr _subscription_caster_encoder;
 
     void _subscriber_callback_rpm_rx(const socketcan_interface_msg::msg::SocketcanIF::SharedPtr msg);
     void _subscriber_callback_can_tx(const socketcan_interface_msg::msg::SocketcanIF::SharedPtr msg);
-    void _subscriber_callback_potentio(const socketcan_interface_msg::msg::SocketcanIF::SharedPtr msg);
+    void _subscriber_callback_caster_encoder(const socketcan_interface_msg::msg::SocketcanIF::SharedPtr msg);
 
     rclcpp::Publisher<std_msgs::msg::Int64>::SharedPtr publisher_left_rpm_rx;
     rclcpp::Publisher<std_msgs::msg::Int64>::SharedPtr publisher_right_rpm_rx;
     rclcpp::Publisher<std_msgs::msg::Int64>::SharedPtr publisher_left_rpm_tx;
     rclcpp::Publisher<std_msgs::msg::Int64>::SharedPtr publisher_right_rpm_tx;
-    rclcpp::Publisher<std_msgs::msg::Int64>::SharedPtr publisher_potentio;
+    rclcpp::Publisher<std_msgs::msg::Int64>::SharedPtr publisher_caster_encoder;
 
     rclcpp::QoS _qos = rclcpp::QoS(10);
 };
