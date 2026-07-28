@@ -1,10 +1,6 @@
 launch:
   ros__parameters:
     joy: true
-    vectornav : false
-    odrive : false
-    socketcan : false
-    zed : false
     sim : true
 
 /**:

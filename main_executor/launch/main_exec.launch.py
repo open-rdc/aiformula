@@ -38,17 +38,6 @@ def generate_launch_description():
         }],
         output='screen',
     )
-    
-    camera_tf = Node(
-        package='tf2_ros',
-        executable='static_transform_publisher',
-        arguments=[
-            '0.055', '0.0', '0.54',
-            '-0.0036430636', '0.0436329672', '-0.0034939840',
-            'chassis', 'ai_car1/camera_depth_link/camera_depth_link',
-        ],
-        output='screen',
-    )
 
     # メイン実行機ノードの作成
     main_exec_node = Node(
@@ -90,15 +79,12 @@ def generate_launch_description():
     # 起動の追加
     if(launch_params['joy'] is True):
         launch_discription.add_action(joy_node)
-    if(launch_params['vectornav'] is True):
+    if(launch_params['sim'] is False):
         launch_discription.add_action(vectornav_launch)
-    if(launch_params['odrive'] is True):
         launch_discription.add_action(odrive_launch)
-    if(launch_params['socketcan'] is True):
         launch_discription.add_action(socketcan_node)
 
     launch_discription.add_action(robot_state_publisher)
-    launch_discription.add_action(camera_tf)
     launch_discription.add_action(main_exec_node)
 
     return launch_discription
