@@ -12,10 +12,10 @@ DebugPrinter::DebugPrinter(const std::string &name_space, const rclcpp::NodeOpti
             _qos,
             std::bind(&DebugPrinter::_subscriber_callback_rpm_rx, this, std::placeholders::_1)
     );
-    _subscription_potentio = this->create_subscription<socketcan_interface_msg::msg::SocketcanIF>(
-            "can_rx_11",
+    _subscription_caster_encoder = this->create_subscription<socketcan_interface_msg::msg::SocketcanIF>(
+            "can_rx_012",
             _qos,
-            std::bind(&DebugPrinter::_subscriber_callback_potentio, this, std::placeholders::_1)
+            std::bind(&DebugPrinter::_subscriber_callback_caster_encoder, this, std::placeholders::_1)
     );
     _subscription_can_tx = this->create_subscription<socketcan_interface_msg::msg::SocketcanIF>(
             "can_tx",
@@ -27,7 +27,7 @@ DebugPrinter::DebugPrinter(const std::string &name_space, const rclcpp::NodeOpti
     publisher_right_rpm_rx = this->create_publisher<std_msgs::msg::Int64>("right_rpm_rx", _qos);
     publisher_left_rpm_tx = this->create_publisher<std_msgs::msg::Int64>("left_rpm_tx", _qos);
     publisher_right_rpm_tx = this->create_publisher<std_msgs::msg::Int64>("right_rpm_tx", _qos);
-    publisher_potentio = this->create_publisher<std_msgs::msg::Int64>("potentio", _qos);
+    publisher_caster_encoder = this->create_publisher<std_msgs::msg::Int64>("caster_encoder", _qos);
 
 
 
@@ -65,14 +65,14 @@ void DebugPrinter::_subscriber_callback_can_tx(const socketcan_interface_msg::ms
     }
 }
 
-void DebugPrinter::_subscriber_callback_potentio(const socketcan_interface_msg::msg::SocketcanIF::SharedPtr msg){
+void DebugPrinter::_subscriber_callback_caster_encoder(const socketcan_interface_msg::msg::SocketcanIF::SharedPtr msg){
     uint8_t _candata[8];
     for(int i=0; i<msg->candlc; i++) _candata[i] = msg->candata[i];
 
     auto msg_tx = std::make_shared<std_msgs::msg::Int64>();
     const int value = msg_tx->data = static_cast<int>(bytes_to_int16(_candata));
-    publisher_potentio->publish(*msg_tx);
-    RCLCPP_DEBUG(this->get_logger(), "POTENTIO:%d", value);
+    publisher_caster_encoder->publish(*msg_tx);
+    RCLCPP_DEBUG(this->get_logger(), "CASTER ENC:%d", value);
 }
 
 
