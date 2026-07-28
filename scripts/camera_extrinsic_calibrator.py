@@ -2,8 +2,14 @@
 """カメラ外部パラメータ推定ツール（最小二乗法）
 
 zed_wrapper が配信する画像トピックと CameraInfo トピックを購読し、
-GUI 上でクリックした画素とその位置の実世界座標との対応を集めて、
+画像上で指定した画素とその位置の実世界座標との対応を集めて、
 最小二乗法でカメラ外部パラメータ（base_link -> カメラ光学座標系）を推定する。
+
+表示方式は 2 種類あり、起動時に自動判定する:
+  gui : OpenCV のウィンドウに画像を出し、クリックで画素を選ぶ。
+        実世界座標は端末から入力する（JetPack 5.x の Jetson で動作する構成）。
+  cli : ウィンドウを一切開かず、端末だけで "u v x y z" を入力する。
+        画像は PNG に保存されるので、別のビューアで画素座標を読み取る。
 
 座標系の定義:
   base_link      : x 前方 / y 左方 / z 上方 [m]  (ROS REP-103)
@@ -18,13 +24,21 @@ GUI 上でクリックした画素とその位置の実世界座標との対応�
 
 使い方:
   python3 camera_extrinsic_calibrator.py --points 8
+  python3 camera_extrinsic_calibrator.py --display cli   # 端末入力のみ
 """
 
 import argparse
+import math
+import os
+import re
+import subprocess
+import sys
 import threading
+import time
 from dataclasses import dataclass
-from typing import List, Optional, Tuple
+from typing import Callable, List, Optional, Sequence, Tuple
 
+import cv2
 import numpy as np
 
 IMAGE_TOPIC = "/zed/zed_node/rgb/image_rect_color"
@@ -36,6 +50,14 @@ EXPECTED_IMAGE_HEIGHT = 360
 MIN_CORRESPONDENCES = 6
 COLLINEAR_TOLERANCE = 1.0e-3
 PLANAR_TOLERANCE = 1.0e-2
+
+WINDOW_NAME = "camera extrinsic calibrator"
+REGISTERED_COLOR = (0, 255, 0)
+PENDING_COLOR = (0, 0, 255)
+SCREEN_MARGIN = 0.85
+MIN_DISPLAY_SCALE = 0.5
+MAX_DISPLAY_SCALE = 3.0
+DEFAULT_SNAPSHOT_PATH = "/tmp/camera_extrinsic_frame.png"
 
 
 @dataclass(frozen=True)
@@ -92,7 +114,7 @@ def project_to_pixels(
 
 
 def canvas_to_image_pixel(canvas_x: float, canvas_y: float, scale: float) -> Tuple[float, float]:
-    """GUI キャンバス上の座標を画像の画素座標へ変換する"""
+    """表示ウィンドウ上の座標を画像の画素座標へ変換する"""
     return canvas_x / scale, canvas_y / scale
 
 
@@ -300,6 +322,222 @@ def format_result(result: ExtrinsicResult) -> str:
     return "\n".join(lines)
 
 
+def parse_floats(text: str, count: int) -> Tuple[float, ...]:
+    """空白またはカンマ区切りの数値列を count 個読み取る"""
+    tokens = text.replace(",", " ").split()
+    if len(tokens) != count:
+        raise ValueError(f"数値を {count} 個、空白区切りで入力してください（入力: {len(tokens)} 個）")
+    try:
+        return tuple(float(token) for token in tokens)
+    except ValueError as error:
+        raise ValueError(f"数値として読み取れない入力があります: {text.strip()}") from error
+
+
+def parse_world_input(text: str) -> Tuple[float, float, float]:
+    """実世界座標の入力 "x y z" [m] を読み取る"""
+    x, y, z = parse_floats(text, 3)
+    return x, y, z
+
+
+def parse_correspondence_input(
+    text: str,
+) -> Tuple[Tuple[float, float], Tuple[float, float, float]]:
+    """端末入力 "u v x y z" を画素座標と実世界座標に分解する"""
+    u, v, x, y, z = parse_floats(text, 5)
+    return (u, v), (x, y, z)
+
+
+def validate_pixel(
+    pixel: Sequence[float], image_size: Optional[Tuple[int, int]]
+) -> None:
+    """画素座標が画像の範囲内かを確認する"""
+    if image_size is None:
+        return
+    width, height = image_size
+    if not (0.0 <= pixel[0] < width and 0.0 <= pixel[1] < height):
+        raise ValueError(
+            f"画素 (u={pixel[0]:.1f}, v={pixel[1]:.1f}) が画像の範囲外です"
+            f"（0 <= u < {width}, 0 <= v < {height}）"
+        )
+
+
+class CalibrationSession:
+    """対応点の蓄積と推定を担う（表示方式に依存しない）"""
+
+    def __init__(self, target_points: int):
+        self._target_points = target_points
+        self._image_points: List[Tuple[float, float]] = []
+        self._world_points: List[Tuple[float, float, float]] = []
+
+    @property
+    def count(self) -> int:
+        return len(self._image_points)
+
+    @property
+    def target_points(self) -> int:
+        return self._target_points
+
+    @property
+    def image_points(self) -> List[Tuple[float, float]]:
+        return list(self._image_points)
+
+    @property
+    def world_points(self) -> List[Tuple[float, float, float]]:
+        return list(self._world_points)
+
+    @property
+    def ready(self) -> bool:
+        return self.count >= MIN_CORRESPONDENCES
+
+    @property
+    def complete(self) -> bool:
+        return self.count >= self._target_points
+
+    def add(
+        self, pixel: Sequence[float], world: Sequence[float]
+    ) -> int:
+        self._image_points.append((float(pixel[0]), float(pixel[1])))
+        self._world_points.append((float(world[0]), float(world[1]), float(world[2])))
+        return self.count
+
+    def undo(self) -> bool:
+        if not self._image_points:
+            return False
+        self._image_points.pop()
+        self._world_points.pop()
+        return True
+
+    def describe(self) -> List[str]:
+        """登録済みの対応点を 1 行ずつの文字列にする"""
+        lines = []
+        for index, (pixel, world) in enumerate(zip(self._image_points, self._world_points), 1):
+            lines.append(
+                f"{index:2d}: px(u={pixel[0]:6.1f}, v={pixel[1]:6.1f})"
+                f" -> base({world[0]:6.2f}, {world[1]:6.2f}, {world[2]:5.2f})"
+            )
+        return lines
+
+    def estimate(self, camera_matrix: np.ndarray) -> ExtrinsicResult:
+        return estimate_extrinsic(
+            np.array(self._image_points), np.array(self._world_points), camera_matrix
+        )
+
+
+def _draw_marker(
+    canvas: np.ndarray,
+    pixel: Sequence[float],
+    scale: float,
+    color: Tuple[int, int, int],
+    label: Optional[str],
+) -> None:
+    """十字とリングのマーカーを描く（cv2 は日本語を描けないので番号のみ）"""
+    x = int(round(pixel[0] * scale))
+    y = int(round(pixel[1] * scale))
+    cv2.line(canvas, (x - 10, y), (x + 10, y), color, 1)
+    cv2.line(canvas, (x, y - 10), (x, y + 10), color, 1)
+    cv2.circle(canvas, (x, y), 5, color, 1)
+    if label is not None:
+        cv2.putText(canvas, label, (x + 8, y - 8), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1)
+
+
+def render_frame(
+    image: np.ndarray,
+    scale: float,
+    image_points: Sequence[Sequence[float]],
+    pending_pixel: Optional[Sequence[float]],
+) -> np.ndarray:
+    """表示倍率をかけた画像に対応点マーカーを重ねた描画用画像を作る"""
+    height, width = image.shape[:2]
+    canvas = cv2.resize(
+        image,
+        (max(int(round(width * scale)), 1), max(int(round(height * scale)), 1)),
+        interpolation=cv2.INTER_NEAREST,
+    )
+    for index, pixel in enumerate(image_points, start=1):
+        _draw_marker(canvas, pixel, scale, REGISTERED_COLOR, str(index))
+    if pending_pixel is not None:
+        _draw_marker(canvas, pending_pixel, scale, PENDING_COLOR, None)
+    return canvas
+
+
+def draw_status_bar(canvas: np.ndarray, text: str) -> None:
+    """ウィンドウ下部に操作案内を描く（cv2 は ASCII のみ描画可能）"""
+    height, width = canvas.shape[:2]
+    cv2.rectangle(canvas, (0, height - 22), (width, height), (0, 0, 0), cv2.FILLED)
+    cv2.putText(
+        canvas, text, (6, height - 7), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (255, 255, 255), 1
+    )
+
+
+def detect_screen_size() -> Optional[Tuple[int, int]]:
+    """xrandr から画面解像度を取得する（取得できなければ None）"""
+    try:
+        completed = subprocess.run(
+            ["xrandr", "--current"], capture_output=True, text=True, timeout=5.0
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if completed.returncode != 0:
+        return None
+    for line in completed.stdout.splitlines():
+        if " connected" not in line:
+            continue
+        match = re.search(r"(\d+)x(\d+)\+\d+\+\d+", line)
+        if match:
+            return int(match.group(1)), int(match.group(2))
+    return None
+
+
+def fit_scale(
+    image_size: Tuple[int, int], screen_size: Optional[Tuple[int, int]]
+) -> float:
+    """画像が画面に収まる表示倍率を 0.1 刻みで求める"""
+    width, height = image_size
+    if screen_size is None or width <= 0 or height <= 0:
+        return 1.0
+    screen_width, screen_height = screen_size
+    raw = min(screen_width * SCREEN_MARGIN / width, screen_height * SCREEN_MARGIN / height)
+    scale = math.floor(raw * 10.0) / 10.0
+    return float(min(max(scale, MIN_DISPLAY_SCALE), MAX_DISPLAY_SCALE))
+
+
+GUI_PROBE_CODE = (
+    "import cv2; cv2.namedWindow('probe'); cv2.waitKey(1); cv2.destroyAllWindows()"
+)
+
+
+def probe_opencv_gui(timeout: float = 30.0) -> bool:
+    """OpenCV のウィンドウを開けるかを子プロセスで検査する
+
+    表示先が無い状態で cv2 のウィンドウを開くと Qt バックエンドが
+    プロセスごと abort し try/except では捕まえられないため、
+    必ず別プロセスで試す。
+    """
+    try:
+        completed = subprocess.run(
+            [sys.executable, "-c", GUI_PROBE_CODE], capture_output=True, timeout=timeout
+        )
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return completed.returncode == 0
+
+
+def select_display_mode(
+    requested: str, has_display: bool, probe: Callable[[], bool]
+) -> str:
+    """表示方式（gui / cli）を決める"""
+    if requested in ("gui", "cli"):
+        return requested
+    if not has_display:
+        return "cli"
+    return "gui" if probe() else "cli"
+
+
+def has_display_environment() -> bool:
+    """X11 / Wayland の表示先が設定されているか"""
+    return bool(os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"))
+
+
 class CameraTopicSubscriber:
     """zed_wrapper の画像と内部パラメータをトピックから取得する ROS 2 ノード"""
 
@@ -351,255 +589,326 @@ class CameraTopicSubscriber:
             return self._info_size
 
 
-class CalibratorGui:
-    """画素クリックと実世界座標入力を受け付ける GUI"""
+def wait_for_source(source: CameraTopicSubscriber, node, timeout: float) -> bool:
+    """画像と CameraInfo を受信するまで待つ"""
+    node.get_logger().info("画像と CameraInfo の受信を待っています...")
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if source.latest_image() is not None and source.camera_matrix() is not None:
+            image = source.latest_image()
+            height, width = image.shape[:2]
+            node.get_logger().info(f"画像を受信しました: {width}x{height}")
+            if (width, height) != (EXPECTED_IMAGE_WIDTH, EXPECTED_IMAGE_HEIGHT):
+                node.get_logger().warn(
+                    f"画像サイズが想定と異なります（想定 "
+                    f"{EXPECTED_IMAGE_WIDTH}x{EXPECTED_IMAGE_HEIGHT}）"
+                )
+            return True
+        time.sleep(0.2)
+    return False
 
-    def __init__(self, node, source: CameraTopicSubscriber, target_points: int, scale: float):
-        import tkinter as tk
 
-        self._tk = tk
+def run_estimation(session: CalibrationSession, source: CameraTopicSubscriber, node):
+    """対応点から外部パラメータを推定し、結果を表示する"""
+    camera_matrix = source.camera_matrix()
+    if camera_matrix is None:
+        print("内部パラメータ（CameraInfo）をまだ受信していません")
+        return None
+    image = source.latest_image()
+    info_size = source.info_size()
+    if image is not None and info_size is not None:
+        image_size = (image.shape[1], image.shape[0])
+        if info_size != image_size:
+            print(
+                f"CameraInfo の解像度 {info_size[0]}x{info_size[1]} と画像 "
+                f"{image_size[0]}x{image_size[1]} が一致しません（K が画像に対応しません）"
+            )
+            return None
+    try:
+        result = session.estimate(camera_matrix)
+    except ValueError as error:
+        print(f"推定に失敗しました: {error}")
+        return None
+
+    for index, error in enumerate(result.reprojection_errors, start=1):
+        if error > 3.0:
+            print(f"警告: {index}点目の再投影誤差が大きいです: {error:.2f} px")
+    print(format_result(result))
+    node.get_logger().info(
+        f"推定完了 RMS={result.rms_reprojection_error:.2f} px "
+        f"位置=({result.camera_position_base[0]:.3f}, "
+        f"{result.camera_position_base[1]:.3f}, {result.camera_position_base[2]:.3f}) m"
+    )
+    return result
+
+
+GUI_HELP = """
+--- 操作方法 (OpenCV ウィンドウ) ---
+  画像をクリック : 画素を選択（画像が固定される）
+  この端末       : 選択した画素の base_link 座標を "x y z" で入力（Enter で登録 / 空 Enter で取消）
+  キー u         : 直前の登録を取り消す
+  キー r         : 画像の固定を解除する
+  キー e         : 現在の対応点で推定する
+  キー s         : 表示中の画像を PNG 保存する
+  キー q / ESC   : 終了する
+  ※ ウィンドウが大きすぎる場合は --scale 1.0 のように指定してください
+"""
+
+
+class GuiCalibrator:
+    """OpenCV のウィンドウで画素を選び、実世界座標は端末から入力する"""
+
+    def __init__(
+        self,
+        node,
+        source: CameraTopicSubscriber,
+        session: CalibrationSession,
+        scale: float,
+        snapshot_path: str,
+    ):
         self._node = node
         self._source = source
-        self._target_points = target_points
+        self._session = session
         self._scale = scale
-        self._image_points: List[Tuple[float, float]] = []
-        self._world_points: List[Tuple[float, float, float]] = []
+        self._snapshot_path = snapshot_path
+        self._lock = threading.Lock()
         self._pending_pixel: Optional[Tuple[float, float]] = None
         self._frozen_image: Optional[np.ndarray] = None
-        self._photo = None
+        self._pixel_ready = threading.Event()
+        self._prompting = False
+        self._closed = False
         self._result: Optional[ExtrinsicResult] = None
 
-        self._root = tk.Tk()
-        self._root.title("カメラ外部パラメータ キャリブレーション")
-        self._root.protocol("WM_DELETE_WINDOW", self._on_close)
+    def run(self) -> None:
+        print(GUI_HELP)
+        cv2.namedWindow(WINDOW_NAME, cv2.WINDOW_AUTOSIZE)
+        cv2.setMouseCallback(WINDOW_NAME, self._on_mouse)
+        prompt_thread = threading.Thread(target=self._prompt_loop, daemon=True)
+        prompt_thread.start()
+        try:
+            while not self._closed:
+                self._render_once()
+                self._handle_key(cv2.waitKey(30) & 0xFF)
+        except KeyboardInterrupt:
+            pass
+        finally:
+            self._closed = True
+            self._pixel_ready.set()
+            cv2.destroyAllWindows()
+            cv2.waitKey(1)
 
-        canvas_width = int(EXPECTED_IMAGE_WIDTH * scale)
-        canvas_height = int(EXPECTED_IMAGE_HEIGHT * scale)
-        self._canvas = tk.Canvas(self._root, width=canvas_width, height=canvas_height, bg="black")
-        self._canvas.grid(row=0, column=0, padx=6, pady=6)
-        self._canvas.bind("<Button-1>", self._on_click)
+    def _current_image(self) -> Optional[np.ndarray]:
+        with self._lock:
+            frozen = self._frozen_image
+        return frozen if frozen is not None else self._source.latest_image()
 
-        panel = tk.Frame(self._root)
-        panel.grid(row=0, column=1, sticky="n", padx=6, pady=6)
-        self._build_panel(panel)
-        self._update_frame()
-
-    def _build_panel(self, panel) -> None:
-        tk = self._tk
-        tk.Label(panel, text="実世界座標の入力", font=("TkDefaultFont", 11, "bold")).pack(anchor="w")
-        tk.Label(
-            panel,
-            justify="left",
-            text=(
-                "座標系: base_link [m]\n"
-                "  x : 前方（車両の進行方向）\n"
-                "  y : 左方\n"
-                "  z : 上方（地面は z = 0）\n"
-                "画像上の点をクリックすると画像が\n固定されます。"
-            ),
-        ).pack(anchor="w", pady=(0, 6))
-
-        self._entries = {}
-        for key, label in (("x", "x [m] 前方"), ("y", "y [m] 左方"), ("z", "z [m] 上方")):
-            row = tk.Frame(panel)
-            row.pack(anchor="w", pady=1)
-            tk.Label(row, text=label, width=11, anchor="w").pack(side="left")
-            entry = tk.Entry(row, width=12)
-            entry.pack(side="left")
-            entry.bind("<Return>", lambda _event: self._on_register())
-            self._entries[key] = entry
-
-        button_row = tk.Frame(panel)
-        button_row.pack(anchor="w", pady=6)
-        tk.Button(button_row, text="登録", width=8, command=self._on_register).pack(side="left")
-        tk.Button(button_row, text="取消", width=8, command=self._on_undo).pack(side="left")
-        tk.Button(button_row, text="解除", width=8, command=self._on_unfreeze).pack(side="left")
-
-        self._status = tk.Label(panel, justify="left", fg="blue", text="")
-        self._status.pack(anchor="w")
-
-        self._listbox = tk.Listbox(panel, width=52, height=12, font=("TkFixedFont", 9))
-        self._listbox.pack(anchor="w", pady=6)
-
-        self._estimate_button = tk.Button(
-            panel, text="外部パラメータを推定", command=self._on_estimate, state="disabled"
-        )
-        self._estimate_button.pack(anchor="w")
-        self._refresh_status()
-
-    def _refresh_status(self) -> None:
-        count = len(self._image_points)
-        if self._pending_pixel is not None:
-            head = (
-                f"画素 (u={self._pending_pixel[0]:.1f}, v={self._pending_pixel[1]:.1f}) を選択中\n"
-                "base_link 座標を入力して「登録」"
-            )
-        else:
-            head = "画像上の目標点をクリックしてください"
-        self._status.config(text=f"{head}\n登録済み: {count} / {self._target_points} 点")
-        state = "normal" if count >= MIN_CORRESPONDENCES else "disabled"
-        self._estimate_button.config(state=state)
-
-    def _on_click(self, event) -> None:
-        image = self._source.latest_image() if self._frozen_image is None else self._frozen_image
+    def _render_once(self) -> None:
+        image = self._current_image()
         if image is None:
-            self._node.get_logger().warn("画像をまだ受信していません")
             return
-        if self._frozen_image is None:
-            self._frozen_image = image
-            self._node.get_logger().info("画像を固定しました（「解除」で再開）")
-
-        pixel = canvas_to_image_pixel(float(event.x), float(event.y), self._scale)
-        height, width = image.shape[:2]
-        if not (0.0 <= pixel[0] < width and 0.0 <= pixel[1] < height):
-            self._node.get_logger().warn("画像の範囲外がクリックされました")
-            return
-        self._pending_pixel = pixel
-        self._node.get_logger().info(
-            f"画素を選択しました: u={pixel[0]:.1f}, v={pixel[1]:.1f} "
-            "（u 右方 / v 下方、原点は画像左上）"
+        with self._lock:
+            pending = self._pending_pixel
+        canvas = render_frame(image, self._scale, self._session.image_points, pending)
+        if pending is not None:
+            status = f"enter x y z in the terminal  (u={pending[0]:.0f}, v={pending[1]:.0f})"
+        else:
+            status = "click a point   u:undo  r:unfreeze  e:estimate  s:save  q:quit"
+        draw_status_bar(
+            canvas, f"[{self._session.count}/{self._session.target_points}] {status}"
         )
-        self._entries["x"].focus_set()
-        self._redraw()
-        self._refresh_status()
+        cv2.imshow(WINDOW_NAME, canvas)
 
-    def _on_register(self) -> None:
-        if self._pending_pixel is None:
-            self._node.get_logger().warn("先に画像上の点をクリックしてください")
+    def _on_mouse(self, event: int, x: int, y: int, flags: int, param) -> None:
+        if event != cv2.EVENT_LBUTTONDOWN:
             return
+        if self._prompting:
+            print("端末で座標を入力中です（空 Enter で取り消せます）")
+            return
+        image = self._current_image()
+        if image is None:
+            print("画像をまだ受信していません")
+            return
+        pixel = canvas_to_image_pixel(float(x), float(y), self._scale)
         try:
-            world = tuple(float(self._entries[key].get()) for key in ("x", "y", "z"))
-        except ValueError:
-            self._node.get_logger().error("実世界座標は数値で入力してください")
-            return
-
-        self._image_points.append(self._pending_pixel)
-        self._world_points.append(world)
-        index = len(self._image_points)
-        self._listbox.insert(
-            "end",
-            f"{index:2d}: px(u={self._pending_pixel[0]:6.1f}, v={self._pending_pixel[1]:6.1f})"
-            f" -> base({world[0]:6.2f}, {world[1]:6.2f}, {world[2]:5.2f})",
-        )
-        self._node.get_logger().info(
-            f"{index}点目を登録しました: 画素(u={self._pending_pixel[0]:.1f}, "
-            f"v={self._pending_pixel[1]:.1f}) = base_link({world[0]:.3f}, "
-            f"{world[1]:.3f}, {world[2]:.3f}) [m]"
-        )
-        self._pending_pixel = None
-        for entry in self._entries.values():
-            entry.delete(0, "end")
-        self._on_unfreeze()
-        self._refresh_status()
-
-        if index >= self._target_points and self._result is None:
-            self._node.get_logger().info(f"指定回数（{self._target_points}点）に到達しました")
-            self._on_estimate()
-
-    def _on_undo(self) -> None:
-        if self._pending_pixel is not None:
-            self._pending_pixel = None
-            self._node.get_logger().info("選択中の画素を取り消しました")
-        elif self._image_points:
-            self._image_points.pop()
-            self._world_points.pop()
-            self._listbox.delete("end")
-            self._node.get_logger().info("直前の対応点を取り消しました")
-        self._redraw()
-        self._refresh_status()
-
-    def _on_unfreeze(self) -> None:
-        self._frozen_image = None
-
-    def _on_estimate(self) -> None:
-        try:
-            camera_matrix = self._source.camera_matrix()
-            if camera_matrix is None:
-                raise ValueError("内部パラメータ（CameraInfo）をまだ受信していません")
-            image = self._source.latest_image()
-            info_size = self._source.info_size()
-            if image is not None and info_size is not None:
-                image_size = (image.shape[1], image.shape[0])
-                if info_size != image_size:
-                    raise ValueError(
-                        f"CameraInfo の解像度 {info_size[0]}x{info_size[1]} と画像 "
-                        f"{image_size[0]}x{image_size[1]} が一致しません（K が画像に対応しません）"
-                    )
-            self._result = estimate_extrinsic(
-                np.array(self._image_points), np.array(self._world_points), camera_matrix
-            )
+            validate_pixel(pixel, (image.shape[1], image.shape[0]))
         except ValueError as error:
-            self._node.get_logger().error(f"推定に失敗しました: {error}")
+            print(f"入力エラー: {error}")
             return
+        with self._lock:
+            if self._frozen_image is None:
+                self._frozen_image = image
+            self._pending_pixel = pixel
+        self._pixel_ready.set()
 
-        for index, error in enumerate(self._result.reprojection_errors, start=1):
-            if error > 3.0:
-                self._node.get_logger().warn(
-                    f"{index}点目の再投影誤差が大きいです: {error:.2f} px"
+    def _handle_key(self, key: int) -> None:
+        if key in (ord("q"), 27):
+            self._closed = True
+        elif key == ord("u"):
+            self._undo()
+        elif key == ord("r"):
+            self._clear_pending()
+            print("画像の固定を解除しました")
+        elif key == ord("e"):
+            self._result = run_estimation(self._session, self._source, self._node)
+        elif key == ord("s"):
+            save_snapshot(self._current_image(), self._snapshot_path)
+
+    def _undo(self) -> None:
+        if self._prompting:
+            print("端末で座標を入力中です（空 Enter で取り消せます）")
+            return
+        with self._lock:
+            pending = self._pending_pixel
+        if pending is not None:
+            self._clear_pending()
+            print("選択中の画素を取り消しました")
+        elif self._session.undo():
+            print(f"直前の対応点を取り消しました（残り {self._session.count} 点）")
+        else:
+            print("取り消せる対応点がありません")
+
+    def _clear_pending(self) -> None:
+        with self._lock:
+            self._pending_pixel = None
+            self._frozen_image = None
+
+    def _prompt_loop(self) -> None:
+        while not self._closed:
+            if not self._pixel_ready.wait(0.2):
+                continue
+            self._pixel_ready.clear()
+            with self._lock:
+                pixel = self._pending_pixel
+            if pixel is None or self._closed:
+                continue
+            self._prompting = True
+            try:
+                text = input(
+                    f"[{self._session.count + 1}点目] 画素 (u={pixel[0]:.1f}, v={pixel[1]:.1f}) "
+                    "の base_link 座標 x y z [m] > "
                 )
-        self._node.get_logger().info("\n" + format_result(self._result))
-        self._status.config(
-            fg="dark green",
-            text=(
-                f"推定完了 RMS={self._result.rms_reprojection_error:.2f} px\n"
-                f"位置 ({self._result.camera_position_base[0]:.3f}, "
-                f"{self._result.camera_position_base[1]:.3f}, "
-                f"{self._result.camera_position_base[2]:.3f}) m\n"
-                "詳細は端末のログを参照"
-            ),
-        )
+            except EOFError:
+                self._closed = True
+                return
+            finally:
+                self._prompting = False
 
-    def _draw_marker(self, pixel, index: Optional[int], color: str) -> None:
-        x = pixel[0] * self._scale
-        y = pixel[1] * self._scale
-        self._canvas.create_line(x - 10, y, x + 10, y, fill=color, width=2)
-        self._canvas.create_line(x, y - 10, x, y + 10, fill=color, width=2)
-        self._canvas.create_oval(x - 5, y - 5, x + 5, y + 5, outline=color, width=2)
-        if index is not None:
-            self._canvas.create_text(
-                x + 12, y - 10, text=str(index), fill=color, anchor="w",
-                font=("TkDefaultFont", 11, "bold"),
+            if not text.strip():
+                self._clear_pending()
+                print("選択を取り消しました")
+                continue
+            try:
+                world = parse_world_input(text)
+            except ValueError as error:
+                print(f"入力エラー: {error}")
+                self._pixel_ready.set()
+                continue
+
+            index = self._session.add(pixel, world)
+            self._clear_pending()
+            print(
+                f"{index}点目を登録しました: 画素(u={pixel[0]:.1f}, v={pixel[1]:.1f}) = "
+                f"base_link({world[0]:.3f}, {world[1]:.3f}, {world[2]:.3f}) [m]"
             )
+            if self._session.complete and self._result is None:
+                print(f"指定回数（{self._session.target_points}点）に到達しました")
+                self._result = run_estimation(self._session, self._source, self._node)
 
-    def _redraw(self) -> None:
-        self._canvas.delete("all")
-        if self._photo is not None:
-            self._canvas.create_image(0, 0, anchor="nw", image=self._photo)
-        for index, pixel in enumerate(self._image_points, start=1):
-            self._draw_marker(pixel, index, "lime green")
-        if self._pending_pixel is not None:
-            self._draw_marker(self._pending_pixel, None, "red")
 
-    def _update_frame(self) -> None:
-        image = self._frozen_image if self._frozen_image is not None else self._source.latest_image()
-        if image is not None:
-            import cv2
-            from PIL import Image, ImageTk
+CLI_HELP = """
+--- 操作方法 (端末入力モード) ---
+  u v x y z : 画素座標 [px] と base_link 座標 [m] を空白区切りで入力して登録
+  save      : 現在の画像を PNG 保存する（画素座標はこの画像上の値）
+  list      : 登録済みの対応点を一覧表示する
+  undo      : 直前の登録を取り消す
+  estimate  : 現在の対応点で推定する
+  quit      : 終了する
+"""
 
-            height, width = image.shape[:2]
-            if (width, height) != (EXPECTED_IMAGE_WIDTH, EXPECTED_IMAGE_HEIGHT):
-                self._node.get_logger().warn(
-                    f"画像サイズが想定と異なります: {width}x{height} "
-                    f"(想定 {EXPECTED_IMAGE_WIDTH}x{EXPECTED_IMAGE_HEIGHT})",
-                    once=True,
-                )
-            resized = cv2.resize(
-                image,
-                (int(width * self._scale), int(height * self._scale)),
-                interpolation=cv2.INTER_NEAREST,
-            )
-            self._photo = ImageTk.PhotoImage(
-                Image.fromarray(cv2.cvtColor(resized, cv2.COLOR_BGR2RGB))
-            )
-            self._redraw()
-        self._root.after(50, self._update_frame)
 
-    def _on_close(self) -> None:
-        self._root.quit()
-        self._root.destroy()
+class ConsoleCalibrator:
+    """ウィンドウを開かず端末だけで対応点を入力する"""
+
+    def __init__(
+        self,
+        node,
+        source: CameraTopicSubscriber,
+        session: CalibrationSession,
+        snapshot_path: str,
+    ):
+        self._node = node
+        self._source = source
+        self._session = session
+        self._snapshot_path = snapshot_path
+        self._result: Optional[ExtrinsicResult] = None
 
     def run(self) -> None:
-        self._root.mainloop()
+        print(CLI_HELP)
+        save_snapshot(self._source.latest_image(), self._snapshot_path)
+        while True:
+            try:
+                text = input(
+                    f"[{self._session.count + 1}点目] u v x y z / save / list / undo / "
+                    "estimate / quit > "
+                )
+            except EOFError:
+                print()
+                return
+            command = text.strip().lower()
+            if not command:
+                continue
+            if command in ("q", "quit", "exit"):
+                return
+            if command in ("s", "save"):
+                save_snapshot(self._source.latest_image(), self._snapshot_path)
+                continue
+            if command in ("l", "list"):
+                self._print_list()
+                continue
+            if command in ("u", "undo"):
+                if self._session.undo():
+                    print(f"直前の対応点を取り消しました（残り {self._session.count} 点）")
+                else:
+                    print("取り消せる対応点がありません")
+                continue
+            if command in ("e", "estimate"):
+                self._result = run_estimation(self._session, self._source, self._node)
+                continue
+
+            try:
+                pixel, world = parse_correspondence_input(text)
+                validate_pixel(pixel, self._source.info_size())
+            except ValueError as error:
+                print(f"入力エラー: {error}")
+                continue
+            index = self._session.add(pixel, world)
+            print(
+                f"{index}点目を登録しました: 画素(u={pixel[0]:.1f}, v={pixel[1]:.1f}) = "
+                f"base_link({world[0]:.3f}, {world[1]:.3f}, {world[2]:.3f}) [m]"
+            )
+            if self._session.complete and self._result is None:
+                print(f"指定回数（{self._session.target_points}点）に到達しました")
+                self._result = run_estimation(self._session, self._source, self._node)
+
+    def _print_list(self) -> None:
+        lines = self._session.describe()
+        if not lines:
+            print("登録済みの対応点はありません")
+            return
+        print("\n".join(lines))
+
+
+def save_snapshot(image: Optional[np.ndarray], path: str) -> bool:
+    """現在の画像を PNG に保存する（画素座標の読み取り用）"""
+    if image is None:
+        print("画像をまだ受信していないため保存できません")
+        return False
+    if not cv2.imwrite(path, image):
+        print(f"画像を保存できませんでした: {path}")
+        return False
+    height, width = image.shape[:2]
+    print(f"画像を保存しました: {path} ({width}x{height}, 画素座標は原寸のまま)")
+    return True
 
 
 def parse_args() -> argparse.Namespace:
@@ -609,7 +918,19 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--points", type=int, default=8, help=f"対応点の指定回数（{MIN_CORRESPONDENCES} 以上）"
     )
-    parser.add_argument("--scale", type=float, default=2.0, help="GUI の画像表示倍率")
+    parser.add_argument(
+        "--display",
+        choices=("auto", "gui", "cli"),
+        default="auto",
+        help="表示方式（auto: GUI が使えるか検査して自動選択）",
+    )
+    parser.add_argument(
+        "--scale", type=float, default=None, help="GUI の画像表示倍率（既定は画面に合わせて自動）"
+    )
+    parser.add_argument(
+        "--snapshot", default=DEFAULT_SNAPSHOT_PATH, help="画像を保存する PNG のパス"
+    )
+    parser.add_argument("--wait", type=float, default=30.0, help="トピック受信を待つ秒数")
     return parser.parse_args()
 
 
@@ -631,7 +952,28 @@ def main() -> None:
     executor_thread = threading.Thread(target=rclpy.spin, args=(node,), daemon=True)
     executor_thread.start()
     try:
-        CalibratorGui(node, source, args.points, args.scale).run()
+        if not wait_for_source(source, node, args.wait):
+            node.get_logger().error(
+                "画像 / CameraInfo を受信できませんでした（トピック名と zed_wrapper の起動を確認してください）"
+            )
+            return
+
+        mode = select_display_mode(args.display, has_display_environment(), probe_opencv_gui)
+        session = CalibrationSession(args.points)
+        if mode == "gui":
+            image = source.latest_image()
+            image_size = (image.shape[1], image.shape[0])
+            scale = args.scale if args.scale else fit_scale(image_size, detect_screen_size())
+            node.get_logger().info(
+                f"GUI モードで起動します（表示倍率 {scale:.1f}、"
+                f"ウィンドウ {int(image_size[0] * scale)}x{int(image_size[1] * scale)}）"
+            )
+            GuiCalibrator(node, source, session, scale, args.snapshot).run()
+        else:
+            node.get_logger().warn(
+                "GUI を開けないため端末入力モードで起動します（--display gui で強制できます）"
+            )
+            ConsoleCalibrator(node, source, session, args.snapshot).run()
     finally:
         rclpy.shutdown()
         executor_thread.join(timeout=1.0)
