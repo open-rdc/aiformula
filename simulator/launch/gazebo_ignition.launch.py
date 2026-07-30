@@ -38,6 +38,7 @@ def generate_launch_description():
             '/cmd_vel_twist@geometry_msgs/msg/Twist@gz.msgs.Twist', 
             '/obstacle/navsat@sensor_msgs/msg/NavSatFix@gz.msgs.NavSat',
             '/obstacle/imu@sensor_msgs/msg/Imu@gz.msgs.IMU',
+            '/cmd_vel_obstacle@geometry_msgs/msg/Twist@gz.msgs.Twist',
             '/gnss_path@geometry_msgs/msg/PoseArray[ignition.msgs.Pose_V',
             '/origin_gnss_path@geometry_msgs/msg/PoseArray[ignition.msgs.Pose_V'],
         output='screen',
