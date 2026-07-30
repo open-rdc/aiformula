@@ -15,7 +15,7 @@
       <wheel_separation>0.580</wheel_separation>
       <wheel_radius>0.080</wheel_radius>
       <odom_publish_frequency>30</odom_publish_frequency>
-      <topic>/cmd_vel</topic>
+      <topic>/cmd_vel_obstacle</topic>
       <odom_topic>odom</odom_topic>
     </plugin>
     
@@ -35,9 +35,19 @@
     </plugin>
 
     <plugin
-      filename="ObstacleControl"
+      filename="PathPublisher"
       name="ignition::gazebo::PathPublisher">
-      <file_name>first</file_name>
+      <file_name>path_lat_lon_50</file_name>
+    </plugin>
+    <plugin
+      filename="FollowPath"
+      name="ignition::gazebo::FollowPath">
+      <robot_name>human_robot</robot_name>
+      <threshold>1.3</threshold>
+      <linear_vel>1.0</linear_vel>
+      <p_gain>0.7</p_gain>
+      <i_gain>0.0</i_gain>
+      <d_gain>0.15</d_gain>
     </plugin>
 
     <!-- chassis -->
