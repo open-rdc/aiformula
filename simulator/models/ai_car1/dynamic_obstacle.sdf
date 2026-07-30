@@ -34,6 +34,12 @@
         name="ignition::gazebo::systems::Sensors">
     </plugin>
 
+    <plugin
+      filename="ObstacleControl"
+      name="ignition::gazebo::PathPublisher">
+      <file_name>first</file_name>
+    </plugin>
+
     <!-- chassis -->
 
     <link name='body'>

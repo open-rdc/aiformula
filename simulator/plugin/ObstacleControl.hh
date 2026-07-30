@@ -3,9 +3,16 @@
 
 #include <ignition/gazebo/System.hh>
 #include <ignition/gazebo/components/Name.hh>
-#include <nav_msgs/msg/path.hpp>
 #include <ignition/transport/Node.hh>
 #include <ignition/math/PID.hh>
+#include <ignition/msgs/pose_v.pb.h>
+
+#include <Eigen/Dense>
+#include <chrono>
+#include <vector>
+#include <string>
+#include <utility>
+#include <memory>
 
 
 
@@ -14,56 +21,49 @@ namespace ignition
 {
 namespace gazebo
 {
-    class PathPablisher : public System, public ISystemConfigure, public ISystemPreUpdate
+    class PathPublisher : public System, public ISystemConfigure, public ISystemPreUpdate
     {
         public:
 
-            PathPablisher();
-
-            PathPablisher(const Entity &_emtity, const std::shared_ptr<const sdf::Element> &_sdf);
+            PathPublisher() = default;
+            ~PathPublisher() override = default;
 
             void Configure(const Entity &_entity, const std::shared_ptr<const sdf::Element> &_sdf, 
                 EntityComponentManager &_ecm, EventManager &_eventMgr) override;
 
-            void PreUpdate(const UpdateInfo &info, EntityComponentManager &ecm) override;
+            void PreUpdate(const UpdateInfo &_info, EntityComponentManager &_ecm) override;
             
         
         private:
-            void FindObstacleEntities(EntityComponentManager &_ecm);
             void LoadCSV();
-            void setInitialPosition(double x, double y);
-            void setPose(const std::vector<Entity>& entities, );
-            transport::Node node;
-            
+            void setInitPose(double x, double y);
+            ignition::msgs::Pose_V setMsg(const std::vector<double>& xs, const std::vector<double>& ys);
+            std::vector<Eigen::Vector2d> interpolateSpline(const std::vector<double>& xs, const std::vector<double>& ys, int num_points);
+            std::pair<double, double> convertGPStoUTM(double lon, double lat);
 
+            std::string file_path_;
+            ignition::transport::Node node_;
+            ignition::transport::Node::Publisher path_pub_;
+            ignition::transport::Node::Publisher origin_path_pub_;
+            ignition::msgs::Pose_V path_msg_;
+            ignition::msgs::Pose_V origin_path_msg_;
 
-            nav_msgs::msg::Path setPathMsg(const std::vector<double> &_xs, const std::vector<double> &_ys);
-            std::vector<Eigen::Vector2d> interpolateSpline(const std::vector<double> &_xs, 
-                const std::vector<double> &_ys, int num_points);
-            std::pair<double, double> convertGPStoUTM(double lat, double lon)
+            std::string line_;
+            std::string cell_;
+            std::vector<std::string> token_;
+            bool init_flag_{true};
+            double base_x_{0.0};
+            double base_y_{0.0};
 
+            std::vector<double> xs_, ys_;
+            std::vector<double> origin_xs_, origin_ys_;
+            std::vector<Eigen::Vector2d> result_;
+            double step;
+            std::string file_name;
 
-            double x,y;
-            std::vector<double> xs, ys;
-            double lat, lon;
-
-            std::vector <Entity> ObstacleEntities;
-
-            std::string ROBOT_NAME;
+            std::chrono::steady_clock::duration last_update_time_{0};
     };
-
-    class Follow : public System, public ISystemConfigure, public ISystemPreUpdate
-    {
-        public:
-            Follow() = default;
-
-            void Configure(const Entity &_entity, const std::shared_ptr<const sdf::Element> &_sdf, 
-                EntityComponentManager &_ecm, EventManager &_eventMgr) override;
-
-            void PreUpdate(const UpdateInfo &info, EntityComponentManager &ecm) override;
-
-
-
-    }
 }
 }
+
+#endif
