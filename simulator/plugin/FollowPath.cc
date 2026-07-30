@@ -63,7 +63,8 @@ namespace gazebo
 
     FollowPath::~FollowPath() = default;
 
-    namespace {
+    namespace
+    {
         double calculateTheta(const Eigen::Vector2d& target, 
                             const ignition::math::Vector3d& currentPos, 
                             double current_yaw)
@@ -98,8 +99,8 @@ namespace gazebo
         }
         dataPtr->cmd_vel_pub_ = dataPtr->node_.Advertise<ignition::msgs::Twist>(cmd_vel_topic);
         
-        if (_sdf) {
-            
+        if (_sdf)
+        {
             dataPtr->ROBOT_MODEL_NAME  = (_sdf->HasElement("robot_name")) ? _sdf->Get<std::string>("robot_name") : "human_robot";
         
             dataPtr->reach_threshold_ = (_sdf->HasElement("threshold")) ? _sdf->Get<double>("threshold") : 1.3;
@@ -121,15 +122,19 @@ namespace gazebo
         if (path_flag) return;
         
         result_.clear();
-        for (int i = 0; i < _msg.pose_size(); ++i) {
+        for (int i = 0; i < _msg.pose_size(); ++i)
+        {
             const auto &pose = _msg.pose(i);
             
 
-            if (pose.has_position()) {
+            if (pose.has_position())
+            {
                 double px = pose.position().x();
                 double py = pose.position().y();
                 result_.emplace_back(px, py);
-            } else {
+            } 
+            else
+            {
                 std::cerr << "Pose at index " << i << " does not have position!" << std::endl;
             }
         }
@@ -164,7 +169,8 @@ namespace gazebo
     bool FollowPathPrivate::updateTargetIndex(const ignition::math::Vector3d& currentPos, 
                                     EntityComponentManager& _ecm)
     {
-        if (result_.empty() || current_idx_ >= result_.size()) {
+        if (result_.empty() || current_idx_ >= result_.size())
+        {
             StopRobot(_ecm);
             return false;
         }
@@ -174,12 +180,14 @@ namespace gazebo
         double dy = target_pt.y() - currentPos.Y();
         double dist = std::hypot(dx, dy);
 
-        if (dist < reach_threshold_ && current_idx_ < result_.size() - 1) {
+        if (dist < reach_threshold_ && current_idx_ < result_.size() - 1)
+        {
             current_idx_++;
             std::cout << "idx_number:" << current_idx_ << std::endl;
         }
 
-        if (current_idx_ == result_.size() - 1 && dist < 0.5) {
+        if (current_idx_ == result_.size() - 1 && dist < 0.5)
+        {
             StopRobot(_ecm);
             current_idx_++;
             return false;
@@ -194,16 +202,16 @@ namespace gazebo
 
         std::lock_guard<std::mutex> lock(dataPtr->path_mutex_);
 
-        if (dataPtr->RobotEntity == kNullEntity) {
+        if (dataPtr->RobotEntity == kNullEntity)
+        {
             dataPtr->FindModelEntities(_ecm);
             if (dataPtr->RobotEntity == kNullEntity) return;
         }
 
-        if (dataPtr->result_.empty()) {
-            return;
-        }
+        if (dataPtr->result_.empty()) return;
 
-        if (dataPtr->current_idx_ >= dataPtr->result_.size()) {
+        if (dataPtr->current_idx_ >= dataPtr->result_.size())
+        {
             dataPtr->StopRobot(_ecm);
             dataPtr->current_idx_ = 0;
         }
@@ -216,9 +224,7 @@ namespace gazebo
 
         double current_yaw = currentRot.Yaw();
 
-        if (!dataPtr->updateTargetIndex(currentPos, _ecm)) {
-            return;
-        }
+        if (!dataPtr->updateTargetIndex(currentPos, _ecm)) return;
 
         double theta = calculateTheta(dataPtr->result_[dataPtr->current_idx_], currentPos, current_yaw);
 

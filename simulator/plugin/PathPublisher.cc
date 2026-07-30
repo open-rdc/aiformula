@@ -130,7 +130,8 @@ namespace gazebo
         init_flag_ = false;
     }
 
-    ignition::msgs::Pose_V PathPublisherPrivate::setMsg(const std::vector<double>& xs, const std::vector<double>& ys){
+    ignition::msgs::Pose_V PathPublisherPrivate::setMsg(const std::vector<double>& xs, const std::vector<double>& ys)
+    {
         std::vector<Eigen::Vector2d> spline_points = interpolateSpline(xs, ys, 100);
 
         ignition::msgs::Pose_V path_msg;
@@ -149,10 +150,12 @@ namespace gazebo
         return path_msg;
     }
 
-    std::vector<Eigen::Vector2d> PathPublisherPrivate::interpolateSpline(const std::vector<double>& xs, const std::vector<double>& ys, int num_points){
+    std::vector<Eigen::Vector2d> PathPublisherPrivate::interpolateSpline(const std::vector<double>& xs, const std::vector<double>& ys, int num_points)
+    {
         Eigen::Matrix<double, Eigen::Dynamic, 2> points(xs.size(), 2);
         result_.clear();
-        for (size_t i=0; i < xs.size(); ++i){
+        for (size_t i=0; i < xs.size(); ++i)
+        {
             points(i, 0) = xs[i];
             points(i, 1) = ys[i];
         }
@@ -161,7 +164,8 @@ namespace gazebo
 
         if(num_points > 1)
             step = 1.0 / (num_points -1);
-        for (int i = 0; i < num_points; ++i) {
+        for (int i = 0; i < num_points; ++i)
+        {
             double u = i * step;
             Eigen::Vector2d pt = spline(u);
             result_.push_back(pt);
@@ -169,8 +173,10 @@ namespace gazebo
         return result_;
     }
 
-    std::pair<double, double> PathPublisherPrivate::convertGPStoUTM(double lon, double lat) {
-        if (!(-90 <= lat) || !(lat <= 90) || !(-180 <= lon) || !(lon <= 180)) {
+    std::pair<double, double> PathPublisherPrivate::convertGPStoUTM(double lon, double lat)
+    {
+        if (!(-90 <= lat) || !(lat <= 90) || !(-180 <= lon) || !(lon <= 180))
+        {
             std::cerr << "Error: Latitude or longitude values are out of valid range." << std::endl;
             return {std::numeric_limits<double>::infinity(), std::numeric_limits<double>::infinity()};
         }
