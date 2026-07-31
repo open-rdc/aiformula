@@ -14,7 +14,6 @@ namespace gazebo
     class PathPublisher : public System, public ISystemConfigure, public ISystemPreUpdate
     {
         public:
-
             PathPublisher();
             ~PathPublisher() override;
 
@@ -22,8 +21,7 @@ namespace gazebo
                 EntityComponentManager &_ecm, EventManager &_eventMgr) override;
 
             void PreUpdate(const UpdateInfo &_info, EntityComponentManager &_ecm) override;
-            
-        
+              
         private:
             std::unique_ptr<PathPublisherPrivate> dataPtr;
     };

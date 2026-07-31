@@ -24,7 +24,6 @@ namespace ignition
 {
 namespace gazebo
 {
-
     class PathPublisherPrivate
     {
         public:

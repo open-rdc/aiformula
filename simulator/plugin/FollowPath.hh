@@ -13,7 +13,6 @@ namespace gazebo
     class FollowPath : public System, public ISystemConfigure, public ISystemPreUpdate
     {
         public:
-
             FollowPath();
             ~FollowPath() override;
 
@@ -22,7 +21,6 @@ namespace gazebo
 
             void PreUpdate(const UpdateInfo &_info, EntityComponentManager &_ecm) override;
             
-        
         private:
             std::unique_ptr<FollowPathPrivate> dataPtr;
     };

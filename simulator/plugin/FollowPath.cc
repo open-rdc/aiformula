@@ -25,15 +25,13 @@ namespace ignition
 {
 namespace gazebo
 {
-
     class FollowPathPrivate
     {
         public:
             void setPath(const ignition::msgs::Pose_V &_msg);
             void FindModelEntities(EntityComponentManager &_ecm);
-            void StopRobot(EntityComponentManager &_ecm);
-            bool updateTargetIndex(const ignition::math::Vector3d& currentPos, 
-                                    EntityComponentManager& _ecm);
+            void StopRobot();
+            bool updateTargetIndex(const ignition::math::Vector3d& currentPos);
 
             ignition::transport::Node node_;
             ignition::transport::Node::Publisher pose_pub_;
@@ -75,7 +73,6 @@ namespace gazebo
             double target_angle = std::atan2(dy, dx);
             current_yaw = std::atan2(std::sin(current_yaw), std::cos(current_yaw));
             double theta = target_angle - current_yaw;
-
 
             return std::atan2(std::sin(theta), std::cos(theta)); 
         }
@@ -158,7 +155,7 @@ namespace gazebo
             });
     }
 
-    void FollowPathPrivate::StopRobot(EntityComponentManager &_ecm)
+    void FollowPathPrivate::StopRobot()
     {
         ignition::msgs::Twist msg;
         msg.mutable_linear()->set_x(0.0);
@@ -166,12 +163,11 @@ namespace gazebo
         cmd_vel_pub_.Publish(msg);
     }
 
-    bool FollowPathPrivate::updateTargetIndex(const ignition::math::Vector3d& currentPos, 
-                                    EntityComponentManager& _ecm)
+    bool FollowPathPrivate::updateTargetIndex(const ignition::math::Vector3d& currentPos)
     {
         if (result_.empty() || current_idx_ >= result_.size())
         {
-            StopRobot(_ecm);
+            StopRobot();
             return false;
         }
 
@@ -188,7 +184,7 @@ namespace gazebo
 
         if (current_idx_ == result_.size() - 1 && dist < 0.5)
         {
-            StopRobot(_ecm);
+            StopRobot();
             current_idx_++;
             return false;
         }
@@ -212,7 +208,7 @@ namespace gazebo
 
         if (dataPtr->current_idx_ >= dataPtr->result_.size())
         {
-            dataPtr->StopRobot(_ecm);
+            dataPtr->StopRobot();
             dataPtr->current_idx_ = 0;
         }
 
@@ -224,7 +220,7 @@ namespace gazebo
 
         double current_yaw = currentRot.Yaw();
 
-        if (!dataPtr->updateTargetIndex(currentPos, _ecm)) return;
+        if (!dataPtr->updateTargetIndex(currentPos)) return;
 
         double theta = calculateTheta(dataPtr->result_[dataPtr->current_idx_], currentPos, current_yaw);
 
