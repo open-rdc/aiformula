@@ -38,6 +38,7 @@ private:
     void gnss_callback(const sensor_msgs::msg::NavSatFix::SharedPtr msg);
     void imu_callback(const sensor_msgs::msg::Imu::SharedPtr msg);
     void velocity_callback(const geometry_msgs::msg::TwistWithCovarianceStamped::SharedPtr msg);
+    void initial_pose_callback(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg);
     void timer_callback();
 
     void rebuild_map_points(const vectormap_msgs::msg::VectorMap& map_msg);
@@ -69,6 +70,7 @@ private:
     sensor_msgs::msg::NavSatFix::SharedPtr latest_gnss_msg_;
     sensor_msgs::msg::Imu::SharedPtr latest_imu_msg_;
     geometry_msgs::msg::TwistWithCovarianceStamped::SharedPtr latest_velocity_msg_;
+    geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr pending_initial_pose_;
     std::mutex data_mutex_;
     sensor_msgs::msg::PointCloud2::SharedPtr processed_lane_line_points_;
 
@@ -77,6 +79,7 @@ private:
     rclcpp::Subscription<sensor_msgs::msg::NavSatFix>::SharedPtr gnss_subscription_;
     rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr imu_subscription_;
     rclcpp::Subscription<geometry_msgs::msg::TwistWithCovarianceStamped>::SharedPtr velocity_subscription_;
+    rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr initial_pose_subscription_;
     rclcpp::Publisher<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr icp_pose_publisher_;
     rclcpp::Publisher<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr raw_pose_publisher_;
     rclcpp::TimerBase::SharedPtr timer_;

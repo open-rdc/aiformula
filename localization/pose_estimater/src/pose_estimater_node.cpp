@@ -137,6 +137,9 @@ PoseEstimaterNode::PoseEstimaterNode(
     velocity_subscription_ = this->create_subscription<geometry_msgs::msg::TwistWithCovarianceStamped>(
         "/vectornav/velocity_body", rclcpp::SensorDataQoS().keep_last(1),
         std::bind(&PoseEstimaterNode::velocity_callback, this, std::placeholders::_1));
+    initial_pose_subscription_ = this->create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>(
+        "/initialpose", rclcpp::QoS(1),
+        std::bind(&PoseEstimaterNode::initial_pose_callback, this, std::placeholders::_1));
 
     icp_pose_publisher_ = this->create_publisher<geometry_msgs::msg::PoseWithCovarianceStamped>(
         "/localization/icp_pose", rclcpp::SensorDataQoS().keep_last(1));
@@ -175,6 +178,13 @@ void PoseEstimaterNode::velocity_callback(
 {
     std::lock_guard<std::mutex> lock(data_mutex_);
     latest_velocity_msg_ = msg;
+}
+
+void PoseEstimaterNode::initial_pose_callback(
+    const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg)
+{
+    std::lock_guard<std::mutex> lock(data_mutex_);
+    pending_initial_pose_ = msg;
 }
 
 void PoseEstimaterNode::rebuild_map_points(const vectormap_msgs::msg::VectorMap& map_msg)
@@ -267,6 +277,7 @@ void PoseEstimaterNode::timer_callback()
     sensor_msgs::msg::NavSatFix::SharedPtr gnss_msg;
     sensor_msgs::msg::Imu::SharedPtr imu_msg;
     geometry_msgs::msg::TwistWithCovarianceStamped::SharedPtr velocity_msg;
+    geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr initial_pose_msg;
     std::shared_ptr<const PfTargetMap> map_points;
     {
         std::lock_guard<std::mutex> lock(data_mutex_);
@@ -275,9 +286,19 @@ void PoseEstimaterNode::timer_callback()
         imu_msg = latest_imu_msg_;
         velocity_msg = latest_velocity_msg_;
         map_points = map_points_;
+        initial_pose_msg = pending_initial_pose_;
+        pending_initial_pose_.reset();
     }
 
     try {
+        if (initial_pose_msg) {
+            initial_pose_msg->header.frame_id = "map";
+            initial_pose_msg->header.stamp = this->get_clock()->now();
+            initialize_particle_filter(*initial_pose_msg);
+            icp_pose_publisher_->publish(*initial_pose_msg);
+            return;
+        }
+
         geometry_msgs::msg::PoseWithCovarianceStamped raw_pose;
         const bool has_raw_pose =
             gnss_msg && imu_msg && gnss_to_map_pose(*gnss_msg, *imu_msg, raw_pose);
