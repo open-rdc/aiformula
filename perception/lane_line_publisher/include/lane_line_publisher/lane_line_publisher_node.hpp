@@ -42,6 +42,7 @@ private:
 
     const uint8_t mask_threshold_;
     const std::size_t max_observed_points_;
+    const int min_component_pixels_;
     const double voxel_size_m_;
     const double max_point_link_distance_m_;
     const double point_resample_interval_m_;

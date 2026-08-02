@@ -41,6 +41,7 @@ lane_line_publisher_node:
   ros__parameters:
     mask_threshold : 128
     max_observed_points : 2000
+    min_component_pixels : 8
     voxel_size_m : 0.25
     max_point_link_distance_m : 0.5
     point_resample_interval_m : 0.25
