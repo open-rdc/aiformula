@@ -19,16 +19,15 @@ target_include_directories(mission_planner_node PUBLIC
   $<INSTALL_INTERFACE:include>
 )
 
+if(BUILD_TESTING)
+  find_package(ament_cmake_gtest REQUIRED)
+  ament_add_gtest(test_route_point_dedup test/test_route_point_dedup.cpp)
+  target_link_libraries(test_route_point_dedup mission_planner_node)
+endif()
+
 install(
   DIRECTORY include/
   DESTINATION include
 )
-
-if(BUILD_TESTING)
-  find_package(ament_lint_auto REQUIRED)
-  set(ament_cmake_copyright_FOUND TRUE)
-  set(ament_cmake_cpplint_FOUND TRUE)
-  ament_lint_auto_find_test_dependencies()
-endif()
 
 ament_auto_package()

@@ -1,32 +1,37 @@
 #include "mission_planner/mission_planner_node.hpp"
+#include "mission_planner/route_builder.hpp"
 
 #include <algorithm>
 #include <cmath>
 #include <limits>
-#include <stdexcept>
 #include <unordered_map>
 #include <vector>
+
+#include <vectormap_msgs/msg/lane_connection.hpp>
+#include <vectormap_msgs/msg/line_string.hpp>
 
 namespace mission_planner
 {
 namespace
 {
-using Lanelet = vectormap_msgs::msg::Lanelet;
+using Point2D = MissionPlannerNode::Point2D;
+using PathPoint = MissionPlannerNode::PathPoint;
+using RouteEdge = MissionPlannerNode::RouteEdge;
+using LaneConnection = vectormap_msgs::msg::LaneConnection;
 using LineString = vectormap_msgs::msg::LineString;
 
 constexpr double EPSILON = 1.0e-6;
+constexpr int kSmoothingSamplesPerSegment = 10;
 
-double distance_2d(
-    const MissionPlannerNode::Point2D& a,
-    const MissionPlannerNode::Point2D& b)
+double distance_2d(const Point2D& a, const Point2D& b)
 {
     return std::hypot(a.x - b.x, a.y - b.y);
 }
 
 double point_segment_distance_sq(
-    const MissionPlannerNode::Point2D& point,
-    const MissionPlannerNode::Point2D& start,
-    const MissionPlannerNode::Point2D& end)
+    const Point2D& point,
+    const Point2D& start,
+    const Point2D& end)
 {
     const double vx = end.x - start.x;
     const double vy = end.y - start.y;
@@ -46,15 +51,11 @@ double point_segment_distance_sq(
     return dx * dx + dy * dy;
 }
 
-MissionPlannerNode::PathPoint interpolate_raw_path(
-    const std::vector<MissionPlannerNode::Point2D>& points,
+PathPoint interpolate_raw_path(
+    const std::vector<Point2D>& points,
     const std::vector<double>& s_values,
     const double target_s)
 {
-    if (points.size() != s_values.size() || points.size() < 2U) {
-        throw std::runtime_error("raw path is invalid");
-    }
-
     const double clamped_s = std::clamp(target_s, s_values.front(), s_values.back());
     const auto upper = std::upper_bound(s_values.begin(), s_values.end(), clamped_s);
     std::size_t index = 0U;
@@ -71,19 +72,106 @@ MissionPlannerNode::PathPoint interpolate_raw_path(
     const double x = start.x + ratio * (end.x - start.x);
     const double y = start.y + ratio * (end.y - start.y);
     const double yaw = std::atan2(end.y - start.y, end.x - start.x);
-    return MissionPlannerNode::PathPoint{x, y, yaw};
+    return PathPoint{x, y, yaw};
 }
 
+Point2D lerp_point(const Point2D& a, const Point2D& b, const double t)
+{
+    return Point2D{a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t};
 }
 
-uint64_t MissionPlannerNode::select_start_lanelet(
+Point2D blend_point(
+    const Point2D& a,
+    const Point2D& b,
+    const double ta,
+    const double tb,
+    const double t)
+{
+    const double denom = tb - ta;
+    const double ratio = denom > EPSILON ? (t - ta) / denom : 0.0;
+    return lerp_point(a, b, ratio);
+}
+
+Point2D catmull_rom_point(
+    const Point2D& p0,
+    const Point2D& p1,
+    const Point2D& p2,
+    const Point2D& p3,
+    const double u)
+{
+    constexpr double kCentripetalAlpha = 0.5;
+    const double t0 = 0.0;
+    const double t1 = t0 + std::max(std::pow(distance_2d(p0, p1), kCentripetalAlpha), EPSILON);
+    const double t2 = t1 + std::max(std::pow(distance_2d(p1, p2), kCentripetalAlpha), EPSILON);
+    const double t3 = t2 + std::max(std::pow(distance_2d(p2, p3), kCentripetalAlpha), EPSILON);
+    const double t = t1 + u * (t2 - t1);
+
+    const auto a1 = blend_point(p0, p1, t0, t1, t);
+    const auto a2 = blend_point(p1, p2, t1, t2, t);
+    const auto a3 = blend_point(p2, p3, t2, t3, t);
+    const auto b1 = blend_point(a1, a2, t0, t2, t);
+    const auto b2 = blend_point(a2, a3, t1, t3, t);
+    return blend_point(b1, b2, t1, t2, t);
+}
+
+std::vector<Point2D> catmull_rom_smooth(
+    const std::vector<Point2D>& control_points,
+    const int samples_per_segment)
+{
+    if (control_points.size() < 2U || samples_per_segment < 1) {
+        return control_points;
+    }
+
+    std::vector<Point2D> padded;
+    padded.reserve(control_points.size() + 2U);
+    padded.push_back(control_points.front());
+    padded.insert(padded.end(), control_points.begin(), control_points.end());
+    padded.push_back(control_points.back());
+
+    std::vector<Point2D> smoothed;
+    smoothed.reserve(control_points.size() * static_cast<std::size_t>(samples_per_segment) + 1U);
+    const std::size_t segment_count = control_points.size() - 1U;
+    for (std::size_t segment = 0U; segment < segment_count; ++segment) {
+        const auto& p0 = padded[segment];
+        const auto& p1 = padded[segment + 1U];
+        const auto& p2 = padded[segment + 2U];
+        const auto& p3 = padded[segment + 3U];
+        for (int sample = 0; sample < samples_per_segment; ++sample) {
+            const double u = static_cast<double>(sample) / static_cast<double>(samples_per_segment);
+            smoothed.push_back(catmull_rom_point(p0, p1, p2, p3, u));
+        }
+    }
+    smoothed.push_back(control_points.back());
+    return smoothed;
+}
+
+double menger_curvature(const Point2D& a, const Point2D& b, const Point2D& c)
+{
+    const double abx = b.x - a.x;
+    const double aby = b.y - a.y;
+    const double bcx = c.x - b.x;
+    const double bcy = c.y - b.y;
+    const double cross = abx * bcy - aby * bcx;
+    const double length_ab = std::hypot(abx, aby);
+    const double length_bc = std::hypot(bcx, bcy);
+    const double length_ac = distance_2d(a, c);
+    const double denom = length_ab * length_bc * length_ac;
+    if (denom <= EPSILON) {
+        return 0.0;
+    }
+    return 2.0 * std::abs(cross) / denom;
+}
+
+uint64_t select_start_lanelet(
     const std::unordered_map<uint64_t, std::vector<Point2D>>& centerlines,
     const Point2D& point,
     const double yaw,
-    const double yaw_threshold_rad)
+    const double yaw_threshold_rad,
+    const double max_distance_m)
 {
     uint64_t best_lanelet_id = 0U;
     double best_distance_sq = std::numeric_limits<double>::max();
+    const double max_distance_sq = max_distance_m * max_distance_m;
 
     for (const auto& [lanelet_id, centerline_points] : centerlines) {
         if (centerline_points.size() < 2U) {
@@ -91,51 +179,156 @@ uint64_t MissionPlannerNode::select_start_lanelet(
         }
 
         double nearest_distance_sq = std::numeric_limits<double>::max();
-        double nearest_segment_yaw = 0.0;
+        std::size_t nearest_segment_end = 1U;
         for (std::size_t i = 1U; i < centerline_points.size(); ++i) {
-            const auto& start = centerline_points[i - 1U];
-            const auto& end = centerline_points[i];
-            const double distance_sq = point_segment_distance_sq(point, start, end);
+            const double distance_sq = point_segment_distance_sq(
+                point, centerline_points[i - 1U], centerline_points[i]);
             if (distance_sq < nearest_distance_sq) {
                 nearest_distance_sq = distance_sq;
-                nearest_segment_yaw = std::atan2(end.y - start.y, end.x - start.x);
+                nearest_segment_end = i;
             }
         }
 
+        if (nearest_distance_sq > max_distance_sq || nearest_distance_sq >= best_distance_sq) {
+            continue;
+        }
+
+        const auto& start = centerline_points[nearest_segment_end - 1U];
+        const auto& end = centerline_points[nearest_segment_end];
+        const double segment_yaw = std::atan2(end.y - start.y, end.x - start.x);
         const double yaw_difference = std::atan2(
-            std::sin(yaw - nearest_segment_yaw),
-            std::cos(yaw - nearest_segment_yaw));
+            std::sin(yaw - segment_yaw),
+            std::cos(yaw - segment_yaw));
         if (std::abs(yaw_difference) > yaw_threshold_rad) {
             continue;
         }
 
-        if (nearest_distance_sq < best_distance_sq) {
-            best_distance_sq = nearest_distance_sq;
-            best_lanelet_id = lanelet_id;
-        }
+        best_distance_sq = nearest_distance_sq;
+        best_lanelet_id = lanelet_id;
     }
 
     return best_lanelet_id;
+}
+
+template <typename LaneletIdContainer>
+std::pair<uint64_t, double> nearest_lanelet_in(
+    const std::unordered_map<uint64_t, std::vector<Point2D>>& centerlines,
+    const LaneletIdContainer& lanelet_ids,
+    const Point2D& point)
+{
+    uint64_t best_lanelet_id = 0U;
+    double best_distance_sq = std::numeric_limits<double>::max();
+    for (const uint64_t lanelet_id : lanelet_ids) {
+        const auto centerline_it = centerlines.find(lanelet_id);
+        if (centerline_it == centerlines.end() || centerline_it->second.size() < 2U) {
+            continue;
+        }
+        const auto& centerline_points = centerline_it->second;
+        for (std::size_t i = 1U; i < centerline_points.size(); ++i) {
+            const double distance_sq = point_segment_distance_sq(
+                point,
+                centerline_points[i - 1U],
+                centerline_points[i]);
+            if (distance_sq < best_distance_sq) {
+                best_distance_sq = distance_sq;
+                best_lanelet_id = lanelet_id;
+            }
+        }
+    }
+    return {best_lanelet_id, best_distance_sq};
+}
+
+bool has_connection(
+    const std::unordered_map<uint64_t, std::vector<RouteEdge>>& edges_by_from_lanelet_id,
+    const uint64_t from_lanelet_id,
+    const uint64_t to_lanelet_id)
+{
+    const auto edges_it = edges_by_from_lanelet_id.find(from_lanelet_id);
+    if (edges_it == edges_by_from_lanelet_id.end()) {
+        return false;
+    }
+    return std::any_of(
+        edges_it->second.begin(),
+        edges_it->second.end(),
+        [to_lanelet_id](const RouteEdge& edge) {
+            return edge.to_lanelet_id == to_lanelet_id;
+        });
+}
+
+std::string turn_direction_to_string(const uint8_t turn_direction)
+{
+    if (turn_direction == LaneConnection::TURN_STRAIGHT) {
+        return "straight";
+    }
+    if (turn_direction == LaneConnection::TURN_LEFT) {
+        return "left";
+    }
+    if (turn_direction == LaneConnection::TURN_RIGHT) {
+        return "right";
+    }
+    return "unknown";
+}
+
+}
+
+void append_centerline_points(
+    std::vector<Point2D>& route_points,
+    const std::vector<Point2D>& centerline_points,
+    const bool connects_to_previous,
+    const double min_gap_m)
+{
+    for (std::size_t point_index = 0U; point_index < centerline_points.size(); ++point_index) {
+        if (connects_to_previous && point_index == 0U) {
+            continue;
+        }
+        const auto& point = centerline_points[point_index];
+        if (!route_points.empty() && distance_2d(route_points.back(), point) <= min_gap_m) {
+            continue;
+        }
+        route_points.push_back(point);
+    }
 }
 
 void MissionPlannerNode::build_map_lookup(
     const vectormap_msgs::msg::VectorMap& map_msg)
 {
     if (map_msg.header.frame_id != "map") {
-        throw std::runtime_error(
-            "VectorMap frame_id must be map, got " + map_msg.header.frame_id);
+        RCLCPP_WARN(
+            get_logger(),
+            "VectorMapのframe_idはmapである必要があります（実際: %s）: マップ構築を中止します",
+            map_msg.header.frame_id.c_str());
+        return;
     }
 
-    lanelet_by_id_.clear();
-    lanelet_by_id_.reserve(map_msg.lanelets.size());
-    for (const auto& lanelet : map_msg.lanelets) {
-        lanelet_by_id_.emplace(lanelet.id, lanelet);
-    }
-
-    std::unordered_map<uint64_t, LineString> line_string_by_id;
+    std::unordered_map<uint64_t, const LineString*> line_string_by_id;
     line_string_by_id.reserve(map_msg.line_strings.size());
     for (const auto& line_string : map_msg.line_strings) {
-        line_string_by_id.emplace(line_string.id, line_string);
+        line_string_by_id.emplace(line_string.id, &line_string);
+    }
+
+    lanelet_centerline_points_by_id_.clear();
+    lanelet_centerline_points_by_id_.reserve(map_msg.lanelets.size());
+    for (const auto& lanelet : map_msg.lanelets) {
+        const auto line_it = line_string_by_id.find(lanelet.centerline_id);
+        if (line_it == line_string_by_id.end() || line_it->second->points.size() < 2U) {
+            continue;
+        }
+        const LineString& centerline = *line_it->second;
+        if (centerline.line_type != LineString::TYPE_VIRTUAL_LINE ||
+            centerline.marking_type != LineString::MARKING_VIRTUAL)
+        {
+            RCLCPP_WARN(
+                get_logger(),
+                "centerlineはvirtual lineである必要があります（lanelet_id=%lu）: マップ構築を中止します",
+                lanelet.id);
+            return;
+        }
+        std::vector<Point2D> centerline_points;
+        centerline_points.reserve(centerline.points.size());
+        for (const auto& point : centerline.points) {
+            centerline_points.push_back(Point2D{point.x, point.y});
+        }
+        lanelet_centerline_points_by_id_.emplace(lanelet.id, std::move(centerline_points));
     }
 
     connection_edges_by_from_lanelet_id_.clear();
@@ -145,161 +338,159 @@ void MissionPlannerNode::build_map_lookup(
             RouteEdge{connection.to_lanelet_id, connection.turn_direction, connection.cost});
     }
 
+    std::unordered_map<uint64_t, uint64_t> lanelet_by_left_line;
+    std::unordered_map<uint64_t, uint64_t> lanelet_by_right_line;
+    lanelet_by_left_line.reserve(map_msg.lanelets.size());
+    lanelet_by_right_line.reserve(map_msg.lanelets.size());
+    for (const auto& lanelet : map_msg.lanelets) {
+        lanelet_by_left_line[lanelet.left_line_id] = lanelet.id;
+        lanelet_by_right_line[lanelet.right_line_id] = lanelet.id;
+    }
     left_adjacent_lanelet_by_id_.clear();
     right_adjacent_lanelet_by_id_.clear();
-    for (const auto& [id, lanelet] : lanelet_by_id_) {
-        for (const auto& [other_id, other] : lanelet_by_id_) {
-            if (id == other_id) {
-                continue;
-            }
-            if (lanelet.left_line_id == other.right_line_id) {
-                left_adjacent_lanelet_by_id_[id] = other_id;
-            }
-            if (lanelet.right_line_id == other.left_line_id) {
-                right_adjacent_lanelet_by_id_[id] = other_id;
-            }
+    for (const auto& lanelet : map_msg.lanelets) {
+        const auto left_it = lanelet_by_right_line.find(lanelet.left_line_id);
+        if (left_it != lanelet_by_right_line.end() && left_it->second != lanelet.id) {
+            left_adjacent_lanelet_by_id_[lanelet.id] = left_it->second;
+        }
+        const auto right_it = lanelet_by_left_line.find(lanelet.right_line_id);
+        if (right_it != lanelet_by_left_line.end() && right_it->second != lanelet.id) {
+            right_adjacent_lanelet_by_id_[lanelet.id] = right_it->second;
         }
     }
 
-    lanelet_centerline_points_by_id_.clear();
-    lanelet_centerline_points_by_id_.reserve(lanelet_by_id_.size());
-    for (const auto& [lanelet_id, lanelet] : lanelet_by_id_) {
-        const auto line_it = line_string_by_id.find(lanelet.centerline_id);
-        if (line_it == line_string_by_id.end() || line_it->second.points.size() < 2U) {
-            continue;
-        }
-        if (line_it->second.line_type != LineString::TYPE_VIRTUAL_LINE ||
-            line_it->second.marking_type != LineString::MARKING_VIRTUAL)
-        {
-            throw std::runtime_error("route centerline must be virtual line");
-        }
-        std::vector<Point2D> centerline_points;
-        centerline_points.reserve(line_it->second.points.size());
-        for (const auto& point : line_it->second.points) {
-            centerline_points.push_back(Point2D{point.x, point.y});
-        }
-        lanelet_centerline_points_by_id_.emplace(lanelet_id, std::move(centerline_points));
-    }
-
-    path_frame_id_ = map_msg.header.frame_id;
     map_ready_ = true;
     RCLCPP_INFO(
         get_logger(),
         "built vector map lookup: lanelets=%zu, centerlines=%zu",
-        lanelet_by_id_.size(),
+        map_msg.lanelets.size(),
         lanelet_centerline_points_by_id_.size());
 }
 
 bool MissionPlannerNode::try_build_initial_route(const Point2D& ego, const double yaw)
 {
     const uint64_t start_lanelet_id = select_start_lanelet(
-        lanelet_centerline_points_by_id_, ego, yaw, start_lanelet_yaw_threshold_rad_);
+        lanelet_centerline_points_by_id_,
+        ego,
+        yaw,
+        start_lanelet_yaw_threshold_rad_,
+        start_lanelet_max_distance_m_);
     if (start_lanelet_id == 0U) {
         return false;
     }
     rebuild_route_from_lanelet(start_lanelet_id, "initial");
+    if (current_route_lanelet_ids_.empty()) {
+        return false;
+    }
     global_path_ready_ = true;
     return true;
 }
 
-void MissionPlannerNode::build_route_from_lanelet_ids(
+bool MissionPlannerNode::build_route_from_lanelet_ids(
     const std::vector<uint64_t>& route_lanelet_ids)
 {
     if (route_lanelet_ids.empty()) {
-        throw std::runtime_error("route lanelet sequence must not be empty");
+        RCLCPP_ERROR(get_logger(), "ルートのlanelet列が空のため構築できません");
+        return false;
     }
 
     std::vector<Point2D> route_points;
-    std::vector<double> raw_s;
     route_points.reserve(route_lanelet_ids.size() * 16U);
 
-    double accumulated_s = 0.0;
     for (std::size_t route_index = 0U; route_index < route_lanelet_ids.size(); ++route_index) {
         const uint64_t lanelet_id = route_lanelet_ids[route_index];
-        const auto lanelet_it = lanelet_by_id_.find(lanelet_id);
-        if (lanelet_it == lanelet_by_id_.end()) {
-            throw std::runtime_error(
-                "route lanelet id not found: " + std::to_string(lanelet_id));
-        }
-
         if (route_index + 1U < route_lanelet_ids.size()) {
             const uint64_t next_id = route_lanelet_ids[route_index + 1U];
-            const auto connections_it = connection_edges_by_from_lanelet_id_.find(lanelet_id);
-            const bool connected = connections_it != connection_edges_by_from_lanelet_id_.end() &&
-                std::find_if(
-                    connections_it->second.begin(),
-                    connections_it->second.end(),
-                    [next_id](const RouteEdge& edge) {
-                        return edge.to_lanelet_id == next_id;
-                    }) != connections_it->second.end();
-            if (!connected) {
-                throw std::runtime_error(
-                    "missing LaneConnection from " + std::to_string(lanelet_id) +
-                    " to " + std::to_string(next_id));
+            if (!has_connection(connection_edges_by_from_lanelet_id_, lanelet_id, next_id)) {
+                RCLCPP_ERROR(
+                    get_logger(),
+                    "LaneConnectionが存在しません: %lu -> %lu",
+                    lanelet_id, next_id);
+                return false;
             }
         }
 
         const auto centerline_it = lanelet_centerline_points_by_id_.find(lanelet_id);
         if (centerline_it == lanelet_centerline_points_by_id_.end()) {
-            throw std::runtime_error("route centerline points are not available");
+            RCLCPP_ERROR(
+                get_logger(), "ルートのcenterline点群が取得できません: %lu", lanelet_id);
+            return false;
         }
         const auto& centerline_points = centerline_it->second;
-        if (!route_points.empty()) {
+        const bool connects_to_previous = !route_points.empty();
+        if (connects_to_previous) {
             const double gap = distance_2d(route_points.back(), centerline_points.front());
             if (gap > max_centerline_connection_gap_m_) {
-                throw std::runtime_error(
-                    "centerline connection gap is too large: " + std::to_string(gap));
+                RCLCPP_ERROR(
+                    get_logger(),
+                    "centerlineの接続ギャップが大きすぎます: %f m (lanelet_id=%lu)",
+                    gap, lanelet_id);
+                return false;
             }
         }
 
-        for (const auto& point : centerline_points) {
-            if (!route_points.empty()) {
-                const double ds = distance_2d(route_points.back(), point);
-                if (ds <= EPSILON) {
-                    continue;
-                }
-                accumulated_s += ds;
-            }
-            route_points.push_back(point);
-            raw_s.push_back(accumulated_s);
-        }
+        append_centerline_points(
+            route_points, centerline_points, connects_to_previous, max_centerline_connection_gap_m_);
     }
 
     if (route_points.size() < 2U) {
-        throw std::runtime_error("route must contain at least two centerline points");
+        RCLCPP_ERROR(get_logger(), "ルートのcenterline点数が2未満です");
+        return false;
     }
 
-    const uint64_t first_lanelet_id = route_lanelet_ids.front();
-    const uint64_t last_lanelet_id = route_lanelet_ids.back();
-    const auto last_connections_it = connection_edges_by_from_lanelet_id_.find(last_lanelet_id);
-    const bool route_is_loop = last_connections_it != connection_edges_by_from_lanelet_id_.end() &&
-        std::find_if(
-            last_connections_it->second.begin(),
-            last_connections_it->second.end(),
-            [first_lanelet_id](const RouteEdge& edge) {
-                return edge.to_lanelet_id == first_lanelet_id;
-            }) != last_connections_it->second.end();
+    const bool route_is_loop = has_connection(
+        connection_edges_by_from_lanelet_id_,
+        route_lanelet_ids.back(),
+        route_lanelet_ids.front());
     if (route_is_loop) {
         const double closing_gap = distance_2d(route_points.back(), route_points.front());
         if (closing_gap > max_centerline_connection_gap_m_) {
-            throw std::runtime_error(
-                "loop centerline closing gap is too large: " + std::to_string(closing_gap));
+            RCLCPP_ERROR(
+                get_logger(),
+                "ループ閉合のcenterlineギャップが大きすぎます: %f m",
+                closing_gap);
+            return false;
         }
         if (closing_gap > EPSILON) {
-            accumulated_s += closing_gap;
             route_points.push_back(route_points.front());
-            raw_s.push_back(accumulated_s);
         }
+    }
+
+    const auto smoothed_points = catmull_rom_smooth(route_points, kSmoothingSamplesPerSegment);
+
+    std::vector<Point2D> resample_points;
+    std::vector<double> raw_s;
+    resample_points.reserve(smoothed_points.size());
+    raw_s.reserve(smoothed_points.size());
+    double accumulated_s = 0.0;
+    for (const auto& point : smoothed_points) {
+        if (!resample_points.empty()) {
+            const double ds = distance_2d(resample_points.back(), point);
+            if (ds <= EPSILON) {
+                continue;
+            }
+            accumulated_s += ds;
+        }
+        resample_points.push_back(point);
+        raw_s.push_back(accumulated_s);
+    }
+
+    if (resample_points.size() < 2U) {
+        RCLCPP_ERROR(get_logger(), "平滑化後のルート点数が2未満です");
+        return false;
     }
 
     global_samples_.clear();
     global_samples_.reserve(
         static_cast<std::size_t>(std::ceil(raw_s.back() / global_path_resample_interval_m_)) + 2U);
     for (double s = 0.0; s < raw_s.back(); s += global_path_resample_interval_m_) {
-        global_samples_.push_back(interpolate_raw_path(route_points, raw_s, s));
+        global_samples_.push_back(interpolate_raw_path(resample_points, raw_s, s));
     }
-    global_samples_.push_back(interpolate_raw_path(route_points, raw_s, raw_s.back()));
+    global_samples_.push_back(interpolate_raw_path(resample_points, raw_s, raw_s.back()));
     current_route_lanelet_ids_ = route_lanelet_ids;
+    current_route_is_loop_ = route_is_loop;
+    report_curvature_qa();
+    return true;
 }
 
 void MissionPlannerNode::rebuild_route_from_lanelet(
@@ -308,7 +499,14 @@ void MissionPlannerNode::rebuild_route_from_lanelet(
 {
     std::size_t fallback_count = 0U;
     const auto route_lanelet_ids = build_route_sequence_from_graph(start_lanelet_id, fallback_count);
-    build_route_from_lanelet_ids(route_lanelet_ids);
+    if (route_lanelet_ids.empty() || !build_route_from_lanelet_ids(route_lanelet_ids)) {
+        RCLCPP_ERROR(
+            get_logger(),
+            "ルート再構築に失敗したため既存ルートを維持します: reason=%s start_lanelet=%lu",
+            reason.c_str(),
+            start_lanelet_id);
+        return;
+    }
     RCLCPP_INFO(
         get_logger(),
         "rebuilt vector map global path: reason=%s start_lanelet=%lu route_lanelets=%zu points=%zu",
@@ -327,18 +525,35 @@ void MissionPlannerNode::rebuild_route_from_lanelet(
 
 bool MissionPlannerNode::rebuild_route_from_pose(
     const Point2D& ego,
+    const double yaw,
     const std::string& reason)
 {
     const auto reachable = build_reachable_lanelet_set();
-    const uint64_t start_lanelet_id = find_nearest_lanelet_in_set(ego, reachable);
+    uint64_t start_lanelet_id =
+        nearest_lanelet_in(lanelet_centerline_points_by_id_, reachable, ego).first;
     if (start_lanelet_id == 0U) {
         RCLCPP_WARN(
             get_logger(),
             "route rebuild skipped: no reachable lanelet near ego pose "
-            "(reason=%s, nav_cmd=%s) — connection constraints not satisfied",
+            "(reason=%s, nav_cmd=%s) — connection constraints not satisfied. "
+            "全laneletからのフォールバック探索を試行します",
             reason.c_str(),
             turn_direction_to_string(last_nav_cmd_turn_).c_str());
-        return false;
+        start_lanelet_id = select_start_lanelet(
+            lanelet_centerline_points_by_id_,
+            ego,
+            yaw,
+            start_lanelet_yaw_threshold_rad_,
+            start_lanelet_max_distance_m_);
+        if (start_lanelet_id == 0U) {
+            RCLCPP_ERROR(
+                get_logger(),
+                "フォールバック探索でも起点laneletが見つかりませんでした: reason=%s",
+                reason.c_str());
+            return false;
+        }
+        rebuild_route_from_lanelet(start_lanelet_id, "out_of_route_fallback");
+        return true;
     }
     rebuild_route_from_lanelet(start_lanelet_id, reason);
     return true;
@@ -348,15 +563,17 @@ std::vector<uint64_t> MissionPlannerNode::build_route_sequence_from_graph(
     const uint64_t start_lanelet_id,
     std::size_t& fallback_count) const
 {
+    fallback_count = 0U;
     if (lanelet_centerline_points_by_id_.find(start_lanelet_id) ==
         lanelet_centerline_points_by_id_.end())
     {
-        throw std::runtime_error(
-            "route start lanelet centerline points are not available: " +
-            std::to_string(start_lanelet_id));
+        RCLCPP_ERROR(
+            get_logger(),
+            "起点laneletのcenterlineが見つからないためルート探索を中止します: %lu",
+            start_lanelet_id);
+        return {};
     }
 
-    fallback_count = 0U;
     std::vector<uint64_t> route_lanelet_ids;
     route_lanelet_ids.reserve(static_cast<std::size_t>(route_lookahead_lanelet_count_));
     route_lanelet_ids.push_back(start_lanelet_id);
@@ -379,11 +596,14 @@ std::vector<uint64_t> MissionPlannerNode::build_route_sequence_from_graph(
                 next_lanelet_id);
             break;
         }
-        const auto next_centerline_it = lanelet_centerline_points_by_id_.find(next_lanelet_id);
-        if (next_centerline_it == lanelet_centerline_points_by_id_.end()) {
-            throw std::runtime_error(
-                "selected lanelet centerline points are not available: " +
-                std::to_string(next_lanelet_id));
+        if (lanelet_centerline_points_by_id_.find(next_lanelet_id) ==
+            lanelet_centerline_points_by_id_.end())
+        {
+            RCLCPP_WARN(
+                get_logger(),
+                "選択されたlaneletのcenterlineが見つからないため延伸を打ち切ります: %lu",
+                next_lanelet_id);
+            break;
         }
         route_lanelet_ids.push_back(next_lanelet_id);
         if (used_fallback) {
@@ -400,72 +620,39 @@ uint64_t MissionPlannerNode::select_next_lanelet(
     bool& used_fallback) const
 {
     const auto edges_it = connection_edges_by_from_lanelet_id_.find(from_lanelet_id);
-    if (edges_it == connection_edges_by_from_lanelet_id_.end() || edges_it->second.empty()) {
+    if (edges_it == connection_edges_by_from_lanelet_id_.end()) {
         return 0U;
     }
 
-    const auto find_min_cost_edge = [&edges = edges_it->second](const uint8_t turn_direction) {
-        auto best_it = edges.end();
-        for (auto it = edges.begin(); it != edges.end(); ++it) {
-            if (it->turn_direction != turn_direction) {
-                continue;
+    const auto find_min_cost_edge =
+        [&edges = edges_it->second](const uint8_t turn_direction) -> const RouteEdge* {
+            const RouteEdge* best = nullptr;
+            for (const auto& edge : edges) {
+                if (edge.turn_direction == turn_direction &&
+                    (best == nullptr || edge.cost < best->cost))
+                {
+                    best = &edge;
+                }
             }
-            if (best_it == edges.end() || it->cost < best_it->cost) {
-                best_it = it;
-            }
-        }
-        return best_it;
-    };
+            return best;
+        };
 
-    const auto requested_it = find_min_cost_edge(requested_turn);
-    if (requested_it != edges_it->second.end() && requested_it->turn_direction == requested_turn) {
+    if (const RouteEdge* requested_edge = find_min_cost_edge(requested_turn)) {
         used_fallback = false;
-        return requested_it->to_lanelet_id;
+        return requested_edge->to_lanelet_id;
     }
 
     for (const auto fallback_turn : nav_cmd_fallback_order_) {
         if (fallback_turn == requested_turn) {
             continue;
         }
-        const auto fallback_it = find_min_cost_edge(fallback_turn);
-        if (fallback_it != edges_it->second.end() &&
-            fallback_it->turn_direction == fallback_turn)
-        {
+        if (const RouteEdge* fallback_edge = find_min_cost_edge(fallback_turn)) {
             used_fallback = true;
-            return fallback_it->to_lanelet_id;
+            return fallback_edge->to_lanelet_id;
         }
     }
 
     return 0U;
-}
-
-uint8_t MissionPlannerNode::parse_nav_cmd(const std::string& command) const
-{
-    if (command == "straight") {
-        return vectormap_msgs::msg::LaneConnection::TURN_STRAIGHT;
-    }
-    if (command == "left") {
-        return vectormap_msgs::msg::LaneConnection::TURN_LEFT;
-    }
-    if (command == "right") {
-        return vectormap_msgs::msg::LaneConnection::TURN_RIGHT;
-    }
-    throw std::invalid_argument("nav_cmd must be straight, left, or right: " + command);
-}
-
-std::string MissionPlannerNode::turn_direction_to_string(
-    const uint8_t turn_direction) const
-{
-    if (turn_direction == vectormap_msgs::msg::LaneConnection::TURN_STRAIGHT) {
-        return "straight";
-    }
-    if (turn_direction == vectormap_msgs::msg::LaneConnection::TURN_LEFT) {
-        return "left";
-    }
-    if (turn_direction == vectormap_msgs::msg::LaneConnection::TURN_RIGHT) {
-        return "right";
-    }
-    return "unknown";
 }
 
 std::unordered_set<uint64_t> MissionPlannerNode::build_reachable_lanelet_set() const
@@ -486,62 +673,48 @@ std::unordered_set<uint64_t> MissionPlannerNode::build_reachable_lanelet_set() c
     return reachable;
 }
 
-uint64_t MissionPlannerNode::find_nearest_lanelet_in_set(
-    const Point2D& point,
-    const std::unordered_set<uint64_t>& candidates) const
-{
-    uint64_t best_lanelet_id = 0U;
-    double best_distance_sq = std::numeric_limits<double>::max();
-    for (const uint64_t lanelet_id : candidates) {
-        const auto centerline_it = lanelet_centerline_points_by_id_.find(lanelet_id);
-        if (centerline_it == lanelet_centerline_points_by_id_.end() ||
-            centerline_it->second.size() < 2U)
-        {
-            continue;
-        }
-        const auto& centerline_points = centerline_it->second;
-        for (std::size_t i = 1U; i < centerline_points.size(); ++i) {
-            const double distance_sq = point_segment_distance_sq(
-                point,
-                centerline_points[i - 1U],
-                centerline_points[i]);
-            if (distance_sq < best_distance_sq) {
-                best_distance_sq = distance_sq;
-                best_lanelet_id = lanelet_id;
-            }
-        }
-    }
-    return best_lanelet_id;
-}
-
 std::pair<uint64_t, double> MissionPlannerNode::find_nearest_lanelet_within_route(
     const Point2D& point) const
 {
-    uint64_t best_lanelet_id = 0U;
-    double best_distance_sq = std::numeric_limits<double>::max();
-    for (const uint64_t lanelet_id : current_route_lanelet_ids_) {
-        const auto centerline_it = lanelet_centerline_points_by_id_.find(lanelet_id);
-        if (centerline_it == lanelet_centerline_points_by_id_.end() ||
-            centerline_it->second.size() < 2U)
-        {
-            continue;
-        }
-        const auto& centerline_points = centerline_it->second;
-        for (std::size_t i = 1U; i < centerline_points.size(); ++i) {
-            const double distance_sq = point_segment_distance_sq(
-                point,
-                centerline_points[i - 1U],
-                centerline_points[i]);
-            if (distance_sq < best_distance_sq) {
-                best_distance_sq = distance_sq;
-                best_lanelet_id = lanelet_id;
-            }
+    const auto [lanelet_id, distance_sq] = nearest_lanelet_in(
+        lanelet_centerline_points_by_id_, current_route_lanelet_ids_, point);
+    const double distance = lanelet_id != 0U
+        ? std::sqrt(distance_sq)
+        : std::numeric_limits<double>::max();
+    return {lanelet_id, distance};
+}
+
+void MissionPlannerNode::report_curvature_qa() const
+{
+    if (global_samples_.size() < 3U) {
+        return;
+    }
+
+    double cumulative_s = 0.0;
+    double max_curvature = 0.0;
+    double max_curvature_s = 0.0;
+    for (std::size_t i = 1U; i + 1U < global_samples_.size(); ++i) {
+        cumulative_s += std::hypot(
+            global_samples_[i].x - global_samples_[i - 1U].x,
+            global_samples_[i].y - global_samples_[i - 1U].y);
+        const Point2D a{global_samples_[i - 1U].x, global_samples_[i - 1U].y};
+        const Point2D b{global_samples_[i].x, global_samples_[i].y};
+        const Point2D c{global_samples_[i + 1U].x, global_samples_[i + 1U].y};
+        const double curvature = menger_curvature(a, b, c);
+        if (curvature > max_curvature) {
+            max_curvature = curvature;
+            max_curvature_s = cumulative_s;
         }
     }
-    const double distance = best_lanelet_id != 0U
-        ? std::sqrt(best_distance_sq)
-        : std::numeric_limits<double>::max();
-    return {best_lanelet_id, distance};
+
+    if (max_curvature > curvature_limit_per_m_) {
+        RCLCPP_WARN(
+            get_logger(),
+            "生成した経路の曲率が上限を超過しています: kappa=%.3f 1/m (limit=%.3f 1/m) s=%.2f m",
+            max_curvature,
+            curvature_limit_per_m_,
+            max_curvature_s);
+    }
 }
 
 }

@@ -6,6 +6,7 @@
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
 #include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
@@ -13,9 +14,6 @@
 #include <rclcpp/rclcpp.hpp>
 #include <std_msgs/msg/empty.hpp>
 #include <std_msgs/msg/string.hpp>
-#include <vectormap_msgs/msg/lane_connection.hpp>
-#include <vectormap_msgs/msg/lanelet.hpp>
-#include <vectormap_msgs/msg/line_string.hpp>
 #include <vectormap_msgs/msg/vector_map.hpp>
 
 #include "mission_planner/visibility_control.h"
@@ -64,9 +62,9 @@ private:
 
     void build_map_lookup(const vectormap_msgs::msg::VectorMap& map_msg);
     bool try_build_initial_route(const Point2D& ego, double yaw);
-    void build_route_from_lanelet_ids(const std::vector<uint64_t>& route_lanelet_ids);
+    bool build_route_from_lanelet_ids(const std::vector<uint64_t>& route_lanelet_ids);
     void rebuild_route_from_lanelet(uint64_t start_lanelet_id, const std::string& reason);
-    bool rebuild_route_from_pose(const Point2D& ego, const std::string& reason);
+    bool rebuild_route_from_pose(const Point2D& ego, double yaw, const std::string& reason);
     std::vector<uint64_t> build_route_sequence_from_graph(
         uint64_t start_lanelet_id,
         std::size_t& fallback_count) const;
@@ -75,39 +73,29 @@ private:
         uint8_t requested_turn,
         bool& used_fallback) const;
     std::unordered_set<uint64_t> build_reachable_lanelet_set() const;
-    uint64_t find_nearest_lanelet_in_set(
-        const Point2D& point, const std::unordered_set<uint64_t>& candidates) const;
     std::pair<uint64_t, double> find_nearest_lanelet_within_route(const Point2D& point) const;
-    uint8_t parse_nav_cmd(const std::string& command) const;
-    std::string turn_direction_to_string(uint8_t turn_direction) const;
     nav_msgs::msg::Path make_global_path_message(const rclcpp::Time& stamp) const;
-    static uint64_t select_start_lanelet(
-        const std::unordered_map<uint64_t, std::vector<Point2D>>& centerlines,
-        const Point2D& point,
-        double yaw,
-        double yaw_threshold_rad);
-    static geometry_msgs::msg::Quaternion yaw_to_quaternion(double yaw);
+    void report_curvature_qa() const;
 
     const int update_period_ms_;
-    const std::string default_nav_cmd_;
-    const std::vector<std::string> nav_cmd_fallback_order_param_;
     const double global_path_resample_interval_m_;
     const double max_centerline_connection_gap_m_;
     const double off_route_distance_threshold_m_;
     const int route_lookahead_lanelet_count_;
     const double start_lanelet_yaw_threshold_rad_;
+    const double start_lanelet_max_distance_m_;
     const double start_pose_position_variance_threshold_;
-    const rclcpp::QoS qos_;
+    const double route_extension_min_remaining_m_;
+    const double curvature_limit_per_m_;
+    const std::vector<uint8_t> nav_cmd_fallback_order_;
 
     bool map_ready_;
     bool global_path_ready_;
-    std::vector<uint64_t> current_route_lanelet_ids_;
+    bool current_route_is_loop_;
     uint8_t last_nav_cmd_turn_;
-    std::vector<uint8_t> nav_cmd_fallback_order_;
+    std::vector<uint64_t> current_route_lanelet_ids_;
 
-    std::string path_frame_id_;
     std::vector<PathPoint> global_samples_;
-    std::unordered_map<uint64_t, vectormap_msgs::msg::Lanelet> lanelet_by_id_;
     std::unordered_map<uint64_t, std::vector<Point2D>> lanelet_centerline_points_by_id_;
     std::unordered_map<uint64_t, std::vector<RouteEdge>> connection_edges_by_from_lanelet_id_;
     std::unordered_map<uint64_t, uint64_t> left_adjacent_lanelet_by_id_;
