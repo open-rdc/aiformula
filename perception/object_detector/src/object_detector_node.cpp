@@ -7,13 +7,14 @@
 #include <stdexcept>
 #include <vector>
 
+#include <pcl/common/transforms.h>
 #include <pcl/filters/passthrough.h>
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/search/kdtree.h>
 #include <pcl/segmentation/extract_clusters.h>
 #include <pcl_conversions/pcl_conversions.h>
+#include <tf2_eigen/tf2_eigen.hpp>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
-#include <tf2_sensor_msgs/tf2_sensor_msgs.h>
 #include <visualization_msgs/msg/marker.hpp>
 
 namespace object_detector
@@ -46,8 +47,11 @@ ObjectDetectorNode::ObjectDetectorNode(
     tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
 
     const rclcpp::QoS qos(10);
+    // 点群コールバック(TF変換+PCL処理)は入力レートより遅いため、keep_last(10)のままだと
+    // 処理が滞留するほど古いフレームを延々処理し続け/perception/objectsが常に古くなる。
+    // depth=1にして常に最新フレームのみを処理対象にする。
     pointcloud_subscription_ = create_subscription<sensor_msgs::msg::PointCloud2>(
-        "/zed/zed_node/point_cloud", qos,
+        "/zed/zed_node/point_cloud", rclcpp::QoS(1),
         std::bind(&ObjectDetectorNode::pointcloud_callback, this, std::placeholders::_1));
     objects_publisher_ = create_publisher<object_detection_msgs::msg::ObjectInfoArray>(
         "/perception/objects", qos);
@@ -80,19 +84,38 @@ void ObjectDetectorNode::pointcloud_callback(const sensor_msgs::msg::PointCloud2
         return;
     }
 
-    sensor_msgs::msg::PointCloud2 cloud_base_msg;
-    tf2::doTransform(*msg, cloud_base_msg, tf_to_base);
+    // 640x360の高密度点群をtf2::doTransformで丸ごと変換すると1フレーム数百msかかり
+    // /perception/objectsの更新が追いつかずlocal_plannerのfreshness判定に引っかかる。
+    // 先にXYZのみ抽出してカメラ座標系でvoxel_grid縮約してから変換することで
+    // 変換対象点数を大幅に減らす（最終的な粒度はvoxel_leaf_size_mで揃う）。
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_sensor(new pcl::PointCloud<pcl::PointXYZ>);
+    pcl::fromROSMsg(*msg, *cloud_sensor);
 
-    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
-    pcl::fromROSMsg(cloud_base_msg, *cloud);
-
-    if (cloud->empty()) {
-        RCLCPP_WARN(get_logger(), "cloud empty after transform to base_link");
+    if (cloud_sensor->empty()) {
+        RCLCPP_WARN(get_logger(), "cloud empty in sensor frame");
         publish_empty(msg->header.stamp);
         return;
     }
 
-    pcl::PointCloud<pcl::PointXYZ>::Ptr filtered(new pcl::PointCloud<pcl::PointXYZ>);
+    pcl::PointCloud<pcl::PointXYZ>::Ptr voxeled_sensor(new pcl::PointCloud<pcl::PointXYZ>);
+    {
+        pcl::VoxelGrid<pcl::PointXYZ> vg;
+        vg.setInputCloud(cloud_sensor);
+        const auto leaf = static_cast<float>(voxel_leaf_size_m_);
+        vg.setLeafSize(leaf, leaf, leaf);
+        vg.filter(*voxeled_sensor);
+    }
+
+    RCLCPP_DEBUG(
+        get_logger(),
+        "[voxelgrid leaf=%.3f, sensor frame] %zu -> %zu pts",
+        voxel_leaf_size_m_, cloud_sensor->size(), voxeled_sensor->size());
+
+    const Eigen::Isometry3d transform_to_base = tf2::transformToEigen(tf_to_base);
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
+    pcl::transformPointCloud(*voxeled_sensor, *cloud, transform_to_base.matrix().cast<float>());
+
+    pcl::PointCloud<pcl::PointXYZ>::Ptr voxeled(new pcl::PointCloud<pcl::PointXYZ>);
     {
         pcl::PassThrough<pcl::PointXYZ> pass;
         pass.setInputCloud(cloud);
@@ -100,39 +123,21 @@ void ObjectDetectorNode::pointcloud_callback(const sensor_msgs::msg::PointCloud2
         pass.setFilterLimits(
             static_cast<float>(ground_z_threshold_m_),
             std::numeric_limits<float>::max());
-        pass.filter(*filtered);
+        pass.filter(*voxeled);
     }
 
     RCLCPP_DEBUG(
         get_logger(),
         "[passthrough z>%.3f] %zu -> %zu pts",
-        ground_z_threshold_m_, cloud->size(), filtered->size());
-
-    if (filtered->empty()) {
-        RCLCPP_WARN_THROTTLE(
-            get_logger(), *get_clock(), 2000,
-            "all points removed by ground filter (z>%.3f m) — adjust ground_z_threshold_m",
-            ground_z_threshold_m_);
-        publish_empty(msg->header.stamp);
-        return;
-    }
-
-    pcl::PointCloud<pcl::PointXYZ>::Ptr voxeled(new pcl::PointCloud<pcl::PointXYZ>);
-    {
-        pcl::VoxelGrid<pcl::PointXYZ> vg;
-        vg.setInputCloud(filtered);
-        const auto leaf = static_cast<float>(voxel_leaf_size_m_);
-        vg.setLeafSize(leaf, leaf, leaf);
-        vg.filter(*voxeled);
-    }
-
-    RCLCPP_DEBUG(
-        get_logger(),
-        "[voxelgrid leaf=%.3f] %zu -> %zu pts",
-        voxel_leaf_size_m_, filtered->size(), voxeled->size());
+        ground_z_threshold_m_, cloud->size(), voxeled->size());
 
     if (voxeled->empty()) {
-        RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 2000, "voxelgrid result empty");
+        // 障害物が視界にない場合は地面点のみとなり全点除去されるのが正常。
+        // 実機で閾値誤設定を疑う場合の手がかりとしてDEBUGで残す。
+        RCLCPP_DEBUG(
+            get_logger(),
+            "all points removed by ground filter (z>%.3f m)",
+            ground_z_threshold_m_);
         publish_empty(msg->header.stamp);
         return;
     }
