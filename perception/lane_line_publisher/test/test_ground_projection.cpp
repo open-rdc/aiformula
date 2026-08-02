@@ -1,7 +1,10 @@
 #include <gtest/gtest.h>
 
 #include <cmath>
+#include <limits>
 #include <stdexcept>
+
+#include <opencv2/core.hpp>
 
 #include <camera_utility/ground_conversion.hpp>
 
@@ -23,39 +26,121 @@ tf2::Transform simple_base_T_camera()
 
 }  // namespace
 
-TEST(BuildGroundProjectionLUT, ContainsProjectedPixelWithinDistanceLimits)
+TEST(BuildGroundProjectionLUT, KnownCenterPixelMatchesPixelToPoint)
 {
+    const auto intrinsics = simple_intrinsics();
+    const auto base_T_camera = simple_base_T_camera();
     const auto lut = lane_line_publisher::build_ground_projection_lut(
-        simple_intrinsics(), simple_base_T_camera(), 0.0, 0.5, 10.0, 40);
+        intrinsics, base_T_camera, 0.0, 10.0);
 
-    ASSERT_FALSE(lut.empty());
+    tf2::Vector3 expected;
+    ASSERT_TRUE(camera_utility::pixelToPoint(
+        cv::Point2f(320.0F, 280.0F), intrinsics, base_T_camera, expected, 0.0));
 
-    bool found_center_pixel = false;
-    for (const auto& entry : lut.entries) {
-        EXPECT_EQ(entry.row % 40, 0);
-        EXPECT_EQ(entry.col % 40, 0);
-        EXPECT_LT(entry.row, 360);
-        EXPECT_LT(entry.col, 640);
-
-        const double distance = std::sqrt(
-            static_cast<double>(entry.x_base) * entry.x_base +
-            static_cast<double>(entry.y_base) * entry.y_base + 1.0);
-        EXPECT_GE(distance, 0.5);
-        EXPECT_LE(distance, 10.0);
-
-        if (entry.row == 280 && entry.col == 320) {
-            found_center_pixel = true;
-            EXPECT_NEAR(entry.x_base, 1.0F, 1.0e-6F);
-            EXPECT_NEAR(entry.y_base, 0.0F, 1.0e-6F);
-        }
-    }
-    EXPECT_TRUE(found_center_pixel);
+    Eigen::Vector2d actual;
+    ASSERT_TRUE(lut.try_get(280, 320, actual));
+    EXPECT_NEAR(actual.x(), expected.x(), 1e-9);
+    EXPECT_NEAR(actual.y(), expected.y(), 1e-9);
 }
 
-TEST(BuildGroundProjectionLUT, InvalidPixelStepThrows)
+TEST(BuildGroundProjectionLUT, OutOfBandLookupFails)
+{
+    const auto lut = lane_line_publisher::build_ground_projection_lut(
+        simple_intrinsics(), simple_base_T_camera(), 0.0, 10.0);
+
+    Eigen::Vector2d unused;
+    EXPECT_FALSE(lut.try_get(lut.row_begin - 1, 320, unused));
+    EXPECT_FALSE(lut.try_get(lut.row_end, 320, unused));
+    EXPECT_FALSE(lut.try_get(lut.row_begin, -1, unused));
+    EXPECT_FALSE(lut.try_get(lut.row_begin, lut.width, unused));
+}
+
+TEST(BuildGroundProjectionLUT, RowBandIsWithinDistanceLimitAndTightlyBounded)
+{
+    const auto intrinsics = simple_intrinsics();
+    const auto base_T_camera = simple_base_T_camera();
+    const auto lut = lane_line_publisher::build_ground_projection_lut(
+        intrinsics, base_T_camera, 0.0, 10.0);
+
+    ASSERT_LT(lut.row_begin, lut.row_end);
+
+    // 帯の中の有効セルは全て距離制限内でなければならない。
+    for (int row = lut.row_begin; row < lut.row_end; ++row) {
+        for (int col = 0; col < lut.width; ++col) {
+            Eigen::Vector2d point;
+            if (lut.try_get(row, col, point)) {
+                EXPECT_LE(point.norm(), 10.0 + 1e-9);
+            }
+        }
+    }
+
+    // row_begin/row_end はタイトな境界でなければならない：帯のすぐ外側の行には、
+    // LUTを使わず直接pixelToPointで調べても距離内の列が1つも無いはず。
+    auto row_has_any_in_range_pixel = [&](int row) {
+        for (int col = 0; col < intrinsics.width; ++col) {
+            tf2::Vector3 point;
+            if (!camera_utility::pixelToPoint(
+                    cv::Point2f(static_cast<float>(col), static_cast<float>(row)),
+                    intrinsics, base_T_camera, point, 0.0))
+            {
+                continue;
+            }
+            if ((point - base_T_camera.getOrigin()).length() <= 10.0) {
+                return true;
+            }
+        }
+        return false;
+    };
+    if (lut.row_begin > 0) {
+        EXPECT_FALSE(row_has_any_in_range_pixel(lut.row_begin - 1));
+    }
+    if (lut.row_end < lut.height) {
+        EXPECT_FALSE(row_has_any_in_range_pixel(lut.row_end));
+    }
+}
+
+TEST(BuildGroundProjectionLUT, NonPositiveMaxDistanceThrows)
 {
     EXPECT_THROW(
         lane_line_publisher::build_ground_projection_lut(
-            simple_intrinsics(), simple_base_T_camera(), 0.0, 0.5, 10.0, 0),
+            simple_intrinsics(), simple_base_T_camera(), 0.0, 0.0),
         std::invalid_argument);
+}
+
+TEST(LanePixelsToBasePoints, PrioritizesNearestPointsWhenCappingAtMaxPoints)
+{
+    const auto intrinsics = simple_intrinsics();
+    const auto base_T_camera = simple_base_T_camera();
+    const auto lut = lane_line_publisher::build_ground_projection_lut(
+        intrinsics, base_T_camera, 0.0, 10.0);
+
+    Eigen::Vector2d point_a, point_b;
+    ASSERT_TRUE(lut.try_get(lut.row_begin, 320, point_a));
+    ASSERT_TRUE(lut.try_get(lut.row_end - 1, 320, point_b));
+    ASSERT_NE(point_a.norm(), point_b.norm());
+    const int near_row = (point_a.norm() < point_b.norm()) ? lut.row_begin : (lut.row_end - 1);
+    const int far_row = (point_a.norm() < point_b.norm()) ? (lut.row_end - 1) : lut.row_begin;
+
+    cv::Mat mask = cv::Mat::zeros(intrinsics.height, intrinsics.width, CV_8UC1);
+    mask.at<uint8_t>(near_row, 320) = 255;
+    mask.at<uint8_t>(far_row, 320) = 255;
+
+    const auto points = lane_line_publisher::lane_pixels_to_base_points(mask, lut, 1U);
+
+    ASSERT_EQ(points.size(), 1U);
+    Eigen::Vector2d expected_near_point;
+    ASSERT_TRUE(lut.try_get(near_row, 320, expected_near_point));
+    EXPECT_NEAR(points[0].x(), expected_near_point.x(), 1e-9);
+    EXPECT_NEAR(points[0].y(), expected_near_point.y(), 1e-9);
+}
+
+TEST(LanePixelsToBasePoints, EmptyMaskReturnsNoPoints)
+{
+    const auto intrinsics = simple_intrinsics();
+    const auto lut = lane_line_publisher::build_ground_projection_lut(
+        intrinsics, simple_base_T_camera(), 0.0, 10.0);
+    const cv::Mat mask = cv::Mat::zeros(intrinsics.height, intrinsics.width, CV_8UC1);
+
+    const auto points = lane_line_publisher::lane_pixels_to_base_points(mask, lut, 100U);
+    EXPECT_TRUE(points.empty());
 }

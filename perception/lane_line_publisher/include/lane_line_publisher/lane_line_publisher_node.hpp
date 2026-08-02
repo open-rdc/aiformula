@@ -41,7 +41,6 @@ private:
         const builtin_interfaces::msg::Time& stamp) const;
 
     const uint8_t mask_threshold_;
-    const int pixel_step_;
     const std::size_t max_observed_points_;
     const double voxel_size_m_;
     const double max_point_link_distance_m_;

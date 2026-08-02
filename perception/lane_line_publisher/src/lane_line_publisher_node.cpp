@@ -23,16 +23,13 @@ namespace
 
 GroundProjectionLUT make_ground_projection_lut(
     rclcpp::Node& node,
-    const camera_utility::CameraIntrinsics& intrinsics,
-    const int pixel_step)
+    const camera_utility::CameraIntrinsics& intrinsics)
 {
     return build_ground_projection_lut(
         intrinsics,
         camera_utility::getBaseTCamera(node),
         node.get_parameter("ground_plane_z_base").as_double(),
-        node.get_parameter("min_ground_intersection_distance").as_double(),
-        node.get_parameter("max_ground_intersection_distance").as_double(),
-        pixel_step);
+        node.get_parameter("max_ground_intersection_distance").as_double());
 }
 
 std::vector<Eigen::Vector2d> voxel_downsample(
@@ -78,13 +75,12 @@ LaneLinePublisherNode::LaneLinePublisherNode(
     const rclcpp::NodeOptions& options)
 : rclcpp::Node("lane_line_publisher_node", name_space, options),
   mask_threshold_(static_cast<uint8_t>(get_parameter("mask_threshold").as_int())),
-  pixel_step_(get_parameter("pixel_step").as_int()),
   max_observed_points_(static_cast<std::size_t>(get_parameter("max_observed_points").as_int())),
   voxel_size_m_(get_parameter("voxel_size_m").as_double()),
   max_point_link_distance_m_(get_parameter("max_point_link_distance_m").as_double()),
   point_resample_interval_m_(get_parameter("point_resample_interval_m").as_double()),
   camera_intrinsics_(camera_utility::getCameraIntrinsics(*this)),
-  ground_projection_lut_(make_ground_projection_lut(*this, camera_intrinsics_, pixel_step_))
+  ground_projection_lut_(make_ground_projection_lut(*this, camera_intrinsics_))
 {
     if (!(voxel_size_m_ > 0.0) || !std::isfinite(voxel_size_m_)) {
         throw std::invalid_argument("voxel_size_m must be greater than 0");
@@ -131,8 +127,7 @@ void LaneLinePublisherNode::lane_mask_callback(const sensor_msgs::msg::Image::Sh
     }
 
     const auto downsampled_points = voxel_downsample(
-        lane_pixels_to_base_points(
-            skeleton_mask, ground_projection_lut_, mask_threshold_, max_observed_points_),
+        lane_pixels_to_base_points(skeleton_mask, ground_projection_lut_, max_observed_points_),
         voxel_size_m_);
     const auto base_points = resample_lane_points(
         downsampled_points, max_point_link_distance_m_, point_resample_interval_m_);

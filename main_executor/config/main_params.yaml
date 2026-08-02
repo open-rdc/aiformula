@@ -40,13 +40,11 @@ zed_wrapper_node:
 lane_line_publisher_node:
   ros__parameters:
     mask_threshold : 128
-    pixel_step : 4
     max_observed_points : 2000
     voxel_size_m : 0.25
     max_point_link_distance_m : 0.5
     point_resample_interval_m : 0.25
     ground_plane_z_base : 0.0
-    min_ground_intersection_distance : 0.2
     max_ground_intersection_distance : 30.0
 
 vectormap_server_node:
