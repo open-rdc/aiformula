@@ -45,7 +45,7 @@ lane_line_publisher_node:
     max_point_link_distance_m : 0.5
     point_resample_interval_m : 0.25
     ground_plane_z_base : 0.0
-    max_ground_intersection_distance : 30.0
+    max_ground_intersection_distance : 12.0
 
 vectormap_server_node:
   ros__parameters:
