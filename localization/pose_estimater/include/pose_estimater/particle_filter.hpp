@@ -61,8 +61,13 @@ struct ParticleFilterConfig
     double likelihood_sigma_m = 0.0;
     double max_correspondence_distance = 0.0;
     double resample_ess_ratio_threshold = 0.0;
-    double reinit_ess_ratio_threshold = 0.0;
+    // 最良パーティクルのRMS残差がこの値を超えたフレームを見失いとして数える。
+    double reinit_residual_threshold_m = 0.0;
     int reinit_consecutive_frames = 0;
+    // estimate() が返す共分散の下限。リサンプルで粒子が潰れても
+    // 実際の推定誤差より小さい共分散を公表しないようにする。
+    double min_position_variance = 0.0;
+    double min_yaw_variance = 0.0;
 };
 
 struct Particle
@@ -93,7 +98,7 @@ public:
 
     void predict(double linear_velocity, double yaw_rate, double dt);
 
-    // 重み計算に加え、連続低ESSフレーム数(見失いストリーク)を内部で更新する。
+    // 重み計算に加え、連続見失いフレーム数(見失いストリーク)を内部で更新する。
     void update_weights(
         const std::vector<Eigen::Vector2d>& source_points_base_link,
         const PfTargetMap& target_map);
@@ -104,8 +109,8 @@ public:
 
     void resample();
 
-    // update_weights() 呼び出し後のESS比が reinit_ess_ratio_threshold を
-    // reinit_consecutive_frames 回連続で下回ったら true。initialize() でリセットされる。
+    // update_weights() で得た最良パーティクルのRMS残差が reinit_residual_threshold_m を
+    // reinit_consecutive_frames 回連続で上回ったら true。initialize() でリセットされる。
     bool needs_reinitialization() const;
 
     PoseEstimate2D estimate() const;
@@ -121,7 +126,7 @@ private:
     std::vector<Particle> particles_;
     std::mt19937 rng_;
     bool initialized_ = false;
-    int low_ess_streak_ = 0;
+    int lost_streak_ = 0;
 };
 
 }

@@ -3,7 +3,7 @@
 <package format="3">
   <name>pose_estimater</name>
   <version>0.0.0</version>
-  <description>Vector map and lane line based ICP pose estimation node.</description>
+  <description>Vector map and lane line based particle filter pose estimation node.</description>
   <maintainer email="s25s1045sc@chibateck.ac.jp">Kyo Yamashita</maintainer>
   <license>MIT</license>
 

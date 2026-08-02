@@ -153,7 +153,7 @@ void ParticleFilter::initialize(
         particle.weight = uniform_weight;
     }
     initialized_ = true;
-    low_ess_streak_ = 0;
+    lost_streak_ = 0;
 }
 
 const std::vector<Particle>& ParticleFilter::particles() const
@@ -247,16 +247,27 @@ void ParticleFilter::update_weights(
     const std::vector<Eigen::Vector2d>& source_points_base_link,
     const PfTargetMap& target_map)
 {
+    if (particles_.empty() || source_points_base_link.empty()) {
+        return;
+    }
+
     const double max_distance_sq = config_.max_correspondence_distance * config_.max_correspondence_distance;
     const double inv_two_sigma_sq = 1.0 / (2.0 * config_.likelihood_sigma_m * config_.likelihood_sigma_m);
+    const double inv_point_count = 1.0 / static_cast<double>(source_points_base_link.size());
 
-    double weight_sum = 0.0;
-    for (auto& particle : particles_) {
+    // 対応距離を超えた点は距離を上限で打ち切って一定の罰を与える。無罰にすると
+    // 地図から外れた点が増えるほど罰の総和が減り、車線幅ぶんずれた姿勢が
+    // 真値より高い尤度を得てしまう。
+    // さらに観測点数で正規化し、実効的な尤度の鋭さを likelihood_sigma_m だけで
+    // 決まるようにする。点数ぶん累積すると実効σが σ/√N まで縮み、
+    // initialize() のばら撒き幅とスケールが合わなくなる。
+    std::vector<double> log_likelihoods(particles_.size());
+    for (std::size_t i = 0U; i < particles_.size(); ++i) {
+        const Particle& particle = particles_[i];
         const double cos_yaw = std::cos(particle.yaw);
         const double sin_yaw = std::sin(particle.yaw);
 
-        double log_likelihood = 0.0;
-        bool has_correspondence = false;
+        double residual_sq_sum = 0.0;
         for (const auto& source_point : source_points_base_link) {
             const Eigen::Vector2d transformed(
                 particle.x + cos_yaw * source_point.x() - sin_yaw * source_point.y(),
@@ -264,40 +275,43 @@ void ParticleFilter::update_weights(
 
             std::size_t nearest_index = 0U;
             if (target_map.nearest(transformed, max_distance_sq, nearest_index)) {
-                const double distance_sq =
+                residual_sq_sum +=
                     (target_map.point(nearest_index).position - transformed).squaredNorm();
-                log_likelihood += -distance_sq * inv_two_sigma_sq;
-                has_correspondence = true;
+            } else {
+                residual_sq_sum += max_distance_sq;
             }
         }
 
-        particle.weight *= has_correspondence ? std::exp(log_likelihood) : 0.0;
-        weight_sum += particle.weight;
+        log_likelihoods[i] = -residual_sq_sum * inv_point_count * inv_two_sigma_sq;
     }
 
-    if (weight_sum <= 0.0) {
-        const double uniform_weight = 1.0 / static_cast<double>(particles_.size());
-        for (auto& particle : particles_) {
-            particle.weight = uniform_weight;
-        }
-        ++low_ess_streak_;
-        return;
-    }
+    const double best_log_likelihood =
+        *std::max_element(log_likelihoods.begin(), log_likelihoods.end());
 
+    // 最良値を引いてからexpするのでアンダーフローしない。最良パーティクルの係数は
+    // 常に1になるため weight_sum は必ず正になる。
+    double weight_sum = 0.0;
+    for (std::size_t i = 0U; i < particles_.size(); ++i) {
+        particles_[i].weight *= std::exp(log_likelihoods[i] - best_log_likelihood);
+        weight_sum += particles_[i].weight;
+    }
     for (auto& particle : particles_) {
         particle.weight /= weight_sum;
     }
 
-    if (effective_sample_size_ratio() < config_.reinit_ess_ratio_threshold) {
-        ++low_ess_streak_;
+    // 見失いは最良パーティクルのRMS残差で判定する。ESS比は重みの偏りしか測らないため、
+    // 全パーティクルが同程度に地図から外れている状態を検出できない。
+    const double best_rms_residual = std::sqrt(-best_log_likelihood / inv_two_sigma_sq);
+    if (best_rms_residual > config_.reinit_residual_threshold_m) {
+        ++lost_streak_;
     } else {
-        low_ess_streak_ = 0;
+        lost_streak_ = 0;
     }
 }
 
 bool ParticleFilter::needs_reinitialization() const
 {
-    return low_ess_streak_ >= config_.reinit_consecutive_frames;
+    return lost_streak_ >= config_.reinit_consecutive_frames;
 }
 
 PoseEstimate2D ParticleFilter::estimate() const
@@ -337,8 +351,14 @@ PoseEstimate2D ParticleFilter::estimate() const
         const double yaw_delta = normalize_angle(particle.yaw - result.yaw);
         yaw_variance += normalized_weight * yaw_delta * yaw_delta;
     }
+    // リサンプルで粒子が潰れると分散が実際の推定誤差より桁違いに小さく出る。
+    // 下限を設けて、EKF側が観測を過信して利得1で追従してしまうのを防ぐ。
     result.position_covariance = position_covariance;
-    result.yaw_variance = yaw_variance;
+    result.position_covariance(0, 0) =
+        std::max(result.position_covariance(0, 0), config_.min_position_variance);
+    result.position_covariance(1, 1) =
+        std::max(result.position_covariance(1, 1), config_.min_position_variance);
+    result.yaw_variance = std::max(yaw_variance, config_.min_yaw_variance);
 
     return result;
 }

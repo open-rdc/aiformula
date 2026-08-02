@@ -12,6 +12,7 @@
 #include <sensor_msgs/point_cloud2_iterator.hpp>
 
 #include "utilities/utils.hpp"
+#include "utilities/vectornav_frame.hpp"
 #include "vectormap_msgs/msg/line_string.hpp"
 
 namespace pose_estimater
@@ -42,10 +43,12 @@ ParticleFilterConfig make_particle_filter_config(rclcpp::Node& node)
         node.get_parameter("pf.max_correspondence_distance_m").as_double();
     config.resample_ess_ratio_threshold =
         node.get_parameter("pf.resample_ess_ratio_threshold").as_double();
-    config.reinit_ess_ratio_threshold =
-        node.get_parameter("pf.reinit_ess_ratio_threshold").as_double();
+    config.reinit_residual_threshold_m =
+        node.get_parameter("pf.reinit_residual_threshold_m").as_double();
     config.reinit_consecutive_frames =
         static_cast<int>(node.get_parameter("pf.reinit_consecutive_frames").as_int());
+    config.min_position_variance = node.get_parameter("pf.min_position_variance").as_double();
+    config.min_yaw_variance = node.get_parameter("pf.min_yaw_variance").as_double();
     return config;
 }
 
@@ -89,12 +92,17 @@ void fill_pose_covariance(
 std::vector<Eigen::Vector2d> lane_line_points_from_cloud(const sensor_msgs::msg::PointCloud2& cloud)
 {
     std::vector<Eigen::Vector2d> points;
-    points.reserve(static_cast<std::size_t>(cloud.width) * cloud.height);
-
-    sensor_msgs::PointCloud2ConstIterator<float> iter_x(cloud, "x");
-    sensor_msgs::PointCloud2ConstIterator<float> iter_y(cloud, "y");
-    for (; iter_x != iter_x.end(); ++iter_x, ++iter_y) {
-        points.emplace_back(static_cast<double>(*iter_x), static_cast<double>(*iter_y));
+    try {
+        sensor_msgs::PointCloud2ConstIterator<float> iter_x(cloud, "x");
+        sensor_msgs::PointCloud2ConstIterator<float> iter_y(cloud, "y");
+        points.reserve(std::min<std::size_t>(
+            static_cast<std::size_t>(cloud.width) * cloud.height,
+            cloud.data.size()));
+        for (; iter_x != iter_x.end(); ++iter_x, ++iter_y) {
+            points.emplace_back(static_cast<double>(*iter_x), static_cast<double>(*iter_y));
+        }
+    } catch (const std::exception&) {
+        return {};
     }
     return points;
 }
@@ -141,8 +149,8 @@ PoseEstimaterNode::PoseEstimaterNode(
         "/initialpose", rclcpp::QoS(1),
         std::bind(&PoseEstimaterNode::initial_pose_callback, this, std::placeholders::_1));
 
-    icp_pose_publisher_ = this->create_publisher<geometry_msgs::msg::PoseWithCovarianceStamped>(
-        "/localization/icp_pose", rclcpp::SensorDataQoS().keep_last(1));
+    pf_pose_publisher_ = this->create_publisher<geometry_msgs::msg::PoseWithCovarianceStamped>(
+        "/localization/pf_pose", rclcpp::SensorDataQoS().keep_last(1));
     raw_pose_publisher_ = this->create_publisher<geometry_msgs::msg::PoseWithCovarianceStamped>(
         "/localization/pose_raw", rclcpp::SensorDataQoS().keep_last(1));
     timer_ = this->create_wall_timer(
@@ -290,78 +298,74 @@ void PoseEstimaterNode::timer_callback()
         pending_initial_pose_.reset();
     }
 
-    try {
-        if (initial_pose_msg) {
-            initial_pose_msg->header.frame_id = "map";
-            initial_pose_msg->header.stamp = this->get_clock()->now();
-            initialize_particle_filter(*initial_pose_msg);
-            icp_pose_publisher_->publish(*initial_pose_msg);
-            return;
-        }
-
-        geometry_msgs::msg::PoseWithCovarianceStamped raw_pose;
-        const bool has_raw_pose =
-            gnss_msg && imu_msg && gnss_to_map_pose(*gnss_msg, *imu_msg, raw_pose);
-        if (has_raw_pose) {
-            raw_pose_publisher_->publish(raw_pose);
-        }
-
-        if (!particle_filter_.initialized()) {
-            if (!has_raw_pose) {
-                RCLCPP_WARN_THROTTLE(
-                    this->get_logger(), *this->get_clock(), 2000,
-                    "waiting for GNSS and IMU");
-                return;
-            }
-            if (!map_points || map_points->empty()) {
-                RCLCPP_WARN_THROTTLE(
-                    this->get_logger(), *this->get_clock(), 2000,
-                    "waiting for vector map");
-                icp_pose_publisher_->publish(raw_pose);
-                return;
-            }
-            initialize_particle_filter(raw_pose);
-            icp_pose_publisher_->publish(raw_pose);
-            return;
-        }
-
-        if (velocity_msg) {
-            const double dt = static_cast<double>(interval_ms_) / 1000.0;
-            particle_filter_.predict(
-                velocity_msg->twist.twist.linear.x, velocity_msg->twist.twist.angular.z, dt);
-        }
-
-        const bool has_new_lane_line =
-            lane_line_points_msg && lane_line_points_msg != processed_lane_line_points_;
-        processed_lane_line_points_ = lane_line_points_msg;
-
-        builtin_interfaces::msg::Time estimate_stamp = this->get_clock()->now();
-
-        if (has_new_lane_line && map_points && !map_points->empty()) {
-            auto source_points = lane_line_points_from_cloud(*lane_line_points_msg);
-            if (source_points.size() >= min_observed_points_) {
-                particle_filter_.update_weights(source_points, *map_points);
-                estimate_stamp = lane_line_points_msg->header.stamp;
-
-                if (particle_filter_.needs_reinitialization() && has_raw_pose) {
-                    initialize_particle_filter(raw_pose);
-                } else if (particle_filter_.should_resample()) {
-                    particle_filter_.resample();
-                }
-            } else {
-                RCLCPP_WARN_THROTTLE(
-                    this->get_logger(), *this->get_clock(), 1000,
-                    "not enough observed lane points: %zu", source_points.size());
-            }
-        }
-
-        icp_pose_publisher_->publish(
-            make_pose(estimate_stamp, particle_filter_.estimate()));
-    } catch (const std::exception& error) {
-        RCLCPP_WARN_THROTTLE(
-            this->get_logger(), *this->get_clock(), 1000,
-            "pose estimation skipped: %s", error.what());
+    if (initial_pose_msg) {
+        initial_pose_msg->header.frame_id = "map";
+        initial_pose_msg->header.stamp = this->get_clock()->now();
+        initialize_particle_filter(*initial_pose_msg);
+        pf_pose_publisher_->publish(*initial_pose_msg);
+        return;
     }
+
+    geometry_msgs::msg::PoseWithCovarianceStamped raw_pose;
+    const bool has_raw_pose =
+        gnss_msg && imu_msg && gnss_to_map_pose(*gnss_msg, *imu_msg, raw_pose);
+    if (has_raw_pose) {
+        raw_pose_publisher_->publish(raw_pose);
+    }
+
+    if (!particle_filter_.initialized()) {
+        if (!has_raw_pose) {
+            RCLCPP_WARN_THROTTLE(
+                this->get_logger(), *this->get_clock(), 2000,
+                "waiting for GNSS and IMU");
+            return;
+        }
+        if (!map_points || map_points->empty()) {
+            RCLCPP_WARN_THROTTLE(
+                this->get_logger(), *this->get_clock(), 2000,
+                "waiting for vector map");
+            pf_pose_publisher_->publish(raw_pose);
+            return;
+        }
+        initialize_particle_filter(raw_pose);
+        pf_pose_publisher_->publish(raw_pose);
+        return;
+    }
+
+    if (velocity_msg) {
+        // velocity_bodyはVN body系(x前 / y右 / z下)で来るのでREP-103へ直す。
+        const geometry_msgs::msg::Twist twist =
+            utils::vn_body_to_rep103(velocity_msg->twist.twist);
+        const double dt = static_cast<double>(interval_ms_) / 1000.0;
+        particle_filter_.predict(twist.linear.x, twist.angular.z, dt);
+    }
+
+    const bool has_new_lane_line =
+        lane_line_points_msg && lane_line_points_msg != processed_lane_line_points_;
+    processed_lane_line_points_ = lane_line_points_msg;
+
+    builtin_interfaces::msg::Time estimate_stamp = this->get_clock()->now();
+
+    if (has_new_lane_line && map_points && !map_points->empty()) {
+        auto source_points = lane_line_points_from_cloud(*lane_line_points_msg);
+        if (source_points.size() >= min_observed_points_) {
+            particle_filter_.update_weights(source_points, *map_points);
+            estimate_stamp = lane_line_points_msg->header.stamp;
+
+            if (particle_filter_.needs_reinitialization() && has_raw_pose) {
+                initialize_particle_filter(raw_pose);
+            } else if (particle_filter_.should_resample()) {
+                particle_filter_.resample();
+            }
+        } else {
+            RCLCPP_WARN_THROTTLE(
+                this->get_logger(), *this->get_clock(), 1000,
+                "not enough observed lane points: %zu", source_points.size());
+        }
+    }
+
+    pf_pose_publisher_->publish(
+        make_pose(estimate_stamp, particle_filter_.estimate()));
 }
 
 }  // namespace pose_estimater

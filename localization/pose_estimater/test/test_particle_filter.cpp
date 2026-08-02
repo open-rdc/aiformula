@@ -50,9 +50,40 @@ ParticleFilterConfig make_default_config()
     config.likelihood_sigma_m = 0.3;
     config.max_correspondence_distance = 1.5;
     config.resample_ess_ratio_threshold = 0.5;
-    config.reinit_ess_ratio_threshold = 0.1;
+    config.reinit_residual_threshold_m = 1.0;
     config.reinit_consecutive_frames = 5;
+    config.min_position_variance = 0.05;
+    config.min_yaw_variance = 0.01;
     return config;
+}
+
+// 幅 2*half_width の直線車線を interval 間隔でサンプリングした地図点群。
+std::vector<PfMapPoint> make_straight_lane_map(
+    const double half_width, const double length, const double interval)
+{
+    std::vector<PfMapPoint> points;
+    for (double s = -5.0; s <= length; s += interval) {
+        points.push_back(PfMapPoint{Eigen::Vector2d(s, half_width)});
+        points.push_back(PfMapPoint{Eigen::Vector2d(s, -half_width)});
+    }
+    return points;
+}
+
+// 真ポーズ(0,0,0)のbase_link系で見た前方 0.2..range m の両側車線観測。
+std::vector<Eigen::Vector2d> make_lane_observation(
+    const double half_width, const double range, const double interval)
+{
+    std::vector<Eigen::Vector2d> points;
+    for (double s = 0.2; s <= range; s += interval) {
+        points.emplace_back(s, half_width);
+        points.emplace_back(s, -half_width);
+    }
+    return points;
+}
+
+double weight_of(const ParticleFilter& filter, const std::size_t index)
+{
+    return filter.particles()[index].weight;
 }
 
 }  // namespace
@@ -219,7 +250,8 @@ TEST(ParticleFilterTest, UpdateWeightsFavorsCloserParticle)
     const auto& particles = filter.particles();
     EXPECT_GT(particles[0].weight, particles[1].weight);
     EXPECT_GT(particles[1].weight, particles[2].weight);
-    EXPECT_NEAR(particles[2].weight, 0.0, 1e-9);
+    // 対応点が無い観測は最大対応距離ぶんの罰を受けるだけで、重みは0にならない。
+    EXPECT_GT(particles[2].weight, 0.0);
 
     double weight_sum = 0.0;
     for (const auto& particle : particles) {
@@ -228,74 +260,158 @@ TEST(ParticleFilterTest, UpdateWeightsFavorsCloserParticle)
     EXPECT_NEAR(weight_sum, 1.0, 1e-9);
 }
 
-TEST(ParticleFilterTest, UpdateWeightsFallsBackToUniformWhenAllParticlesHaveZeroWeight)
+TEST(ParticleFilterTest, UpdateWeightsPrefersTruePoseOverLaneWidthAlias)
 {
     ParticleFilterConfig config = make_default_config();
     config.num_particles = 2U;
-    config.max_correspondence_distance = 0.5;
     ParticleFilter filter(config, 5U);
 
+    const double half_width = 1.5;
+    const PfTargetMap target_map(make_straight_lane_map(half_width, 60.0, 0.25));
+    const auto observation = make_lane_observation(half_width, 30.0, 0.25);
+
     filter.set_particles_for_test({
-        Particle{100.0, 100.0, 0.0, 1.0},
-        Particle{200.0, 200.0, 0.0, 1.0},
+        Particle{0.0, 0.0, 0.0, 0.5},                // 真ポーズ
+        Particle{0.0, 2.0 * half_width, 0.0, 0.5},   // 車線幅ぶん横にずれたエイリアス
     });
 
-    const PfTargetMap target_map(std::vector<PfMapPoint>{PfMapPoint{Eigen::Vector2d(5.0, 0.0)}});
-    const std::vector<Eigen::Vector2d> source_points{Eigen::Vector2d(1.0, 0.0)};
+    filter.update_weights(observation, target_map);
 
-    filter.update_weights(source_points, target_map);
-
-    for (const auto& particle : filter.particles()) {
-        EXPECT_NEAR(particle.weight, 0.5, 1e-9);
-    }
+    EXPECT_GT(weight_of(filter, 0), weight_of(filter, 1));
 }
 
-TEST(ParticleFilterTest, NeedsReinitializationAfterConsecutiveLowEssFrames)
+TEST(ParticleFilterTest, UpdateWeightsKeepsWeightPositiveWithoutCorrespondence)
 {
     ParticleFilterConfig config = make_default_config();
     config.num_particles = 2U;
-    config.max_correspondence_distance = 0.5;  // 対応点が絶対に見つからない設定
-    config.reinit_ess_ratio_threshold = 0.5;
-    config.reinit_consecutive_frames = 3;
     ParticleFilter filter(config, 5U);
-    filter.set_particles_for_test({
-        Particle{100.0, 100.0, 0.0, 0.5},
-        Particle{200.0, 200.0, 0.0, 0.5},
-    });
 
     const PfTargetMap target_map(std::vector<PfMapPoint>{PfMapPoint{Eigen::Vector2d(5.0, 0.0)}});
-    const std::vector<Eigen::Vector2d> source_points{Eigen::Vector2d(1.0, 0.0)};
+    const std::vector<Eigen::Vector2d> observation{Eigen::Vector2d(1.0, 0.0)};
+
+    filter.set_particles_for_test({
+        Particle{4.0, 0.0, 0.0, 0.5},       // (1,0)->(5,0): 完全一致
+        Particle{100.0, 100.0, 0.0, 0.5},   // 対応点なし
+    });
+
+    filter.update_weights(observation, target_map);
+
+    EXPECT_GT(weight_of(filter, 0), weight_of(filter, 1));
+    EXPECT_GT(weight_of(filter, 1), 0.0);
+}
+
+TEST(ParticleFilterTest, UpdateWeightsSharpnessIsIndependentOfPointCount)
+{
+    const auto weight_ratio_for = [](const std::size_t point_count) {
+        ParticleFilterConfig config = make_default_config();
+        config.num_particles = 2U;
+        ParticleFilter filter(config, 5U);
+
+        std::vector<PfMapPoint> map_points;
+        for (std::size_t i = 0U; i < 400U; ++i) {
+            map_points.push_back(
+                PfMapPoint{Eigen::Vector2d(0.25 * static_cast<double>(i), 0.0)});
+        }
+        const PfTargetMap target_map(std::move(map_points));
+
+        std::vector<Eigen::Vector2d> observation;
+        for (std::size_t i = 0U; i < point_count; ++i) {
+            observation.emplace_back(1.0 + 0.25 * static_cast<double>(i), 0.0);
+        }
+
+        filter.set_particles_for_test({
+            Particle{0.0, 0.0, 0.0, 0.5},   // 全点で残差0
+            Particle{0.0, 0.3, 0.0, 0.5},   // 全点で残差0.3m
+        });
+        filter.update_weights(observation, target_map);
+        return weight_of(filter, 1) / weight_of(filter, 0);
+    };
+
+    // 残差0.3m / likelihood_sigma_m 0.3m の重み比は exp(-0.5)。
+    // 観測点数で正規化されていれば点数に依らずこの値になる。
+    // 累積のままだと exp(-0.5*N) となり点数の指数で変わってしまう。
+    const double expected = std::exp(-0.5);
+    EXPECT_NEAR(weight_ratio_for(20U), expected, 0.02);
+    EXPECT_NEAR(weight_ratio_for(40U), expected, 0.02);
+}
+
+TEST(ParticleFilterTest, UpdateWeightsDiscriminatesWithManyObservationPoints)
+{
+    ParticleFilterConfig config = make_default_config();
+    config.num_particles = 3U;
+    ParticleFilter filter(config, 5U);
+
+    const double half_width = 1.5;
+    const PfTargetMap target_map(make_straight_lane_map(half_width, 300.0, 0.25));
+    const auto observation = make_lane_observation(half_width, 30.0, 0.03);
+    ASSERT_GE(observation.size(), 1900U);
+
+    filter.set_particles_for_test({
+        Particle{0.0, 0.0, 0.0, 1.0 / 3.0},
+        Particle{0.0, 0.2, 0.0, 1.0 / 3.0},
+        Particle{0.0, 0.8, 0.0, 1.0 / 3.0},
+    });
+
+    filter.update_weights(observation, target_map);
+
+    EXPECT_GT(weight_of(filter, 0), weight_of(filter, 1));
+    EXPECT_GT(weight_of(filter, 1), weight_of(filter, 2));
+    EXPECT_GT(weight_of(filter, 2), 0.0);
+}
+
+TEST(ParticleFilterTest, NeedsReinitializationWhenBestResidualStaysLarge)
+{
+    ParticleFilterConfig config = make_default_config();
+    config.num_particles = 2U;
+    config.max_correspondence_distance = 1.5;
+    config.reinit_residual_threshold_m = 0.5;
+    config.reinit_consecutive_frames = 3;
+    ParticleFilter filter(config, 5U);
+
+    const PfTargetMap target_map(std::vector<PfMapPoint>{PfMapPoint{Eigen::Vector2d(5.0, 0.0)}});
+    const std::vector<Eigen::Vector2d> observation{Eigen::Vector2d(1.0, 0.0)};
+
+    // どちらも残差1.2mで対等。重みは均一になるためESS比は1.0だが、
+    // 地図には全く合っていないので見失いとして扱う必要がある。
+    filter.set_particles_for_test({
+        Particle{4.0, 1.2, 0.0, 0.5},
+        Particle{4.0, -1.2, 0.0, 0.5},
+    });
 
     EXPECT_FALSE(filter.needs_reinitialization());
-    filter.update_weights(source_points, target_map);  // streak=1（全滅フォールバック）
+    filter.update_weights(observation, target_map);
     EXPECT_FALSE(filter.needs_reinitialization());
-    filter.update_weights(source_points, target_map);  // streak=2
+    filter.update_weights(observation, target_map);
     EXPECT_FALSE(filter.needs_reinitialization());
-    filter.update_weights(source_points, target_map);  // streak=3 >= reinit_consecutive_frames
+    filter.update_weights(observation, target_map);
     EXPECT_TRUE(filter.needs_reinitialization());
 }
 
-TEST(ParticleFilterTest, GoodEssRatioResetsReinitStreak)
+TEST(ParticleFilterTest, SmallResidualResetsReinitStreak)
 {
     ParticleFilterConfig config = make_default_config();
-    config.num_particles = 1U;
-    config.likelihood_sigma_m = 0.3;
-    config.max_correspondence_distance = 2.0;
-    config.reinit_ess_ratio_threshold = 0.5;
+    config.num_particles = 2U;
+    config.max_correspondence_distance = 1.5;
+    config.reinit_residual_threshold_m = 0.5;
     config.reinit_consecutive_frames = 1;
     ParticleFilter filter(config, 5U);
 
     const PfTargetMap target_map(std::vector<PfMapPoint>{PfMapPoint{Eigen::Vector2d(5.0, 0.0)}});
-    const std::vector<Eigen::Vector2d> matching_source{Eigen::Vector2d(1.0, 0.0)};
-    const std::vector<Eigen::Vector2d> missing_source{Eigen::Vector2d(-1000.0, -1000.0)};
+    const std::vector<Eigen::Vector2d> observation{Eigen::Vector2d(1.0, 0.0)};
 
-    filter.set_particles_for_test({Particle{100.0, 100.0, 0.0, 1.0}});
-    filter.update_weights(missing_source, target_map);
-    EXPECT_TRUE(filter.needs_reinitialization());  // streak=1 >= reinit_consecutive_frames=1
+    filter.set_particles_for_test({
+        Particle{4.0, 1.2, 0.0, 0.5},
+        Particle{4.0, -1.2, 0.0, 0.5},
+    });
+    filter.update_weights(observation, target_map);
+    EXPECT_TRUE(filter.needs_reinitialization());
 
-    filter.set_particles_for_test({Particle{4.0, 0.0, 0.0, 1.0}});  // (1,0)->(5,0): 完全一致
-    filter.update_weights(matching_source, target_map);
-    EXPECT_FALSE(filter.needs_reinitialization());  // 良好なESS比でストリークがリセットされる
+    filter.set_particles_for_test({
+        Particle{4.0, 0.0, 0.0, 0.5},
+        Particle{4.0, 0.05, 0.0, 0.5},
+    });
+    filter.update_weights(observation, target_map);
+    EXPECT_FALSE(filter.needs_reinitialization());
 }
 
 TEST(ParticleFilterTest, EstimateComputesWeightedMeanAndCovariance)
@@ -314,6 +430,31 @@ TEST(ParticleFilterTest, EstimateComputesWeightedMeanAndCovariance)
     EXPECT_NEAR(estimate.y, 0.0, 1e-9);
     EXPECT_NEAR(estimate.yaw, 0.0, 1e-9);
     EXPECT_NEAR(estimate.position_covariance(0, 0), 1.0, 1e-9);
+}
+
+TEST(ParticleFilterTest, EstimateClampsCovarianceToFloor)
+{
+    ParticleFilterConfig config = make_default_config();
+    config.num_particles = 3U;
+    config.min_position_variance = 0.05;
+    config.min_yaw_variance = 0.01;
+    ParticleFilter filter(config, 1U);
+
+    // リサンプルで退化し全粒子が同一ポーズに潰れた状態。粒子分散は0になるが、
+    // 実際の推定誤差が0でないことを下限で表明する必要がある。
+    filter.set_particles_for_test({
+        Particle{1.0, 2.0, 0.3, 1.0 / 3.0},
+        Particle{1.0, 2.0, 0.3, 1.0 / 3.0},
+        Particle{1.0, 2.0, 0.3, 1.0 / 3.0},
+    });
+
+    const auto estimate = filter.estimate();
+
+    EXPECT_NEAR(estimate.x, 1.0, 1e-9);
+    EXPECT_NEAR(estimate.y, 2.0, 1e-9);
+    EXPECT_GE(estimate.position_covariance(0, 0), 0.05);
+    EXPECT_GE(estimate.position_covariance(1, 1), 0.05);
+    EXPECT_GE(estimate.yaw_variance, 0.01);
 }
 
 TEST(ParticleFilterTest, EstimateYawHandlesWrapAroundNearPi)
