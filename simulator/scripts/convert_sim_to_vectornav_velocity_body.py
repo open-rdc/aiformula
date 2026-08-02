@@ -21,7 +21,15 @@ class Converter(Node):
         out.header = msg.header
         out.header.frame_id = self.body_frame_id
 
-        out.twist.twist = msg.twist.twist
+        # 実機のvectornavドライバはVN body系(x前 / y右 / z下、yaw rateは時計回り正)で
+        # velocity_bodyを出す。Gazeboの/odomはREP-103(x前 / y左 / z上)なので、
+        # x軸まわりpi回転でVN body系に合わせる。
+        out.twist.twist.linear.x = msg.twist.twist.linear.x
+        out.twist.twist.linear.y = -msg.twist.twist.linear.y
+        out.twist.twist.linear.z = -msg.twist.twist.linear.z
+        out.twist.twist.angular.x = msg.twist.twist.angular.x
+        out.twist.twist.angular.y = -msg.twist.twist.angular.y
+        out.twist.twist.angular.z = -msg.twist.twist.angular.z
         out.twist.covariance = msg.twist.covariance
 
         self.publisher.publish(out)

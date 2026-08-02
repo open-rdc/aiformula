@@ -342,7 +342,7 @@
 
     <link name="camera_rgb_link">
       <pose relative_to="camera_link">0 0 0 0 0 0</pose>
-      <sensor name="camera_rgb_link" type="camera">
+      <sensor name="rgb_camera" type="camera">
         <update_rate>60.0</update_rate>
         <always_on>true</always_on>
         <ignition_frame_id>camera_rgb_link</ignition_frame_id>
@@ -366,7 +366,7 @@
 
     <link name="camera_depth_link">
       <pose relative_to="camera_link">0 0 0 0 0 0</pose>
-      <sensor name="camera_depth_link" type="depth">
+      <sensor name="depth_camera" type="depth">
         <update_rate>60.0</update_rate>
         <always_on>true</always_on>
         <ignition_frame_id>camera_depth_link</ignition_frame_id>
