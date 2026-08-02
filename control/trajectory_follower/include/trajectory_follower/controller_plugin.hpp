@@ -22,6 +22,10 @@ public:
         const rclcpp::Clock::SharedPtr & clock,
         const rclcpp::node_interfaces::NodeParametersInterface::SharedPtr & params) = 0;
 
+    virtual void reset() {}
+
+    virtual void setMeasuredSteer(double) {}
+
     virtual std::optional<steered_drive_msg::msg::SteeredDrive> computeCommand(
         const nav_msgs::msg::Path & path_in_base,
         double current_velocity,

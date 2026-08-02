@@ -15,6 +15,10 @@ public:
         const rclcpp::Clock::SharedPtr & clock,
         const rclcpp::node_interfaces::NodeParametersInterface::SharedPtr & params) override;
 
+    void reset() override;
+
+    void setMeasuredSteer(double steer) override;
+
     std::optional<steered_drive_msg::msg::SteeredDrive> computeCommand(
         const nav_msgs::msg::Path & path_in_base,
         double current_velocity,

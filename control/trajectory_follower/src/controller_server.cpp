@@ -1,7 +1,11 @@
 #include "trajectory_follower/controller_server.hpp"
 
 #include <cmath>
+#include <optional>
 #include <stdexcept>
+
+#include "trajectory_follower/deadman.hpp"
+#include "utilities/utils.hpp"
 
 namespace trajectory_follower
 {
@@ -16,6 +20,7 @@ ControllerServer::ControllerServer(
     const rclcpp::NodeOptions & options)
 : rclcpp::Node("controller_server_node", name_space, options),
   control_period_ms_(get_parameter("control_period_ms").as_int()),
+  input_timeout_s_(get_parameter("input_timeout_s").as_double()),
   plugin_loader_("trajectory_follower", "trajectory_follower::ControllerPlugin")
 {
     if (control_period_ms_ <= 0) {
@@ -46,6 +51,9 @@ ControllerServer::ControllerServer(
         "/autonomous", qos,
         std::bind(
             &ControllerServer::autonomous_callback, this, std::placeholders::_1));
+    caster_data_subscription_ = create_subscription<std_msgs::msg::Float64MultiArray>(
+        "/caster_data", qos,
+        std::bind(&ControllerServer::caster_data_callback, this, std::placeholders::_1));
     command_publisher_ =
         create_publisher<steered_drive_msg::msg::SteeredDrive>("/cmd_vel", qos);
     target_pose_publisher_ =
@@ -59,10 +67,19 @@ ControllerServer::ControllerServer(
 void ControllerServer::path_callback(const nav_msgs::msg::Path::SharedPtr msg)
 {
     if (!msg) {
-        throw std::runtime_error("path message must not be null");
+        RCLCPP_WARN(get_logger(), "pathメッセージがnullのため無視します");
+        return;
     }
     std::lock_guard<std::mutex> lock(data_mutex_);
     latest_path_ = msg;
+}
+
+void ControllerServer::publish_stop_command()
+{
+    steered_drive_msg::msg::SteeredDrive stop_command;
+    stop_command.velocity = 0.0;
+    stop_command.steering_angle = 0.0;
+    command_publisher_->publish(stop_command);
 }
 
 void ControllerServer::timer_callback()
@@ -71,6 +88,7 @@ void ControllerServer::timer_callback()
     geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr latest_pose;
     double current_velocity = 0.0;
     bool autonomous_enabled = false;
+    std::optional<double> measured_steer;
     {
         std::lock_guard<std::mutex> lock(data_mutex_);
         path = latest_path_;
@@ -79,24 +97,46 @@ void ControllerServer::timer_callback()
         if (latest_velocity_) {
             current_velocity = latest_velocity_->twist.twist.linear.x;
         }
+        if (latest_caster_data_ && latest_caster_data_->data.size() >= 2 &&
+            !is_stale(now(), latest_caster_stamp_, input_timeout_s_))
+        {
+            measured_steer = latest_caster_data_->data[1];
+        }
     }
 
     if (!autonomous_enabled) {
         return;
     }
     if (!path) {
-        RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000, "waiting for local path");
+        RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000, "経路を待機中です");
+        publish_stop_command();
         return;
     }
     if (path->poses.empty()) {
-        RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000, "received empty local path");
+        RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000, "空の経路を受信しました");
+        publish_stop_command();
         return;
     }
-    if (path->header.frame_id == "map" && !latest_pose) {
+    if (is_stale(now(), path->header.stamp, input_timeout_s_)) {
         RCLCPP_WARN_THROTTLE(
-            get_logger(), *get_clock(), 1000,
-            "waiting for localization pose before tracking map-frame path");
+            get_logger(), *get_clock(), 1000, "経路が古いため停止指令を送信します");
+        publish_stop_command();
         return;
+    }
+    if (path->header.frame_id == "map") {
+        if (!latest_pose) {
+            RCLCPP_WARN_THROTTLE(
+                get_logger(), *get_clock(), 1000,
+                "自己位置を待機中のため停止指令を送信します");
+            publish_stop_command();
+            return;
+        }
+        if (is_stale(now(), latest_pose->header.stamp, input_timeout_s_)) {
+            RCLCPP_WARN_THROTTLE(
+                get_logger(), *get_clock(), 1000, "自己位置が古いため停止指令を送信します");
+            publish_stop_command();
+            return;
+        }
     }
 
     nav_msgs::msg::Path path_in_base;
@@ -107,13 +147,22 @@ void ControllerServer::timer_callback()
     } else {
         RCLCPP_WARN_THROTTLE(
             get_logger(), *get_clock(), 1000,
-            "unsupported path frame_id: %s", path->header.frame_id.c_str());
+            "未対応のframe_idです: %s", path->header.frame_id.c_str());
+        publish_stop_command();
         return;
+    }
+
+    if (measured_steer) {
+        plugin_->setMeasuredSteer(*measured_steer);
     }
 
     geometry_msgs::msg::PoseStamped target_pose;
     const auto command = plugin_->computeCommand(path_in_base, current_velocity, target_pose);
     if (!command) {
+        RCLCPP_WARN_THROTTLE(
+            get_logger(), *get_clock(), 1000,
+            "前方目標が見つからないため停止指令を送信します");
+        publish_stop_command();
         return;
     }
 
@@ -127,11 +176,14 @@ void ControllerServer::pose_callback(
     const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg)
 {
     if (!msg) {
-        throw std::runtime_error("localization pose message must not be null");
+        RCLCPP_WARN(get_logger(), "localization poseメッセージがnullのため無視します");
+        return;
     }
     if (msg->header.frame_id != "map") {
-        throw std::runtime_error(
-            "localization pose frame_id must be map, got " + msg->header.frame_id);
+        RCLCPP_WARN(
+            get_logger(), "localization poseのframe_idがmapではありません: %s",
+            msg->header.frame_id.c_str());
+        return;
     }
     std::lock_guard<std::mutex> lock(data_mutex_);
     latest_pose_ = msg;
@@ -141,7 +193,8 @@ void ControllerServer::velocity_callback(
     const geometry_msgs::msg::TwistWithCovarianceStamped::SharedPtr msg)
 {
     if (!msg) {
-        throw std::runtime_error("velocity message must not be null");
+        RCLCPP_WARN(get_logger(), "velocityメッセージがnullのため無視します");
+        return;
     }
     std::lock_guard<std::mutex> lock(data_mutex_);
     latest_velocity_ = msg;
@@ -150,17 +203,38 @@ void ControllerServer::velocity_callback(
 void ControllerServer::autonomous_callback(const std_msgs::msg::Bool::SharedPtr msg)
 {
     if (!msg) {
-        throw std::runtime_error("autonomous message must not be null");
+        RCLCPP_WARN(get_logger(), "autonomousメッセージがnullのため無視します");
+        return;
+    }
+    bool rising_edge = false;
+    {
+        std::lock_guard<std::mutex> lock(data_mutex_);
+        rising_edge = msg->data && !autonomous_enabled_;
+        autonomous_enabled_ = msg->data;
+    }
+    if (rising_edge) {
+        plugin_->reset();
+        RCLCPP_INFO(get_logger(), "自律モード再有効化を検知し、コントローラ状態をリセットしました");
+    }
+}
+
+void ControllerServer::caster_data_callback(
+    const std_msgs::msg::Float64MultiArray::SharedPtr msg)
+{
+    if (!msg || msg->data.size() < 2) {
+        RCLCPP_WARN(get_logger(), "caster_dataメッセージが不正のため無視します");
+        return;
     }
     std::lock_guard<std::mutex> lock(data_mutex_);
-    autonomous_enabled_ = msg->data;
+    latest_caster_data_ = msg;
+    latest_caster_stamp_ = now();
 }
 
 nav_msgs::msg::Path ControllerServer::transform_path_to_base(
     const nav_msgs::msg::Path & path,
     const geometry_msgs::msg::PoseWithCovarianceStamped & ego_pose) const
 {
-    const double yaw = yaw_from_quaternion(ego_pose.pose.pose.orientation);
+    const double yaw = utils::yaw_from_quaternion(ego_pose.pose.pose.orientation);
     const double cos_yaw = std::cos(yaw);
     const double sin_yaw = std::sin(yaw);
     const double ego_x = ego_pose.pose.pose.position.x;
@@ -183,13 +257,6 @@ nav_msgs::msg::Path ControllerServer::transform_path_to_base(
     }
 
     return path_in_base;
-}
-
-double ControllerServer::yaw_from_quaternion(const geometry_msgs::msg::Quaternion & q)
-{
-    const double siny_cosp = 2.0 * (q.w * q.z + q.x * q.y);
-    const double cosy_cosp = 1.0 - 2.0 * (q.y * q.y + q.z * q.z);
-    return std::atan2(siny_cosp, cosy_cosp);
 }
 
 }

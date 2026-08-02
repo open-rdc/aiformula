@@ -34,6 +34,8 @@ private:
     double steered_gain_{0.0};
     double wheelbase_{0.0};
     double steering_max_angle_rad_{0.0};
+    double a_lat_max_{5.0};
+    double a_min_{-2.0};
 };
 
 }

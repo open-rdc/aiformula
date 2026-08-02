@@ -8,35 +8,18 @@
 #include <Eigen/Core>
 #include <Eigen/Dense>
 
+#include "trajectory_follower/mpc/speed_limit.hpp"
+
 namespace trajectory_follower
 {
 
 namespace
 {
-constexpr double EPSILON = 1.0e-9;
-
 double normalize_angle(double a)
 {
     while (a > M_PI) a -= 2.0 * M_PI;
     while (a < -M_PI) a += 2.0 * M_PI;
     return a;
-}
-
-double menger_curvature(
-    const std::array<double, 2> & p0,
-    const std::array<double, 2> & p1,
-    const std::array<double, 2> & p2)
-{
-    const double area2 =
-        (p1[0] - p0[0]) * (p2[1] - p0[1]) - (p1[1] - p0[1]) * (p2[0] - p0[0]);
-    const double a = std::hypot(p1[0] - p0[0], p1[1] - p0[1]);
-    const double b = std::hypot(p2[0] - p1[0], p2[1] - p1[1]);
-    const double c = std::hypot(p2[0] - p0[0], p2[1] - p0[1]);
-    const double denom = a * b * c;
-    if (denom < EPSILON) {
-        return 0.0;
-    }
-    return 2.0 * area2 / denom;
 }
 }
 
@@ -157,7 +140,15 @@ double LateralMpc::computeSteering(
     const double R = p_.weight_steering_input;
     const double Rd = p_.weight_steer_rate;
 
-    const Eigen::VectorXd x0vec = (Eigen::Vector3d() << e_y, e_yaw, prev_steer_).finished();
+    double steer_state = prev_steer_;
+    if (measured_steer_) {
+        const double normalized =
+            std::atan2(std::sin(*measured_steer_), std::cos(*measured_steer_));
+        steer_state = std::clamp(normalized, -p_.steer_limit, p_.steer_limit);
+        measured_steer_.reset();
+    }
+
+    const Eigen::VectorXd x0vec = (Eigen::Vector3d() << e_y, e_yaw, steer_state).finished();
 
     const Eigen::MatrixXd SuTQ = Su.transpose() * Qbar;
     Eigen::MatrixXd M = SuTQ * Su + R * Eigen::MatrixXd::Identity(N, N) + Rd * (D.transpose() * D);
@@ -177,6 +168,11 @@ double LateralMpc::computeSteering(
 void LateralMpc::reset()
 {
     prev_steer_ = 0.0;
+}
+
+void LateralMpc::setMeasuredSteer(double steer)
+{
+    measured_steer_ = steer;
 }
 
 }

@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <cmath>
 
+#include "trajectory_follower/mpc/speed_limit.hpp"
+
 namespace trajectory_follower
 {
 
@@ -19,18 +21,7 @@ void LongitudinalPid::configure(const LongitudinalParams & params)
 
 double LongitudinalPid::referenceSpeed(double curvature, double dist_to_end) const
 {
-    double v = p_.v_max;
-
-    const double kappa = std::abs(curvature);
-    if (kappa > 1.0e-6) {
-        v = std::min(v, std::sqrt(p_.a_lat_max / kappa));
-    }
-
-    const double a_decel = std::abs(p_.a_min);
-    const double v_stop = std::sqrt(std::max(0.0, 2.0 * a_decel * std::max(0.0, dist_to_end)));
-    v = std::min(v, v_stop);
-
-    return std::clamp(v, 0.0, p_.v_max);
+    return v_limit(p_.v_max, p_.a_lat_max, std::abs(p_.a_min), curvature, dist_to_end);
 }
 
 double LongitudinalPid::update(double v_ref, double v_meas)

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <optional>
 #include <vector>
 
 namespace trajectory_follower
@@ -31,11 +32,14 @@ public:
 
     void reset();
 
+    void setMeasuredSteer(double steer);
+
     double previousSteer() const { return prev_steer_; }
 
 private:
     LateralMpcParams p_{};
     double prev_steer_ = 0.0;
+    std::optional<double> measured_steer_;
 };
 
 }

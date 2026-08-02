@@ -10,31 +10,11 @@
 
 #include <pluginlib/class_list_macros.hpp>
 
+#include "trajectory_follower/mpc/speed_limit.hpp"
+#include "utilities/utils.hpp"
+
 namespace trajectory_follower
 {
-
-namespace
-{
-constexpr double DEG2RAD = 0.017453292519943295;
-constexpr double EPSILON = 1.0e-9;
-
-double menger_curvature(
-    const std::array<double, 2> & p0,
-    const std::array<double, 2> & p1,
-    const std::array<double, 2> & p2)
-{
-    const double area2 =
-        (p1[0] - p0[0]) * (p2[1] - p0[1]) - (p1[1] - p0[1]) * (p2[0] - p0[0]);
-    const double a = std::hypot(p1[0] - p0[0], p1[1] - p0[1]);
-    const double b = std::hypot(p2[0] - p1[0], p2[1] - p1[1]);
-    const double c = std::hypot(p2[0] - p0[0], p2[1] - p0[1]);
-    const double denom = a * b * c;
-    if (denom < EPSILON) {
-        return 0.0;
-    }
-    return 2.0 * area2 / denom;
-}
-}
 
 void PidMpcPlugin::initialize(
     const rclcpp::Logger & logger,
@@ -55,9 +35,9 @@ void PidMpcPlugin::initialize(
 
     LongitudinalParams lon;
     lon.v_max = get_d("linear_max.vel", 2.0);
-    lon.a_lat_max = get_d("mpc.longitudinal.a_lat_max", 2.0);
+    lon.a_lat_max = get_d("a_lat_max", 5.0);
     lon.a_max = get_d("mpc.longitudinal.a_max", 1.0);
-    lon.a_min = get_d("mpc.longitudinal.a_min", -2.0);
+    lon.a_min = get_d("a_min", -2.0);
     lon.jerk_max = get_d("mpc.longitudinal.jerk_max", 2.0);
     lon.kp = get_d("mpc.longitudinal.kp", 0.8);
     lon.ki = get_d("mpc.longitudinal.ki", 0.1);
@@ -69,7 +49,7 @@ void PidMpcPlugin::initialize(
     LateralMpcParams lat;
     lat.wheelbase = get_d("wheelbase", 0.8);
     lat.steer_tau = get_d("mpc.lateral.steer_tau", 0.3);
-    lat.steer_limit = get_d("steering_max.pos", 15.0) * DEG2RAD;
+    lat.steer_limit = utils::dtor(get_d("steering_max.pos", 15.0));
     lat.weight_lat_error = get_d("mpc.lateral.weight_lat_error", 1.0);
     lat.weight_heading_error = get_d("mpc.lateral.weight_heading_error", 1.0);
     lat.weight_steering_input = get_d("mpc.lateral.weight_steering_input", 0.5);
@@ -89,6 +69,17 @@ void PidMpcPlugin::initialize(
         logger_,
         "PidMpcPlugin 初期化: 縦PID(kp=%.2f ki=%.2f kd=%.2f) + 横MPC(N=%d dt=%.2f)",
         lon.kp, lon.ki, lon.kd, lat.horizon, lat.prediction_dt);
+}
+
+void PidMpcPlugin::reset()
+{
+    longitudinal_.reset();
+    lateral_.reset();
+}
+
+void PidMpcPlugin::setMeasuredSteer(double steer)
+{
+    lateral_.setMeasuredSteer(steer);
 }
 
 std::optional<steered_drive_msg::msg::SteeredDrive> PidMpcPlugin::computeCommand(
@@ -125,17 +116,11 @@ std::optional<steered_drive_msg::msg::SteeredDrive> PidMpcPlugin::computeCommand
     }
 
     const double dist_to_end = arc[n - 1] - arc[nearest];
-
-    double curvature = 0.0;
-    const double window = 3.0;
-    for (int i = std::max(1, nearest); i < n - 1; ++i) {
-        if (arc[i] - arc[nearest] > window) break;
-        curvature = std::max(curvature, std::abs(menger_curvature(path_xy[i - 1], path_xy[i], path_xy[i + 1])));
-    }
+    const double curvature = forward_max_curvature(path_xy, arc, nearest, 3.0);
 
     const double v_ref = longitudinal_.referenceSpeed(curvature, dist_to_end);
     const double v_cmd = longitudinal_.update(v_ref, current_velocity);
-    const double steer = lateral_.computeSteering(path_xy, v_ref);
+    const double steer = lateral_.computeSteering(path_xy, current_velocity);
 
     int target_idx = nearest;
     for (int i = nearest; i < n; ++i) {
