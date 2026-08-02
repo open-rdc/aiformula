@@ -13,6 +13,7 @@
 #include <visualization_msgs/msg/marker_array.hpp>
 
 #include "lane_line_publisher/ground_projection.hpp"
+#include "lane_line_publisher/lane_line_resampling.hpp"
 #include "lane_line_publisher/visibility_control.h"
 
 namespace lane_line_publisher
@@ -42,9 +43,11 @@ private:
     const uint8_t mask_threshold_;
     const int pixel_step_;
     const std::size_t max_observed_points_;
-    const CameraModel camera_model_;
-
-    GroundProjectionLUT ground_projection_lut_;
+    const double voxel_size_m_;
+    const double max_point_link_distance_m_;
+    const double point_resample_interval_m_;
+    const camera_utility::CameraIntrinsics camera_intrinsics_;
+    const GroundProjectionLUT ground_projection_lut_;
 
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr mask_subscription_;
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr lane_line_points_publisher_;

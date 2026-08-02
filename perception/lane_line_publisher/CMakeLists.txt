@@ -13,7 +13,10 @@ find_package(OpenCV REQUIRED)
 
 ament_auto_add_library(lane_line_publisher_node SHARED
   src/ground_projection.cpp
+  src/lane_line_resampling.cpp
   src/lane_line_publisher_node.cpp
+  src/vectormap_projection.cpp
+  src/vectormap_visualizer_node.cpp
 )
 target_compile_features(lane_line_publisher_node PUBLIC c_std_99 cxx_std_17)
 target_compile_definitions(lane_line_publisher_node PRIVATE "LANE_LINE_PUBLISHER_BUILDING_LIBRARY")
@@ -27,6 +30,16 @@ target_link_libraries(lane_line_publisher_node
   Eigen3::Eigen
   ${OpenCV_LIBRARIES}
 )
+
+if(BUILD_TESTING)
+  find_package(ament_cmake_gtest REQUIRED)
+  ament_add_gtest(test_lane_line_resampling test/test_lane_line_resampling.cpp)
+  target_link_libraries(test_lane_line_resampling lane_line_publisher_node)
+  ament_add_gtest(test_ground_projection test/test_ground_projection.cpp)
+  target_link_libraries(test_ground_projection lane_line_publisher_node)
+  ament_add_gtest(test_vectormap_projection test/test_vectormap_projection.cpp)
+  target_link_libraries(test_vectormap_projection lane_line_publisher_node)
+endif()
 
 install(
   DIRECTORY include/

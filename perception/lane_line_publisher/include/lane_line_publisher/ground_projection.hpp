@@ -6,22 +6,12 @@
 
 #include <Eigen/Core>
 #include <opencv2/core.hpp>
+#include <tf2/LinearMath/Transform.h>
+
+#include <camera_utility/camera_intrinsics.hpp>
 
 namespace lane_line_publisher
 {
-
-struct CameraModel
-{
-    double fx;
-    double fy;
-    double cx;
-    double cy;
-    double ground_plane_z_base;
-    double min_ground_intersection_distance;
-    double max_ground_intersection_distance;
-    Eigen::Matrix3d camera_to_base_rotation;
-    Eigen::Vector3d camera_to_base_translation;
-};
 
 struct GroundProjectionEntry
 {
@@ -40,17 +30,17 @@ struct GroundProjectionLUT
 };
 
 GroundProjectionLUT build_ground_projection_lut(
-    const CameraModel& camera_model,
-    int pixel_step,
-    int image_width,
-    int image_height);
+    const camera_utility::CameraIntrinsics& intrinsics,
+    const tf2::Transform& base_T_camera,
+    double ground_z,
+    double min_ground_intersection_distance,
+    double max_ground_intersection_distance,
+    int pixel_step);
 
 std::vector<Eigen::Vector2d> lane_pixels_to_base_points(
     const cv::Mat& skeleton_mask,
     const GroundProjectionLUT& lut,
     uint8_t mask_threshold,
     std::size_t max_points);
-
-Eigen::Matrix3d rotation_matrix_from_rpy(double roll, double pitch, double yaw);
 
 }

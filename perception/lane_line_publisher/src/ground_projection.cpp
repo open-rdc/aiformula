@@ -1,63 +1,45 @@
 #include "lane_line_publisher/ground_projection.hpp"
 
-#include <cmath>
 #include <stdexcept>
 
-#include <Eigen/Geometry>
+#include <camera_utility/ground_conversion.hpp>
 
 namespace lane_line_publisher
 {
 
-Eigen::Matrix3d rotation_matrix_from_rpy(const double roll, const double pitch, const double yaw)
-{
-    const Eigen::AngleAxisd roll_angle(roll, Eigen::Vector3d::UnitX());
-    const Eigen::AngleAxisd pitch_angle(pitch, Eigen::Vector3d::UnitY());
-    const Eigen::AngleAxisd yaw_angle(yaw, Eigen::Vector3d::UnitZ());
-    return (yaw_angle * pitch_angle * roll_angle).toRotationMatrix();
-}
-
 GroundProjectionLUT build_ground_projection_lut(
-    const CameraModel& camera_model,
-    const int pixel_step,
-    const int image_width,
-    const int image_height)
+    const camera_utility::CameraIntrinsics& intrinsics,
+    const tf2::Transform& base_T_camera,
+    const double ground_z,
+    const double min_ground_intersection_distance,
+    const double max_ground_intersection_distance,
+    const int pixel_step)
 {
     if (pixel_step <= 0) {
         throw std::invalid_argument("pixel_step must be greater than 0");
     }
-    if (image_width <= 0 || image_height <= 0) {
+    if (intrinsics.width <= 0 || intrinsics.height <= 0) {
         throw std::invalid_argument("image dimensions must be greater than 0");
     }
 
     GroundProjectionLUT lut;
     lut.entries.reserve(
-        static_cast<std::size_t>((image_width / pixel_step) + 1) *
-        static_cast<std::size_t>((image_height / pixel_step) + 1));
+        static_cast<std::size_t>((intrinsics.width / pixel_step) + 1) *
+        static_cast<std::size_t>((intrinsics.height / pixel_step) + 1));
 
-    for (int row = 0; row < image_height; row += pixel_step) {
-        for (int col = 0; col < image_width; col += pixel_step) {
-            const Eigen::Vector3d camera_ray(
-                (static_cast<double>(col) - camera_model.cx) / camera_model.fx,
-                (static_cast<double>(row) - camera_model.cy) / camera_model.fy,
-                1.0);
-            const Eigen::Vector3d base_ray = camera_model.camera_to_base_rotation * camera_ray;
-            if (std::abs(base_ray.z()) < 1.0e-9) {
+    for (int row = 0; row < intrinsics.height; row += pixel_step) {
+        for (int col = 0; col < intrinsics.width; col += pixel_step) {
+            tf2::Vector3 base_point;
+            if (!camera_utility::pixelToPoint(
+                    cv::Point2f(static_cast<float>(col), static_cast<float>(row)),
+                    intrinsics, base_T_camera, base_point, ground_z))
+            {
                 continue;
             }
 
-            const double scale =
-                (camera_model.ground_plane_z_base - camera_model.camera_to_base_translation.z()) /
-                base_ray.z();
-            if (scale <= 0.0 || !std::isfinite(scale)) {
-                continue;
-            }
-
-            const Eigen::Vector3d base_point =
-                camera_model.camera_to_base_translation + scale * base_ray;
-            const double distance =
-                (base_point - camera_model.camera_to_base_translation).norm();
-            if (distance < camera_model.min_ground_intersection_distance ||
-                distance > camera_model.max_ground_intersection_distance)
+            const double distance = (base_point - base_T_camera.getOrigin()).length();
+            if (distance < min_ground_intersection_distance ||
+                distance > max_ground_intersection_distance)
             {
                 continue;
             }
