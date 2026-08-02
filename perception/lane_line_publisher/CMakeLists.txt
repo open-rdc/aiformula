@@ -14,6 +14,7 @@ find_package(OpenCV REQUIRED)
 ament_auto_add_library(lane_line_publisher_node SHARED
   src/ground_projection.cpp
   src/lane_line_resampling.cpp
+  src/line_components.cpp
   src/lane_line_publisher_node.cpp
   src/vectormap_projection.cpp
   src/vectormap_visualizer_node.cpp
@@ -39,6 +40,8 @@ if(BUILD_TESTING)
   target_link_libraries(test_ground_projection lane_line_publisher_node)
   ament_add_gtest(test_vectormap_projection test/test_vectormap_projection.cpp)
   target_link_libraries(test_vectormap_projection lane_line_publisher_node)
+  ament_add_gtest(test_line_components test/test_line_components.cpp)
+  target_link_libraries(test_line_components lane_line_publisher_node)
 endif()
 
 install(
