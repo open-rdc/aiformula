@@ -15,76 +15,95 @@ launch:
     tread : 0.6
     wheelbase : 0.8
 
-zed_wrapper_node:
-  ros__parameters:
-    grab_fps             : 15
-    resolution           : "HD1080"
-    depth_mode           : "NEURAL"
-    confidence_threshold : 50
-    serial_number        : 0
+    camera:
+      size : "nHD" # nHD（640×360）, SVGA（960×600）
+      position:
+        x : -0.008
+        y : 0.0325
+        z : 0.5547
+      orientation:
+        roll : -88.601314
+        pitch : 0.497098
+        yaw : -89.640661
 
 controller_node:
   ros__parameters:
     linear_max_vel : 2.0
 
+zed_wrapper_node:
+  ros__parameters:
+    fps: 15
+    depth:
+      mode: "NEURAL" # NEURAL, PERFORMANCE, QUALITY
+      confidence_threshold : 50
+
+lane_line_publisher_node:
+  ros__parameters:
+    mask_threshold : 128
+    pixel_step : 4
+    max_observed_points : 2000
+    voxel_size_m : 0.25
+    max_point_link_distance_m : 0.5
+    point_resample_interval_m : 0.25
+    ground_plane_z_base : 0.0
+    min_ground_intersection_distance : 0.2
+    max_ground_intersection_distance : 30.0
+
 vectormap_server_node:
   ros__parameters:
     map_path : "aiformula_course.osm"
-    map_yaw_from_east : 0.02686650
 
-localization_node:
+pose_estimater_node:
   ros__parameters:
-    update_period_ms : 100
-    imu_yaw_convention : "heading_north_ccw"
+    interval_ms : 20
     map_origin_geodetic:
       latitude :  36.11313110136178
       longitude: 139.98107529988687
     map_yaw_from_east : 0.02686650
-    mask_threshold : 128
-    pixel_step : 4
-    max_observed_points : 2000
     min_observed_points : 5
-    min_map_points : 5
     map_sample_interval_m : 0.25
-    ground_plane_z_base : 0.0
-    min_ground_intersection_distance : 0.2
-    max_ground_intersection_distance : 30.0
-    camera:
-      fx : 246.55866667
-      fy : 246.389
-      cx : 318.345
-      cy : 186.59033333
-    camera_to_base:
-      x : 0.055
-      y : 0.0
-      z : 0.54
-      roll : -1.61442956
-      pitch : -0.00349065850
-      yaw : -1.57428698530
-    icp:
-      max_iterations : 20
-      max_correspondence_distance : 1.5
-      convergence_translation_epsilon : 0.01
-      min_correspondences : 5
-    ekf:
-      initial_position_variance : 1.0
-      initial_yaw_variance : 0.3
-      initial_velocity_variance : 1.0
-      initial_yaw_rate_variance : 0.5
-      process_position_variance : 0.1
-      process_yaw_variance : 0.05
-      process_velocity_variance : 0.5
-      process_yaw_rate_variance : 0.2
-      gnss_position_variance : 1.0
-      imu_yaw_variance : 0.05
-      icp_position_variance : 0.15
-      position_gate_dist : 3.0
-      yaw_gate_dist : 3.0
+    gnss_position_variance : 1.0
+    imu_yaw_variance : 0.05
+    pf:
+      num_particles : 500
+      process_position_noise_std_per_m : 0.1
+      process_position_noise_std_per_s : 0.02
+      process_yaw_noise_std_per_rad : 0.3
+      process_yaw_noise_std_per_s : 0.01
+      likelihood_sigma_m : 0.12
+      max_correspondence_distance_m : 1.5
+      resample_ess_ratio_threshold : 0.5
+      reinit_residual_threshold_m : 0.8
+      reinit_consecutive_frames : 30
+      min_position_variance : 0.05
+      min_yaw_variance : 0.00023
+
+ekf_localizer_node:
+  ros__parameters:
+    predict_interval_ms : 20
+    tf_interval_ms : 100
+    initial_position_variance : 1.0
+    initial_yaw_variance : 0.3
+    process_position_variance : 0.01
+    process_yaw_variance : 0.001
+    process_velocity_variance : 4.0
+    process_yaw_rate_variance : 0.05
+    position_gate_dist : 5.0
+    yaw_gate_dist : 3.0
+    velocity_gate_dist : 5.0
+    min_position_variance : 0.015
+    min_yaw_variance : 0.00001
+    min_velocity_variance : 0.1
+    min_yaw_rate_variance : 0.02
+    pf_pose_max_delay_s : 0.5
+    velocity_max_delay_s : 0.1
+    velocity_gate_max_reject_duration_s : 0.3
+    position_gate_max_reject_duration_s : 1.0
+    yaw_gate_max_reject_duration_s : 1.0
 
 odom_tf_node:
   ros__parameters:
     publish_period_ms : 20
-    imu_yaw_convention : "heading_north_ccw"
     max_integration_dt : 0.2
 
 map_odom_tf_node:
@@ -101,13 +120,16 @@ mission_planner_node:
     max_centerline_connection_gap_m : 0.5
     off_route_distance_threshold_m : 3.0
     route_lookahead_lanelet_count : 3
-    start_lanelet_yaw_threshold_rad : 1.5708
+    start_lanelet_yaw_threshold_rad : 0.7854
+    start_lanelet_max_distance_m : 5.0
     start_pose_position_variance_threshold : 0.3
+    route_extension_min_remaining_m : 20.0
 
 local_planner_server_node:
   ros__parameters:
     local_planner_plugin : "local_planner::FrenetPlannerPlugin"
     update_period_ms : 100
+    input_timeout_s : 0.5
     local_path_horizon_m : 15.0
     local_path_resample_interval_m : 0.2
     max_centerline_connection_gap_m : 0.5
@@ -116,13 +138,15 @@ local_planner_server_node:
     avoidance_hard_margin_m : 0.2
     avoidance_soft_margin_m : 0.3
     envelope_buffer_margin_m : 0.2
-    avoidance_lateral_jerk_mps3 : 1.0
-    avoidance_min_velocity_mps : 0.5
     max_avoidance_shift_m : 1.0
-    frenet_collision_check_margin_m : 0.2
-    frenet_weight_lateral_offset : 1.0
-    frenet_weight_lateral_change : 0.2
-    frenet_weight_avoidance_shift : 0.1
+    frenet:
+      lateral_sample_step_m : 0.25
+      collision_check_margin_m : 0.2
+      target_lengths_m : [7.5, 15.0]
+      weight_curvature : 2000.0
+      weight_length : 1.0
+      weight_lateral_deviation : 50.0
+    stop_standoff_m : 1.0
 
 object_detector_node:
   ros__parameters:
@@ -137,6 +161,9 @@ controller_server_node:
   ros__parameters:
     control_period_ms  : 50
     controller_plugin  : "trajectory_follower::PurePursuitPlugin"
+    input_timeout_s    : 0.5
+    a_lat_max          : 5.0
+    a_min              : -2.0
 
     pure_pursuit:
       lookahead_distance : 5.0
@@ -144,9 +171,7 @@ controller_server_node:
 
     mpc:
       longitudinal:
-        a_lat_max          : 5.0
         a_max              : 5.0
-        a_min              : -2.0
         jerk_max           : 5.0
         kp                 : 0.8
         ki                 : 0.1
@@ -167,6 +192,7 @@ controller_server_node:
 chassis_driver_node:
   ros__parameters:
     interval_ms : 2
+    cmd_timeout_ms : 500
     wheel_radius : 0.124
     reduction_ratio : 1.0
     reverse_left_flag : false

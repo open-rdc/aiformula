@@ -9,7 +9,6 @@
 
   <build_depend>rclcpp</build_depend>
   <exec_depend>rclcpp</exec_depend>
-  <test_depend>rclcpp</test_depend>
 
   <depend>socketcan_interface</depend>
   <depend>controller</depend>
@@ -17,7 +16,9 @@
   <depend>frenet_planner</depend>
   <depend>path_tracker</depend>
   <depend>utilities</depend>
-  <depend>localization</depend>
+  <depend>lane_line_publisher</depend>
+  <depend>pose_estimater</depend>
+  <depend>ekf_localizer</depend>
   <depend>trajectory_follower</depend>
   <depend>mission_planner</depend>
   <depend>local_planner</depend>
@@ -27,9 +28,6 @@
   <depend>gnssnav</depend>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
-
-  <test_depend>ament_lint_auto</test_depend>
-  <test_depend>ament_lint_common</test_depend>
 
   <export>
     <build_type>ament_cmake</build_type>
