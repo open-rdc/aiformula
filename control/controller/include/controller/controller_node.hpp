@@ -69,10 +69,11 @@ private:
         Rectangles,
         L1,
         R1,
-        L2,
-        R2,
+
         Share,
         Options,
+	L2,
+	R2,
         PS,
         L3,
         R3
