@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <stdexcept>
 
 #include <Eigen/LU>
 
@@ -48,7 +47,9 @@ EkfLocalizer::EkfLocalizer(const EkfLocalizerConfig& config)
   state_(Eigen::Vector3d::Zero()),
   covariance_(Eigen::Matrix3d::Identity()),
   stamp_(0, 0, RCL_ROS_TIME),
-  initialized_(false)
+  initialized_(false),
+  last_position_stamp_(0, 0, RCL_ROS_TIME),
+  last_yaw_stamp_(0, 0, RCL_ROS_TIME)
 {
 }
 
@@ -63,19 +64,30 @@ void EkfLocalizer::initialize(
     const double yaw,
     const rclcpp::Time& stamp)
 {
-    if (!std::isfinite(x) || !std::isfinite(y) || !std::isfinite(yaw)) {
-        throw std::runtime_error("EKF initial state contains non-finite values");
-    }
-
     state_ << x, y, normalize_angle(yaw);
     covariance_.setZero();
     covariance_(0, 0) = config_.initial_position_variance;
     covariance_(1, 1) = config_.initial_position_variance;
     covariance_(2, 2) = config_.initial_yaw_variance;
+    clamp_covariance_floor();
     stamp_ = stamp;
     initialized_ = true;
     history_.clear();
     record_history();
+    position_rejected_elapsed_s_ = 0.0;
+    yaw_rejected_elapsed_s_ = 0.0;
+    has_last_position_stamp_ = false;
+    has_last_yaw_stamp_ = false;
+}
+
+void EkfLocalizer::clamp_covariance_floor()
+{
+    // 直線区間が続くICPの開口問題や、停止継続時の連続した一致観測により
+    // 共分散が過剰に収縮すると、直後の旋回・急発進のような正しい観測まで
+    // Mahalanobisゲートで弾かれ続けるロック状態に陥る。下限を設けて防ぐ。
+    covariance_(0, 0) = std::max(covariance_(0, 0), config_.min_position_variance);
+    covariance_(1, 1) = std::max(covariance_(1, 1), config_.min_position_variance);
+    covariance_(2, 2) = std::max(covariance_(2, 2), config_.min_yaw_variance);
 }
 
 void EkfLocalizer::predict(
@@ -84,10 +96,7 @@ void EkfLocalizer::predict(
     const rclcpp::Time& stamp)
 {
     const double dt = (stamp - stamp_).seconds();
-    if (dt < 0.0) {
-        throw std::runtime_error("EKF prediction timestamp moved backwards");
-    }
-    if (dt == 0.0) {
+    if (dt <= 0.0) {
         return;
     }
 
@@ -118,6 +127,7 @@ void EkfLocalizer::predict(
     process_noise(2, 2) += config_.process_yaw_variance * dt;
 
     covariance_ = transition * covariance_ * transition.transpose() + process_noise;
+    clamp_covariance_floor();
     stamp_ = stamp;
     record_history();
 }
@@ -128,24 +138,34 @@ bool EkfLocalizer::update_position(
     const Eigen::Matrix2d& covariance,
     const rclcpp::Time& stamp)
 {
-    if (!std::isfinite(x) || !std::isfinite(y)) {
-        throw std::runtime_error("EKF position measurement contains non-finite values");
-    }
-    if (!covariance.allFinite() || covariance(0, 0) <= 0.0 || covariance(1, 1) <= 0.0) {
-        throw std::invalid_argument("position measurement covariance must be finite and positive");
-    }
-
     double reference_x = state_(0);
     double reference_y = state_(1);
     double reference_yaw = state_(2);
     pose_at(stamp, reference_x, reference_y, reference_yaw);
-    return apply_position_update(
-        Eigen::Vector2d(x - reference_x, y - reference_y), covariance);
+
+    const double dt = has_last_position_stamp_ ?
+        std::max((stamp - last_position_stamp_).seconds(), 0.0) : 0.0;
+    const bool force_accept =
+        position_rejected_elapsed_s_ >= config_.position_gate_max_reject_duration_s;
+
+    const bool accepted = apply_position_update(
+        Eigen::Vector2d(x - reference_x, y - reference_y), covariance, force_accept);
+
+    if (accepted) {
+        position_rejected_elapsed_s_ = 0.0;
+    } else {
+        position_rejected_elapsed_s_ += dt;
+    }
+    last_position_stamp_ = stamp;
+    has_last_position_stamp_ = true;
+
+    return accepted;
 }
 
 bool EkfLocalizer::apply_position_update(
     const Eigen::Vector2d& residual,
-    const Eigen::Matrix2d& covariance)
+    const Eigen::Matrix2d& covariance,
+    const bool force_accept)
 {
     Eigen::Matrix<double, 2, 3> observation = Eigen::Matrix<double, 2, 3>::Zero();
     observation(0, 0) = 1.0;
@@ -154,7 +174,9 @@ bool EkfLocalizer::apply_position_update(
     const Eigen::Matrix2d innovation_covariance =
         observation * covariance_ * observation.transpose() + covariance;
 
-    if (mahalanobis(residual, innovation_covariance) > config_.position_gate_dist) {
+    // 連続棄却の経過時間がタイムアウトを超えたら、EKFが静止したまま実位置と
+    // 乖離し続ける危険を避けるためMahalanobisゲートをスキップして強制受理する。
+    if (!force_accept && mahalanobis(residual, innovation_covariance) > config_.position_gate_dist) {
         return false;
     }
 
@@ -164,6 +186,7 @@ bool EkfLocalizer::apply_position_update(
     state_ += gain * residual;
     state_(2) = normalize_angle(state_(2));
     covariance_ = (Eigen::Matrix3d::Identity() - gain * observation) * covariance_;
+    clamp_covariance_floor();
     record_history();
     return true;
 }
@@ -173,20 +196,34 @@ bool EkfLocalizer::update_yaw(
     const double variance,
     const rclcpp::Time& stamp)
 {
-    if (!std::isfinite(yaw)) {
-        throw std::runtime_error("EKF yaw measurement contains non-finite values");
-    }
-
     double reference_x = state_(0);
     double reference_y = state_(1);
     double reference_yaw = state_(2);
     pose_at(stamp, reference_x, reference_y, reference_yaw);
-    return apply_yaw_update(normalize_angle(yaw - reference_yaw), variance);
+
+    const double dt = has_last_yaw_stamp_ ?
+        std::max((stamp - last_yaw_stamp_).seconds(), 0.0) : 0.0;
+    const bool force_accept =
+        yaw_rejected_elapsed_s_ >= config_.yaw_gate_max_reject_duration_s;
+
+    const bool accepted =
+        apply_yaw_update(normalize_angle(yaw - reference_yaw), variance, force_accept);
+
+    if (accepted) {
+        yaw_rejected_elapsed_s_ = 0.0;
+    } else {
+        yaw_rejected_elapsed_s_ += dt;
+    }
+    last_yaw_stamp_ = stamp;
+    has_last_yaw_stamp_ = true;
+
+    return accepted;
 }
 
 bool EkfLocalizer::apply_yaw_update(
     const double residual,
-    const double variance)
+    const double variance,
+    const bool force_accept)
 {
     Eigen::Matrix<double, 1, 3> observation = Eigen::Matrix<double, 1, 3>::Zero();
     observation(0, 2) = 1.0;
@@ -199,7 +236,9 @@ bool EkfLocalizer::apply_yaw_update(
     Eigen::MatrixXd innovation_covariance_mat(1, 1);
     innovation_covariance_mat(0, 0) = innovation_covariance;
 
-    if (mahalanobis(residual_vec, innovation_covariance_mat) > config_.yaw_gate_dist) {
+    // 連続棄却の経過時間がタイムアウトを超えたら、EKFが静止したまま実位置と
+    // 乖離し続ける危険を避けるためMahalanobisゲートをスキップして強制受理する。
+    if (!force_accept && mahalanobis(residual_vec, innovation_covariance_mat) > config_.yaw_gate_dist) {
         return false;
     }
 
@@ -209,6 +248,7 @@ bool EkfLocalizer::apply_yaw_update(
     state_ += gain * residual;
     state_(2) = normalize_angle(state_(2));
     covariance_ = (Eigen::Matrix3d::Identity() - gain * observation) * covariance_;
+    clamp_covariance_floor();
     record_history();
     return true;
 }

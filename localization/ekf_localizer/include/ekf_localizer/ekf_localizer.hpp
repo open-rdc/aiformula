@@ -32,6 +32,10 @@ struct EkfLocalizerConfig
     double process_yaw_rate_variance;
     double position_gate_dist;
     double yaw_gate_dist;
+    double min_position_variance;
+    double min_yaw_variance;
+    double position_gate_max_reject_duration_s;
+    double yaw_gate_max_reject_duration_s;
 };
 
 class EkfLocalizer
@@ -59,8 +63,10 @@ private:
     };
 
     void record_history();
-    bool apply_position_update(const Eigen::Vector2d& residual, const Eigen::Matrix2d& covariance);
-    bool apply_yaw_update(double residual, double variance);
+    bool apply_position_update(
+        const Eigen::Vector2d& residual, const Eigen::Matrix2d& covariance, bool force_accept);
+    bool apply_yaw_update(double residual, double variance, bool force_accept);
+    void clamp_covariance_floor();
 
     EkfLocalizerConfig config_;
     Eigen::Vector3d state_;
@@ -68,6 +74,13 @@ private:
     rclcpp::Time stamp_;
     bool initialized_;
     std::deque<HistoryEntry> history_;
+
+    double position_rejected_elapsed_s_ = 0.0;
+    double yaw_rejected_elapsed_s_ = 0.0;
+    rclcpp::Time last_position_stamp_;
+    bool has_last_position_stamp_ = false;
+    rclcpp::Time last_yaw_stamp_;
+    bool has_last_yaw_stamp_ = false;
 };
 
 }

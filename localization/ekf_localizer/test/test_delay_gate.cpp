@@ -26,13 +26,13 @@ TEST(DelayGate, RejectsWhenExceedingMaxDelay)
     EXPECT_NEAR(result.delay_time_s, 1.0, 1e-9);
 }
 
-TEST(DelayGate, AdditionalDelayIsAddedToMeasuredDelay)
+TEST(DelayGate, DelayIsExactlyNowMinusStamp)
 {
     const rclcpp::Time stamp(1, 0, RCL_ROS_TIME);
     const rclcpp::Time now(1, 200000000, RCL_ROS_TIME);  // +0.2s
 
     const auto result = check_delay_gate(now, stamp, 0.5);
-    EXPECT_NEAR(result.delay_time_s, 0.4, 1e-9);
+    EXPECT_NEAR(result.delay_time_s, 0.2, 1e-9);
     EXPECT_TRUE(result.passed);
 }
 

@@ -3,6 +3,7 @@
 #include <cmath>
 
 #include "utilities/utils.hpp"
+#include "utilities/vectornav_frame.hpp"
 
 namespace ekf_localizer
 {
@@ -115,9 +116,12 @@ void OdomTfNode::integrate_velocity(
     const geometry_msgs::msg::TwistWithCovarianceStamped& velocity_msg,
     const rclcpp::Time& stamp)
 {
-    if (!std::isfinite(velocity_msg.twist.twist.linear.x) ||
-        !std::isfinite(velocity_msg.twist.twist.linear.y) ||
-        !std::isfinite(velocity_msg.twist.twist.angular.z))
+    // velocity_bodyはVN body系(x前 / y右 / z下)で来るのでREP-103へ直す。
+    const geometry_msgs::msg::Twist twist = utils::vn_body_to_rep103(velocity_msg.twist.twist);
+
+    if (!std::isfinite(twist.linear.x) ||
+        !std::isfinite(twist.linear.y) ||
+        !std::isfinite(twist.angular.z))
     {
         RCLCPP_WARN_THROTTLE(
             get_logger(), *get_clock(), 1000,
@@ -125,7 +129,7 @@ void OdomTfNode::integrate_velocity(
         return;
     }
 
-    latest_twist_ = velocity_msg.twist.twist;
+    latest_twist_ = twist;
     yaw_ = normalize_angle(latest_imu_yaw_ - initial_imu_yaw_);
 
     if (!has_velocity_stamp_) {
@@ -158,8 +162,8 @@ void OdomTfNode::integrate_velocity(
 
     const double cos_yaw = std::cos(yaw_);
     const double sin_yaw = std::sin(yaw_);
-    const double vx_body = velocity_msg.twist.twist.linear.x;
-    const double vy_body = velocity_msg.twist.twist.linear.y;
+    const double vx_body = twist.linear.x;
+    const double vy_body = twist.linear.y;
     x_ += (cos_yaw * vx_body - sin_yaw * vy_body) * dt;
     y_ += (sin_yaw * vx_body + cos_yaw * vy_body) * dt;
     has_odom_state_ = true;

@@ -28,21 +28,21 @@ public:
         const rclcpp::NodeOptions& options = rclcpp::NodeOptions());
 
 private:
-    void icp_pose_callback(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg);
+    void pf_pose_callback(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg);
     void velocity_callback(const geometry_msgs::msg::TwistWithCovarianceStamped::SharedPtr msg);
     void predict_timer_callback();
     void tf_timer_callback();
 
     const int predict_interval_ms_;
     const int tf_interval_ms_;
-    const double icp_pose_max_delay_s_;
+    const double pf_pose_max_delay_s_;
     const double velocity_max_delay_s_;
     EkfLocalizerConfig ekf_config_;
     EkfLocalizer ekf_localizer_;
     VelocityGate velocity_gate_;
 
-    bool has_icp_pose_stamp_ = false;
-    rclcpp::Time last_icp_pose_stamp_;
+    bool has_pf_pose_stamp_ = false;
+    rclcpp::Time last_pf_pose_stamp_;
     bool has_velocity_ = false;
     double latest_velocity_ = 0.0;
     double latest_yaw_rate_ = 0.0;
@@ -50,7 +50,7 @@ private:
     rclcpp::Time last_velocity_stamp_;
     mutable std::mutex state_mutex_;
 
-    rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr icp_pose_subscription_;
+    rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr pf_pose_subscription_;
     rclcpp::Subscription<geometry_msgs::msg::TwistWithCovarianceStamped>::SharedPtr velocity_subscription_;
     rclcpp::Publisher<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr pose_publisher_;
     rclcpp::TimerBase::SharedPtr predict_timer_;

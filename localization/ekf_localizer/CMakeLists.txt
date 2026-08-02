@@ -28,6 +28,20 @@ target_link_libraries(ekf_localizer_node
   Eigen3::Eigen
 )
 
+if(BUILD_TESTING)
+  find_package(ament_cmake_gtest REQUIRED)
+  ament_add_gtest(test_delay_gate test/test_delay_gate.cpp)
+  target_link_libraries(test_delay_gate ekf_localizer_node)
+  ament_add_gtest(test_velocity_gate test/test_velocity_gate.cpp)
+  target_link_libraries(test_velocity_gate ekf_localizer_node)
+  ament_add_gtest(test_ekf_localizer_covariance_floor test/test_ekf_localizer_covariance_floor.cpp)
+  target_link_libraries(test_ekf_localizer_covariance_floor ekf_localizer_node)
+  ament_add_gtest(test_ekf_localizer_gate_timeout test/test_ekf_localizer_gate_timeout.cpp)
+  target_link_libraries(test_ekf_localizer_gate_timeout ekf_localizer_node)
+  ament_add_gtest(test_ekf_localizer_input_contract test/test_ekf_localizer_input_contract.cpp)
+  target_link_libraries(test_ekf_localizer_input_contract ekf_localizer_node)
+endif()
+
 install(
   DIRECTORY include/
   DESTINATION include
