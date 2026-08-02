@@ -3,74 +3,61 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
-#include <stdexcept>
 #include <utility>
 
 #include <pluginlib/class_list_macros.hpp>
+
+#include "local_planner/frenet/frenet_planner.hpp"
+#include "local_planner/frenet/hard_constraint.hpp"
+#include "utilities/utils.hpp"
 
 namespace local_planner
 {
 namespace
 {
 constexpr double EPSILON = 1.0e-6;
+constexpr double AVOIDANCE_STEERING_SAFETY_FACTOR = 0.8;
+constexpr double COLLISION_LONGITUDINAL_MIN_M = 0.5;
+constexpr double MAX_HEADING_ERROR_RAD = 0.25 * utils::d_pi;
 }
 
 void FrenetPlannerPlugin::initialize(
-    [[maybe_unused]] const rclcpp::Logger & logger,
+    const rclcpp::Logger & logger,
     const rclcpp::Clock::SharedPtr & clock,
     const rclcpp::node_interfaces::NodeParametersInterface::SharedPtr & params)
 {
+    logger_ = logger;
     clock_ = clock;
 
-    local_path_horizon_m_ =
-        params->get_parameter("local_path_horizon_m").get_value<double>();
-    local_path_resample_interval_m_ =
-        params->get_parameter("local_path_resample_interval_m").get_value<double>();
-    max_centerline_connection_gap_m_ =
-        params->get_parameter("max_centerline_connection_gap_m").get_value<double>();
-    vehicle_width_m_ =
-        params->get_parameter("vehicle_width_m").get_value<double>();
-    avoidance_detection_forward_distance_m_ =
-        params->get_parameter("avoidance_detection_forward_distance_m").get_value<double>();
-    avoidance_hard_margin_m_ =
-        params->get_parameter("avoidance_hard_margin_m").get_value<double>();
-    avoidance_soft_margin_m_ =
-        params->get_parameter("avoidance_soft_margin_m").get_value<double>();
-    envelope_buffer_margin_m_ =
-        params->get_parameter("envelope_buffer_margin_m").get_value<double>();
-    avoidance_lateral_jerk_mps3_ =
-        params->get_parameter("avoidance_lateral_jerk_mps3").get_value<double>();
-    avoidance_min_velocity_mps_ =
-        params->get_parameter("avoidance_min_velocity_mps").get_value<double>();
-    max_avoidance_shift_m_ =
-        params->get_parameter("max_avoidance_shift_m").get_value<double>();
-    frenet_collision_check_margin_m_ =
-        params->get_parameter("frenet_collision_check_margin_m").get_value<double>();
-    frenet_weight_lateral_offset_ =
-        params->get_parameter("frenet_weight_lateral_offset").get_value<double>();
-    frenet_weight_lateral_change_ =
-        params->get_parameter("frenet_weight_lateral_change").get_value<double>();
-    frenet_weight_avoidance_shift_ =
-        params->get_parameter("frenet_weight_avoidance_shift").get_value<double>();
+    local_path_horizon_m_ = params->get_parameter("local_path_horizon_m").get_value<double>();
+    local_path_resample_interval_m_ = params->get_parameter("local_path_resample_interval_m").get_value<double>();
+    max_centerline_connection_gap_m_ = params->get_parameter("max_centerline_connection_gap_m").get_value<double>();
+    vehicle_width_m_ = params->get_parameter("vehicle_width_m").get_value<double>();
+    avoidance_detection_forward_distance_m_ = params->get_parameter("avoidance_detection_forward_distance_m").get_value<double>();
+    avoidance_hard_margin_m_ = params->get_parameter("avoidance_hard_margin_m").get_value<double>();
+    avoidance_soft_margin_m_ = params->get_parameter("avoidance_soft_margin_m").get_value<double>();
+    envelope_buffer_margin_m_ = params->get_parameter("envelope_buffer_margin_m").get_value<double>();
+    max_avoidance_shift_m_ = params->get_parameter("max_avoidance_shift_m").get_value<double>();
+    frenet_lateral_sample_step_m_ = params->get_parameter("frenet.lateral_sample_step_m").get_value<double>();
+    frenet_collision_check_margin_m_ = params->get_parameter("frenet.collision_check_margin_m").get_value<double>();
+    frenet_target_lengths_m_ = params->get_parameter("frenet.target_lengths_m").get_value<std::vector<double>>();
+    cost_weights_.curvature = params->get_parameter("frenet.weight_curvature").get_value<double>();
+    cost_weights_.length = params->get_parameter("frenet.weight_length").get_value<double>();
+    cost_weights_.lateral_deviation = params->get_parameter("frenet.weight_lateral_deviation").get_value<double>();
+    stop_standoff_m_ = params->get_parameter("stop_standoff_m").get_value<double>();
 
-    if (local_path_horizon_m_ <= local_path_resample_interval_m_) {
-        throw std::invalid_argument(
-            "local_path_horizon_m must be greater than local_path_resample_interval_m");
-    }
-    if (vehicle_width_m_ <= 0.0 ||
-        avoidance_detection_forward_distance_m_ <= 0.0 ||
-        avoidance_lateral_jerk_mps3_ <= 0.0 ||
-        avoidance_min_velocity_mps_ <= 0.0 ||
-        max_avoidance_shift_m_ <= 0.0 ||
-        frenet_collision_check_margin_m_ <= 0.0)
-    {
-        throw std::invalid_argument("FrenetPlannerPlugin parameters are invalid");
-    }
+    const double wheelbase_m = params->get_parameter("wheelbase").get_value<double>();
+    const double steering_max_deg = params->get_parameter("steering_max.pos").get_value<double>();
+    const double steering_max_rad = utils::dtor(steering_max_deg);
+
+    kappa_max_ = AVOIDANCE_STEERING_SAFETY_FACTOR * std::tan(steering_max_rad) / wheelbase_m;
 }
 
 void FrenetPlannerPlugin::setGlobalPath(const nav_msgs::msg::Path & global_path)
 {
-    if (global_path.poses.empty()) {
+    if (global_path.poses.size() < 2U) {
+        global_path_ready_ = false;
+        RCLCPP_WARN(logger_, "global_pathの点数が2未満のため無視する");
         return;
     }
 
@@ -87,7 +74,7 @@ void FrenetPlannerPlugin::setGlobalPath(const nav_msgs::msg::Path & global_path)
             const double dy = pose.pose.position.y - prev.pose.position.y;
             s += std::hypot(dx, dy);
         }
-        const double yaw = yaw_from_quaternion(pose.pose.orientation);
+        const double yaw = utils::yaw_from_quaternion(pose.pose.orientation);
         global_samples_.push_back(PathPoint{s, pose.pose.position.x, pose.pose.position.y, yaw});
     }
 
@@ -100,163 +87,227 @@ void FrenetPlannerPlugin::setGlobalPath(const nav_msgs::msg::Path & global_path)
 
 std::optional<nav_msgs::msg::Path> FrenetPlannerPlugin::computeLocalPath(
     const geometry_msgs::msg::PoseWithCovarianceStamped & ego_pose,
-    const geometry_msgs::msg::TwistWithCovarianceStamped & velocity,
+    const geometry_msgs::msg::TwistWithCovarianceStamped &,
     const object_detection_msgs::msg::ObjectInfoArray * objects)
 {
     if (!global_path_ready_) {
         return std::nullopt;
     }
 
-    const Point2D ego{ego_pose.pose.pose.position.x, ego_pose.pose.pose.position.y};
-    const FrenetPoint ego_frenet = project_to_path(ego);
+    const auto& position = ego_pose.pose.pose.position;
+    const ProjectedPose ego = project_to_path(Point2D{position.x, position.y});
+    const double ego_yaw = utils::yaw_from_quaternion(ego_pose.pose.pose.orientation);
+    const double heading_error = std::clamp(
+        std::remainder(ego_yaw - ego.path_yaw, 2.0 * utils::d_pi),
+        -MAX_HEADING_ERROR_RAD, MAX_HEADING_ERROR_RAD);
+    const double reference_curvature = reference_curvature_at(ego.s);
+    const frenet::FrenetState initial{
+        ego.s, ego.d,
+        (1.0 - reference_curvature * ego.d) * std::tan(heading_error),
+        0.0};
 
-    double obstacle_s = std::numeric_limits<double>::quiet_NaN();
-    double obstacle_d = std::numeric_limits<double>::quiet_NaN();
-    double avoidance_shift = 0.0;
-    const bool has_obstacle = objects && !objects->objects.empty() && find_static_obstacle(
-        ego_frenet.s,
-        0.0,
-        *objects,
-        obstacle_s,
-        obstacle_d,
-        avoidance_shift);
+    std::optional<FrenetObstacle> obstacle;
+    if (objects && !objects->objects.empty()) {
+        obstacle = find_static_obstacle(ego.s, *objects);
+    }
 
-    const double speed = std::hypot(
-        velocity.twist.twist.linear.x, velocity.twist.twist.linear.y);
-    const double effective_speed = std::max(speed, avoidance_min_velocity_mps_);
-
-    const auto local_points = generate_local_path(
-        ego_frenet,
-        has_obstacle,
-        FrenetObstacle{obstacle_s, obstacle_d},
-        avoidance_shift,
-        effective_speed);
-
-    if (local_points.empty()) {
+    const double end_s = route_is_loop_ ?
+        ego.s + local_path_horizon_m_ :
+        std::min(ego.s + local_path_horizon_m_, max_path_s());
+    if (end_s <= ego.s + EPSILON) {
         return std::nullopt;
     }
-    return make_path_message(local_points, clock_->now());
+
+    auto points = plan_best_path(ego.s, end_s, initial, obstacle);
+    if (points.empty() && obstacle) {
+        points = make_stop_path(initial, *obstacle);
+    }
+    if (points.empty()) {
+        return std::nullopt;
+    }
+    return make_path_message(points, clock_->now());
 }
 
-std::vector<FrenetPlannerPlugin::PathPoint> FrenetPlannerPlugin::generate_local_path(
-    const FrenetPoint& ego_frenet,
-    const bool has_obstacle,
-    const FrenetObstacle& obstacle,
-    const double avoidance_shift,
-    const double speed_mps)
-{
-    const double current_s = ego_frenet.s;
-    const double path_end_s = route_is_loop_ ?
-        current_s + local_path_horizon_m_ :
-        std::min(current_s + local_path_horizon_m_, max_path_s());
-    if (path_end_s <= current_s + EPSILON) {
-        return {};
-    }
-
-    double avoidance_start_s = 0.0;
-    double avoidance_end_s = 0.0;
-    double avoidance_return_start_s = 0.0;
-    double avoidance_return_end_s = 0.0;
-    if (has_obstacle) {
-        const double longitudinal_distance =
-            4.0 * speed_mps * std::cbrt(0.5 * std::abs(avoidance_shift) / avoidance_lateral_jerk_mps3_);
-        avoidance_start_s = std::max(current_s, obstacle.s - longitudinal_distance);
-        avoidance_end_s =
-            std::max(avoidance_start_s + local_path_resample_interval_m_, obstacle.s - 0.5);
-        avoidance_return_start_s = obstacle.s + 2.0;
-        avoidance_return_end_s = avoidance_return_start_s + longitudinal_distance;
-    }
-
-    std::vector<double> candidate_shifts;
-    candidate_shifts.reserve(3U);
-    candidate_shifts.push_back(has_obstacle ? avoidance_shift : 0.0);
-    if (has_obstacle) {
-        candidate_shifts.push_back(-avoidance_shift);
-        candidate_shifts.push_back(0.0);
-    }
-
-    double best_cost = std::numeric_limits<double>::max();
-    std::vector<PathPoint> best_path;
-    for (const double candidate_shift : candidate_shifts) {
-        auto candidate = sample_frenet_path(
-            current_s, path_end_s, ego_frenet.d,
-            obstacle, candidate_shift,
-            avoidance_start_s, avoidance_end_s,
-            avoidance_return_start_s, avoidance_return_end_s);
-        if (candidate.empty()) {
-            continue;
-        }
-        if (has_obstacle && !is_collision_free(candidate, obstacle)) {
-            continue;
-        }
-        const double cost = evaluate_frenet_candidate(candidate, candidate_shift);
-        if (cost < best_cost) {
-            best_cost = cost;
-            best_path = std::move(candidate);
-        }
-    }
-    return best_path;
-}
-
-std::vector<FrenetPlannerPlugin::PathPoint> FrenetPlannerPlugin::sample_frenet_path(
+std::vector<FrenetPlannerPlugin::PathPoint> FrenetPlannerPlugin::plan_best_path(
     const double start_s,
     const double end_s,
-    const double start_d,
-    const FrenetObstacle& obstacle,
-    const double avoidance_shift,
-    const double avoidance_start_s,
-    const double avoidance_end_s,
-    const double avoidance_return_start_s,
-    const double avoidance_return_end_s) const
+    const frenet::FrenetState& initial,
+    const std::optional<FrenetObstacle>& obstacle) const
+{
+    const auto target_s_list = make_target_s_list(start_s, end_s);
+    const auto target_d_list = make_target_grid(obstacle);
+    const double collision_lateral_margin = obstacle ?
+        vehicle_width_m_ * 0.5 + avoidance_hard_margin_m_ +
+        envelope_buffer_margin_m_ + frenet_collision_check_margin_m_ +
+        obstacle->half_width :
+        0.0;
+    const double collision_longitudinal_margin =
+        std::max(COLLISION_LONGITUDINAL_MIN_M, local_path_resample_interval_m_ * 2.0);
+
+    struct Candidate
+    {
+        double target_d;
+        std::vector<PathPoint> points;
+        bool curvature_ok;
+        double cost;
+    };
+    std::vector<Candidate> candidates;
+    candidates.reserve(target_s_list.size() * target_d_list.size());
+    for (const double target_s : target_s_list) {
+        for (const double target_d : target_d_list) {
+            const auto frenet_candidate = frenet::generate_candidate(
+                initial, frenet::FrenetState{target_s, target_d, 0.0, 0.0},
+                local_path_resample_interval_m_);
+            if (frenet_candidate.s_points.size() < 2U) {
+                continue;
+            }
+            if (obstacle && !frenet::is_collision_free(
+                    frenet_candidate.s_points, frenet_candidate.offsets,
+                    obstacle->s, obstacle->d,
+                    collision_lateral_margin, collision_longitudinal_margin)) {
+                continue;
+            }
+            auto points = to_cartesian(
+                sample_reference(frenet_candidate.s_points), frenet_candidate.offsets);
+            const auto curvatures = compute_curvatures(points);
+            const bool curvature_ok =
+                frenet::satisfies_curvature_limit(curvatures, kappa_max_);
+            const double cost = frenet::candidate_cost(
+                curvatures, compute_path_length(points),
+                frenet_candidate.offsets.back(), cost_weights_);
+            candidates.push_back(
+                Candidate{target_d, std::move(points), curvature_ok, cost});
+        }
+    }
+    std::stable_sort(
+        candidates.begin(), candidates.end(),
+        [](const Candidate& a, const Candidate& b) { return a.cost < b.cost; });
+
+    for (auto& candidate : candidates) {
+        if (candidate.curvature_ok) {
+            return std::move(candidate.points);
+        }
+    }
+    for (auto& candidate : candidates) {
+        if (candidate.target_d == 0.0) {
+            RCLCPP_WARN_THROTTLE(
+                logger_, *clock_, 2000,
+                "回避シフトなしの基本経路の曲率がkappa_max(%.3f)を超過している", kappa_max_);
+            return std::move(candidate.points);
+        }
+    }
+    return {};
+}
+
+std::vector<FrenetPlannerPlugin::PathPoint> FrenetPlannerPlugin::make_stop_path(
+    const frenet::FrenetState& initial,
+    const FrenetObstacle& obstacle) const
+{
+    const double stop_end_s = std::max(
+        initial.s + local_path_resample_interval_m_,
+        obstacle.s - stop_standoff_m_);
+    const auto candidate = frenet::generate_candidate(
+        initial, frenet::FrenetState{stop_end_s, 0.0, 0.0, 0.0},
+        local_path_resample_interval_m_);
+    return to_cartesian(sample_reference(candidate.s_points), candidate.offsets);
+}
+
+std::vector<double> FrenetPlannerPlugin::make_target_s_list(
+    const double start_s, const double end_s) const
+{
+    std::vector<double> targets;
+    targets.reserve(frenet_target_lengths_m_.size());
+    for (const double length : frenet_target_lengths_m_) {
+        const double target_s = std::min(end_s, start_s + length);
+        targets.push_back(target_s);
+        if (target_s >= end_s) {
+            break;
+        }
+    }
+    if (targets.empty()) {
+        targets.push_back(end_s);
+    }
+    return targets;
+}
+
+std::vector<double> FrenetPlannerPlugin::make_target_grid(
+    const std::optional<FrenetObstacle>& obstacle) const
+{
+    const double step = frenet_lateral_sample_step_m_ > EPSILON ?
+        frenet_lateral_sample_step_m_ : max_avoidance_shift_m_;
+    const int step_count = std::max(
+        1, static_cast<int>(std::ceil(max_avoidance_shift_m_ / step - EPSILON)));
+    const double away_sign = (obstacle && obstacle->d >= 0.0) ? -1.0 : 1.0;
+
+    std::vector<double> targets;
+    targets.reserve(2U * static_cast<std::size_t>(step_count) + 1U);
+    targets.push_back(0.0);
+    for (int k = 1; k <= step_count; ++k) {
+        const double magnitude = std::min(k * step, max_avoidance_shift_m_);
+        targets.push_back(away_sign * magnitude);
+        targets.push_back(-away_sign * magnitude);
+    }
+    return targets;
+}
+
+std::optional<FrenetPlannerPlugin::FrenetObstacle> FrenetPlannerPlugin::find_static_obstacle(
+    const double current_s,
+    const object_detection_msgs::msg::ObjectInfoArray& objects) const
+{
+    const double lateral_limit =
+        vehicle_width_m_ * 0.5 + avoidance_hard_margin_m_ +
+        avoidance_soft_margin_m_ + envelope_buffer_margin_m_;
+    const double current_s_normalized = normalize_path_s(current_s);
+
+    std::optional<FrenetObstacle> nearest;
+    double nearest_delta_s = std::numeric_limits<double>::max();
+    for (const auto& obj : objects.objects) {
+        const ProjectedPose frenet_pose = project_to_path(Point2D{obj.x, obj.y});
+        const double half_width = 0.5 * std::max(0.0, static_cast<double>(obj.width));
+        double delta_s = frenet_pose.s - current_s_normalized;
+        if (route_is_loop_ && delta_s < 0.0) {
+            delta_s += max_path_s();
+        }
+        if (delta_s < 0.0 || delta_s > avoidance_detection_forward_distance_m_) {
+            continue;
+        }
+        if (std::abs(frenet_pose.d) > lateral_limit + half_width) {
+            continue;
+        }
+        if (delta_s < nearest_delta_s) {
+            nearest_delta_s = delta_s;
+            nearest = FrenetObstacle{current_s + delta_s, frenet_pose.d, half_width};
+        }
+    }
+    return nearest;
+}
+
+std::vector<FrenetPlannerPlugin::PathPoint> FrenetPlannerPlugin::sample_reference(
+    const std::vector<double>& s_grid) const
+{
+    std::vector<PathPoint> reference;
+    reference.reserve(s_grid.size());
+    for (const double s : s_grid) {
+        reference.push_back(path_point_at_s(s));
+    }
+    return reference;
+}
+
+std::vector<FrenetPlannerPlugin::PathPoint> FrenetPlannerPlugin::to_cartesian(
+    const std::vector<PathPoint>& reference,
+    const std::vector<double>& offsets) const
 {
     std::vector<PathPoint> points;
-    if (end_s <= start_s) {
-        return points;
-    }
-    points.reserve(
-        static_cast<std::size_t>(
-            std::ceil((end_s - start_s) / local_path_resample_interval_m_)) + 2U);
-
-    const double convergence_length =
-        std::min(5.0, std::max(local_path_resample_interval_m_, end_s - start_s));
-    for (double s = start_s; s < end_s; s += local_path_resample_interval_m_) {
-        const auto base_point = path_point_at_s(s);
-        const double converge_t =
-            std::clamp((s - start_s) / convergence_length, 0.0, 1.0);
-        double offset = start_d + smooth_step(converge_t) * (0.0 - start_d);
-        if (std::isfinite(obstacle.s)) {
-            if (s >= avoidance_start_s && s < avoidance_end_s) {
-                const double t = std::clamp(
-                    (s - avoidance_start_s) / (avoidance_end_s - avoidance_start_s), 0.0, 1.0);
-                offset += smooth_step(t) * avoidance_shift;
-            } else if (s >= avoidance_end_s && s < avoidance_return_start_s) {
-                offset += avoidance_shift;
-            } else if (s >= avoidance_return_start_s && s < avoidance_return_end_s) {
-                const double t = std::clamp(
-                    (s - avoidance_return_start_s) /
-                    (avoidance_return_end_s - avoidance_return_start_s),
-                    0.0, 1.0);
-                offset += (1.0 - smooth_step(t)) * avoidance_shift;
-            }
-        }
-
+    const std::size_t size = std::min(reference.size(), offsets.size());
+    points.reserve(size);
+    for (std::size_t i = 0U; i < size; ++i) {
+        const auto& base = reference[i];
         points.push_back(PathPoint{
-            s,
-            base_point.x - std::sin(base_point.yaw) * offset,
-            base_point.y + std::cos(base_point.yaw) * offset,
-            base_point.yaw});
+            base.s,
+            base.x - std::sin(base.yaw) * offsets[i],
+            base.y + std::cos(base.yaw) * offsets[i],
+            base.yaw});
     }
-
-    if (!points.empty() && end_s - points.back().s > EPSILON) {
-        const auto base_point = path_point_at_s(end_s);
-        const double offset = project_to_path(Point2D{points.back().x, points.back().y}).d;
-        points.push_back(PathPoint{
-            end_s,
-            base_point.x - std::sin(base_point.yaw) * offset,
-            base_point.y + std::cos(base_point.yaw) * offset,
-            base_point.yaw});
-    }
-
     for (std::size_t i = 1U; i < points.size(); ++i) {
         const double dx = points[i].x - points[i - 1U].x;
         const double dy = points[i].y - points[i - 1U].y;
@@ -270,111 +321,54 @@ std::vector<FrenetPlannerPlugin::PathPoint> FrenetPlannerPlugin::sample_frenet_p
     return points;
 }
 
-bool FrenetPlannerPlugin::is_collision_free(
-    const std::vector<PathPoint>& candidate,
-    const FrenetObstacle& obstacle) const
+double FrenetPlannerPlugin::reference_curvature_at(const double s) const
 {
-    if (!std::isfinite(obstacle.s) || !std::isfinite(obstacle.d)) {
-        return true;
-    }
-    const double longitudinal_margin =
-        std::max(0.5, local_path_resample_interval_m_ * 2.0);
-    const double lateral_margin =
-        vehicle_width_m_ * 0.5 + avoidance_hard_margin_m_ +
-        envelope_buffer_margin_m_ + frenet_collision_check_margin_m_;
-    for (const auto& point : candidate) {
-        if (std::abs(point.s - obstacle.s) > longitudinal_margin) {
-            continue;
-        }
-        const FrenetPoint frenet = project_to_path(Point2D{point.x, point.y});
-        if (std::abs(frenet.d - obstacle.d) <= lateral_margin) {
-            return false;
-        }
-    }
-    return true;
+    const double h = local_path_resample_interval_m_;
+    const auto behind = path_point_at_s(s - h);
+    const auto ahead = path_point_at_s(s + h);
+    const double dyaw = std::remainder(ahead.yaw - behind.yaw, 2.0 * utils::d_pi);
+    return dyaw / (2.0 * h);
 }
 
-double FrenetPlannerPlugin::evaluate_frenet_candidate(
-    const std::vector<PathPoint>& candidate,
-    const double avoidance_shift) const
+std::vector<double> FrenetPlannerPlugin::compute_curvatures(
+    const std::vector<PathPoint>& points)
 {
-    if (candidate.empty()) {
-        return std::numeric_limits<double>::max();
+    std::vector<double> curvatures;
+    if (points.size() < 3U) {
+        return curvatures;
     }
-
-    double lateral_change_sum = 0.0;
-    double previous_d =
-        project_to_path(Point2D{candidate.front().x, candidate.front().y}).d;
-    for (std::size_t i = 1U; i < candidate.size(); ++i) {
-        const double d = project_to_path(Point2D{candidate[i].x, candidate[i].y}).d;
-        lateral_change_sum += std::abs(d - previous_d);
-        previous_d = d;
-    }
-    const double final_d = previous_d;
-    return frenet_weight_lateral_offset_ * std::abs(final_d) +
-        frenet_weight_lateral_change_ * lateral_change_sum +
-        frenet_weight_avoidance_shift_ * std::abs(avoidance_shift);
-}
-
-bool FrenetPlannerPlugin::find_static_obstacle(
-    const double current_s,
-    const double base_offset,
-    const object_detection_msgs::msg::ObjectInfoArray& objects,
-    double& obstacle_s,
-    double& obstacle_d,
-    double& avoidance_shift) const
-{
-    const double lateral_limit =
-        vehicle_width_m_ * 0.5 + avoidance_hard_margin_m_ +
-        avoidance_soft_margin_m_ + envelope_buffer_margin_m_;
-    const double current_s_normalized = normalize_path_s(current_s);
-
-    bool found = false;
-    double best_s = std::numeric_limits<double>::max();
-    double d_sum = 0.0;
-    std::size_t d_count = 0U;
-
-    for (const auto& obj : objects.objects) {
-        const FrenetPoint frenet = project_to_path(Point2D{obj.x, obj.y});
-        double delta_s = frenet.s - current_s_normalized;
-        if (route_is_loop_ && delta_s < 0.0) {
-            delta_s += max_path_s();
-        }
-        if (delta_s < 0.0 || delta_s > avoidance_detection_forward_distance_m_) {
+    curvatures.reserve(points.size() - 2U);
+    for (std::size_t i = 1U; i + 1U < points.size(); ++i) {
+        const double segment = std::hypot(
+            points[i].x - points[i - 1U].x,
+            points[i].y - points[i - 1U].y);
+        if (segment < EPSILON) {
+            curvatures.push_back(0.0);
             continue;
         }
-        if (std::abs(frenet.d - base_offset) > lateral_limit) {
-            continue;
-        }
-        found = true;
-        best_s = std::min(best_s, current_s + delta_s);
-        d_sum += frenet.d;
-        ++d_count;
+        const double dyaw = std::remainder(
+            points[i].yaw - points[i - 1U].yaw, 2.0 * utils::d_pi);
+        curvatures.push_back(dyaw / segment);
     }
-
-    if (!found || d_count == 0U) {
-        return false;
-    }
-
-    obstacle_s = best_s;
-    obstacle_d = d_sum / static_cast<double>(d_count);
-    const double shift_sign = obstacle_d >= base_offset ? -1.0 : 1.0;
-    const double required_shift =
-        std::min(max_avoidance_shift_m_,
-                 vehicle_width_m_ * 0.5 + avoidance_hard_margin_m_ + avoidance_soft_margin_m_);
-    avoidance_shift = shift_sign * required_shift;
-    return true;
+    return curvatures;
 }
 
-FrenetPlannerPlugin::FrenetPoint FrenetPlannerPlugin::project_to_path(
+double FrenetPlannerPlugin::compute_path_length(const std::vector<PathPoint>& points)
+{
+    double length = 0.0;
+    for (std::size_t i = 1U; i < points.size(); ++i) {
+        length += std::hypot(
+            points[i].x - points[i - 1U].x,
+            points[i].y - points[i - 1U].y);
+    }
+    return length;
+}
+
+FrenetPlannerPlugin::ProjectedPose FrenetPlannerPlugin::project_to_path(
     const Point2D& point) const
 {
-    if (global_samples_.empty()) {
-        throw std::runtime_error("global path is not ready");
-    }
-
     double best_distance_sq = std::numeric_limits<double>::max();
-    FrenetPoint best{global_samples_.front().s, 0.0};
+    ProjectedPose best{global_samples_.front().s, 0.0, global_samples_.front().yaw};
     for (std::size_t i = 1U; i < global_samples_.size(); ++i) {
         const auto& a = global_samples_[i - 1U];
         const auto& b = global_samples_[i];
@@ -397,6 +391,7 @@ FrenetPlannerPlugin::FrenetPoint FrenetPlannerPlugin::project_to_path(
             const double yaw = std::atan2(vy, vx);
             best.s = a.s + t * (b.s - a.s);
             best.d = -std::sin(yaw) * dx + std::cos(yaw) * dy;
+            best.path_yaw = yaw;
         }
     }
     return best;
@@ -405,10 +400,6 @@ FrenetPlannerPlugin::FrenetPoint FrenetPlannerPlugin::project_to_path(
 FrenetPlannerPlugin::PathPoint FrenetPlannerPlugin::path_point_at_s(
     const double s) const
 {
-    if (global_samples_.size() < 2U) {
-        throw std::runtime_error("global path is not ready");
-    }
-
     const double clamped_s = normalize_path_s(s);
     const auto upper = std::upper_bound(
         global_samples_.begin(),
@@ -438,9 +429,6 @@ FrenetPlannerPlugin::PathPoint FrenetPlannerPlugin::path_point_at_s(
 
 double FrenetPlannerPlugin::max_path_s() const
 {
-    if (global_samples_.empty()) {
-        throw std::runtime_error("global path is not ready");
-    }
     return global_samples_.back().s;
 }
 
@@ -463,30 +451,6 @@ double FrenetPlannerPlugin::normalize_path_s(const double s) const
     return normalized;
 }
 
-double FrenetPlannerPlugin::smooth_step(const double t)
-{
-    const double x = std::clamp(t, 0.0, 1.0);
-    return x * x * x * (10.0 + x * (-15.0 + 6.0 * x));
-}
-
-double FrenetPlannerPlugin::yaw_from_quaternion(
-    const geometry_msgs::msg::Quaternion& q)
-{
-    const double siny_cosp = 2.0 * (q.w * q.z + q.x * q.y);
-    const double cosy_cosp = 1.0 - 2.0 * (q.y * q.y + q.z * q.z);
-    return std::atan2(siny_cosp, cosy_cosp);
-}
-
-geometry_msgs::msg::Quaternion FrenetPlannerPlugin::yaw_to_quaternion(const double yaw)
-{
-    geometry_msgs::msg::Quaternion q;
-    q.x = 0.0;
-    q.y = 0.0;
-    q.z = std::sin(yaw * 0.5);
-    q.w = std::cos(yaw * 0.5);
-    return q;
-}
-
 nav_msgs::msg::Path FrenetPlannerPlugin::make_path_message(
     const std::vector<PathPoint>& points,
     const rclcpp::Time& stamp) const
@@ -501,7 +465,7 @@ nav_msgs::msg::Path FrenetPlannerPlugin::make_path_message(
         pose.pose.position.x = point.x;
         pose.pose.position.y = point.y;
         pose.pose.position.z = 0.0;
-        pose.pose.orientation = yaw_to_quaternion(point.yaw);
+        pose.pose.orientation = utils::yaw_to_quaternion(point.yaw);
         path.poses.push_back(pose);
     }
     return path;

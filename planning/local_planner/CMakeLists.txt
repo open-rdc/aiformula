@@ -17,6 +17,17 @@ target_include_directories(local_planner_server PUBLIC
   $<INSTALL_INTERFACE:include>
 )
 
+ament_auto_add_library(frenet_core SHARED
+  src/frenet/polynomial.cpp
+  src/frenet/frenet_planner.cpp
+  src/frenet/hard_constraint.cpp
+  src/frenet/soft_constraint.cpp)
+target_compile_features(frenet_core PUBLIC c_std_99 cxx_std_17)
+target_include_directories(frenet_core PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
+)
+
 ament_auto_add_library(frenet_planner_plugin SHARED
   src/plugins/frenet_planner_plugin.cpp)
 target_compile_features(frenet_planner_plugin PUBLIC c_std_99 cxx_std_17)
@@ -24,19 +35,21 @@ target_include_directories(frenet_planner_plugin PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
 )
+target_link_libraries(frenet_planner_plugin frenet_core)
 
 pluginlib_export_plugin_description_file(local_planner plugins.xml)
+
+if(BUILD_TESTING)
+  find_package(ament_cmake_gtest REQUIRED)
+  ament_add_gtest(test_frenet_core test/test_frenet_core.cpp)
+  target_link_libraries(test_frenet_core frenet_core)
+  ament_auto_add_gtest(test_frenet_planner_plugin test/test_frenet_planner_plugin.cpp)
+  target_link_libraries(test_frenet_planner_plugin frenet_planner_plugin)
+endif()
 
 install(
   DIRECTORY include/
   DESTINATION include
 )
-
-if(BUILD_TESTING)
-  find_package(ament_lint_auto REQUIRED)
-  set(ament_cmake_copyright_FOUND TRUE)
-  set(ament_cmake_cpplint_FOUND TRUE)
-  ament_lint_auto_find_test_dependencies()
-endif()
 
 ament_auto_package()

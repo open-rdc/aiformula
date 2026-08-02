@@ -1,18 +1,17 @@
 #pragma once
 
-#include <cstdint>
-#include <memory>
 #include <optional>
 #include <string>
 #include <vector>
 
 #include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
-#include <geometry_msgs/msg/quaternion.hpp>
 #include <geometry_msgs/msg/twist_with_covariance_stamped.hpp>
 #include <nav_msgs/msg/path.hpp>
 #include <object_detection_msgs/msg/object_info_array.hpp>
 #include <rclcpp/rclcpp.hpp>
 
+#include "local_planner/frenet/soft_constraint.hpp"
+#include "local_planner/frenet/structures.hpp"
 #include "local_planner/local_planner_plugin.hpp"
 
 namespace local_planner
@@ -36,51 +35,41 @@ public:
 private:
     struct Point2D { double x; double y; };
     struct PathPoint { double s; double x; double y; double yaw; };
-    struct FrenetPoint { double s; double d; };
-    struct FrenetObstacle { double s; double d; };
+    struct ProjectedPose { double s; double d; double path_yaw; };
+    struct FrenetObstacle { double s; double d; double half_width; };
 
-    std::vector<PathPoint> generate_local_path(
-        const FrenetPoint & ego_frenet,
-        bool has_obstacle,
-        const FrenetObstacle & obstacle,
-        double avoidance_shift,
-        double speed_mps);
-    std::vector<PathPoint> sample_frenet_path(
+    std::vector<PathPoint> plan_best_path(
         double start_s,
         double end_s,
-        double start_d,
-        const FrenetObstacle & obstacle,
-        double avoidance_shift,
-        double avoidance_start_s,
-        double avoidance_end_s,
-        double avoidance_return_start_s,
-        double avoidance_return_end_s) const;
-    bool is_collision_free(
-        const std::vector<PathPoint> & candidate,
+        const frenet::FrenetState & initial,
+        const std::optional<FrenetObstacle> & obstacle) const;
+    std::vector<PathPoint> make_stop_path(
+        const frenet::FrenetState & initial,
         const FrenetObstacle & obstacle) const;
-    double evaluate_frenet_candidate(
-        const std::vector<PathPoint> & candidate,
-        double avoidance_shift) const;
-    bool find_static_obstacle(
+    std::vector<double> make_target_s_list(double start_s, double end_s) const;
+    std::vector<double> make_target_grid(const std::optional<FrenetObstacle> & obstacle) const;
+    std::optional<FrenetObstacle> find_static_obstacle(
         double current_s,
-        double base_offset,
-        const object_detection_msgs::msg::ObjectInfoArray & objects,
-        double & obstacle_s,
-        double & obstacle_d,
-        double & avoidance_shift) const;
+        const object_detection_msgs::msg::ObjectInfoArray & objects) const;
 
-    FrenetPoint project_to_path(const Point2D & point) const;
+    std::vector<PathPoint> sample_reference(const std::vector<double> & s_grid) const;
+    std::vector<PathPoint> to_cartesian(
+        const std::vector<PathPoint> & reference,
+        const std::vector<double> & offsets) const;
+
+    ProjectedPose project_to_path(const Point2D & point) const;
     PathPoint path_point_at_s(double s) const;
     double max_path_s() const;
     double normalize_path_s(double s) const;
-    static double smooth_step(double t);
-    static double yaw_from_quaternion(const geometry_msgs::msg::Quaternion & q);
-    static geometry_msgs::msg::Quaternion yaw_to_quaternion(double yaw);
+    double reference_curvature_at(double s) const;
+    static std::vector<double> compute_curvatures(const std::vector<PathPoint> & points);
+    static double compute_path_length(const std::vector<PathPoint> & points);
 
     nav_msgs::msg::Path make_path_message(
         const std::vector<PathPoint> & points,
         const rclcpp::Time & stamp) const;
 
+    rclcpp::Logger logger_{rclcpp::get_logger("frenet_planner_plugin")};
     rclcpp::Clock::SharedPtr clock_;
 
     double local_path_horizon_m_{15.0};
@@ -91,13 +80,13 @@ private:
     double avoidance_hard_margin_m_{0.2};
     double avoidance_soft_margin_m_{0.3};
     double envelope_buffer_margin_m_{0.2};
-    double avoidance_lateral_jerk_mps3_{1.0};
-    double avoidance_min_velocity_mps_{0.5};
     double max_avoidance_shift_m_{1.0};
+    double frenet_lateral_sample_step_m_{0.25};
     double frenet_collision_check_margin_m_{0.2};
-    double frenet_weight_lateral_offset_{1.0};
-    double frenet_weight_lateral_change_{0.2};
-    double frenet_weight_avoidance_shift_{0.1};
+    std::vector<double> frenet_target_lengths_m_{7.5, 15.0};
+    frenet::CostWeights cost_weights_{2000.0, 1.0, 50.0};
+    double stop_standoff_m_{1.0};
+    double kappa_max_{0.0};
 
     bool global_path_ready_{false};
     bool route_is_loop_{false};
