@@ -20,4 +20,14 @@ std::vector<Eigen::Vector2d> resample_lane_points(
     double max_link_distance_m,
     double interval_m);
 
+std::vector<Eigen::Vector2d> voxel_downsample(
+    const std::vector<Eigen::Vector2d>& points,
+    double voxel_size_m);
+
+std::vector<Eigen::Vector2d> resample_lane_point_groups(
+    const std::vector<std::vector<Eigen::Vector2d>>& point_groups,
+    double max_link_distance_m,
+    double interval_m,
+    double voxel_size_m);
+
 }

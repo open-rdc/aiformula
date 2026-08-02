@@ -2,7 +2,10 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
+#include <map>
 #include <optional>
+#include <utility>
 
 namespace lane_line_publisher
 {
@@ -121,6 +124,52 @@ std::vector<Eigen::Vector2d> resample_lane_points(
         resampled.insert(resampled.end(), line_resampled.begin(), line_resampled.end());
     }
     return resampled;
+}
+
+std::vector<Eigen::Vector2d> voxel_downsample(
+    const std::vector<Eigen::Vector2d>& points,
+    const double voxel_size_m)
+{
+    struct Voxel
+    {
+        Eigen::Vector2d sum = Eigen::Vector2d::Zero();
+        std::size_t count = 0U;
+    };
+
+    std::map<std::pair<std::int64_t, std::int64_t>, Voxel> voxels;
+    for (const auto& point : points) {
+        if (!point.allFinite()) {
+            continue;
+        }
+        const auto x_index = static_cast<std::int64_t>(std::floor(point.x() / voxel_size_m));
+        const auto y_index = static_cast<std::int64_t>(std::floor(point.y() / voxel_size_m));
+        auto& voxel = voxels[{x_index, y_index}];
+        voxel.sum += point;
+        ++voxel.count;
+    }
+
+    std::vector<Eigen::Vector2d> downsampled_points;
+    downsampled_points.reserve(voxels.size());
+    for (const auto& [index, voxel] : voxels) {
+        (void)index;
+        downsampled_points.push_back(voxel.sum / static_cast<double>(voxel.count));
+    }
+    return downsampled_points;
+}
+
+std::vector<Eigen::Vector2d> resample_lane_point_groups(
+    const std::vector<std::vector<Eigen::Vector2d>>& point_groups,
+    const double max_link_distance_m,
+    const double interval_m,
+    const double voxel_size_m)
+{
+    std::vector<Eigen::Vector2d> combined;
+    for (const auto& group : point_groups) {
+        const auto downsampled = voxel_downsample(group, voxel_size_m);
+        const auto resampled = resample_lane_points(downsampled, max_link_distance_m, interval_m);
+        combined.insert(combined.end(), resampled.begin(), resampled.end());
+    }
+    return combined;
 }
 
 }

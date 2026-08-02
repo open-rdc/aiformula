@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <set>
 #include <vector>
 
@@ -227,6 +228,73 @@ TEST(ResampleLanePoints, TwoLinesAreResampledIndependently)
 TEST(ResampleLanePoints, EmptyInputReturnsEmpty)
 {
     EXPECT_TRUE(resample_lane_points({}, 0.5, 0.25).empty());
+}
+
+// --- voxel_downsample ---
+
+TEST(VoxelDownsample, EmptyInput)
+{
+    EXPECT_TRUE(voxel_downsample({}, 0.25).empty());
+}
+
+TEST(VoxelDownsample, PointsInSameVoxelAreAveraged)
+{
+    const std::vector<Eigen::Vector2d> points{
+        Eigen::Vector2d(0.05, 0.05), Eigen::Vector2d(0.10, 0.05)};
+    const auto result = voxel_downsample(points, 0.25);
+    ASSERT_EQ(result.size(), 1U);
+    EXPECT_NEAR(result[0].x(), 0.075, 1e-9);
+    EXPECT_NEAR(result[0].y(), 0.05, 1e-9);
+}
+
+TEST(VoxelDownsample, PointsInDifferentVoxelsStaySeparate)
+{
+    const std::vector<Eigen::Vector2d> points{
+        Eigen::Vector2d(0.0, 0.0), Eigen::Vector2d(1.0, 0.0)};
+    const auto result = voxel_downsample(points, 0.25);
+    EXPECT_EQ(result.size(), 2U);
+}
+
+TEST(VoxelDownsample, NonFinitePointsAreSkipped)
+{
+    const std::vector<Eigen::Vector2d> points{
+        Eigen::Vector2d(0.0, 0.0),
+        Eigen::Vector2d(std::numeric_limits<double>::quiet_NaN(), 0.0)};
+    const auto result = voxel_downsample(points, 0.25);
+    ASSERT_EQ(result.size(), 1U);
+    EXPECT_NEAR(result[0].x(), 0.0, 1e-9);
+}
+
+// --- resample_lane_point_groups ---
+
+TEST(ResampleLanePointGroups, DistinctGroupsAreNotBridgedEvenWhenClose)
+{
+    // group_bの先頭とgroup_aの末尾の間隔(0.05)はmax_link_distance_m(0.5)未満だが、
+    // 別々の連結成分から来た点なので橋渡しされてはならない。
+    const std::vector<Eigen::Vector2d> group_a{
+        Eigen::Vector2d(0.0, 0.0), Eigen::Vector2d(0.2, 0.0), Eigen::Vector2d(0.4, 0.0)};
+    const std::vector<Eigen::Vector2d> group_b{
+        Eigen::Vector2d(0.45, 0.0), Eigen::Vector2d(0.65, 0.0), Eigen::Vector2d(0.85, 0.0)};
+    ASSERT_LT((group_b.front() - group_a.back()).norm(), 0.5);
+
+    const auto result = resample_lane_point_groups({group_a, group_b}, 0.5, 1.0, 0.1);
+
+    // 橋渡しされていれば0.0-0.85mの1本の線として区間1.0mでリサンプルされ、
+    // 端点は0.0と0.85のみになる。橋渡しされていなければ、各グループが独立に
+    // リサンプルされ0.4と0.45の両方が結果に残る。
+    bool has_point_at_0_4 = false;
+    bool has_point_at_0_45 = false;
+    for (const auto& p : result) {
+        if (std::abs(p.x() - 0.4) < 1e-6) has_point_at_0_4 = true;
+        if (std::abs(p.x() - 0.45) < 1e-6) has_point_at_0_45 = true;
+    }
+    EXPECT_TRUE(has_point_at_0_4);
+    EXPECT_TRUE(has_point_at_0_45);
+}
+
+TEST(ResampleLanePointGroups, EmptyGroupsReturnsEmpty)
+{
+    EXPECT_TRUE(resample_lane_point_groups({}, 0.5, 0.25, 0.25).empty());
 }
 
 }  // namespace lane_line_publisher
