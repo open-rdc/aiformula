@@ -14,7 +14,7 @@
       <wheel_separation>0.6</wheel_separation>
       <wheel_radius>0.124</wheel_radius>
       <odom_publish_frequency>30</odom_publish_frequency>
-      <topic>cmd_vel</topic>
+      <topic>cmd_vel_twists</topic>
       <odom_topic>odom</odom_topic>
     </plugin>
     <plugin
@@ -155,7 +155,7 @@
     <!-- caster wheel -->
 
     <frame name="caster_frame" attached_to='chassis'>
-        <pose>-0.8 0 0 0 0 1.57</pose>
+        <pose>-0.8 0 0 0 0 -1.57</pose>
     </frame>
 
     <link name='pulley'>

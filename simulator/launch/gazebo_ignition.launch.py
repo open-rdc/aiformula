@@ -38,7 +38,8 @@ def generate_launch_description():
             '/odom@nav_msgs/msg/Odometry@gz.msgs.Odometry',
             '/navsat@sensor_msgs/msg/NavSatFix@gz.msgs.NavSat',
             '/imu_raw@sensor_msgs/msg/Imu@gz.msgs.IMU',
-            '/cmd_vel_twist@geometry_msgs/msg/Twist@gz.msgs.Twist'],
+            # '/cmd_vel_twist@geometry_msgs/msg/Twist@gz.msgs.Twist'
+            ],
         output='screen',
         remappings=[
             ('/image_raw', '/zed/zed_node/rgb/image_rect_color'),
@@ -132,8 +133,8 @@ def generate_launch_description():
         robot_state_publisher,
         convert_vectornav_pose,
         convert_vectornav_velocity_body,
-        TimerAction(
-            period=2.0,
-            actions=[caster_yaw_position_spawner],
-        ),
+        # TimerAction(
+        #     period=2.0,
+        #     actions=[caster_yaw_position_spawner],
+        # ),
     ])
