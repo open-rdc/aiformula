@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 
+#include <cmath>
+
 #include "trajectory_follower/mpc/longitudinal_pid.hpp"
 #include "trajectory_follower/mpc/speed_limit.hpp"
 
@@ -40,11 +42,13 @@ TEST(LongitudinalPid, FirstCallWithZeroErrorHoldsMeasuredSpeed)
 
 TEST(LongitudinalPid, ReferenceSpeedMatchesSpeedLimitFunction)
 {
-    const auto params = make_params();
     tf::LongitudinalPid pid;
-    pid.configure(params);
-    const double expected = tf::compute_speed_limit(params.v_max, params.a_lat_max, std::abs(params.a_min), 0.5, 100.0);
-    EXPECT_NEAR(pid.referenceSpeed(0.5, 100.0), expected, 1e-9);
+    pid.configure(make_params());
+    // With make_params() (v_max=5.0, a_lat_max=2.0, a_min=-2.0), referenceSpeed(0.5, 100.0):
+    //   lateral term  = sqrt(a_lat_max / kappa)          = sqrt(2.0 / 0.5)   = 2.0
+    //   braking term  = sqrt(2 * |a_min| * dist_to_end)  = sqrt(2*2.0*100.0) = 20.0
+    //   result        = clamp(min(2.0, 20.0), 0, v_max)  = 2.0
+    EXPECT_NEAR(pid.referenceSpeed(0.5, 100.0), 2.0, 1e-9);
 }
 
 TEST(LongitudinalPid, ResetClearsInternalStateBackToFirstCallBehavior)

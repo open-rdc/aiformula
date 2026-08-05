@@ -1,6 +1,5 @@
 #include "trajectory_follower/plugins/pid_mpc_plugin.hpp"
 
-#include <algorithm>
 #include <array>
 #include <cmath>
 #include <limits>

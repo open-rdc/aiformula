@@ -168,6 +168,7 @@ double LateralMpc::computeSteering(
 void LateralMpc::reset()
 {
     prev_steer_ = 0.0;
+    measured_steer_.reset();
 }
 
 void LateralMpc::setMeasuredSteer(double steer)
