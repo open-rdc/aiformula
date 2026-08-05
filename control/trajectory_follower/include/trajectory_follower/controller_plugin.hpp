@@ -3,7 +3,6 @@
 #include <memory>
 #include <optional>
 
-#include <geometry_msgs/msg/pose_stamped.hpp>
 #include <nav_msgs/msg/path.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <steered_drive_msg/msg/steered_drive.hpp>
@@ -28,8 +27,7 @@ public:
 
     virtual std::optional<steered_drive_msg::msg::SteeredDrive> computeCommand(
         const nav_msgs::msg::Path & path_in_base,
-        double current_velocity,
-        geometry_msgs::msg::PoseStamped & target_pose_out) = 0;
+        double current_velocity) = 0;
 };
 
 }

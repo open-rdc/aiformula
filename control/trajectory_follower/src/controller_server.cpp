@@ -56,8 +56,6 @@ ControllerServer::ControllerServer(
         std::bind(&ControllerServer::caster_data_callback, this, std::placeholders::_1));
     command_publisher_ =
         create_publisher<steered_drive_msg::msg::SteeredDrive>("/cmd_vel", qos);
-    target_pose_publisher_ =
-        create_publisher<geometry_msgs::msg::PoseStamped>("/vectormap_control/target_pose", qos);
 
     timer_ = create_wall_timer(
         std::chrono::milliseconds(control_period_ms_),
@@ -123,41 +121,34 @@ void ControllerServer::timer_callback()
         publish_stop_command();
         return;
     }
-    if (path->header.frame_id == "map") {
-        if (!latest_pose) {
-            RCLCPP_WARN_THROTTLE(
-                get_logger(), *get_clock(), 1000,
-                "自己位置を待機中のため停止指令を送信します");
-            publish_stop_command();
-            return;
-        }
-        if (is_stale(now(), latest_pose->header.stamp, input_timeout_s_)) {
-            RCLCPP_WARN_THROTTLE(
-                get_logger(), *get_clock(), 1000, "自己位置が古いため停止指令を送信します");
-            publish_stop_command();
-            return;
-        }
-    }
-
-    nav_msgs::msg::Path path_in_base;
-    if (path->header.frame_id == "base_link") {
-        path_in_base = *path;
-    } else if (path->header.frame_id == "map") {
-        path_in_base = transform_path_to_base(*path, *latest_pose);
-    } else {
+    if (path->header.frame_id != "map") {
         RCLCPP_WARN_THROTTLE(
             get_logger(), *get_clock(), 1000,
             "未対応のframe_idです: %s", path->header.frame_id.c_str());
         publish_stop_command();
         return;
     }
+    if (!latest_pose) {
+        RCLCPP_WARN_THROTTLE(
+            get_logger(), *get_clock(), 1000,
+            "自己位置を待機中のため停止指令を送信します");
+        publish_stop_command();
+        return;
+    }
+    if (is_stale(now(), latest_pose->header.stamp, input_timeout_s_)) {
+        RCLCPP_WARN_THROTTLE(
+            get_logger(), *get_clock(), 1000, "自己位置が古いため停止指令を送信します");
+        publish_stop_command();
+        return;
+    }
+
+    const nav_msgs::msg::Path path_in_base = transform_path_to_base(*path, *latest_pose);
 
     if (measured_steer) {
         plugin_->setMeasuredSteer(*measured_steer);
     }
 
-    geometry_msgs::msg::PoseStamped target_pose;
-    const auto command = plugin_->computeCommand(path_in_base, current_velocity, target_pose);
+    const auto command = plugin_->computeCommand(path_in_base, current_velocity);
     if (!command) {
         RCLCPP_WARN_THROTTLE(
             get_logger(), *get_clock(), 1000,
@@ -167,9 +158,6 @@ void ControllerServer::timer_callback()
     }
 
     command_publisher_->publish(*command);
-    target_pose.header.stamp = now();
-    target_pose.header.frame_id = "base_link";
-    target_pose_publisher_->publish(target_pose);
 }
 
 void ControllerServer::pose_callback(

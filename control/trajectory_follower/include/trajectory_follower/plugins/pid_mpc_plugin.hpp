@@ -21,8 +21,7 @@ public:
 
     std::optional<steered_drive_msg::msg::SteeredDrive> computeCommand(
         const nav_msgs::msg::Path & path_in_base,
-        double current_velocity,
-        geometry_msgs::msg::PoseStamped & target_pose_out) override;
+        double current_velocity) override;
 
 private:
     rclcpp::Logger logger_{rclcpp::get_logger("pid_mpc_plugin")};

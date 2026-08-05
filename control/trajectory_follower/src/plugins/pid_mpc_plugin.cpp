@@ -84,8 +84,7 @@ void PidMpcPlugin::setMeasuredSteer(double steer)
 
 std::optional<steered_drive_msg::msg::SteeredDrive> PidMpcPlugin::computeCommand(
     const nav_msgs::msg::Path & path_in_base,
-    double current_velocity,
-    geometry_msgs::msg::PoseStamped & target_pose_out)
+    double current_velocity)
 {
     const auto & poses = path_in_base.poses;
     const int n = static_cast<int>(poses.size());
@@ -121,19 +120,6 @@ std::optional<steered_drive_msg::msg::SteeredDrive> PidMpcPlugin::computeCommand
     const double v_ref = longitudinal_.referenceSpeed(curvature, dist_to_end);
     const double v_cmd = longitudinal_.update(v_ref, current_velocity);
     const double steer = lateral_.computeSteering(path_xy, current_velocity);
-
-    int target_idx = nearest;
-    for (int i = nearest; i < n; ++i) {
-        if (arc[i] - arc[nearest] >= 2.0) {
-            target_idx = i;
-            break;
-        }
-        target_idx = i;
-    }
-    target_pose_out.pose.position.x = path_xy[target_idx][0];
-    target_pose_out.pose.position.y = path_xy[target_idx][1];
-    target_pose_out.pose.position.z = 0.0;
-    target_pose_out.pose.orientation.w = 1.0;
 
     steered_drive_msg::msg::SteeredDrive command;
     command.velocity = v_cmd;

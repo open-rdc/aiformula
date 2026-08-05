@@ -25,7 +25,7 @@ double normalize_angle(double a)
 
 void LateralMpc::configure(const LateralMpcParams & params)
 {
-    p_ = params;
+    params_ = params;
     reset();
 }
 
@@ -34,7 +34,7 @@ double LateralMpc::computeSteering(
 {
     const int n = static_cast<int>(path_xy.size());
     if (n < 3) {
-        return std::clamp(prev_steer_, -p_.steer_limit, p_.steer_limit);
+        return std::clamp(prev_steer_, -params_.steer_limit, params_.steer_limit);
     }
 
     std::vector<double> arc(n, 0.0);
@@ -69,11 +69,11 @@ double LateralMpc::computeSteering(
     const double e_y = std::sin(theta) * x0 - std::cos(theta) * y0;
     const double e_yaw = normalize_angle(0.0 - theta);
 
-    const int N = std::max(1, p_.horizon);
-    const double dt = p_.prediction_dt;
-    const double V = std::max(v, p_.min_predict_speed);
-    const double L = p_.wheelbase;
-    const double tau = std::max(p_.steer_tau, 1.0e-3);
+    const int N = std::max(1, params_.horizon);
+    const double dt = params_.prediction_dt;
+    const double V = std::max(v, params_.min_predict_speed);
+    const double L = params_.wheelbase;
+    const double tau = std::max(params_.steer_tau, 1.0e-3);
     const double ds = V * dt;
 
     Eigen::Matrix3d Ac;
@@ -123,8 +123,8 @@ double LateralMpc::computeSteering(
     for (int k = 1; k <= N; ++k) {
         const int r = (k - 1) * 3;
         const bool terminal = (k == N);
-        qdiag(r) = terminal ? p_.weight_terminal_lat_error : p_.weight_lat_error;
-        qdiag(r + 1) = terminal ? p_.weight_terminal_heading_error : p_.weight_heading_error;
+        qdiag(r) = terminal ? params_.weight_terminal_lat_error : params_.weight_lat_error;
+        qdiag(r + 1) = terminal ? params_.weight_terminal_heading_error : params_.weight_heading_error;
         qdiag(r + 2) = 0.0;
     }
     const Eigen::MatrixXd Qbar = qdiag.asDiagonal();
@@ -137,14 +137,14 @@ double LateralMpc::computeSteering(
     }
     pvec(0) = prev_steer_;
 
-    const double R = p_.weight_steering_input;
-    const double Rd = p_.weight_steer_rate;
+    const double R = params_.weight_steering_input;
+    const double Rd = params_.weight_steer_rate;
 
     double steer_state = prev_steer_;
     if (measured_steer_) {
         const double normalized =
             std::atan2(std::sin(*measured_steer_), std::cos(*measured_steer_));
-        steer_state = std::clamp(normalized, -p_.steer_limit, p_.steer_limit);
+        steer_state = std::clamp(normalized, -params_.steer_limit, params_.steer_limit);
         measured_steer_.reset();
     }
 
@@ -160,7 +160,7 @@ double LateralMpc::computeSteering(
     if (!std::isfinite(steer)) {
         steer = prev_steer_;
     }
-    steer = std::clamp(steer, -p_.steer_limit, p_.steer_limit);
+    steer = std::clamp(steer, -params_.steer_limit, params_.steer_limit);
     prev_steer_ = steer;
     return steer;
 }

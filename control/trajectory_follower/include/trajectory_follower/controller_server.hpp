@@ -5,7 +5,6 @@
 #include <mutex>
 #include <string>
 
-#include <geometry_msgs/msg/pose_stamped.hpp>
 #include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
 #include <geometry_msgs/msg/twist_with_covariance_stamped.hpp>
 #include <nav_msgs/msg/path.hpp>
@@ -71,7 +70,6 @@ private:
     rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr autonomous_subscription_;
     rclcpp::Subscription<std_msgs::msg::Float64MultiArray>::SharedPtr caster_data_subscription_;
     rclcpp::Publisher<steered_drive_msg::msg::SteeredDrive>::SharedPtr command_publisher_;
-    rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr target_pose_publisher_;
     rclcpp::TimerBase::SharedPtr timer_;
 };
 

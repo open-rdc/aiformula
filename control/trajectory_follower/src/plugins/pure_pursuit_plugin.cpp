@@ -51,8 +51,7 @@ void PurePursuitPlugin::initialize(
 
 std::optional<steered_drive_msg::msg::SteeredDrive> PurePursuitPlugin::computeCommand(
     const nav_msgs::msg::Path & path_in_base,
-    [[maybe_unused]] double current_velocity,
-    geometry_msgs::msg::PoseStamped & target_pose_out)
+    [[maybe_unused]] double current_velocity)
 {
     TargetPoint target{0.0, 0.0};
     if (!find_lookahead_target(path_in_base, target)) {
@@ -93,7 +92,7 @@ std::optional<steered_drive_msg::msg::SteeredDrive> PurePursuitPlugin::computeCo
         const double dist_to_end = arc[n - 1] - arc[nearest];
         const double curvature = forward_max_curvature(path_xy, arc, nearest, 3.0);
         const double v_lim =
-            v_limit(linear_max_vel_, a_lat_max_, std::abs(a_min_), curvature, dist_to_end);
+            compute_speed_limit(linear_max_vel_, a_lat_max_, std::abs(a_min_), curvature, dist_to_end);
         linear_velocity = std::min(linear_velocity, v_lim);
     }
 
@@ -102,11 +101,6 @@ std::optional<steered_drive_msg::msg::SteeredDrive> PurePursuitPlugin::computeCo
         std::atan2(2.0 * wheelbase_ * std::sin(alpha), lookahead_distance_);
     const double steer_clamped =
         std::clamp(steer_angle * steered_gain_, -steering_max_angle_rad_, steering_max_angle_rad_);
-
-    target_pose_out.pose.position.x = target.x;
-    target_pose_out.pose.position.y = target.y;
-    target_pose_out.pose.position.z = 0.0;
-    target_pose_out.pose.orientation.w = 1.0;
 
     steered_drive_msg::msg::SteeredDrive command;
     command.velocity = linear_velocity;

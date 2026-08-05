@@ -44,7 +44,7 @@ double forward_max_curvature(
     return curvature;
 }
 
-double v_limit(
+double compute_speed_limit(
     double v_max,
     double a_lat_max,
     double a_min_abs,

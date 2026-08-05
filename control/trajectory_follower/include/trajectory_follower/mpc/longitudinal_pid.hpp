@@ -29,7 +29,7 @@ public:
     void reset();
 
 private:
-    LongitudinalParams p_{};
+    LongitudinalParams params_{};
     double integral_ = 0.0;
     double prev_error_ = 0.0;
     double filtered_error_ = 0.0;

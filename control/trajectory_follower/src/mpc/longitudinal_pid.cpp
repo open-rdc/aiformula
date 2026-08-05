@@ -15,13 +15,13 @@ constexpr double STOP_VELOCITY_EPS = 0.05;
 
 void LongitudinalPid::configure(const LongitudinalParams & params)
 {
-    p_ = params;
+    params_ = params;
     reset();
 }
 
 double LongitudinalPid::referenceSpeed(double curvature, double dist_to_end) const
 {
-    return v_limit(p_.v_max, p_.a_lat_max, std::abs(p_.a_min), curvature, dist_to_end);
+    return compute_speed_limit(params_.v_max, params_.a_lat_max, std::abs(params_.a_min), curvature, dist_to_end);
 }
 
 double LongitudinalPid::update(double v_ref, double v_meas)
@@ -37,34 +37,34 @@ double LongitudinalPid::update(double v_ref, double v_meas)
         return 0.0;
     }
 
-    const double dt = p_.dt;
+    const double dt = params_.dt;
     const double error = v_ref - v_meas;
 
     if (!initialized_) {
-        v_cmd_ = std::clamp(v_meas, 0.0, p_.v_max);
+        v_cmd_ = std::clamp(v_meas, 0.0, params_.v_max);
         filtered_error_ = error;
         prev_error_ = error;
         prev_v_ref_ = v_ref;
     }
 
-    const double g = std::clamp(p_.lpf_vel_error_gain, 0.0, 1.0);
+    const double g = std::clamp(params_.lpf_vel_error_gain, 0.0, 1.0);
     filtered_error_ = g * filtered_error_ + (1.0 - g) * error;
 
     const double a_ff = initialized_ ? (v_ref - prev_v_ref_) / dt : 0.0;
 
     integral_ += filtered_error_ * dt;
-    if (p_.ki > 1.0e-9) {
-        const double i_limit = p_.a_max / p_.ki;
+    if (params_.ki > 1.0e-9) {
+        const double i_limit = params_.a_max / params_.ki;
         integral_ = std::clamp(integral_, -i_limit, i_limit);
     }
     const double deriv = initialized_ ? (filtered_error_ - prev_error_) / dt : 0.0;
-    const double a_fb = p_.kp * filtered_error_ + p_.ki * integral_ + p_.kd * deriv;
+    const double a_fb = params_.kp * filtered_error_ + params_.ki * integral_ + params_.kd * deriv;
 
-    double a_cmd = std::clamp(a_ff + a_fb, p_.a_min, p_.a_max);
-    const double da_max = p_.jerk_max * dt;
+    double a_cmd = std::clamp(a_ff + a_fb, params_.a_min, params_.a_max);
+    const double da_max = params_.jerk_max * dt;
     a_cmd = std::clamp(a_cmd, prev_a_cmd_ - da_max, prev_a_cmd_ + da_max);
 
-    v_cmd_ = std::clamp(v_cmd_ + a_cmd * dt, 0.0, p_.v_max);
+    v_cmd_ = std::clamp(v_cmd_ + a_cmd * dt, 0.0, params_.v_max);
 
     prev_error_ = filtered_error_;
     prev_a_cmd_ = a_cmd;

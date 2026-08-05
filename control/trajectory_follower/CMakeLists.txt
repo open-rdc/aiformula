@@ -55,6 +55,16 @@ target_link_libraries(pid_mpc_plugin pid_mpc_core)
 
 pluginlib_export_plugin_description_file(trajectory_follower plugins.xml)
 
+if(BUILD_TESTING)
+  find_package(ament_cmake_gtest REQUIRED)
+  ament_add_gtest(test_speed_limit test/test_speed_limit.cpp)
+  target_link_libraries(test_speed_limit pid_mpc_core)
+  ament_add_gtest(test_longitudinal_pid test/test_longitudinal_pid.cpp)
+  target_link_libraries(test_longitudinal_pid pid_mpc_core)
+  ament_add_gtest(test_lateral_mpc test/test_lateral_mpc.cpp)
+  target_link_libraries(test_lateral_mpc pid_mpc_core)
+endif()
+
 install(
   DIRECTORY include/
   DESTINATION include

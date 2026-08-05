@@ -37,7 +37,7 @@ public:
     double previousSteer() const { return prev_steer_; }
 
 private:
-    LateralMpcParams p_{};
+    LateralMpcParams params_{};
     double prev_steer_ = 0.0;
     std::optional<double> measured_steer_;
 };
