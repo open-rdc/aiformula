@@ -37,7 +37,7 @@ namespace gazebo
         double pulley_radius{0.015};
         double rotator_radius{0.035};
         double spring_length{0.0};
-        double alpha{0.174}; // デフォルト約10度
+        double alpha{0.174}; // 不感帯
         double K{500.0};     // バネ定数
         double Damp{0.02};
         double pulley_theta{0.0};
@@ -76,17 +76,17 @@ namespace gazebo
             {
                 if (_name->Data() == PULLEY_JOINT_NAME)
                 {
-                    std::cout << "ああああ"<< std::endl;
+                    std::cout << "Found Pulley"<< std::endl;
                     PulleyJointEntity = _entity;
                 }
                 else if (_name->Data() == ROTATOR_JOINT_NAME)
                 {
-                    std::cout << "いいい"<< std::endl;
+                    std::cout << "Found Rotator"<< std::endl;
                     RotatorJointEntity = _entity;
                 }
                 if (PulleyJointEntity != kNullEntity && RotatorJointEntity != kNullEntity)
                 {
-                    return false; // 両方見つかったら検索終了
+                    return false;
                 }
                 return true;
             });
@@ -151,13 +151,13 @@ namespace gazebo
         EntityComponentManager &_ecm)
     {
         if (_info.paused) return;
-        // 1. ジョイントEntityの初回探索 (未取得の場合)
+        // ジョイントEntityの初回探索
         if (dataPtr->RotatorJointEntity == kNullEntity)
         {
             dataPtr->FindJointEntities(_ecm);
-            if (dataPtr->RotatorJointEntity == kNullEntity) return; // 見つからなければスキップ
+            if (dataPtr->RotatorJointEntity == kNullEntity) return;
         }
-        // 2. 関節位置 (rotator_theta) の取得
+        // 関節位置 (rotator_theta) の取得
         auto posComp = _ecm.Component<components::JointPosition>(dataPtr->RotatorJointEntity);
         std::cout << "RotatorJointEntity: " << dataPtr->RotatorJointEntity << std::endl;
         std::cout << "Rotator Joint Position: " << (posComp ? std::to_string(posComp->Data()[0]) : "Component not found") << std::endl;
@@ -172,7 +172,7 @@ namespace gazebo
         // ロボット（親リンク）基準の相対角度（-π ～ +π）に変換
         dataPtr->rotator_theta = std::atan2(std::sin(raw_theta), std::cos(raw_theta));
         std::cout << "rotator_theta (relative to parent): " << dataPtr->rotator_theta << std::endl;
-        std::cout << "うううう"<< std::endl;        
+            
         double current_pulley_theta = 0.0;
         {
             std::lock_guard<std::mutex> lock(dataPtr->mutex_);
@@ -182,7 +182,7 @@ namespace gazebo
 
         dataPtr->rotator_theta = posComp->Data()[0];
 
-        // 3. カム機構の幾何計算
+        // カム機構の計算
         double abs_rotator_theta = std::abs(dataPtr->rotator_theta);
         int sign = (dataPtr->rotator_theta > 0) - (dataPtr->rotator_theta < 0);
         
@@ -197,7 +197,7 @@ namespace gazebo
                          dataPtr->rotator_radius * std::sin(abs_rotator_theta - dataPtr->alpha);
         }
 
-        // 4. バネ力と法線反力の計算
+        // バネ力と法線反力の計算
         double preload = dataPtr->pulley_radius * current_pulley_theta;
         std::cout << "preload: " << preload << std::endl;
         double spring_force = dataPtr->K * (dataPtr->x + preload);
@@ -212,10 +212,10 @@ namespace gazebo
             F_r = spring_force * std::cos(abs_rotator_theta - dataPtr->alpha);
         }
 
-        // 5. 復元トルク（Torque = -sign * r_cam * F_r）
+        // 復元トルク
         dataPtr->ReactionForce = -sign * dataPtr->rotator_radius * F_r;
         std::cout << "ReactionForce: " << dataPtr->ReactionForce << std::endl;
-        // 6. JointForceCmd コンポーネントの設定（非破壊的に適用）
+
         auto forceCmdComp = _ecm.Component<components::JointForceCmd>(dataPtr->RotatorJointEntity);
         if (!forceCmdComp)
         {
