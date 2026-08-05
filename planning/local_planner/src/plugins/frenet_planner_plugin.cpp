@@ -128,7 +128,7 @@ std::optional<nav_msgs::msg::Path> FrenetPlannerPlugin::computeLocalPath(
     return make_path_message(points, clock_->now());
 }
 
-std::vector<FrenetPlannerPlugin::PathPoint> FrenetPlannerPlugin::plan_best_path(
+std::vector<FrenetPlannerPlugin::CartesianPoint> FrenetPlannerPlugin::plan_best_path(
     const double start_s,
     const double end_s,
     const frenet::FrenetState& initial,
@@ -147,7 +147,7 @@ std::vector<FrenetPlannerPlugin::PathPoint> FrenetPlannerPlugin::plan_best_path(
     struct Candidate
     {
         double target_d;
-        std::vector<PathPoint> points;
+        std::vector<CartesianPoint> points;
         bool curvature_ok;
         double cost;
     };
@@ -199,7 +199,7 @@ std::vector<FrenetPlannerPlugin::PathPoint> FrenetPlannerPlugin::plan_best_path(
     return {};
 }
 
-std::vector<FrenetPlannerPlugin::PathPoint> FrenetPlannerPlugin::make_stop_path(
+std::vector<FrenetPlannerPlugin::CartesianPoint> FrenetPlannerPlugin::make_stop_path(
     const frenet::FrenetState& initial,
     const FrenetObstacle& obstacle) const
 {
@@ -293,17 +293,16 @@ std::vector<FrenetPlannerPlugin::PathPoint> FrenetPlannerPlugin::sample_referenc
     return reference;
 }
 
-std::vector<FrenetPlannerPlugin::PathPoint> FrenetPlannerPlugin::to_cartesian(
+std::vector<FrenetPlannerPlugin::CartesianPoint> FrenetPlannerPlugin::to_cartesian(
     const std::vector<PathPoint>& reference,
     const std::vector<double>& offsets) const
 {
-    std::vector<PathPoint> points;
+    std::vector<CartesianPoint> points;
     const std::size_t size = std::min(reference.size(), offsets.size());
     points.reserve(size);
     for (std::size_t i = 0U; i < size; ++i) {
         const auto& base = reference[i];
-        points.push_back(PathPoint{
-            base.s,
+        points.push_back(CartesianPoint{
             base.x - std::sin(base.yaw) * offsets[i],
             base.y + std::cos(base.yaw) * offsets[i],
             base.yaw});
@@ -331,7 +330,7 @@ double FrenetPlannerPlugin::reference_curvature_at(const double s) const
 }
 
 std::vector<double> FrenetPlannerPlugin::compute_curvatures(
-    const std::vector<PathPoint>& points)
+    const std::vector<CartesianPoint>& points)
 {
     std::vector<double> curvatures;
     if (points.size() < 3U) {
@@ -353,7 +352,7 @@ std::vector<double> FrenetPlannerPlugin::compute_curvatures(
     return curvatures;
 }
 
-double FrenetPlannerPlugin::compute_path_length(const std::vector<PathPoint>& points)
+double FrenetPlannerPlugin::compute_path_length(const std::vector<CartesianPoint>& points)
 {
     double length = 0.0;
     for (std::size_t i = 1U; i < points.size(); ++i) {
@@ -434,9 +433,6 @@ double FrenetPlannerPlugin::max_path_s() const
 
 double FrenetPlannerPlugin::normalize_path_s(const double s) const
 {
-    if (global_samples_.empty()) {
-        return s;
-    }
     const double path_length = global_samples_.back().s;
     if (path_length <= EPSILON) {
         return s;
@@ -452,7 +448,7 @@ double FrenetPlannerPlugin::normalize_path_s(const double s) const
 }
 
 nav_msgs::msg::Path FrenetPlannerPlugin::make_path_message(
-    const std::vector<PathPoint>& points,
+    const std::vector<CartesianPoint>& points,
     const rclcpp::Time& stamp) const
 {
     nav_msgs::msg::Path path;

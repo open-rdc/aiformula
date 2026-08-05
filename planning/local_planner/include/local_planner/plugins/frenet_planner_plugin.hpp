@@ -35,15 +35,16 @@ public:
 private:
     struct Point2D { double x; double y; };
     struct PathPoint { double s; double x; double y; double yaw; };
+    struct CartesianPoint { double x; double y; double yaw; };
     struct ProjectedPose { double s; double d; double path_yaw; };
     struct FrenetObstacle { double s; double d; double half_width; };
 
-    std::vector<PathPoint> plan_best_path(
+    std::vector<CartesianPoint> plan_best_path(
         double start_s,
         double end_s,
         const frenet::FrenetState & initial,
         const std::optional<FrenetObstacle> & obstacle) const;
-    std::vector<PathPoint> make_stop_path(
+    std::vector<CartesianPoint> make_stop_path(
         const frenet::FrenetState & initial,
         const FrenetObstacle & obstacle) const;
     std::vector<double> make_target_s_list(double start_s, double end_s) const;
@@ -53,7 +54,7 @@ private:
         const object_detection_msgs::msg::ObjectInfoArray & objects) const;
 
     std::vector<PathPoint> sample_reference(const std::vector<double> & s_grid) const;
-    std::vector<PathPoint> to_cartesian(
+    std::vector<CartesianPoint> to_cartesian(
         const std::vector<PathPoint> & reference,
         const std::vector<double> & offsets) const;
 
@@ -62,11 +63,11 @@ private:
     double max_path_s() const;
     double normalize_path_s(double s) const;
     double reference_curvature_at(double s) const;
-    static std::vector<double> compute_curvatures(const std::vector<PathPoint> & points);
-    static double compute_path_length(const std::vector<PathPoint> & points);
+    static std::vector<double> compute_curvatures(const std::vector<CartesianPoint> & points);
+    static double compute_path_length(const std::vector<CartesianPoint> & points);
 
     nav_msgs::msg::Path make_path_message(
-        const std::vector<PathPoint> & points,
+        const std::vector<CartesianPoint> & points,
         const rclcpp::Time & stamp) const;
 
     rclcpp::Logger logger_{rclcpp::get_logger("frenet_planner_plugin")};

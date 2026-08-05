@@ -155,6 +155,46 @@ TEST_F(FrenetPlannerPluginTest, StopsShortOfUnavoidableObstacle)
     }
 }
 
+TEST_F(FrenetPlannerPluginTest, FallsBackToCenterlineWhenCurvatureLimitCannotBeSatisfied)
+{
+    rclcpp::NodeOptions options;
+    options.allow_undeclared_parameters(true);
+    options.automatically_declare_parameters_from_overrides(true);
+    options.parameter_overrides({
+        {"local_path_horizon_m", 15.0},
+        {"local_path_resample_interval_m", 0.2},
+        {"max_centerline_connection_gap_m", 0.5},
+        {"vehicle_width_m", 0.6},
+        {"avoidance_detection_forward_distance_m", 15.0},
+        {"avoidance_hard_margin_m", 0.2},
+        {"avoidance_soft_margin_m", 0.3},
+        {"envelope_buffer_margin_m", 0.2},
+        {"max_avoidance_shift_m", 1.0},
+        {"frenet.lateral_sample_step_m", 0.25},
+        {"frenet.collision_check_margin_m", 0.2},
+        {"frenet.target_lengths_m", std::vector<double>{2.0}},
+        {"frenet.weight_curvature", 2000.0},
+        {"frenet.weight_length", 1.0},
+        {"frenet.weight_lateral_deviation", 50.0},
+        {"stop_standoff_m", 1.0},
+        {"wheelbase", 0.8},
+        {"steering_max.pos", 15.0},
+    });
+    auto short_target_node = std::make_shared<rclcpp::Node>("frenet_plugin_short_target_test_node", options);
+
+    local_planner::FrenetPlannerPlugin plugin;
+    plugin.initialize(
+        short_target_node->get_logger(), short_target_node->get_clock(),
+        short_target_node->get_node_parameters_interface());
+    plugin.setGlobalPath(make_straight_path());
+
+    geometry_msgs::msg::TwistWithCovarianceStamped velocity;
+    const auto path = plugin.computeLocalPath(make_ego_pose(5.0, 4.0), velocity, nullptr);
+    ASSERT_TRUE(path.has_value());
+    ASSERT_GE(path->poses.size(), 2U);
+    EXPECT_NEAR(path->poses.back().pose.position.y, 0.0, 0.1);
+}
+
 }
 
 int main(int argc, char ** argv)
