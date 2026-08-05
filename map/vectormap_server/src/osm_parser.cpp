@@ -305,6 +305,10 @@ vectormap_msgs::msg::VectorMap load_vector_map_from_osm(const std::string& map_p
     map_msg.header.frame_id = required_attribute(*root, "frame_id", "osm");
     map_msg.map_id = required_attribute(*root, "map_id", "osm");
     map_msg.map_version = required_attribute(*root, "map_version", "osm");
+    if (map_msg.header.frame_id != "map") {
+        throw std::runtime_error(
+            "osm frame_id must be \"map\", got \"" + map_msg.header.frame_id + "\"");
+    }
 
     std::unordered_map<uint64_t, geometry_msgs::msg::Point> nodes;
     for (const tinyxml2::XMLElement* node = root->FirstChildElement("node");
@@ -358,6 +362,12 @@ vectormap_msgs::msg::VectorMap load_vector_map_from_osm(const std::string& map_p
         map_msg.line_strings.push_back(std::move(line_string));
     }
 
+    std::unordered_map<uint64_t, const LineString*> line_string_by_id;
+    line_string_by_id.reserve(map_msg.line_strings.size());
+    for (const auto& line_string : map_msg.line_strings) {
+        line_string_by_id.emplace(line_string.id, &line_string);
+    }
+
     std::unordered_set<uint64_t> lanelet_ids;
     std::unordered_set<uint64_t> relation_ids;
     for (const tinyxml2::XMLElement* relation = root->FirstChildElement("relation");
@@ -383,6 +393,13 @@ vectormap_msgs::msg::VectorMap load_vector_map_from_osm(const std::string& map_p
             require_id_exists(line_string_ids, lanelet.left_line_id, context);
             require_id_exists(line_string_ids, lanelet.right_line_id, context);
             require_id_exists(line_string_ids, lanelet.centerline_id, context);
+            const LineString& centerline = *line_string_by_id.at(lanelet.centerline_id);
+            if (centerline.line_type != LineString::TYPE_VIRTUAL_LINE ||
+                centerline.marking_type != LineString::MARKING_VIRTUAL)
+            {
+                throw std::runtime_error(
+                    make_error(context, "centerline way must be virtual_line/virtual marking"));
+            }
             if (!lanelet_ids.insert(id).second) {
                 throw std::runtime_error("duplicate lanelet id " + std::to_string(id));
             }

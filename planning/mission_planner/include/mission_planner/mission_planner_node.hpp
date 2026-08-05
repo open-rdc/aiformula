@@ -56,16 +56,16 @@ public:
 private:
     void vector_map_callback(const vectormap_msgs::msg::VectorMap::SharedPtr msg);
     void pose_callback(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg);
-    void nav_cmd_callback(const std_msgs::msg::String::SharedPtr msg);
+    void navigation_command_callback(const std_msgs::msg::String::SharedPtr msg);
     void lane_change_callback(const std_msgs::msg::Empty::SharedPtr msg);
     void timer_callback();
 
     void build_map_lookup(const vectormap_msgs::msg::VectorMap& map_msg);
-    bool try_build_initial_route(const Point2D& ego, double yaw);
-    bool build_route_from_lanelet_ids(const std::vector<uint64_t>& route_lanelet_ids);
-    void rebuild_route_from_lanelet(uint64_t start_lanelet_id, const std::string& reason);
-    bool rebuild_route_from_pose(const Point2D& ego, double yaw, const std::string& reason);
-    std::vector<uint64_t> build_route_sequence_from_graph(
+    bool try_start_initial_route(const Point2D& ego, double yaw);
+    bool apply_route_lanelet_ids(const std::vector<uint64_t>& route_lanelet_ids);
+    void replan_route_from_lanelet(uint64_t start_lanelet_id, const std::string& reason);
+    bool replan_route_from_pose(const Point2D& ego, double yaw, const std::string& reason);
+    std::vector<uint64_t> search_route_lanelet_ids(
         uint64_t start_lanelet_id,
         std::size_t& fallback_count) const;
     uint64_t select_next_lanelet(
@@ -87,12 +87,12 @@ private:
     const double start_pose_position_variance_threshold_;
     const double route_extension_min_remaining_m_;
     const double curvature_limit_per_m_;
-    const std::vector<uint8_t> nav_cmd_fallback_order_;
+    const std::vector<uint8_t> navigation_command_fallback_order_;
 
     bool map_ready_;
     bool global_path_ready_;
     bool current_route_is_loop_;
-    uint8_t last_nav_cmd_turn_;
+    uint8_t last_navigation_command_turn_;
     std::vector<uint64_t> current_route_lanelet_ids_;
 
     std::vector<PathPoint> global_samples_;
@@ -106,7 +106,7 @@ private:
 
     rclcpp::Subscription<vectormap_msgs::msg::VectorMap>::SharedPtr vector_map_subscription_;
     rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr pose_subscription_;
-    rclcpp::Subscription<std_msgs::msg::String>::SharedPtr nav_cmd_subscription_;
+    rclcpp::Subscription<std_msgs::msg::String>::SharedPtr navigation_command_subscription_;
     rclcpp::Subscription<std_msgs::msg::Empty>::SharedPtr lane_change_subscription_;
     rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr global_path_publisher_;
     rclcpp::TimerBase::SharedPtr timer_;

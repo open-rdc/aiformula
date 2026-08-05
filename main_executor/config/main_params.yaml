@@ -113,8 +113,8 @@ map_odom_tf_node:
 mission_planner_node:
   ros__parameters:
     update_period_ms : 100
-    default_nav_cmd : "straight"
-    nav_cmd_fallback_order : ["straight", "left", "right"]
+    default_navigation_command : "straight"
+    navigation_command_fallback_order : ["straight", "left", "right"]
     global_path_resample_interval_m : 0.2
     max_centerline_connection_gap_m : 0.5
     off_route_distance_threshold_m : 3.0

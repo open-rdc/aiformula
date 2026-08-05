@@ -30,6 +30,12 @@ install(
   DESTINATION share/${PROJECT_NAME}/config
 )
 
+if(BUILD_TESTING)
+  find_package(ament_cmake_gtest REQUIRED)
+  ament_add_gtest(test_osm_parser test/test_osm_parser.cpp)
+  target_link_libraries(test_osm_parser vectormap_server_node)
+endif()
+
 ament_export_dependencies(tinyxml2_vendor TinyXML2)
 
 ament_auto_package()

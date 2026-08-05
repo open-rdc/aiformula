@@ -17,7 +17,7 @@ namespace
 
 constexpr double EPSILON = 1.0e-6;
 
-std::optional<uint8_t> parse_nav_cmd(const std::string& command)
+std::optional<uint8_t> parse_navigation_command(const std::string& command)
 {
     if (command == "straight") {
         return vectormap_msgs::msg::LaneConnection::TURN_STRAIGHT;
@@ -31,32 +31,32 @@ std::optional<uint8_t> parse_nav_cmd(const std::string& command)
     return std::nullopt;
 }
 
-std::vector<uint8_t> read_nav_cmd_fallback_order(rclcpp::Node& node)
+std::vector<uint8_t> read_navigation_command_fallback_order(rclcpp::Node& node)
 {
-    const auto order = node.get_parameter("nav_cmd_fallback_order").as_string_array();
+    const auto order = node.get_parameter("navigation_command_fallback_order").as_string_array();
     if (order.empty()) {
-        throw std::invalid_argument("nav_cmd_fallback_order must not be empty");
+        throw std::invalid_argument("navigation_command_fallback_order must not be empty");
     }
     std::vector<uint8_t> turns;
     turns.reserve(order.size());
     for (const auto& command : order) {
-        const auto turn = parse_nav_cmd(command);
+        const auto turn = parse_navigation_command(command);
         if (!turn) {
             throw std::invalid_argument(
-                "nav_cmd_fallback_order must contain straight, left, or right: " + command);
+                "navigation_command_fallback_order must contain straight, left, or right: " + command);
         }
         turns.push_back(*turn);
     }
     return turns;
 }
 
-uint8_t read_default_nav_cmd(rclcpp::Node& node)
+uint8_t read_default_navigation_command(rclcpp::Node& node)
 {
-    const auto command = node.get_parameter("default_nav_cmd").as_string();
-    const auto turn = parse_nav_cmd(command);
+    const auto command = node.get_parameter("default_navigation_command").as_string();
+    const auto turn = parse_navigation_command(command);
     if (!turn) {
         throw std::invalid_argument(
-            "default_nav_cmd must be straight, left, or right: " + command);
+            "default_navigation_command must be straight, left, or right: " + command);
     }
     return *turn;
 }
@@ -124,11 +124,11 @@ MissionPlannerNode::MissionPlannerNode(
   start_pose_position_variance_threshold_(get_parameter("start_pose_position_variance_threshold").as_double()),
   route_extension_min_remaining_m_(get_parameter("route_extension_min_remaining_m").as_double()),
   curvature_limit_per_m_(read_curvature_limit_per_m(*this)),
-  nav_cmd_fallback_order_(read_nav_cmd_fallback_order(*this)),
+  navigation_command_fallback_order_(read_navigation_command_fallback_order(*this)),
   map_ready_(false),
   global_path_ready_(false),
   current_route_is_loop_(false),
-  last_nav_cmd_turn_(read_default_nav_cmd(*this))
+  last_navigation_command_turn_(read_default_navigation_command(*this))
 {
     vector_map_subscription_ = create_subscription<vectormap_msgs::msg::VectorMap>(
         "/vector_map",
@@ -138,10 +138,10 @@ MissionPlannerNode::MissionPlannerNode(
         "/localization/pose",
         rclcpp::SensorDataQoS().keep_last(1),
         std::bind(&MissionPlannerNode::pose_callback, this, std::placeholders::_1));
-    nav_cmd_subscription_ = create_subscription<std_msgs::msg::String>(
+    navigation_command_subscription_ = create_subscription<std_msgs::msg::String>(
         "/planning/nav_cmd",
         rclcpp::SensorDataQoS().keep_last(1),
-        std::bind(&MissionPlannerNode::nav_cmd_callback, this, std::placeholders::_1));
+        std::bind(&MissionPlannerNode::navigation_command_callback, this, std::placeholders::_1));
     lane_change_subscription_ = create_subscription<std_msgs::msg::Empty>(
         "/flag",
         rclcpp::QoS(1),
@@ -171,28 +171,28 @@ void MissionPlannerNode::pose_callback(
     latest_pose_ = msg;
 }
 
-void MissionPlannerNode::nav_cmd_callback(const std_msgs::msg::String::SharedPtr msg)
+void MissionPlannerNode::navigation_command_callback(const std_msgs::msg::String::SharedPtr msg)
 {
-    const auto requested_turn = parse_nav_cmd(msg->data);
+    const auto requested_turn = parse_navigation_command(msg->data);
     if (!requested_turn) {
-        RCLCPP_ERROR(get_logger(), "nav_cmdが不正なため無視する: %s", msg->data.c_str());
+        RCLCPP_ERROR(get_logger(), "navigation_commandが不正なため無視する: %s", msg->data.c_str());
         return;
     }
 
     std::lock_guard<std::mutex> lock(data_mutex_);
-    last_nav_cmd_turn_ = *requested_turn;
+    last_navigation_command_turn_ = *requested_turn;
     if (!global_path_ready_ || !latest_pose_) {
         RCLCPP_WARN_THROTTLE(
             get_logger(),
             *get_clock(),
             2000,
-            "nav_cmd accepted but route rebuild is pending: waiting for vector map and localization pose");
+            "navigation_command accepted but route rebuild is pending: waiting for vector map and localization pose");
         return;
     }
 
     const Point2D ego{latest_pose_->pose.pose.position.x, latest_pose_->pose.pose.position.y};
     const double yaw = utils::yaw_from_quaternion(latest_pose_->pose.pose.orientation);
-    rebuild_route_from_pose(ego, yaw, "nav_cmd");
+    replan_route_from_pose(ego, yaw, "navigation_command");
     global_path_publisher_->publish(make_global_path_message(now()));
 }
 
@@ -234,7 +234,7 @@ void MissionPlannerNode::lane_change_callback(const std_msgs::msg::Empty::Shared
 
     const uint64_t adjacent_lanelet_id = has_left ? left_it->second : right_it->second;
 
-    rebuild_route_from_lanelet(adjacent_lanelet_id, "lane_change");
+    replan_route_from_lanelet(adjacent_lanelet_id, "lane_change");
     global_path_publisher_->publish(make_global_path_message(now()));
 }
 
@@ -271,7 +271,7 @@ void MissionPlannerNode::timer_callback()
         }
 
         const double yaw = utils::yaw_from_quaternion(latest_pose_->pose.pose.orientation);
-        if (!try_build_initial_route(ego, yaw)) {
+        if (!try_start_initial_route(ego, yaw)) {
             RCLCPP_WARN_THROTTLE(
                 get_logger(),
                 *get_clock(),
@@ -290,7 +290,7 @@ void MissionPlannerNode::timer_callback()
 
     if (distance > off_route_distance_threshold_m_) {
         const double yaw = utils::yaw_from_quaternion(latest_pose_->pose.pose.orientation);
-        rebuild_route_from_pose(ego, yaw, "out_of_route");
+        replan_route_from_pose(ego, yaw, "out_of_route");
         global_path_publisher_->publish(make_global_path_message(now()));
         return;
     }
@@ -298,7 +298,7 @@ void MissionPlannerNode::timer_callback()
     if (!current_route_is_loop_) {
         const double remaining_arc_length_m = compute_remaining_arc_length_m(global_samples_, ego);
         if (remaining_arc_length_m < route_extension_min_remaining_m_) {
-            rebuild_route_from_lanelet(current_lanelet_id, "lookahead_extension");
+            replan_route_from_lanelet(current_lanelet_id, "lookahead_extension");
             global_path_publisher_->publish(make_global_path_message(now()));
         }
     }
