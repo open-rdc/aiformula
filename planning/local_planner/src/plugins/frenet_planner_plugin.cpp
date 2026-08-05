@@ -433,9 +433,6 @@ double FrenetPlannerPlugin::max_path_s() const
 
 double FrenetPlannerPlugin::normalize_path_s(const double s) const
 {
-    if (global_samples_.empty()) {
-        return s;
-    }
     const double path_length = global_samples_.back().s;
     if (path_length <= EPSILON) {
         return s;
