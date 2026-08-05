@@ -17,11 +17,14 @@ endif()
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
+find_package(ignition-gazebo6 REQUIRED)
+add_subdirectory(plugin)
+
 # uncomment the following section in order to fill in
 # further dependencies manually.
 # find_package(<dependency> REQUIRED)
 install(
-  DIRECTORY  launch world models
+  DIRECTORY  launch world models plugin
   DESTINATION share/${PROJECT_NAME}
 )
 

@@ -1,0 +1,37 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>sim_executor</name>
+  <version>0.0.0</version>
+  <description>TODO: Package description</description>
+  <maintainer email="a.w.g.d0201@icloud.com">ken222d</maintainer>
+  <license>TODO: License declaration</license>
+
+  <build_depend>rclcpp</build_depend>
+  <exec_depend>rclcpp</exec_depend>
+  <test_depend>rclcpp</test_depend>
+
+  <depend>socketcan_interface</depend>
+  <depend>controller</depend>
+  <depend>sim_chassis_driver</depend>
+  <depend>frenet_planner</depend>
+  <depend>path_tracker</depend>
+  <depend>utilities</depend>
+  <depend>localization</depend>
+  <depend>motion_control</depend>
+  <depend>lane_planner</depend>
+  <depend>local_planner</depend>
+  <depend>object_detector</depend>
+  <depend>zed_wrapper</depend>
+  <depend>vectormap_server</depend>
+  <depend>gnssnav</depend>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_lint_common</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
