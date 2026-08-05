@@ -38,7 +38,8 @@ def generate_launch_description():
             '/odom@nav_msgs/msg/Odometry@gz.msgs.Odometry',
             '/navsat@sensor_msgs/msg/NavSatFix@gz.msgs.NavSat',
             '/imu_raw@sensor_msgs/msg/Imu@gz.msgs.IMU',
-            '/cmd_vel_twists@geometry_msgs/msg/Twist@gz.msgs.Twist'
+            '/cmd_vel_twists@geometry_msgs/msg/Twist@gz.msgs.Twist',
+            '/caster_reel_position_cmd@std_msgs/msg/Float64@gz.msgs.Double',
             ],
         output='screen',
         remappings=[
