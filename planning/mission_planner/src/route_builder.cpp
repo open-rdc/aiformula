@@ -664,16 +664,6 @@ std::vector<uint64_t> MissionPlannerNode::search_route_lanelet_ids(
         fallback_count);
 }
 
-uint64_t MissionPlannerNode::select_next_lanelet(
-    const uint64_t from_lanelet_id,
-    const uint8_t requested_turn,
-    bool& used_fallback) const
-{
-    return select_next_lanelet_id(
-        connection_edges_by_from_lanelet_id_, from_lanelet_id, requested_turn,
-        navigation_command_fallback_order_, used_fallback);
-}
-
 std::unordered_set<uint64_t> MissionPlannerNode::build_reachable_lanelet_set() const
 {
     std::unordered_set<uint64_t> reachable(

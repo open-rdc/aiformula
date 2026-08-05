@@ -68,10 +68,6 @@ private:
     std::vector<uint64_t> search_route_lanelet_ids(
         uint64_t start_lanelet_id,
         std::size_t& fallback_count) const;
-    uint64_t select_next_lanelet(
-        uint64_t from_lanelet_id,
-        uint8_t requested_turn,
-        bool& used_fallback) const;
     std::unordered_set<uint64_t> build_reachable_lanelet_set() const;
     std::pair<uint64_t, double> find_nearest_lanelet_within_route(const Point2D& point) const;
     nav_msgs::msg::Path make_global_path_message(const rclcpp::Time& stamp) const;

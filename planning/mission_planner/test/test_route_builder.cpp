@@ -157,7 +157,7 @@ TEST(FindRouteLaneletIds, StopsWhenNoOutgoingEdge)
     EXPECT_EQ(result[0], 1U);
 }
 
-TEST(FindRouteLaneletIds, StopsOnCycleBackToVisitedLanelet)
+TEST(FindRouteLaneletIds, StopsOnCycleBackToStartLanelet)
 {
     std::unordered_map<uint64_t, std::vector<mp::Point2D>> centerlines;
     centerlines[1U] = {{0.0, 0.0}, {1.0, 0.0}};
@@ -172,6 +172,26 @@ TEST(FindRouteLaneletIds, StopsOnCycleBackToVisitedLanelet)
     ASSERT_EQ(result.size(), 2U);
     EXPECT_EQ(result[0], 1U);
     EXPECT_EQ(result[1], 2U);
+}
+
+TEST(FindRouteLaneletIds, StopsOnCycleBackToVisitedLanelet)
+{
+    std::unordered_map<uint64_t, std::vector<mp::Point2D>> centerlines;
+    centerlines[1U] = {{0.0, 0.0}, {1.0, 0.0}};
+    centerlines[2U] = {{1.0, 0.0}, {2.0, 0.0}};
+    centerlines[3U] = {{2.0, 0.0}, {3.0, 0.0}};
+    std::unordered_map<uint64_t, std::vector<mp::RouteEdge>> edges;
+    edges[1U] = {mp::RouteEdge{2U, kTurnStraight, 1.0}};
+    edges[2U] = {mp::RouteEdge{3U, kTurnStraight, 1.0}};
+    edges[3U] = {mp::RouteEdge{2U, kTurnStraight, 1.0}};
+
+    std::size_t fallback_count = 0U;
+    const auto result = mp::find_route_lanelet_ids(
+        centerlines, edges, {kTurnStraight}, 1U, kTurnStraight, 10, fallback_count);
+    ASSERT_EQ(result.size(), 3U);
+    EXPECT_EQ(result[0], 1U);
+    EXPECT_EQ(result[1], 2U);
+    EXPECT_EQ(result[2], 3U);
 }
 
 TEST(FindRouteLaneletIds, CountsFallbackUsage)
