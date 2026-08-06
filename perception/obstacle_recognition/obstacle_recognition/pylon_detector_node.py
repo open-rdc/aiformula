@@ -65,7 +65,7 @@ class PylonDetectorNode(Node):
         self.exp.test_conf = g('conf_thre')
         self.exp.nmsthre = g('nms_thre')
         self.model = self.exp.get_model().to(self.device).eval()
-        ckpt = torch.load(g('ckpt'), map_location=self.device)
+        ckpt = torch.load(g('ckpt'), map_location=self.device, weights_only=False)
         self.model.load_state_dict(ckpt['model'] if 'model' in ckpt else ckpt)
         self.preproc = ValTransform(legacy=False)
         self.get_logger().info(f'Loaded YOLOX model from {g("ckpt")}')
@@ -128,14 +128,14 @@ class PylonDetectorNode(Node):
             pR = self.pixel_to_ground(x2, v)
 
             # デバッグ描画(bbox)
-            cv2.rectangle(img, (int(x1), int(y1)), (int(x2), int(y2)), (0, 165, 255), 2)
+            cv2.rectangle(img, (int(x1), int(y1)), (int(x2), int(y2)), (0, 165, 255), 1)
             if pC is None or pL is None or pR is None:
                 continue
             width = math.hypot(pL[0] - pR[0], pL[1] - pR[1])
             dist = math.hypot(pC[0], pC[1])
             cones.append((pC[0], pC[1], width))
-            cv2.putText(img, f'{dist:.2f}m {width:.2f}m', (int(x1), int(y1) - 5),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 165, 255), 2)
+            cv2.putText(img, f'{dist:.2f}m {width:.2f}m', (int(x1), int(y1) - 4),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 165, 255), 1)
             self.get_logger().info(f'pylon dist={dist:.2f}m width={width:.2f}m', throttle_duration_sec=1.0)
 
         debug_msg = self.bridge.cv2_to_imgmsg(img, encoding='bgr8')
