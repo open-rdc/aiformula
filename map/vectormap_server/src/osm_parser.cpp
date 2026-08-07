@@ -237,8 +237,6 @@ void validate_line_tags(const LineString& line_string, const std::string& contex
         }
         return;
     }
-
-    throw std::runtime_error(make_error(context, "unsupported line type"));
 }
 
 uint64_t required_member_ref(
@@ -400,9 +398,7 @@ vectormap_msgs::msg::VectorMap load_vector_map_from_osm(const std::string& map_p
                 throw std::runtime_error(
                     make_error(context, "centerline way must be virtual_line/virtual marking"));
             }
-            if (!lanelet_ids.insert(id).second) {
-                throw std::runtime_error("duplicate lanelet id " + std::to_string(id));
-            }
+            lanelet_ids.insert(id);
             map_msg.lanelets.push_back(lanelet);
         } else if (type == "area") {
             MapArea area;

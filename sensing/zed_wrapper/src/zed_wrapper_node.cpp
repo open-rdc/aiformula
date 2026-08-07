@@ -22,10 +22,8 @@ namespace
 
 sl::RESOLUTION capture_resolution_from(const std::string & size)
 {
-    if (size == "nHD")  { return sl::RESOLUTION::HD1080; }
-    if (size == "SVGA") { return sl::RESOLUTION::SVGA; }
-    throw std::invalid_argument(
-        "ZedWrapperNode: unsupported camera.size: " + size);
+    if (size == "nHD") { return sl::RESOLUTION::HD1080; }
+    return sl::RESOLUTION::SVGA;
 }
 
 sl::DEPTH_MODE parse_depth_mode(const std::string & s)

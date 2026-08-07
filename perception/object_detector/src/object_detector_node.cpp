@@ -61,10 +61,6 @@ ObjectDetectorNode::ObjectDetectorNode(
 
 void ObjectDetectorNode::pointcloud_callback(const sensor_msgs::msg::PointCloud2::SharedPtr msg)
 {
-    if (!msg) {
-        return;
-    }
-
     RCLCPP_DEBUG(
         get_logger(),
         "[input] frame_id=%s, %u x %u = %zu pts",
