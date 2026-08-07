@@ -31,6 +31,7 @@ namespace gazebo
             void setPath(const ignition::msgs::Pose_V &_msg);
             void FindModelEntities(EntityComponentManager &_ecm);
             void StopRobot();
+            bool setInitidx(const ignition::math::Vector3d& currentPos);
             bool updateTargetIndex(const ignition::math::Vector3d& currentPos);
 
             ignition::transport::Node node_;
@@ -44,6 +45,7 @@ namespace gazebo
 
             std::mutex path_mutex_;
 
+            bool setInitidxflag = false;
             bool path_flag = false;
             ignition::math::PID pid_;
             
@@ -163,6 +165,32 @@ namespace gazebo
         cmd_vel_pub_.Publish(msg);
     }
 
+    bool FollowPathPrivate::setInitidx(const ignition::math::Vector3d& currentPos)
+    {
+        if (result_.empty())
+        {
+            return false;
+        }
+
+        double min_dist = std::numeric_limits<double>::max();
+        size_t closest_idx = 0;
+        for (size_t i = 0; i < result_.size(); ++i)
+        {
+            const auto& target_pt = result_[i];
+            double dx = target_pt.x() - currentPos.X();
+            double dy = target_pt.y() - currentPos.Y();
+            double dist = std::hypot(dx, dy);
+            if (dist < min_dist)
+            {
+                closest_idx = i;
+                min_dist = dist;
+            }
+        }
+        current_idx_ = closest_idx;
+        std::cout << "Initial index set to: " << current_idx_ << std::endl;
+        return true;
+    }
+
     bool FollowPathPrivate::updateTargetIndex(const ignition::math::Vector3d& currentPos)
     {
         if (result_.empty() || current_idx_ >= result_.size())
@@ -196,7 +224,7 @@ namespace gazebo
     {
         if (_info.paused) return;
 
-        std::lock_guard<std::mutex> lock(dataPtr->path_mutex_);
+        std::lock_guard<std::mutex> lock(dataPtr->path_mutex_);        
 
         if (dataPtr->RobotEntity == kNullEntity)
         {
@@ -219,6 +247,15 @@ namespace gazebo
         ignition::math::Quaterniond currentRot = poseComp->Data().Rot();
 
         double current_yaw = currentRot.Yaw();
+
+        if (dataPtr->setInitidxflag == false)
+        {
+            if (dataPtr->setInitidx(currentPos) == false)
+            {
+                return;
+            }
+            dataPtr->setInitidxflag = true;
+        }
 
         if (!dataPtr->updateTargetIndex(currentPos)) return;
 
