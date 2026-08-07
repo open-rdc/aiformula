@@ -149,6 +149,8 @@ PoseEstimaterNode::PoseEstimaterNode(
 
     pf_pose_publisher_ = this->create_publisher<geometry_msgs::msg::PoseWithCovarianceStamped>(
         "/localization/pf_pose", rclcpp::SensorDataQoS().keep_last(1));
+    particle_pose_array_publisher_ = this->create_publisher<geometry_msgs::msg::PoseArray>(
+        "/localization/particle", rclcpp::QoS(1));
     timer_ = this->create_wall_timer(
         std::chrono::milliseconds(interval_ms_),
         std::bind(&PoseEstimaterNode::timer_callback, this));
@@ -272,8 +274,31 @@ geometry_msgs::msg::PoseWithCovarianceStamped PoseEstimaterNode::make_pose(
     return pose;
 }
 
+void PoseEstimaterNode::publish_particle_pose_array(const builtin_interfaces::msg::Time& stamp) const
+{
+    if (particle_pose_array_publisher_->get_subscription_count() == 0) {
+        return;
+    }
+
+    geometry_msgs::msg::PoseArray pose_array;
+    pose_array.header.stamp = stamp;
+    pose_array.header.frame_id = "map";
+    const auto& particles = particle_filter_.particles();
+    pose_array.poses.reserve(particles.size());
+    for (const auto& particle : particles) {
+        geometry_msgs::msg::Pose pose;
+        pose.position.x = particle.x;
+        pose.position.y = particle.y;
+        pose.position.z = 0.0;
+        pose.orientation = utils::yaw_to_quaternion(particle.yaw);
+        pose_array.poses.push_back(pose);
+    }
+    particle_pose_array_publisher_->publish(pose_array);
+}
+
 void PoseEstimaterNode::timer_callback()
 {
+    // lockを短時間保持するために、必要なデータをコピーしてから処理する。
     sensor_msgs::msg::PointCloud2::SharedPtr lane_line_points_msg;
     sensor_msgs::msg::NavSatFix::SharedPtr gnss_msg;
     sensor_msgs::msg::Imu::SharedPtr imu_msg;
@@ -319,6 +344,7 @@ void PoseEstimaterNode::timer_callback()
         }
         initialize_particle_filter(raw_pose);
         pf_pose_publisher_->publish(raw_pose);
+        publish_particle_pose_array(raw_pose.header.stamp);
         return;
     }
 
@@ -354,8 +380,8 @@ void PoseEstimaterNode::timer_callback()
         }
     }
 
-    pf_pose_publisher_->publish(
-        make_pose(estimate_stamp, particle_filter_.estimate()));
+    pf_pose_publisher_->publish(make_pose(estimate_stamp, particle_filter_.estimate()));
+    publish_particle_pose_array(estimate_stamp);
 }
 
 }  // namespace pose_estimater

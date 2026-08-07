@@ -7,6 +7,7 @@
 
 #include <Eigen/Core>
 #include <builtin_interfaces/msg/time.hpp>
+#include <geometry_msgs/msg/pose_array.hpp>
 #include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
 #include <geometry_msgs/msg/twist_with_covariance_stamped.hpp>
 #include <rclcpp/rclcpp.hpp>
@@ -53,6 +54,8 @@ private:
     geometry_msgs::msg::PoseWithCovarianceStamped make_pose(
         const builtin_interfaces::msg::Time& stamp, const PoseEstimate2D& estimate) const;
 
+    void publish_particle_pose_array(const builtin_interfaces::msg::Time& stamp) const;
+
     const int interval_ms_;
     const double map_origin_lat_;
     const double map_origin_lon_;
@@ -81,6 +84,7 @@ private:
     rclcpp::Subscription<geometry_msgs::msg::TwistWithCovarianceStamped>::SharedPtr velocity_subscription_;
     rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr initial_pose_subscription_;
     rclcpp::Publisher<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr pf_pose_publisher_;
+    rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr particle_pose_array_publisher_;
     rclcpp::TimerBase::SharedPtr timer_;
 };
 
