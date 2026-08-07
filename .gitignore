@@ -14,6 +14,8 @@ build/
 install/
 log/
 
+test/
+
 simulator_old/
 planning/e2e_planner/data/
 planning/e2e_planner/runs/
