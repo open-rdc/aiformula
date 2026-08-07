@@ -114,9 +114,11 @@ void ColorControl::PreUpdate(const UpdateInfo &_info,
     if (poseComp)
     {
       ignition::math::Vector3d currentPos = poseComp->Data().Pos();
-      distance = currentPos.Distance(TARGET_POSITION);
+      
+      x = currentPos.X();
+      y = currentPos.Y();
 
-      if (distance <= DETECTION_RADIUS)
+      if (x < 85.0 && x > 77.0 && y < 5.0 && y > 0.0)
       {
         if (!timer_started)
         {
@@ -143,7 +145,7 @@ void ColorControl::PreUpdate(const UpdateInfo &_info,
       }
     }
   }
-  if (!(distance <= DETECTION_RADIUS))
+  if (!(x < 85.0 && x > 77.0 && y < 5.0 && y > 0.0))
   {
     SetRed();
     TimerReset();

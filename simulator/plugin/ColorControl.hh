@@ -45,6 +45,8 @@ private:
   double r;
   double g;
   double b;
+  double x;
+  double y;
 
   double distance = 2 * this->DETECTION_RADIUS;
   std::chrono::steady_clock::duration reach_time;

@@ -112,7 +112,10 @@ void LightControl::PreUpdate(const UpdateInfo &_info,
       ignition::math::Vector3d currentPos = poseComp->Data().Pos();
       distance = currentPos.Distance(TARGET_POSITION);
 
-      if (distance <= DETECTION_RADIUS)
+      x = currentPos.X();
+      y = currentPos.Y();
+
+      if (x < 85.0 && x > 77.0 && y < 5.0 && y > 0.0)
       {
         if (!timer_started)
         {
@@ -139,7 +142,7 @@ void LightControl::PreUpdate(const UpdateInfo &_info,
       }
     }
   }
-  if (!(distance <= DETECTION_RADIUS))
+  if (!(x < 85.0 && x > 77.0 && y < 5.0 && y > 0.0))
   {
     SetRed();
     TimerReset();
