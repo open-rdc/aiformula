@@ -6,7 +6,7 @@ import cv2
 import numpy as np
 import torch
 import os
-from rclpy.qos import qos_profile_system_default
+from rclpy.qos import qos_profile_system_default, QoSProfile, QoSReliabilityPolicy, QoSHistoryPolicy
 from ament_index_python.packages import get_package_share_directory
 
 from .utils.utils import letterbox, lane_line_mask, unletterbox_mask
@@ -33,11 +33,16 @@ class RoadDetectorNode(Node):
         
         self.ll_seg_publisher = self.create_publisher(Image, self.output_mask_topic, qos_profile_system_default)
         self.visualize_publisher = self.create_publisher(Image, self.output_mask_topic + '_visualize', qos_profile_system_default)
+        image_qos = QoSProfile(
+            reliability=QoSReliabilityPolicy.BEST_EFFORT,
+            history=QoSHistoryPolicy.KEEP_LAST,
+            depth=1,
+        )
         self.image_subscription = self.create_subscription(
             Image,
             self.input_image_topic,
             self.image_callback,
-            qos_profile_system_default,
+            image_qos,
         )
         self.bridge = CvBridge()
 
