@@ -37,10 +37,6 @@ PfTargetMap::PfTargetMap(std::vector<PfMapPoint> points)
 : points_(std::move(points)),
   root_index_(-1)
 {
-    if (points_.empty()) {
-        return;
-    }
-
     std::vector<std::size_t> indices(points_.size());
     std::iota(indices.begin(), indices.end(), 0U);
     nodes_.reserve(points_.size());
@@ -169,19 +165,24 @@ void ParticleFilter::set_particles_for_test(std::vector<Particle> particles)
 
 void ParticleFilter::predict(const double linear_velocity, const double yaw_rate, const double dt)
 {
-    const double position_noise_std =
-        config_.process_position_noise_std_per_m * std::abs(linear_velocity) * dt +
-        config_.process_position_noise_std_per_s * dt;
-    const double yaw_noise_std =
-        config_.process_yaw_noise_std_per_rad * std::abs(yaw_rate) * dt +
-        config_.process_yaw_noise_std_per_s * dt;
+    const double delta_s = linear_velocity * dt;
+    const double delta_yaw = yaw_rate * dt;
+    // emcl2 の OdomModel と同じスケーリング。分散が |Δs|・|Δθ| に線形なので
+    // 累積拡散はステップ分割数(タイマー周期)に依らない。
+    const double fw_std = std::sqrt(
+        config_.odom_fw_dev_per_fw * config_.odom_fw_dev_per_fw * std::abs(delta_s) +
+        config_.odom_fw_dev_per_rot * config_.odom_fw_dev_per_rot * std::abs(delta_yaw));
+    const double rot_std = std::sqrt(
+        config_.odom_rot_dev_per_fw * config_.odom_rot_dev_per_fw * std::abs(delta_s) +
+        config_.odom_rot_dev_per_rot * config_.odom_rot_dev_per_rot * std::abs(delta_yaw));
 
     for (auto& particle : particles_) {
-        const double dx = linear_velocity * dt * std::cos(particle.yaw);
-        const double dy = linear_velocity * dt * std::sin(particle.yaw);
-        particle.x += dx + sample_gaussian(rng_, position_noise_std);
-        particle.y += dy + sample_gaussian(rng_, position_noise_std);
-        particle.yaw = normalize_angle(particle.yaw + yaw_rate * dt + sample_gaussian(rng_, yaw_noise_std));
+        const double fw = delta_s + sample_gaussian(rng_, fw_std);
+        const double direction = particle.yaw + sample_gaussian(rng_, rot_std);
+        particle.x += fw * std::cos(direction);
+        particle.y += fw * std::sin(direction);
+        particle.yaw = normalize_angle(
+            particle.yaw + delta_yaw + sample_gaussian(rng_, rot_std));
     }
 }
 
@@ -251,14 +252,14 @@ void ParticleFilter::update_weights(
         return;
     }
 
-    const double max_distance_sq = config_.max_correspondence_distance * config_.max_correspondence_distance;
-    const double inv_two_sigma_sq = 1.0 / (2.0 * config_.likelihood_sigma_m * config_.likelihood_sigma_m);
+    const double max_distance_sq = config_.likelihood_max_dist * config_.likelihood_max_dist;
+    const double inv_two_sigma_sq = 1.0 / (2.0 * config_.likelihood_dev * config_.likelihood_dev);
     const double inv_point_count = 1.0 / static_cast<double>(source_points_base_link.size());
 
     // 対応距離を超えた点は距離を上限で打ち切って一定の罰を与える。無罰にすると
     // 地図から外れた点が増えるほど罰の総和が減り、車線幅ぶんずれた姿勢が
     // 真値より高い尤度を得てしまう。
-    // さらに観測点数で正規化し、実効的な尤度の鋭さを likelihood_sigma_m だけで
+    // さらに観測点数で正規化し、実効的な尤度の鋭さを likelihood_dev だけで
     // 決まるようにする。点数ぶん累積すると実効σが σ/√N まで縮み、
     // initialize() のばら撒き幅とスケールが合わなくなる。
     std::vector<double> log_likelihoods(particles_.size());
@@ -302,7 +303,7 @@ void ParticleFilter::update_weights(
     // 見失いは最良パーティクルのRMS残差で判定する。ESS比は重みの偏りしか測らないため、
     // 全パーティクルが同程度に地図から外れている状態を検出できない。
     const double best_rms_residual = std::sqrt(-best_log_likelihood / inv_two_sigma_sq);
-    if (best_rms_residual > config_.reinit_residual_threshold_m) {
+    if (best_rms_residual > config_.reinit_residual_threshold) {
         ++lost_streak_;
     } else {
         lost_streak_ = 0;
@@ -317,9 +318,6 @@ bool ParticleFilter::needs_reinitialization() const
 PoseEstimate2D ParticleFilter::estimate() const
 {
     PoseEstimate2D result;
-    if (particles_.empty()) {
-        return result;
-    }
 
     double weighted_x = 0.0;
     double weighted_y = 0.0;

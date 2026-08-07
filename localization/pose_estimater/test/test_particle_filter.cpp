@@ -43,14 +43,14 @@ ParticleFilterConfig make_default_config()
 {
     ParticleFilterConfig config;
     config.num_particles = 10U;
-    config.process_position_noise_std_per_m = 0.05;
-    config.process_position_noise_std_per_s = 0.02;
-    config.process_yaw_noise_std_per_rad = 0.05;
-    config.process_yaw_noise_std_per_s = 0.01;
-    config.likelihood_sigma_m = 0.3;
-    config.max_correspondence_distance = 1.5;
+    config.odom_fw_dev_per_fw = 0.05;
+    config.odom_fw_dev_per_rot = 0.0001;
+    config.odom_rot_dev_per_fw = 0.001;
+    config.odom_rot_dev_per_rot = 0.05;
+    config.likelihood_dev = 0.3;
+    config.likelihood_max_dist = 1.5;
     config.resample_ess_ratio_threshold = 0.5;
-    config.reinit_residual_threshold_m = 1.0;
+    config.reinit_residual_threshold = 1.0;
     config.reinit_consecutive_frames = 5;
     config.min_position_variance = 0.05;
     config.min_yaw_variance = 0.01;
@@ -121,10 +121,10 @@ TEST(ParticleFilterTest, PredictAppliesUnicycleMotionWithZeroNoise)
 {
     ParticleFilterConfig config = make_default_config();
     config.num_particles = 1U;
-    config.process_position_noise_std_per_m = 0.0;
-    config.process_position_noise_std_per_s = 0.0;
-    config.process_yaw_noise_std_per_rad = 0.0;
-    config.process_yaw_noise_std_per_s = 0.0;
+    config.odom_fw_dev_per_fw = 0.0;
+    config.odom_fw_dev_per_rot = 0.0;
+    config.odom_rot_dev_per_fw = 0.0;
+    config.odom_rot_dev_per_rot = 0.0;
     ParticleFilter filter(config, 3U);
     filter.set_particles_for_test({Particle{0.0, 0.0, 0.0, 1.0}});
 
@@ -137,29 +137,150 @@ TEST(ParticleFilterTest, PredictAppliesUnicycleMotionWithZeroNoise)
     EXPECT_NEAR(particles[0].yaw, 0.05, 1e-9);
 }
 
-TEST(ParticleFilterTest, PredictNoiseProducesExpectedSpread)
+TEST(ParticleFilterTest, PredictFreezesParticlesWhenStationary)
 {
     ParticleFilterConfig config = make_default_config();
-    config.num_particles = 2000U;
-    config.process_position_noise_std_per_m = 0.0;
-    config.process_position_noise_std_per_s = 0.5;  // dt=0.1 -> std=0.05
-    config.process_yaw_noise_std_per_rad = 0.0;
-    config.process_yaw_noise_std_per_s = 0.0;
-    ParticleFilter filter(config, 11U);
-
-    std::vector<Particle> particles(2000U, Particle{0.0, 0.0, 0.0, 1.0 / 2000.0});
+    config.num_particles = 100U;
+    ParticleFilter filter(config, 9U);
+    std::vector<Particle> particles(100U, Particle{1.0, 2.0, 0.3, 0.01});
     filter.set_particles_for_test(particles);
 
     filter.predict(/*linear_velocity=*/0.0, /*yaw_rate=*/0.0, /*dt=*/0.1);
 
+    for (const auto& particle : filter.particles()) {
+        EXPECT_DOUBLE_EQ(particle.x, 1.0);
+        EXPECT_DOUBLE_EQ(particle.y, 2.0);
+        EXPECT_DOUBLE_EQ(particle.yaw, 0.3);
+    }
+}
+
+TEST(ParticleFilterTest, PredictForwardNoiseSpreadsAlongTrackOnly)
+{
+    ParticleFilterConfig config = make_default_config();
+    config.num_particles = 4000U;
+    config.odom_fw_dev_per_fw = 0.1;
+    config.odom_fw_dev_per_rot = 0.0;
+    config.odom_rot_dev_per_fw = 0.0;
+    config.odom_rot_dev_per_rot = 0.0;
+    ParticleFilter filter(config, 11U);
+    std::vector<Particle> particles(4000U, Particle{0.0, 0.0, 0.0, 1.0 / 4000.0});
+    filter.set_particles_for_test(particles);
+
+    filter.predict(/*linear_velocity=*/1.0, /*yaw_rate=*/0.0, /*dt=*/1.0);  // Δs=1
+
+    double sum_sq = 0.0;
+    for (const auto& particle : filter.particles()) {
+        const double along = particle.x - 1.0;
+        sum_sq += along * along;
+        // 回転係数が0なら direction = yaw = 0 のまま。横方向は厳密にゼロ。
+        EXPECT_DOUBLE_EQ(particle.y, 0.0);
+        EXPECT_DOUBLE_EQ(particle.yaw, 0.0);
+    }
+    const double sample_std = std::sqrt(sum_sq / 4000.0);
+    EXPECT_NEAR(sample_std, 0.1, 0.02);  // ff*sqrt(Δs) = 0.1
+}
+
+TEST(ParticleFilterTest, PredictRotationNoiseScalesWithRotation)
+{
+    ParticleFilterConfig config = make_default_config();
+    config.num_particles = 4000U;
+    config.odom_fw_dev_per_fw = 0.0;
+    config.odom_fw_dev_per_rot = 0.0;
+    config.odom_rot_dev_per_fw = 0.0;
+    config.odom_rot_dev_per_rot = 0.2;
+    ParticleFilter filter(config, 13U);
+    std::vector<Particle> particles(4000U, Particle{0.0, 0.0, 0.0, 1.0 / 4000.0});
+    filter.set_particles_for_test(particles);
+
+    filter.predict(/*linear_velocity=*/0.0, /*yaw_rate=*/1.0, /*dt=*/0.25);  // Δθ=0.25
+
+    double sum_sq = 0.0;
+    for (const auto& particle : filter.particles()) {
+        const double dyaw = particle.yaw - 0.25;
+        sum_sq += dyaw * dyaw;
+        // 前進係数が0かつ v=0 なら位置は動かない。
+        EXPECT_DOUBLE_EQ(particle.x, 0.0);
+        EXPECT_DOUBLE_EQ(particle.y, 0.0);
+    }
+    const double sample_std = std::sqrt(sum_sq / 4000.0);
+    EXPECT_NEAR(sample_std, 0.1, 0.02);  // rr*sqrt(Δθ) = 0.2*0.5 = 0.1
+}
+
+TEST(ParticleFilterTest, PredictYawSpreadsWhileDrivingStraight)
+{
+    ParticleFilterConfig config = make_default_config();
+    config.num_particles = 4000U;
+    config.odom_fw_dev_per_fw = 0.0;
+    config.odom_fw_dev_per_rot = 0.0;
+    config.odom_rot_dev_per_fw = 0.05;
+    config.odom_rot_dev_per_rot = 0.0;
+    ParticleFilter filter(config, 17U);
+    std::vector<Particle> particles(4000U, Particle{0.0, 0.0, 0.0, 1.0 / 4000.0});
+    filter.set_particles_for_test(particles);
+
+    filter.predict(/*linear_velocity=*/4.0, /*yaw_rate=*/0.0, /*dt=*/0.25);  // Δs=1
+
+    double sum_sq = 0.0;
+    for (const auto& particle : filter.particles()) {
+        sum_sq += particle.yaw * particle.yaw;
+    }
+    const double sample_std = std::sqrt(sum_sq / 4000.0);
+    EXPECT_NEAR(sample_std, 0.05, 0.01);  // rf*sqrt(Δs) = 0.05
+}
+
+TEST(ParticleFilterTest, PredictForwardNoiseFromRotation)
+{
+    ParticleFilterConfig config = make_default_config();
+    config.num_particles = 4000U;
+    config.odom_fw_dev_per_fw = 0.0;
+    config.odom_fw_dev_per_rot = 0.1;
+    config.odom_rot_dev_per_fw = 0.0;
+    config.odom_rot_dev_per_rot = 0.0;
+    ParticleFilter filter(config, 19U);
+    std::vector<Particle> particles(4000U, Particle{0.0, 0.0, 0.0, 1.0 / 4000.0});
+    filter.set_particles_for_test(particles);
+
+    filter.predict(/*linear_velocity=*/0.0, /*yaw_rate=*/1.0, /*dt=*/1.0);  // Δθ=1
+
     double sum_sq = 0.0;
     for (const auto& particle : filter.particles()) {
         sum_sq += particle.x * particle.x;
+        // 回転係数が0なら direction = yaw = 0。前進ノイズは x 軸方向のみ。
+        EXPECT_DOUBLE_EQ(particle.y, 0.0);
+        EXPECT_DOUBLE_EQ(particle.yaw, 1.0);
     }
-    const double sample_std = std::sqrt(sum_sq / filter.particles().size());
-    const double expected_std = 0.05;
+    const double sample_std = std::sqrt(sum_sq / 4000.0);
+    EXPECT_NEAR(sample_std, 0.1, 0.02);  // fr*sqrt(Δθ) = 0.1
+}
 
-    EXPECT_NEAR(sample_std, expected_std, expected_std * 0.3);
+TEST(ParticleFilterTest, PredictAccumulatedSpreadIsStepInvariant)
+{
+    const auto accumulated_std = [](const unsigned seed, const int steps) {
+        ParticleFilterConfig config = make_default_config();
+        config.num_particles = 4000U;
+        config.odom_fw_dev_per_fw = 0.1;
+        config.odom_fw_dev_per_rot = 0.0;
+        config.odom_rot_dev_per_fw = 0.0;
+        config.odom_rot_dev_per_rot = 0.0;
+        ParticleFilter filter(config, seed);
+        std::vector<Particle> particles(4000U, Particle{0.0, 0.0, 0.0, 1.0 / 4000.0});
+        filter.set_particles_for_test(particles);
+
+        const double dt = 1.0 / static_cast<double>(steps);
+        for (int i = 0; i < steps; ++i) {
+            filter.predict(/*linear_velocity=*/1.0, /*yaw_rate=*/0.0, dt);
+        }
+        double sum_sq = 0.0;
+        for (const auto& particle : filter.particles()) {
+            const double along = particle.x - 1.0;
+            sum_sq += along * along;
+        }
+        return std::sqrt(sum_sq / 4000.0);
+    };
+
+    // 同じ1mの走行を1分割/10分割しても累積拡散は ff*sqrt(1m) = 0.1 で不変。
+    EXPECT_NEAR(accumulated_std(23U, 1), 0.1, 0.02);
+    EXPECT_NEAR(accumulated_std(29U, 10), 0.1, 0.02);
 }
 
 TEST(ParticleFilterTest, EffectiveSampleSizeRatioIsOneForUniformWeights)
@@ -232,8 +353,8 @@ TEST(ParticleFilterTest, UpdateWeightsFavorsCloserParticle)
 {
     ParticleFilterConfig config = make_default_config();
     config.num_particles = 3U;
-    config.likelihood_sigma_m = 0.3;
-    config.max_correspondence_distance = 2.0;
+    config.likelihood_dev = 0.3;
+    config.likelihood_max_dist = 2.0;
     ParticleFilter filter(config, 5U);
 
     filter.set_particles_for_test({
@@ -327,7 +448,7 @@ TEST(ParticleFilterTest, UpdateWeightsSharpnessIsIndependentOfPointCount)
         return weight_of(filter, 1) / weight_of(filter, 0);
     };
 
-    // 残差0.3m / likelihood_sigma_m 0.3m の重み比は exp(-0.5)。
+    // 残差0.3m / likelihood_dev 0.3m の重み比は exp(-0.5)。
     // 観測点数で正規化されていれば点数に依らずこの値になる。
     // 累積のままだと exp(-0.5*N) となり点数の指数で変わってしまう。
     const double expected = std::exp(-0.5);
@@ -363,8 +484,8 @@ TEST(ParticleFilterTest, NeedsReinitializationWhenBestResidualStaysLarge)
 {
     ParticleFilterConfig config = make_default_config();
     config.num_particles = 2U;
-    config.max_correspondence_distance = 1.5;
-    config.reinit_residual_threshold_m = 0.5;
+    config.likelihood_max_dist = 1.5;
+    config.reinit_residual_threshold = 0.5;
     config.reinit_consecutive_frames = 3;
     ParticleFilter filter(config, 5U);
 
@@ -391,8 +512,8 @@ TEST(ParticleFilterTest, SmallResidualResetsReinitStreak)
 {
     ParticleFilterConfig config = make_default_config();
     config.num_particles = 2U;
-    config.max_correspondence_distance = 1.5;
-    config.reinit_residual_threshold_m = 0.5;
+    config.likelihood_max_dist = 1.5;
+    config.reinit_residual_threshold = 0.5;
     config.reinit_consecutive_frames = 1;
     ParticleFilter filter(config, 5U);
 

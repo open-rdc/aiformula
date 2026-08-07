@@ -29,26 +29,26 @@ constexpr double HALF_PI = M_PI * 0.5;
 ParticleFilterConfig make_particle_filter_config(rclcpp::Node& node)
 {
     ParticleFilterConfig config;
-    config.num_particles = static_cast<std::size_t>(node.get_parameter("pf.num_particles").as_int());
-    config.process_position_noise_std_per_m =
-        node.get_parameter("pf.process_position_noise_std_per_m").as_double();
-    config.process_position_noise_std_per_s =
-        node.get_parameter("pf.process_position_noise_std_per_s").as_double();
-    config.process_yaw_noise_std_per_rad =
-        node.get_parameter("pf.process_yaw_noise_std_per_rad").as_double();
-    config.process_yaw_noise_std_per_s =
-        node.get_parameter("pf.process_yaw_noise_std_per_s").as_double();
-    config.likelihood_sigma_m = node.get_parameter("pf.likelihood_sigma_m").as_double();
-    config.max_correspondence_distance =
-        node.get_parameter("pf.max_correspondence_distance_m").as_double();
+    config.num_particles = static_cast<std::size_t>(node.get_parameter("num_particles").as_int());
+    config.odom_fw_dev_per_fw =
+        node.get_parameter("odom_fw_dev_per_fw").as_double();
+    config.odom_fw_dev_per_rot =
+        node.get_parameter("odom_fw_dev_per_rot").as_double();
+    config.odom_rot_dev_per_fw =
+        node.get_parameter("odom_rot_dev_per_fw").as_double();
+    config.odom_rot_dev_per_rot =
+        node.get_parameter("odom_rot_dev_per_rot").as_double();
+    config.likelihood_dev = node.get_parameter("likelihood_dev").as_double();
+    config.likelihood_max_dist =
+        node.get_parameter("likelihood_max_dist").as_double();
     config.resample_ess_ratio_threshold =
-        node.get_parameter("pf.resample_ess_ratio_threshold").as_double();
-    config.reinit_residual_threshold_m =
-        node.get_parameter("pf.reinit_residual_threshold_m").as_double();
+        node.get_parameter("resample_ess_ratio_threshold").as_double();
+    config.reinit_residual_threshold =
+        node.get_parameter("reinit_residual_threshold").as_double();
     config.reinit_consecutive_frames =
-        static_cast<int>(node.get_parameter("pf.reinit_consecutive_frames").as_int());
-    config.min_position_variance = node.get_parameter("pf.min_position_variance").as_double();
-    config.min_yaw_variance = node.get_parameter("pf.min_yaw_variance").as_double();
+        static_cast<int>(node.get_parameter("reinit_consecutive_frames").as_int());
+    config.min_position_variance = node.get_parameter("min_position_variance").as_double();
+    config.min_yaw_variance = node.get_parameter("min_yaw_variance").as_double();
     return config;
 }
 
@@ -95,9 +95,7 @@ std::vector<Eigen::Vector2d> lane_line_points_from_cloud(const sensor_msgs::msg:
     try {
         sensor_msgs::PointCloud2ConstIterator<float> iter_x(cloud, "x");
         sensor_msgs::PointCloud2ConstIterator<float> iter_y(cloud, "y");
-        points.reserve(std::min<std::size_t>(
-            static_cast<std::size_t>(cloud.width) * cloud.height,
-            cloud.data.size()));
+        points.reserve(static_cast<std::size_t>(cloud.width) * cloud.height);
         for (; iter_x != iter_x.end(); ++iter_x, ++iter_y) {
             points.emplace_back(static_cast<double>(*iter_x), static_cast<double>(*iter_y));
         }
@@ -151,8 +149,6 @@ PoseEstimaterNode::PoseEstimaterNode(
 
     pf_pose_publisher_ = this->create_publisher<geometry_msgs::msg::PoseWithCovarianceStamped>(
         "/localization/pf_pose", rclcpp::SensorDataQoS().keep_last(1));
-    raw_pose_publisher_ = this->create_publisher<geometry_msgs::msg::PoseWithCovarianceStamped>(
-        "/localization/pose_raw", rclcpp::SensorDataQoS().keep_last(1));
     timer_ = this->create_wall_timer(
         std::chrono::milliseconds(interval_ms_),
         std::bind(&PoseEstimaterNode::timer_callback, this));
@@ -206,9 +202,6 @@ void PoseEstimaterNode::rebuild_map_points(const vectormap_msgs::msg::VectorMap&
             const Eigen::Vector2d start(line_string.points[i - 1U].x, line_string.points[i - 1U].y);
             const Eigen::Vector2d end(line_string.points[i].x, line_string.points[i].y);
             const double length = (end - start).norm();
-            if (length <= 0.0) {
-                continue;
-            }
             const int samples = std::max(1, static_cast<int>(std::ceil(length / map_sample_interval_m_)));
             for (int sample = 0; sample <= samples; ++sample) {
                 const double ratio = static_cast<double>(sample) / static_cast<double>(samples);
@@ -309,9 +302,6 @@ void PoseEstimaterNode::timer_callback()
     geometry_msgs::msg::PoseWithCovarianceStamped raw_pose;
     const bool has_raw_pose =
         gnss_msg && imu_msg && gnss_to_map_pose(*gnss_msg, *imu_msg, raw_pose);
-    if (has_raw_pose) {
-        raw_pose_publisher_->publish(raw_pose);
-    }
 
     if (!particle_filter_.initialized()) {
         if (!has_raw_pose) {

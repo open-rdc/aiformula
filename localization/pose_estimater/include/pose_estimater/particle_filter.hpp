@@ -54,15 +54,17 @@ private:
 struct ParticleFilterConfig
 {
     std::size_t num_particles = 0U;
-    double process_position_noise_std_per_m = 0.0;
-    double process_position_noise_std_per_s = 0.0;
-    double process_yaw_noise_std_per_rad = 0.0;
-    double process_yaw_noise_std_per_s = 0.0;
-    double likelihood_sigma_m = 0.0;
-    double max_correspondence_distance = 0.0;
+    // emcl2 の OdomModel と同じ4係数。分散が走行距離・回転角に線形:
+    //   std_fw  = sqrt(ff^2*|Δs| + fr^2*|Δθ|), std_rot = sqrt(rf^2*|Δs| + rr^2*|Δθ|)
+    double odom_fw_dev_per_fw = 0.0;
+    double odom_fw_dev_per_rot = 0.0;
+    double odom_rot_dev_per_fw = 0.0;
+    double odom_rot_dev_per_rot = 0.0;
+    double likelihood_dev = 0.0;
+    double likelihood_max_dist = 0.0;
     double resample_ess_ratio_threshold = 0.0;
     // 最良パーティクルのRMS残差がこの値を超えたフレームを見失いとして数える。
-    double reinit_residual_threshold_m = 0.0;
+    double reinit_residual_threshold = 0.0;
     int reinit_consecutive_frames = 0;
     // estimate() が返す共分散の下限。リサンプルで粒子が潰れても
     // 実際の推定誤差より小さい共分散を公表しないようにする。
@@ -109,7 +111,7 @@ public:
 
     void resample();
 
-    // update_weights() で得た最良パーティクルのRMS残差が reinit_residual_threshold_m を
+    // update_weights() で得た最良パーティクルのRMS残差が reinit_residual_threshold を
     // reinit_consecutive_frames 回連続で上回ったら true。initialize() でリセットされる。
     bool needs_reinitialization() const;
 
