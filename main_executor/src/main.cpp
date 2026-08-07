@@ -40,7 +40,7 @@ int main(int argc, char * argv[]){
     auto mission_planner_node = std::make_shared<mission_planner::MissionPlannerNode>(nodes_option);
     auto local_planner_server_node = std::make_shared<local_planner::LocalPlannerServer>(nodes_option);
     auto controller_server_node = std::make_shared<trajectory_follower::ControllerServer>(nodes_option);
-    auto object_detector_node = std::make_shared<object_detector::ObjectDetectorNode>(nodes_option);
+    // auto object_detector_node = std::make_shared<object_detector::ObjectDetectorNode>(nodes_option);
 
 #ifdef ENABLE_ZED
     std::shared_ptr<zed_wrapper::ZedWrapperNode> zed_wrapper_node;
@@ -61,7 +61,7 @@ int main(int argc, char * argv[]){
     exec.add_node(mission_planner_node);
     exec.add_node(local_planner_server_node);
     exec.add_node(controller_server_node);
-    exec.add_node(object_detector_node);
+    // exec.add_node(object_detector_node);
 
     exec.spin();
     rclcpp::shutdown();

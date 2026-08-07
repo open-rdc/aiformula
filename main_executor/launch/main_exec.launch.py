@@ -20,7 +20,7 @@ def generate_launch_description():
     with open(config_file_path, 'r') as file:
         launch_params = yaml.safe_load(file)['launch']['ros__parameters']
 
-    use_sim_time = launch_params.get('sim', False)
+    use_sim_time = launch_params['sim']
 
     urdf_path = os.path.join(
         get_package_share_directory('simulator'),
