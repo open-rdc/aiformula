@@ -158,16 +158,13 @@ object_detector_node:
 
 controller_server_node:
   ros__parameters:
-    control_period_ms  : 50
+    interval_ms  : 50
     controller_plugin  : "trajectory_follower::PurePursuitPlugin"
-    input_timeout_s    : 0.5
     a_lat_max          : 5.0
     a_min              : -2.0
-
     pure_pursuit:
       lookahead_distance : 5.0
       steered_gain       : 1.8
-
     mpc:
       longitudinal:
         a_max              : 5.0

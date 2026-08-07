@@ -5,7 +5,6 @@
 #include <cmath>
 #include <limits>
 #include <stdexcept>
-#include <string>
 #include <vector>
 
 #include <pluginlib/class_list_macros.hpp>
@@ -36,11 +35,8 @@ void PurePursuitPlugin::initialize(
     steering_max_angle_rad_ =
         utils::dtor(params->get_parameter("steering_max.pos").get_value<double>());
 
-    auto get_d = [&](const std::string & name, double def) {
-        return params->has_parameter(name) ? params->get_parameter(name).get_value<double>() : def;
-    };
-    a_lat_max_ = get_d("a_lat_max", 5.0);
-    a_min_ = get_d("a_min", -2.0);
+    a_lat_max_ = params->get_parameter("a_lat_max").get_value<double>();
+    a_min_ = params->get_parameter("a_min").get_value<double>();
 
     if (linear_max_vel_ <= 0.0 || lookahead_distance_ <= 0.0 ||
         steered_gain_ <= 0.0 || wheelbase_ <= 0.0 || steering_max_angle_rad_ <= 0.0)
@@ -63,8 +59,7 @@ std::optional<steered_drive_msg::msg::SteeredDrive> PurePursuitPlugin::computeCo
         return std::nullopt;
     }
 
-    const double safe_lookahead = std::max(lookahead_distance_, 1.0e-3);
-    const double linear_scale = std::clamp(distance / safe_lookahead, 0.0, 1.0);
+    const double linear_scale = std::clamp(distance / lookahead_distance_, 0.0, 1.0);
     double linear_velocity = std::clamp(linear_max_vel_ * linear_scale, 0.0, linear_max_vel_);
 
     const auto & poses = path_in_base.poses;

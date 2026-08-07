@@ -88,7 +88,7 @@ double LateralMpc::computeSteering(
         const double s_abs = arc[nearest] + s;
         int j = nearest;
         while (j < n - 1 && arc[j] < s_abs) ++j;
-        return curv[std::clamp(j, 0, n - 1)];
+        return curv[j];
     };
 
     std::vector<Eigen::Matrix3d> Apow(N + 1, Eigen::Matrix3d::Identity());

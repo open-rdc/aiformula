@@ -3,6 +3,7 @@
 #include <chrono>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <string>
 
 #include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
@@ -42,31 +43,26 @@ private:
     void caster_data_callback(const std_msgs::msg::Float64MultiArray::SharedPtr msg);
     void timer_callback();
 
-    void publish_stop_command();
-
     nav_msgs::msg::Path transform_path_to_base(
         const nav_msgs::msg::Path & path,
         const geometry_msgs::msg::PoseWithCovarianceStamped & ego_pose) const;
 
-    const int control_period_ms_;
-    const double input_timeout_s_;
+    const int interval_ms_;
 
     pluginlib::ClassLoader<ControllerPlugin> plugin_loader_;
     ControllerPlugin::SharedPtr plugin_;
 
-    bool autonomous_enabled_{false};
-    nav_msgs::msg::Path::SharedPtr latest_path_;
-    geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr latest_pose_;
-    geometry_msgs::msg::TwistWithCovarianceStamped::SharedPtr latest_velocity_;
-    std_msgs::msg::Float64MultiArray::SharedPtr latest_caster_data_;
-    rclcpp::Time latest_caster_stamp_{0, 0, RCL_ROS_TIME};
+    bool autonomous_flag_=false;
+    nav_msgs::msg::Path::SharedPtr path_;
+    geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr pose_;
+    geometry_msgs::msg::TwistWithCovarianceStamped::SharedPtr velocity_;
+    std_msgs::msg::Float64MultiArray::SharedPtr caster_data_;
+    std::optional<steered_drive_msg::msg::SteeredDrive> last_cmd_vel_;
     mutable std::mutex data_mutex_;
 
     rclcpp::Subscription<nav_msgs::msg::Path>::SharedPtr path_subscription_;
-    rclcpp::Subscription<
-        geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr pose_subscription_;
-    rclcpp::Subscription<
-        geometry_msgs::msg::TwistWithCovarianceStamped>::SharedPtr velocity_subscription_;
+    rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr pose_subscription_;
+    rclcpp::Subscription<geometry_msgs::msg::TwistWithCovarianceStamped>::SharedPtr velocity_subscription_;
     rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr autonomous_subscription_;
     rclcpp::Subscription<std_msgs::msg::Float64MultiArray>::SharedPtr caster_data_subscription_;
     rclcpp::Publisher<steered_drive_msg::msg::SteeredDrive>::SharedPtr command_publisher_;

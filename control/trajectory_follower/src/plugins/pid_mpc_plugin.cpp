@@ -4,7 +4,6 @@
 #include <cmath>
 #include <limits>
 #include <stdexcept>
-#include <string>
 #include <vector>
 
 #include <pluginlib/class_list_macros.hpp>
@@ -23,41 +22,37 @@ void PidMpcPlugin::initialize(
     logger_ = logger;
     clock_ = clock;
 
-    auto get_d = [&](const std::string & name, double def) {
-        return params->has_parameter(name) ? params->get_parameter(name).get_value<double>() : def;
-    };
-    auto get_i = [&](const std::string & name, int def) {
-        return params->has_parameter(name) ? params->get_parameter(name).get_value<int>() : def;
-    };
-
-    const double dt = static_cast<double>(get_i("control_period_ms", 50)) / 1000.0;
+    const double dt =
+        static_cast<double>(params->get_parameter("interval_ms").as_int()) / 1000.0;
 
     LongitudinalParams lon;
-    lon.v_max = get_d("linear_max.vel", 2.0);
-    lon.a_lat_max = get_d("a_lat_max", 5.0);
-    lon.a_max = get_d("mpc.longitudinal.a_max", 1.0);
-    lon.a_min = get_d("a_min", -2.0);
-    lon.jerk_max = get_d("mpc.longitudinal.jerk_max", 2.0);
-    lon.kp = get_d("mpc.longitudinal.kp", 0.8);
-    lon.ki = get_d("mpc.longitudinal.ki", 0.1);
-    lon.kd = get_d("mpc.longitudinal.kd", 0.0);
-    lon.lpf_vel_error_gain = get_d("mpc.longitudinal.lpf_vel_error_gain", 0.9);
+    lon.v_max = params->get_parameter("linear_max.vel").as_double();
+    lon.a_lat_max = params->get_parameter("a_lat_max").as_double();
+    lon.a_max = params->get_parameter("mpc.longitudinal.a_max").as_double();
+    lon.a_min = params->get_parameter("a_min").as_double();
+    lon.jerk_max = params->get_parameter("mpc.longitudinal.jerk_max").as_double();
+    lon.kp = params->get_parameter("mpc.longitudinal.kp").as_double();
+    lon.ki = params->get_parameter("mpc.longitudinal.ki").as_double();
+    lon.kd = params->get_parameter("mpc.longitudinal.kd").as_double();
+    lon.lpf_vel_error_gain = params->get_parameter("mpc.longitudinal.lpf_vel_error_gain").as_double();
     lon.dt = dt;
     longitudinal_.configure(lon);
 
     LateralMpcParams lat;
-    lat.wheelbase = get_d("wheelbase", 0.8);
-    lat.steer_tau = get_d("mpc.lateral.steer_tau", 0.3);
-    lat.steer_limit = utils::dtor(get_d("steering_max.pos", 15.0));
-    lat.weight_lat_error = get_d("mpc.lateral.weight_lat_error", 1.0);
-    lat.weight_heading_error = get_d("mpc.lateral.weight_heading_error", 1.0);
-    lat.weight_steering_input = get_d("mpc.lateral.weight_steering_input", 0.5);
-    lat.weight_steer_rate = get_d("mpc.lateral.weight_steer_rate", 5.0);
-    lat.weight_terminal_lat_error = get_d("mpc.lateral.weight_terminal_lat_error", 1.0);
-    lat.weight_terminal_heading_error = get_d("mpc.lateral.weight_terminal_heading_error", 1.0);
-    lat.horizon = get_i("mpc.lateral.horizon", 20);
-    lat.prediction_dt = get_d("mpc.lateral.prediction_dt", 0.1);
-    lat.min_predict_speed = get_d("mpc.lateral.min_predict_speed", 0.5);
+    lat.wheelbase = params->get_parameter("wheelbase").as_double();
+    lat.steer_tau = params->get_parameter("mpc.lateral.steer_tau").as_double();
+    lat.steer_limit = utils::dtor(params->get_parameter("steering_max.pos").as_double());
+    lat.weight_lat_error = params->get_parameter("mpc.lateral.weight_lat_error").as_double();
+    lat.weight_heading_error = params->get_parameter("mpc.lateral.weight_heading_error").as_double();
+    lat.weight_steering_input = params->get_parameter("mpc.lateral.weight_steering_input").as_double();
+    lat.weight_steer_rate = params->get_parameter("mpc.lateral.weight_steer_rate").as_double();
+    lat.weight_terminal_lat_error =
+        params->get_parameter("mpc.lateral.weight_terminal_lat_error").as_double();
+    lat.weight_terminal_heading_error =
+        params->get_parameter("mpc.lateral.weight_terminal_heading_error").as_double();
+    lat.horizon = params->get_parameter("mpc.lateral.horizon").as_int();
+    lat.prediction_dt = params->get_parameter("mpc.lateral.prediction_dt").as_double();
+    lat.min_predict_speed = params->get_parameter("mpc.lateral.min_predict_speed").as_double();
     lateral_.configure(lat);
 
     if (lon.v_max <= 0.0 || lat.wheelbase <= 0.0 || lat.steer_limit <= 0.0) {

@@ -59,7 +59,7 @@ double compute_speed_limit(
     }
 
     const double v_stop =
-        std::sqrt(std::max(0.0, 2.0 * std::abs(a_min_abs) * std::max(0.0, dist_to_end)));
+        std::sqrt(2.0 * a_min_abs * std::max(0.0, dist_to_end));
     v = std::min(v, v_stop);
 
     return std::clamp(v, 0.0, v_max);
