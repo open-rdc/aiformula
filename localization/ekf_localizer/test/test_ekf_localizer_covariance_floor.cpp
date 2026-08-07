@@ -24,6 +24,8 @@ EkfLocalizerConfig make_config(
     config.yaw_gate_dist = 3.0;
     config.min_position_variance = min_position_variance;
     config.min_yaw_variance = min_yaw_variance;
+    config.position_gate_max_reject_duration_s = 1.0;
+    config.yaw_gate_max_reject_duration_s = 1.0;
     return config;
 }
 
@@ -31,9 +33,8 @@ EkfLocalizerConfig make_config(
 
 TEST(EkfLocalizerCovarianceFloor, PositionVarianceNeverShrinksBelowFloor)
 {
-    // 停止継続や直線区間のICP開口問題により、同じ位置に一致する観測が
-    // 繰り返しacceptされると位置共分散が際限なく収縮しうる
-    // （実走行ログで確認されたゲートロックの回帰テスト）。
+    // 停止継続時など同じ位置に一致し続けるPF観測が繰り返しacceptされると
+    // 位置共分散が際限なく収縮しうる（実走行ログで確認されたゲートロックの回帰テスト）。
     constexpr double min_position_variance = 1.0;
     EkfLocalizer ekf(make_config(min_position_variance, 0.0));
 

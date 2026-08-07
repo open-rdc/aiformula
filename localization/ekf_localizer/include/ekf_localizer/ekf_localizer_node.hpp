@@ -41,8 +41,6 @@ private:
     EkfLocalizer ekf_localizer_;
     VelocityGate velocity_gate_;
 
-    bool has_pf_pose_stamp_ = false;
-    rclcpp::Time last_pf_pose_stamp_;
     bool has_velocity_ = false;
     double latest_velocity_ = 0.0;
     double latest_yaw_rate_ = 0.0;

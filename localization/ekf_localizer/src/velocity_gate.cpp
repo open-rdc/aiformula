@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <stdexcept>
 
 #include <Eigen/Core>
 
@@ -49,9 +48,9 @@ VelocityGateResult VelocityGate::update(
     }
 
     const double predicted_velocity_variance =
-        velocity_variance_ + process_velocity_variance_ * std::max(dt, 0.0);
+        velocity_variance_ + process_velocity_variance_ * dt;
     const double predicted_yaw_rate_variance =
-        yaw_rate_variance_ + process_yaw_rate_variance_ * std::max(dt, 0.0);
+        yaw_rate_variance_ + process_yaw_rate_variance_ * dt;
 
     Eigen::VectorXd residual(2);
     residual(0) = velocity - velocity_;
@@ -68,7 +67,7 @@ VelocityGateResult VelocityGate::update(
     if (!force_accept && mahalanobis(residual, innovation_covariance) > gate_dist_) {
         velocity_variance_ = std::max(predicted_velocity_variance, min_velocity_variance_);
         yaw_rate_variance_ = std::max(predicted_yaw_rate_variance, min_yaw_rate_variance_);
-        rejected_elapsed_s_ += std::max(dt, 0.0);
+        rejected_elapsed_s_ += dt;
         return VelocityGateResult{false, velocity_, yaw_rate_};
     }
 

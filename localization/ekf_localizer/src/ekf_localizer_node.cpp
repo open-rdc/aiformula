@@ -54,7 +54,6 @@ EkfLocalizerNode::EkfLocalizerNode(
       get_parameter("min_velocity_variance").as_double(),
       get_parameter("min_yaw_rate_variance").as_double(),
       get_parameter("velocity_gate_max_reject_duration_s").as_double()),
-    last_pf_pose_stamp_(0, 0, get_clock()->get_clock_type()),
     last_velocity_stamp_(0, 0, get_clock()->get_clock_type())
 {
     pf_pose_subscription_ = create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>(
@@ -106,8 +105,6 @@ void EkfLocalizerNode::pf_pose_callback(
     }
 
     std::lock_guard<std::mutex> lock(state_mutex_);
-    has_pf_pose_stamp_ = true;
-    last_pf_pose_stamp_ = stamp;
 
     if (!ekf_localizer_.initialized()) {
         ekf_localizer_.initialize(x, y, yaw, stamp);

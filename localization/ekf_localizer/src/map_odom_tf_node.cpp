@@ -41,14 +41,6 @@ MapOdomTfNode::MapOdomTfNode(
 void MapOdomTfNode::localized_pose_callback(
     const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg)
 {
-    if (msg->header.frame_id != "map") {
-        RCLCPP_WARN_THROTTLE(
-            get_logger(), *get_clock(), 1000,
-            "localized poseのframe_idはmapである必要があるが%sを受信したため無視する",
-            msg->header.frame_id.c_str());
-        return;
-    }
-
     geometry_msgs::msg::TransformStamped odom_to_base;
     try {
         odom_to_base = tf_buffer_->lookupTransform(

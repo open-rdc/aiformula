@@ -63,10 +63,6 @@ OdomTfNode::OdomTfNode(
 
 void OdomTfNode::imu_callback(const sensor_msgs::msg::Imu::SharedPtr msg)
 {
-    if (!msg) {
-        RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000, "IMUメッセージがnullのため無視する");
-        return;
-    }
     const double imu_yaw = normalize_angle(HALF_PI + utils::yaw_from_quaternion(msg->orientation));
     if (!std::isfinite(imu_yaw)) {
         RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000, "IMUのyawが非有限値のため無視する");
@@ -87,18 +83,6 @@ void OdomTfNode::imu_callback(const sensor_msgs::msg::Imu::SharedPtr msg)
 void OdomTfNode::velocity_callback(
     const geometry_msgs::msg::TwistWithCovarianceStamped::SharedPtr msg)
 {
-    if (!msg) {
-        RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000, "velocity_bodyメッセージがnullのため無視する");
-        return;
-    }
-    if (msg->header.frame_id != "base_link" && msg->header.frame_id != "vectornav") {
-        RCLCPP_WARN_THROTTLE(
-            get_logger(), *get_clock(), 1000,
-            "velocity_bodyのframe_idはbase_linkまたはvectornavである必要があるが%sを受信したため無視する",
-            msg->header.frame_id.c_str());
-        return;
-    }
-
     const rclcpp::Time stamp(msg->header.stamp, get_clock()->get_clock_type());
     std::lock_guard<std::mutex> lock(data_mutex_);
     if (!has_initial_imu_yaw_) {
