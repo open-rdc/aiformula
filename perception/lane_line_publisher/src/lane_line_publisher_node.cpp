@@ -15,25 +15,8 @@
 #include <sensor_msgs/point_cloud2_iterator.hpp>
 #include <visualization_msgs/msg/marker.hpp>
 
-#include "lane_line_publisher/line_components.hpp"
-
 namespace lane_line_publisher
 {
-namespace
-{
-
-GroundProjectionLUT make_ground_projection_lut(
-    rclcpp::Node& node,
-    const camera_utility::CameraIntrinsics& intrinsics)
-{
-    return build_ground_projection_lut(
-        intrinsics,
-        camera_utility::getBaseTCamera(node),
-        node.get_parameter("ground_plane_z_base").as_double(),
-        node.get_parameter("max_ground_intersection_distance").as_double());
-}
-
-}  // namespace
 
 LaneLinePublisherNode::LaneLinePublisherNode(const rclcpp::NodeOptions& options)
 : LaneLinePublisherNode("", options)
@@ -45,24 +28,9 @@ LaneLinePublisherNode::LaneLinePublisherNode(
     const rclcpp::NodeOptions& options)
 : rclcpp::Node("lane_line_publisher_node", name_space, options),
   mask_threshold_(static_cast<uint8_t>(get_parameter("mask_threshold").as_int())),
-  max_observed_points_(static_cast<std::size_t>(get_parameter("max_observed_points").as_int())),
-  min_component_pixels_(get_parameter("min_component_pixels").as_int()),
-  voxel_size_m_(get_parameter("voxel_size_m").as_double()),
-  max_point_link_distance_m_(get_parameter("max_point_link_distance_m").as_double()),
-  point_resample_interval_m_(get_parameter("point_resample_interval_m").as_double()),
-  camera_intrinsics_(camera_utility::getCameraIntrinsics(*this)),
-  ground_projection_lut_(make_ground_projection_lut(*this, camera_intrinsics_))
+  voxel_grid_size_meter_(get_parameter("voxel_grid_size_meter").as_double()),
+  ground_projection_look_up_table_(ground_projection_look_up_table(camera_utility::getCameraIntrinsics(*this), camera_utility::getBaseTCamera(*this)))
 {
-    if (!(voxel_size_m_ > 0.0) || !std::isfinite(voxel_size_m_)) {
-        throw std::invalid_argument("voxel_size_m must be greater than 0");
-    }
-    if (!(max_point_link_distance_m_ > 0.0) || !std::isfinite(max_point_link_distance_m_)) {
-        throw std::invalid_argument("max_point_link_distance_m must be greater than 0");
-    }
-    if (!(point_resample_interval_m_ > 0.0) || !std::isfinite(point_resample_interval_m_)) {
-        throw std::invalid_argument("point_resample_interval_m must be greater than 0");
-    }
-
     mask_subscription_ = this->create_subscription<sensor_msgs::msg::Image>(
         "/perception/lane_mask", rclcpp::SensorDataQoS().keep_last(1),
         std::bind(&LaneLinePublisherNode::lane_mask_callback, this, std::placeholders::_1));
@@ -75,41 +43,23 @@ LaneLinePublisherNode::LaneLinePublisherNode(
 
 void LaneLinePublisherNode::lane_mask_callback(const sensor_msgs::msg::Image::SharedPtr msg)
 {
-    try {
-        cv::Mat skeleton_mask;
-        const auto mask_image = cv_bridge::toCvShare(msg, sensor_msgs::image_encodings::MONO8);
-        cv::Mat binary_mask;
-        cv::threshold(mask_image->image, binary_mask, mask_threshold_, 255.0, cv::THRESH_BINARY);
-        cv::ximgproc::thinning(binary_mask, skeleton_mask, cv::ximgproc::THINNING_ZHANGSUEN);
+    cv::Mat skeleton_mask;
+    const auto mask_image = cv_bridge::toCvShare(msg, sensor_msgs::image_encodings::MONO8);
+    cv::Mat binary_mask;
+    cv::threshold(mask_image->image, binary_mask, mask_threshold_, 255.0, cv::THRESH_BINARY);
+    cv::ximgproc::thinning(binary_mask, skeleton_mask, cv::ximgproc::THINNING_ZHANGSUEN);
 
-        if (skeleton_mask.cols != camera_intrinsics_.width ||
-            skeleton_mask.rows != camera_intrinsics_.height)
-        {
-            RCLCPP_WARN_THROTTLE(
-                this->get_logger(), *this->get_clock(), 1000,
-                "lane maskのサイズがcamera.sizeの解像度と一致しないためスキップする");
-            return;
-        }
-
-        const auto components = split_line_components(skeleton_mask, min_component_pixels_);
-        std::vector<std::vector<Eigen::Vector2d>> point_groups;
-        point_groups.reserve(components.size());
-        for (const auto& component : components) {
-            point_groups.push_back(
-                lane_pixels_to_base_points(component.mask, ground_projection_lut_, max_observed_points_));
-        }
-
-        const auto base_points = resample_lane_point_groups(
-            point_groups, max_point_link_distance_m_, point_resample_interval_m_, voxel_size_m_);
-
-        lane_line_points_publisher_->publish(make_lane_line_point_cloud(base_points, msg->header.stamp));
-        lane_line_marker_publisher_->publish(make_lane_line_marker_array(base_points, msg->header.stamp));
-    } catch (const std::exception& error) {
-        RCLCPP_WARN_THROTTLE(
-            this->get_logger(), *this->get_clock(), 1000,
-            "lane maskの処理に失敗したためスキップする: %s", error.what());
-        return;
+    const auto components = split_line_components(skeleton_mask, min_component_pixels_);
+    std::vector<Eigen::Vector2d> observed_points;
+    for (const auto& component : components) {
+        const auto component_points = lane_pixels_to_base_points(component.mask, ground_projection_look_up_table_);
+        observed_points.insert(observed_points.end(), component_points.begin(), component_points.end());
     }
+
+    const auto base_points = voxel_downsample(observed_points, voxel_grid_size_meter_);
+
+    lane_line_points_publisher_->publish(make_lane_line_point_cloud(base_points, msg->header.stamp));
+    lane_line_marker_publisher_->publish(make_lane_line_marker_array(base_points, msg->header.stamp));
 }
 
 sensor_msgs::msg::PointCloud2 LaneLinePublisherNode::make_lane_line_point_cloud(

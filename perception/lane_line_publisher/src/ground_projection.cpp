@@ -1,13 +1,40 @@
 #include "lane_line_publisher/ground_projection.hpp"
 
 #include <algorithm>
+#include <cmath>
+#include <cstddef>
+#include <cstdint>
 #include <limits>
+#include <map>
 #include <stdexcept>
+#include <utility>
+
+#include <opencv2/imgproc.hpp>
 
 #include <camera_utility/ground_conversion.hpp>
 
 namespace lane_line_publisher
 {
+
+std::vector<LineComponent> split_line_components(
+    const cv::Mat& skeleton_mask, const int min_component_pixels)
+{
+    cv::Mat labels, stats, centroids;
+    const int num_labels = cv::connectedComponentsWithStats(
+        skeleton_mask, labels, stats, centroids, 8, CV_32S);
+
+    std::vector<LineComponent> components;
+    for (int label = 1; label < num_labels; ++label) {
+        const int pixel_count = stats.at<int>(label, cv::CC_STAT_AREA);
+        if (pixel_count < min_component_pixels) {
+            continue;
+        }
+        cv::Mat component_mask = cv::Mat::zeros(skeleton_mask.size(), CV_8UC1);
+        component_mask.setTo(255, labels == label);
+        components.push_back(LineComponent{std::move(component_mask), pixel_count});
+    }
+    return components;
+}
 
 bool GroundProjectionLUT::try_get(int row, int col, Eigen::Vector2d& out) const
 {
@@ -24,21 +51,11 @@ bool GroundProjectionLUT::try_get(int row, int col, Eigen::Vector2d& out) const
     return true;
 }
 
-GroundProjectionLUT build_ground_projection_lut(
+GroundProjectionLUT ground_projection_look_up_table(
     const camera_utility::CameraIntrinsics& intrinsics,
-    const tf2::Transform& base_T_camera,
-    const double ground_z,
-    const double max_ground_intersection_distance)
+    const tf2::Transform& base_T_camera)
 {
-    if (!(max_ground_intersection_distance > 0.0)) {
-        throw std::invalid_argument("max_ground_intersection_distance must be greater than 0");
-    }
-    if (intrinsics.width <= 0 || intrinsics.height <= 0) {
-        throw std::invalid_argument("image dimensions must be greater than 0");
-    }
-
-    const Eigen::Vector2d invalid(
-        std::numeric_limits<double>::quiet_NaN(), std::numeric_limits<double>::quiet_NaN());
+    const Eigen::Vector2d invalid(std::numeric_limits<double>::quiet_NaN(), std::numeric_limits<double>::quiet_NaN());
 
     std::vector<std::vector<Eigen::Vector2d>> rows(static_cast<std::size_t>(intrinsics.height));
     int row_begin = intrinsics.height;
@@ -50,13 +67,13 @@ GroundProjectionLUT build_ground_projection_lut(
             tf2::Vector3 base_point;
             if (!camera_utility::pixelToPoint(
                     cv::Point2f(static_cast<float>(col), static_cast<float>(row)),
-                    intrinsics, base_T_camera, base_point, ground_z))
+                    intrinsics, base_T_camera, base_point))
             {
                 continue;
             }
 
             const double distance = (base_point - base_T_camera.getOrigin()).length();
-            if (distance > max_ground_intersection_distance) {
+            if (distance > 10.0) {
                 continue;
             }
 
@@ -67,48 +84,77 @@ GroundProjectionLUT build_ground_projection_lut(
         }
     }
 
-    GroundProjectionLUT lut;
-    lut.width = intrinsics.width;
-    lut.height = intrinsics.height;
-    lut.row_begin = (row_begin <= row_end) ? row_begin : 0;
-    lut.row_end = (row_begin <= row_end) ? row_end : 0;
-    lut.points.reserve(
-        static_cast<std::size_t>(lut.row_end - lut.row_begin) * static_cast<std::size_t>(lut.width));
-    for (int row = lut.row_begin; row < lut.row_end; ++row) {
-        for (int col = 0; col < lut.width; ++col) {
-            lut.points.push_back(rows[static_cast<std::size_t>(row)][static_cast<std::size_t>(col)]);
+    GroundProjectionLUT look_up_table;
+    look_up_table.width = intrinsics.width;
+    look_up_table.height = intrinsics.height;
+    look_up_table.row_begin = (row_begin <= row_end) ? row_begin : 0;
+    look_up_table.row_end = (row_begin <= row_end) ? row_end : 0;
+    look_up_table.points.reserve(
+        static_cast<std::size_t>(look_up_table.row_end - look_up_table.row_begin) *
+        static_cast<std::size_t>(look_up_table.width));
+    for (int row = look_up_table.row_begin; row < look_up_table.row_end; ++row) {
+        for (int col = 0; col < look_up_table.width; ++col) {
+            look_up_table.points.push_back(
+                rows[static_cast<std::size_t>(row)][static_cast<std::size_t>(col)]);
         }
     }
-    return lut;
+    return look_up_table;
 }
 
 std::vector<Eigen::Vector2d> lane_pixels_to_base_points(
     const cv::Mat& skeleton_mask,
-    const GroundProjectionLUT& lut,
-    const std::size_t max_points)
+    const GroundProjectionLUT& look_up_table)
 {
     std::vector<Eigen::Vector2d> base_points;
-    if (lut.row_begin >= lut.row_end) {
+    if (look_up_table.row_begin >= look_up_table.row_end) {
         return base_points;
     }
 
-    const cv::Mat band = skeleton_mask(cv::Range(lut.row_begin, lut.row_end), cv::Range::all());
+    const cv::Mat band = skeleton_mask(
+        cv::Range(look_up_table.row_begin, look_up_table.row_end), cv::Range::all());
     std::vector<cv::Point> nonzero;
     cv::findNonZero(band, nonzero);
 
-    base_points.reserve(std::min(max_points, nonzero.size()));
-    // findNonZeroは行優先(遠→近)順で返るため、末尾(近距離)から辿ってキャップする。
-    for (auto it = nonzero.rbegin(); it != nonzero.rend(); ++it) {
+    base_points.reserve(nonzero.size());
+    for (const auto& pixel : nonzero) {
         Eigen::Vector2d point;
-        if (!lut.try_get(it->y + lut.row_begin, it->x, point)) {
+        if (!look_up_table.try_get(pixel.y + look_up_table.row_begin, pixel.x, point)) {
             continue;
         }
         base_points.push_back(point);
-        if (base_points.size() >= max_points) {
-            break;
-        }
     }
     return base_points;
+}
+
+std::vector<Eigen::Vector2d> voxel_downsample(
+    const std::vector<Eigen::Vector2d>& points,
+    const double voxel_size_m)
+{
+    struct Voxel
+    {
+        Eigen::Vector2d sum = Eigen::Vector2d::Zero();
+        std::size_t count = 0U;
+    };
+
+    std::map<std::pair<std::int64_t, std::int64_t>, Voxel> voxels;
+    for (const auto& point : points) {
+        if (!point.allFinite()) {
+            continue;
+        }
+        const auto x_index = static_cast<std::int64_t>(std::floor(point.x() / voxel_size_m));
+        const auto y_index = static_cast<std::int64_t>(std::floor(point.y() / voxel_size_m));
+        auto& voxel = voxels[{x_index, y_index}];
+        voxel.sum += point;
+        ++voxel.count;
+    }
+
+    std::vector<Eigen::Vector2d> downsampled_points;
+    downsampled_points.reserve(voxels.size());
+    for (const auto& [index, voxel] : voxels) {
+        (void)index;
+        downsampled_points.push_back(voxel.sum / static_cast<double>(voxel.count));
+    }
+    return downsampled_points;
 }
 
 }

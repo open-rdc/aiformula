@@ -1,6 +1,5 @@
 #pragma once
 
-#include <cstddef>
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -13,7 +12,6 @@
 #include <visualization_msgs/msg/marker_array.hpp>
 
 #include "lane_line_publisher/ground_projection.hpp"
-#include "lane_line_publisher/lane_line_resampling.hpp"
 #include "lane_line_publisher/visibility_control.h"
 
 namespace lane_line_publisher
@@ -41,13 +39,11 @@ private:
         const builtin_interfaces::msg::Time& stamp) const;
 
     const uint8_t mask_threshold_;
-    const std::size_t max_observed_points_;
-    const int min_component_pixels_;
-    const double voxel_size_m_;
-    const double max_point_link_distance_m_;
-    const double point_resample_interval_m_;
-    const camera_utility::CameraIntrinsics camera_intrinsics_;
-    const GroundProjectionLUT ground_projection_lut_;
+    const double voxel_grid_size_meter_;
+    const GroundProjectionLUT ground_projection_look_up_table_;
+
+    // ノイズ除去の基準に使用
+    const int min_component_pixels_=10;
 
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr mask_subscription_;
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr lane_line_points_publisher_;
