@@ -61,7 +61,6 @@ private:
     ProjectedPose project_to_path(const Point2D & point) const;
     PathPoint path_point_at_s(double s) const;
     double max_path_s() const;
-    double normalize_path_s(double s) const;
     double reference_curvature_at(double s) const;
     static std::vector<double> compute_curvatures(const std::vector<CartesianPoint> & points);
     static double compute_path_length(const std::vector<CartesianPoint> & points);
@@ -75,12 +74,10 @@ private:
 
     double local_path_horizon_m_{15.0};
     double local_path_resample_interval_m_{0.2};
-    double max_centerline_connection_gap_m_{0.5};
-    double vehicle_width_m_{0.6};
+    double tread_m_{0.6};
     double avoidance_detection_forward_distance_m_{15.0};
-    double avoidance_hard_margin_m_{0.2};
+    double avoidance_hard_margin_m_{0.4};
     double avoidance_soft_margin_m_{0.3};
-    double envelope_buffer_margin_m_{0.2};
     double max_avoidance_shift_m_{1.0};
     double frenet_lateral_sample_step_m_{0.25};
     double frenet_collision_check_margin_m_{0.2};
@@ -90,7 +87,6 @@ private:
     double kappa_max_{0.0};
 
     bool global_path_ready_{false};
-    bool route_is_loop_{false};
 
     std::string path_frame_id_;
     std::vector<PathPoint> global_samples_;

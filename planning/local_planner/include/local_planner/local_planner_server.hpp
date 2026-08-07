@@ -17,12 +17,6 @@
 namespace local_planner
 {
 
-LOCAL_PLANNER_PUBLIC
-bool is_stamp_fresh(
-    const rclcpp::Time& now,
-    const rclcpp::Time& stamp,
-    double timeout_s);
-
 class LocalPlannerServer : public rclcpp::Node
 {
 public:
@@ -44,13 +38,12 @@ private:
     pluginlib::ClassLoader<LocalPlannerPlugin> plugin_loader_;
     LocalPlannerPlugin::SharedPtr plugin_;
 
-    const int update_period_ms_;
-    const double input_timeout_s_;
+    const int interval_ms_;
     const rclcpp::QoS qos_;
 
-    geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr latest_pose_;
-    geometry_msgs::msg::TwistWithCovarianceStamped::SharedPtr latest_velocity_;
-    object_detection_msgs::msg::ObjectInfoArray::SharedPtr latest_objects_;
+    geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr pose_;
+    geometry_msgs::msg::TwistWithCovarianceStamped::SharedPtr velocity_;
+    object_detection_msgs::msg::ObjectInfoArray::SharedPtr objects_;
     mutable std::mutex data_mutex_;
 
     rclcpp::Subscription<nav_msgs::msg::Path>::SharedPtr global_path_subscription_;

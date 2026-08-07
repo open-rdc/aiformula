@@ -31,12 +31,10 @@ void FrenetPlannerPlugin::initialize(
 
     local_path_horizon_m_ = params->get_parameter("local_path_horizon_m").get_value<double>();
     local_path_resample_interval_m_ = params->get_parameter("local_path_resample_interval_m").get_value<double>();
-    max_centerline_connection_gap_m_ = params->get_parameter("max_centerline_connection_gap_m").get_value<double>();
-    vehicle_width_m_ = params->get_parameter("vehicle_width_m").get_value<double>();
+    tread_m_ = params->get_parameter("tread").get_value<double>();
     avoidance_detection_forward_distance_m_ = params->get_parameter("avoidance_detection_forward_distance_m").get_value<double>();
     avoidance_hard_margin_m_ = params->get_parameter("avoidance_hard_margin_m").get_value<double>();
     avoidance_soft_margin_m_ = params->get_parameter("avoidance_soft_margin_m").get_value<double>();
-    envelope_buffer_margin_m_ = params->get_parameter("envelope_buffer_margin_m").get_value<double>();
     max_avoidance_shift_m_ = params->get_parameter("max_avoidance_shift_m").get_value<double>();
     frenet_lateral_sample_step_m_ = params->get_parameter("frenet.lateral_sample_step_m").get_value<double>();
     frenet_collision_check_margin_m_ = params->get_parameter("frenet.collision_check_margin_m").get_value<double>();
@@ -55,12 +53,6 @@ void FrenetPlannerPlugin::initialize(
 
 void FrenetPlannerPlugin::setGlobalPath(const nav_msgs::msg::Path & global_path)
 {
-    if (global_path.poses.size() < 2U) {
-        global_path_ready_ = false;
-        RCLCPP_WARN(logger_, "global_pathの点数が2未満のため無視する");
-        return;
-    }
-
     global_samples_.clear();
     global_samples_.reserve(global_path.poses.size());
     path_frame_id_ = global_path.header.frame_id;
@@ -78,10 +70,6 @@ void FrenetPlannerPlugin::setGlobalPath(const nav_msgs::msg::Path & global_path)
         global_samples_.push_back(PathPoint{s, pose.pose.position.x, pose.pose.position.y, yaw});
     }
 
-    const auto& first = global_samples_.front();
-    const auto& last = global_samples_.back();
-    route_is_loop_ =
-        std::hypot(last.x - first.x, last.y - first.y) < max_centerline_connection_gap_m_;
     global_path_ready_ = true;
 }
 
@@ -111,9 +99,7 @@ std::optional<nav_msgs::msg::Path> FrenetPlannerPlugin::computeLocalPath(
         obstacle = find_static_obstacle(ego.s, *objects);
     }
 
-    const double end_s = route_is_loop_ ?
-        ego.s + local_path_horizon_m_ :
-        std::min(ego.s + local_path_horizon_m_, max_path_s());
+    const double end_s = std::min(ego.s + local_path_horizon_m_, max_path_s());
     if (end_s <= ego.s + EPSILON) {
         return std::nullopt;
     }
@@ -137,8 +123,8 @@ std::vector<FrenetPlannerPlugin::CartesianPoint> FrenetPlannerPlugin::plan_best_
     const auto target_s_list = make_target_s_list(start_s, end_s);
     const auto target_d_list = make_target_grid(obstacle);
     const double collision_lateral_margin = obstacle ?
-        vehicle_width_m_ * 0.5 + avoidance_hard_margin_m_ +
-        envelope_buffer_margin_m_ + frenet_collision_check_margin_m_ +
+        tread_m_ * 0.5 + avoidance_hard_margin_m_ +
+        frenet_collision_check_margin_m_ +
         obstacle->half_width :
         0.0;
     const double collision_longitudinal_margin =
@@ -255,19 +241,14 @@ std::optional<FrenetPlannerPlugin::FrenetObstacle> FrenetPlannerPlugin::find_sta
     const object_detection_msgs::msg::ObjectInfoArray& objects) const
 {
     const double lateral_limit =
-        vehicle_width_m_ * 0.5 + avoidance_hard_margin_m_ +
-        avoidance_soft_margin_m_ + envelope_buffer_margin_m_;
-    const double current_s_normalized = normalize_path_s(current_s);
-
+        tread_m_ * 0.5 + avoidance_hard_margin_m_ +
+        avoidance_soft_margin_m_;
     std::optional<FrenetObstacle> nearest;
     double nearest_delta_s = std::numeric_limits<double>::max();
     for (const auto& obj : objects.objects) {
         const ProjectedPose frenet_pose = project_to_path(Point2D{obj.x, obj.y});
         const double half_width = 0.5 * std::max(0.0, static_cast<double>(obj.width));
-        double delta_s = frenet_pose.s - current_s_normalized;
-        if (route_is_loop_ && delta_s < 0.0) {
-            delta_s += max_path_s();
-        }
+        const double delta_s = frenet_pose.s - current_s;
         if (delta_s < 0.0 || delta_s > avoidance_detection_forward_distance_m_) {
             continue;
         }
@@ -276,7 +257,7 @@ std::optional<FrenetPlannerPlugin::FrenetObstacle> FrenetPlannerPlugin::find_sta
         }
         if (delta_s < nearest_delta_s) {
             nearest_delta_s = delta_s;
-            nearest = FrenetObstacle{current_s + delta_s, frenet_pose.d, half_width};
+            nearest = FrenetObstacle{frenet_pose.s, frenet_pose.d, half_width};
         }
     }
     return nearest;
@@ -399,7 +380,7 @@ FrenetPlannerPlugin::ProjectedPose FrenetPlannerPlugin::project_to_path(
 FrenetPlannerPlugin::PathPoint FrenetPlannerPlugin::path_point_at_s(
     const double s) const
 {
-    const double clamped_s = normalize_path_s(s);
+    const double clamped_s = std::clamp(s, 0.0, max_path_s());
     const auto upper = std::upper_bound(
         global_samples_.begin(),
         global_samples_.end(),
@@ -429,22 +410,6 @@ FrenetPlannerPlugin::PathPoint FrenetPlannerPlugin::path_point_at_s(
 double FrenetPlannerPlugin::max_path_s() const
 {
     return global_samples_.back().s;
-}
-
-double FrenetPlannerPlugin::normalize_path_s(const double s) const
-{
-    const double path_length = global_samples_.back().s;
-    if (path_length <= EPSILON) {
-        return s;
-    }
-    if (!route_is_loop_) {
-        return std::clamp(s, 0.0, path_length);
-    }
-    double normalized = std::fmod(s, path_length);
-    if (normalized < 0.0) {
-        normalized += path_length;
-    }
-    return normalized;
 }
 
 nav_msgs::msg::Path FrenetPlannerPlugin::make_path_message(
