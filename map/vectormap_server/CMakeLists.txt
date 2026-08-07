@@ -8,7 +8,6 @@ endif()
 find_package(ament_cmake_auto REQUIRED)
 ament_auto_find_build_dependencies()
 
-find_package(tinyxml2_vendor REQUIRED)
 find_package(TinyXML2 REQUIRED)
 
 ament_auto_add_library(vectormap_server_node SHARED
@@ -16,19 +15,9 @@ ament_auto_add_library(vectormap_server_node SHARED
   src/vectormap_server_node.cpp
   src/vectormap_visualizer.cpp
 )
-target_compile_features(vectormap_server_node PUBLIC c_std_99 cxx_std_17)
+target_compile_features(vectormap_server_node PUBLIC cxx_std_17)
 target_compile_definitions(vectormap_server_node PRIVATE "VECTORMAP_SERVER_BUILDING_LIBRARY")
 target_link_libraries(vectormap_server_node tinyxml2::tinyxml2)
-
-install(
-  DIRECTORY include/
-  DESTINATION include
-)
-
-install(
-  DIRECTORY config/
-  DESTINATION share/${PROJECT_NAME}/config
-)
 
 if(BUILD_TESTING)
   find_package(ament_cmake_gtest REQUIRED)
@@ -36,6 +25,9 @@ if(BUILD_TESTING)
   target_link_libraries(test_osm_parser vectormap_server_node)
 endif()
 
-ament_export_dependencies(tinyxml2_vendor TinyXML2)
+ament_export_dependencies(TinyXML2)
 
-ament_auto_package()
+ament_auto_package(
+  INSTALL_TO_SHARE
+    config
+)

@@ -22,22 +22,15 @@ ament_export_definitions("ENABLE_ZED")
 ament_auto_add_library(zed_wrapper_node SHARED
   src/zed_wrapper_node.cpp
 )
-target_compile_features(zed_wrapper_node PUBLIC c_std_99 cxx_std_17)
+target_compile_features(zed_wrapper_node PUBLIC cxx_std_17)
 target_compile_definitions(zed_wrapper_node PRIVATE "ZED_WRAPPER_BUILDING_LIBRARY")
 target_include_directories(zed_wrapper_node PUBLIC
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  $<INSTALL_INTERFACE:include>
   ${ZED_INCLUDE_DIRS}
   ${CUDA_INCLUDE_DIRS}
 )
 target_link_libraries(zed_wrapper_node
   ${ZED_LIBRARIES}
   ${CUDA_DEP_LIBRARIES_ZED}
-)
-
-install(
-  DIRECTORY include/
-  DESTINATION include
 )
 
 ament_auto_package()

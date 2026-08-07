@@ -12,12 +12,8 @@ ament_auto_add_library(mission_planner_node SHARED
   src/mission_planner_node.cpp
   src/route_builder.cpp
 )
-target_compile_features(mission_planner_node PUBLIC c_std_99 cxx_std_17)
+target_compile_features(mission_planner_node PUBLIC cxx_std_17)
 target_compile_definitions(mission_planner_node PRIVATE "MISSION_PLANNER_BUILDING_LIBRARY")
-target_include_directories(mission_planner_node PUBLIC
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  $<INSTALL_INTERFACE:include>
-)
 
 if(BUILD_TESTING)
   find_package(ament_cmake_gtest REQUIRED)
@@ -26,10 +22,5 @@ if(BUILD_TESTING)
   ament_add_gtest(test_route_builder test/test_route_builder.cpp)
   target_link_libraries(test_route_builder mission_planner_node)
 endif()
-
-install(
-  DIRECTORY include/
-  DESTINATION include
-)
 
 ament_auto_package()
