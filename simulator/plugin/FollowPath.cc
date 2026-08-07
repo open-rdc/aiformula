@@ -186,7 +186,7 @@ namespace gazebo
                 min_dist = dist;
             }
         }
-        current_idx_ = closest_idx;
+        current_idx_ = closest_idx + 2;
         std::cout << "Initial index set to: " << current_idx_ << std::endl;
         return true;
     }
