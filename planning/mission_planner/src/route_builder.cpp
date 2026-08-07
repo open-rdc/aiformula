@@ -124,7 +124,7 @@ std::pair<uint64_t, double> nearest_lanelet_in(
     double best_distance_sq = std::numeric_limits<double>::max();
     for (const uint64_t lanelet_id : lanelet_ids) {
         const auto centerline_it = centerlines.find(lanelet_id);
-        if (centerline_it == centerlines.end() || centerline_it->second.size() < 2U) {
+        if (centerline_it == centerlines.end()) {
             continue;
         }
         const auto& centerline_points = centerline_it->second;
@@ -179,7 +179,7 @@ std::vector<Point2D> catmull_rom_smooth(
     const std::vector<Point2D>& control_points,
     const int samples_per_segment)
 {
-    if (control_points.size() < 2U || samples_per_segment < 1) {
+    if (control_points.size() < 2U) {
         return control_points;
     }
 
@@ -218,10 +218,6 @@ uint64_t select_start_lanelet(
     const double max_distance_sq = max_distance_m * max_distance_m;
 
     for (const auto& [lanelet_id, centerline_points] : centerlines) {
-        if (centerline_points.size() < 2U) {
-            continue;
-        }
-
         double nearest_distance_sq = std::numeric_limits<double>::max();
         std::size_t nearest_segment_end = 1U;
         for (std::size_t i = 1U; i < centerline_points.size(); ++i) {
@@ -373,14 +369,6 @@ void append_centerline_points(
 void MissionPlannerNode::build_map_lookup(
     const vectormap_msgs::msg::VectorMap& map_msg)
 {
-    if (map_msg.header.frame_id != "map") {
-        RCLCPP_WARN(
-            get_logger(),
-            "VectorMapのframe_idはmapである必要があります（実際: %s）: マップ構築を中止します",
-            map_msg.header.frame_id.c_str());
-        return;
-    }
-
     std::unordered_map<uint64_t, const LineString*> line_string_by_id;
     line_string_by_id.reserve(map_msg.line_strings.size());
     for (const auto& line_string : map_msg.line_strings) {
@@ -391,19 +379,10 @@ void MissionPlannerNode::build_map_lookup(
     lanelet_centerline_points_by_id_.reserve(map_msg.lanelets.size());
     for (const auto& lanelet : map_msg.lanelets) {
         const auto line_it = line_string_by_id.find(lanelet.centerline_id);
-        if (line_it == line_string_by_id.end() || line_it->second->points.size() < 2U) {
+        if (line_it == line_string_by_id.end()) {
             continue;
         }
         const LineString& centerline = *line_it->second;
-        if (centerline.line_type != LineString::TYPE_VIRTUAL_LINE ||
-            centerline.marking_type != LineString::MARKING_VIRTUAL)
-        {
-            RCLCPP_WARN(
-                get_logger(),
-                "centerlineはvirtual lineである必要があります（lanelet_id=%lu）: マップ構築を中止します",
-                lanelet.id);
-            return;
-        }
         std::vector<Point2D> centerline_points;
         centerline_points.reserve(centerline.points.size());
         for (const auto& point : centerline.points) {
@@ -695,10 +674,6 @@ std::pair<uint64_t, double> MissionPlannerNode::find_nearest_lanelet_within_rout
 
 void MissionPlannerNode::report_curvature_qa() const
 {
-    if (global_samples_.size() < 3U) {
-        return;
-    }
-
     double cumulative_s = 0.0;
     double max_curvature = 0.0;
     double max_curvature_s = 0.0;
