@@ -45,9 +45,9 @@
       <robot_name>human_robot</robot_name>
       <threshold>1.3</threshold>
       <linear_vel>1.0</linear_vel>
-      <p_gain>0.7</p_gain>
+      <p_gain>0.9</p_gain>
       <i_gain>0.0</i_gain>
-      <d_gain>0.15</d_gain>
+      <d_gain>0.14</d_gain>
     </plugin>
 
     <!-- chassis -->
