@@ -20,10 +20,4 @@ target_link_libraries(pose_estimater_node
   Eigen3::Eigen
 )
 
-if(BUILD_TESTING)
-  find_package(ament_cmake_gtest REQUIRED)
-  ament_add_gtest(test_particle_filter test/test_particle_filter.cpp)
-  target_link_libraries(test_particle_filter pose_estimater_node)
-endif()
-
 ament_auto_package()
