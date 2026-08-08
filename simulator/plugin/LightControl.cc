@@ -141,7 +141,7 @@ void LightControl::PreUpdate(const UpdateInfo &_info,
       }
     }
   }
-  if (!(x < 85.0 && x > 77.0 && y < 5.0 && y > 0.0))
+  if (!(x < 85.0 && x > 77.0 && y < TARGET_POSITION.Y() && y > TARGET_POSITION.Y() - DETECTION_REACTION))
   {
     SetRed();
     TimerReset();

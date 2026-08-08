@@ -48,7 +48,6 @@ private:
   double x;
   double y;
 
-  double distance = 2 * this->DETECTION_RADIUS;
   std::chrono::steady_clock::duration reach_time;
   bool timer_started = false;
   bool color_changed = false;
