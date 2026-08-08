@@ -22,7 +22,7 @@ launch:
         y : 0.0325
         z : 0.5547
       orientation:
-        roll : -88.601314
+        roll : -89.801314
         pitch : 0.497098
         yaw : -89.640661
 
@@ -59,10 +59,10 @@ pose_estimater_node:
     imu_yaw_variance : 0.05
     # pf パラメータ
     num_particles : 500
-    odom_fw_dev_per_fw : 0.06
-    odom_fw_dev_per_rot : 0.0001
-    odom_rot_dev_per_fw : 0.001
-    odom_rot_dev_per_rot : 0.03
+    odom_fw_dev_per_fw : 0.1
+    odom_fw_dev_per_rot : 0.001
+    odom_rot_dev_per_fw : 0.01
+    odom_rot_dev_per_rot : 0.2
     likelihood_dev : 0.12
     likelihood_max_dist : 1.5
     resample_ess_ratio_threshold : 0.5
