@@ -52,7 +52,7 @@
         <duration_time>10</duration_time>
         <robot_name>ai_car1</robot_name>
         <control_name>screen_visual</control_name>
-        <target_position>80.25 5.0 0.5</target_position>
+        <target_position>5.0</target_position>
         <detection_radius>5.0</detection_radius>
         <color>1.0 0.0 0.0 1.0</color>
         <color_name>Red</color_name>
@@ -63,7 +63,7 @@
         <duration>10</duration>
         <robot_name>ai_car1</robot_name>
         <control_name>led</control_name>
-        <target_position>80.25 5.0 0.5</target_position>
+        <target_position>5.0</target_position>
         <detection_radius>5.0</detection_radius>
         <color>1.0 0.0 0.0 1.0</color>
         <color_name>Red</color_name>

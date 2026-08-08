@@ -42,7 +42,7 @@ private:
   std::string ROBOT_MODEL_NAME;
   std::string LIGHT_ENTITY_NAME;
   ignition::math::Vector3d TARGET_POSITION;
-  double DETECTION_RADIUS;
+  double DETECTION_REACTION;
   ignition::math::Color color_value;
   std::string color_name;
   double r;

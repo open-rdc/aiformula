@@ -27,7 +27,7 @@ void LightControl::Configure(const Entity &_entity,
   ROBOT_MODEL_NAME = (_sdf && _sdf->HasElement("robot_name")) ? _sdf->Get<std::string>("robot_name") : "model";
   LIGHT_ENTITY_NAME = (_sdf && _sdf->HasElement("control_name")) ? _sdf->Get<std::string>("control_name") : "led";
   TARGET_POSITION = (_sdf && _sdf->HasElement("target_position")) ? _sdf->Get<ignition::math::Vector3d>("target_position") : ignition::math::Vector3d(0.0, 0.0, 0.0);
-  DETECTION_RADIUS = (_sdf && _sdf->HasElement("detection_radius")) ? _sdf->Get<double>("detection_radius") : 0.0;
+  DETECTION_REACTION = (_sdf && _sdf->HasElement("detection_reaction")) ? _sdf->Get<double>("detection_reaction") : 0.0;
   color_value = (_sdf && _sdf->HasElement("color")) ? _sdf->Get<ignition::math::Color>("color") : ignition::math::Color(0.0, 0.0, 0.0, 1.0);
   color_name = (_sdf && _sdf->HasElement("color_name")) ? _sdf->Get<std::string>("color_name") : "None";
   r = color_value.R();
@@ -110,12 +110,11 @@ void LightControl::PreUpdate(const UpdateInfo &_info,
     if (poseComp)
     {
       ignition::math::Vector3d currentPos = poseComp->Data().Pos();
-      distance = currentPos.Distance(TARGET_POSITION);
 
       x = currentPos.X();
       y = currentPos.Y();
 
-      if (x < 85.0 && x > 77.0 && y < 5.0 && y > 0.0)
+      if (x < 85.0 && x > 77.0 && y < TARGET_POSITION.Y() && y > TARGET_POSITION.Y() - DETECTION_REACTION)
       {
         if (!timer_started)
         {
