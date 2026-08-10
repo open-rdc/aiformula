@@ -30,8 +30,6 @@ private:
     void pointcloud_callback(const sensor_msgs::msg::PointCloud2::SharedPtr msg);
     void publish_empty(const rclcpp::Time& stamp);
 
-    const std::string map_frame_id_;
-    const std::string base_frame_id_;
     const double ground_z_threshold_m_;
     const double voxel_leaf_size_m_;
     const double cluster_tolerance_m_;
@@ -47,4 +45,4 @@ private:
     rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr marker_publisher_;
 };
 
-}  // namespace object_detector
+}

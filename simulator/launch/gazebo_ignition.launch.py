@@ -28,13 +28,10 @@ def generate_launch_description():
         executable='parameter_bridge',
         arguments=[
             '/clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock',
-            # RGB camera (color image only)
             '/camera_info@sensor_msgs/msg/CameraInfo@gz.msgs.CameraInfo',
             '/image_raw@sensor_msgs/msg/Image@gz.msgs.Image',
-            # Depth camera (depth image and point cloud only)
             '/depth_image_raw/depth_image@sensor_msgs/msg/Image@gz.msgs.Image',
             '/depth_image_raw/points@sensor_msgs/msg/PointCloud2@gz.msgs.PointCloudPacked',
-            # Other sensors
             '/odom@nav_msgs/msg/Odometry@gz.msgs.Odometry',
             '/navsat@sensor_msgs/msg/NavSatFix@gz.msgs.NavSat',
             '/imu_raw@sensor_msgs/msg/Imu@gz.msgs.IMU',
@@ -43,9 +40,22 @@ def generate_launch_description():
         remappings=[
             ('/image_raw', '/zed/zed_node/rgb/image_rect_color'),
             ('/depth_image', '/zed/zed_node/depth/depth_registered'),
-            ('/depth_image_raw/points', '/zed/zed_node/pointcloud'),
-            # ('/imu_raw', '/vectornav/imu')
+            ('/depth_image_raw/points', '/zed/zed_node/point_cloud'),
         ]
+    )
+
+    # gz-simの点群プラグインはignition_frame_idを無視し、常に"model/link/sensor"の
+    # スコープ付き名前をheader.frame_idに書き込む（実機zed_wrapperはframe_id="camera_depth_link"
+    # を使うため、シム環境ではTFに存在しない名前になりlookupTransformが失敗する）。
+    # robot_state_publisherが持つ実TFツリー上のcamera_depth_linkへ恒等変換でブリッジする。
+    camera_depth_frame_bridge = Node(
+        package='tf2_ros',
+        executable='static_transform_publisher',
+        arguments=[
+            '--frame-id', 'camera_depth_link',
+            '--child-frame-id', 'ai_car1/camera_depth_link/depth_camera',
+        ],
+        output='screen',
     )
 
     steered_to_twist = Node(
@@ -129,6 +139,7 @@ def generate_launch_description():
         ),
         steered_to_twist,
         bridge,
+        camera_depth_frame_bridge,
         robot_state_publisher,
         convert_vectornav_pose,
         convert_vectornav_velocity_body,

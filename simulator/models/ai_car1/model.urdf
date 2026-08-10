@@ -150,7 +150,8 @@
   <joint name="camera_joint" type="fixed">
     <parent link="chassis"/>
     <child link="camera_link"/>
-    <origin xyz="0.055 0 0.54" rpy="0 0 0"/>
+    <!-- 取付姿勢は localization の camera_to_base から導出（scripts/camera_extrinsic_sim_pose.py）。 -->
+    <origin xyz="0.055 0 0.54" rpy="-0.0034939840 0.0436329672 -0.0036430636"/>
   </joint>
 
   <link name="camera_rgb_link"/>
