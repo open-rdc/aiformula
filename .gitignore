@@ -3,6 +3,10 @@
 *.pyc
 *.pt
 
+*.pth
+*.onnx
+*.engine
+
 #ディレクトリで指定
 bin/
 logs/
@@ -26,3 +30,4 @@ AGENTS.md
 *project.md
 
 #例外ファイルを指定
+/vectornav/
