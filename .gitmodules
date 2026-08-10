@@ -6,7 +6,7 @@
 	url = https://github.com/hcmos/ros2-socketcan_interface
 [submodule "utilities"]
 	path = utilities
-	url = https://github.com/hcmos/ros2-utilities
+	url = https://github.com/open-rdc/ros2-utilities.git
 [submodule "odrive_can"]
 	path = odrive_can
 	url = https://github.com/hcmos/ros2-odrive_can
