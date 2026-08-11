@@ -18,21 +18,6 @@
       <topic>/cmd_vel_obstacle</topic>
       <odom_topic>odom</odom_topic>
     </plugin>
-    
-
-    <plugin
-        filename="libignition-gazebo-sensors-system.so"
-        name="ignition::gazebo::systems::Sensors">
-    </plugin>
-
-    <plugin
-        filename="libignition-gazebo-imu-system.so"
-        name="ignition::gazebo::systems::Imu">
-    </plugin>
-    <plugin
-        filename="libignition-gazebo-sensors-system.so"
-        name="ignition::gazebo::systems::Sensors">
-    </plugin>
 
     <plugin
       filename="PathPublisher"
@@ -43,7 +28,7 @@
       filename="FollowPath"
       name="ignition::gazebo::FollowPath">
       <robot_name>human_robot</robot_name>
-      <threshold>1.3</threshold>
+      <threshold>1.7</threshold>
       <linear_vel>1.39</linear_vel>
       <p_gain>0.9</p_gain>
       <i_gain>0.0</i_gain>
@@ -71,7 +56,7 @@
         <pose>-0.0 0.0 -0.1 0 0 0</pose>
         <geometry>
           <mesh>
-            <uri>package://simulator/models/ai_car1/meshes/human_robot4.dae</uri>
+            <uri>package://simulator/models/ai_car1/meshes/human_robot6.dae</uri>
             <scale>0.2 0.2 0.2</scale>
           </mesh>
         </geometry>
