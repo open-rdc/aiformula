@@ -103,6 +103,15 @@
 
         </plugin>
 
+        <plugin
+        filename="libignition-gazebo-imu-system.so"
+        name="ignition::gazebo::systems::Imu">
+        </plugin>
+        <plugin
+            filename="libignition-gazebo-sensors-system.so"
+            name="ignition::gazebo::systems::Sensors">
+        </plugin>
+
 
 
 
@@ -192,9 +201,14 @@
         </link>
         </model>
 
+
         <include>
             <uri>package://simulator/models/ai_car1</uri>
-            <pose>0 0.0 0 0 0 -1.5</pose>
+            <pose>0 0 0 0 0 -1.5</pose>
+        </include>
+        <include>
+            <uri>package://simulator/models/ai_car1/dynamic_obstacle.sdf</uri>
+            <pose>40 28.0 0 0 0 3.14</pose>
         </include>
 
     <!-- 用調整 -->

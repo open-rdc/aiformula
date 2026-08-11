@@ -14,8 +14,11 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 endif()
 
 find_package(ament_cmake REQUIRED)
+find_package(ignition-gazebo6 REQUIRED)
+add_subdirectory(plugin)
+
 install(
-  DIRECTORY  launch world models
+  DIRECTORY  launch world models plugin
   DESTINATION share/${PROJECT_NAME}
 )
 

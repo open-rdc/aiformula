@@ -27,14 +27,6 @@
         <remapping>/caster_yaw_position_controller/commands:=/cmd_caster</remapping>
       </ros>
     </plugin>
-    <plugin
-        filename="libignition-gazebo-imu-system.so"
-        name="ignition::gazebo::systems::Imu">
-    </plugin>
-    <plugin
-        filename="libignition-gazebo-sensors-system.so"
-        name="ignition::gazebo::systems::Sensors">
-    </plugin>
 
     <ros2_control name="gz_ros2_control" type="system">
       <hardware>
