@@ -207,7 +207,7 @@ namespace gazebo
         if (dist < reach_threshold_ && current_idx_ < result_.size() - 1)
         {
             current_idx_++;
-            std::cout << "idx_number:" << current_idx_ << std::endl;
+            // std::cout << "idx_number:" << current_idx_ << std::endl;
         }
 
         if (current_idx_ == result_.size() - 1 && dist < 0.5)

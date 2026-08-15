@@ -4,8 +4,6 @@
 
 
         <gui fullscreen="0">
-
-
         <plugin filename="GzScene3D" name="3D View">
             <camera_pose>0.4845 5.5579 3.3651 0.0 0.308 -1.548</camera_pose>
             <ignition-gui>
@@ -13,11 +11,6 @@
             <property type="bool" key="showTitleBar">true</property>
             <property type="string" key="state">docked</property>
             </ignition-gui>
-
-
-
-
-
         </plugin>
         <plugin filename="Teleop" name="ignition::gui::plugins::Teleop">
             <topic>/cmd_vel</topic>
@@ -26,39 +19,10 @@
             <property type="bool" key="showTitleBar">true</property>
             <property type="string" key="state">docked</property>
             <property key="resizable" type="bool">true</property>
-
-
-
-
-
-
-
-
             </ignition-gui>
-
-
-
         </plugin>
         <plugin filename="ImageDisplay" name="ignition::gui::plugins::ImageDisplay">
             <topic>/image_raw</topic>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
         </plugin>
         </gui>
 
@@ -80,27 +44,10 @@
         <plugin
             filename="libignition-gazebo-scene-broadcaster-system.so"
             name="ignition::gazebo::systems::SceneBroadcaster">
-
-
-
-
-
-
-
-
         </plugin>
         <plugin 
             filename="ignition-gazebo-navsat-system"
             name="ignition::gazebo::systems::NavSat">
-
-
-
-
-
-
-
-
-
         </plugin>
 
         <plugin
@@ -111,30 +58,6 @@
             filename="libignition-gazebo-sensors-system.so"
             name="ignition::gazebo::systems::Sensors">
         </plugin>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
         <light type="directional" name="sun">
             <cast_shadows>true</cast_shadows>
@@ -207,8 +130,12 @@
             <pose>0 0 0 0 0 -1.5</pose>
         </include>
         <include>
-            <uri>package://simulator/models/ai_car1/dynamic_obstacle.sdf</uri>
+            <uri>package://simulator/models/dynamic_obstacle</uri>
             <pose>40 28.0 0 0 0 3.14</pose>
+        </include>
+        <include>
+            <uri>package://simulator/models/panel</uri>
+            <pose>80.25 5.0 0.5 0 0 0</pose>
         </include>
 
     <!-- 用調整 -->
