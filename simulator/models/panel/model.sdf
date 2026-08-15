@@ -6,7 +6,7 @@
         <visual name="visual">
           <geometry>
             <mesh>
-              <uri>package://simulator/world/meshes/red_panel.dae</uri>
+              <uri>package://simulator/models/panel/meshes/red_panel.dae</uri>
               <scale>0.15 0.15 0.15</scale>
             </mesh>
           </geometry>
@@ -16,7 +16,7 @@
         <visual name="screen_visual">
           <geometry>
             <mesh>
-              <uri>package://simulator/world/meshes/screen.dae</uri>
+              <uri>package://simulator/models/panel/meshes/screen.dae</uri>
               <scale>0.15 0.15 0.15</scale>
             </mesh>
           </geometry>
@@ -28,7 +28,7 @@
             </material>
         </visual>
         <light type="spot" name="led"> 
-            <pose>0 -0.3 0.3 -1.57 0 0</pose> 
+            <pose>0 -0.045 0.0 -1.57 0 0</pose> 
             <diffuse>1.0 0.0 0.0 1.0</diffuse>
             <specular>1.0 0.0 0.0 1.0</specular>
             <attenuation>

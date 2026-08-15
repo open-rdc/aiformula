@@ -134,11 +134,11 @@
             <pose>0 0 0 0 0 -1.5</pose>
         </include>
         <include>
-            <uri>package://simulator/models/ai_car1/dynamic_obstacle.sdf</uri>
+            <uri>package://simulator/models/dynamic_obstacle</uri>
             <pose>40 28.0 0 0 0 3.14</pose>
         </include>
         <include>
-            <uri>package://simulator/models/ai_car1/panel.sdf</uri>
+            <uri>package://simulator/models/panel</uri>
             <pose>80.25 5.0 0.5 0 0 0</pose>
         </include>
 

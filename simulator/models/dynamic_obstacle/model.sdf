@@ -56,7 +56,7 @@
         <pose>-0.0 0.0 -0.1 0 0 0</pose>
         <geometry>
           <mesh>
-            <uri>package://simulator/models/ai_car1/meshes/human_robot6.dae</uri>
+            <uri>package://simulator/models/dynamic_obstacle/meshes/human_robot6.dae</uri>
             <scale>0.2 0.2 0.2</scale>
           </mesh>
         </geometry>
@@ -87,16 +87,6 @@
           <izz>0.07875</izz>
         </inertia>
       </inertial>
-      <visual name='visual'>
-        <geometry>
-        <!--let's add color to our link-->
-        <pose>0 -0 0 1.57  1.57 1.57</pose>
-          <mesh>
-            <uri>package://simulator/models/ai_car1/meshes/tire.dae</uri>
-            <scale>0.05 0.12 0.12</scale>
-          </mesh>
-        </geometry>
-      </visual>
       <collision name='collision'>
         <pose>0 0 0 0 0 0</pose>
 	      <geometry>
@@ -123,16 +113,6 @@
           <izz>0.07875</izz>
         </inertia>
       </inertial>
-      <visual name='visual'>
-        <geometry>
-        <!--let's add color to our link-->
-        <pose>0 -0 0 1.57  1.57 1.57</pose>
-          <mesh>
-            <uri>package://simulator/models/ai_car1/meshes/tire.dae</uri>
-            <scale>0.05 0.12 0.12</scale>
-          </mesh>
-        </geometry>
-      </visual>
       <collision name='collision'>
 	    <pose>0 0.0 0 0 0 0</pose>
         <geometry> 
@@ -163,17 +143,6 @@
           <izz>0.001</izz>
         </inertia>
       </inertial>
-      <visual name='visual'>
-        <geometry>
-        <!--let's add color to our link-->
-        <pose>0 0 0 1.57  1.57 1.57</pose>
-          <mesh>
-            <uri>package://simulator/models/ai_car1/meshes/tire.dae</uri>
-            <scale>0.05 0.12 0.12</scale>
-          </mesh>
-        </geometry>
-      </visual>
-      
       <collision name='collision'>
         <geometry>
           <cylinder>  
@@ -197,17 +166,6 @@
           <izz>0.07875</izz>
         </inertia>
       </inertial>
-      <visual name='visual'>
-        <geometry>
-        <!--let's add color to our link-->
-        <pose>0 0 0 1.57 1.57 1.57</pose>
-          <mesh>
-            <uri>package://simulator/models/ai_car1/meshes/tire.dae</uri>
-            <scale>0.05 0.12 0.12</scale>
-          </mesh>
-        </geometry>
-      </visual>
-
       <collision name='collision'>
         <geometry>
           <cylinder>
@@ -315,10 +273,6 @@
         <xyz>0 0 1</xyz>
       </axis>
     </joint>
-
     
-
-
-
   </model>
 </sdf>
