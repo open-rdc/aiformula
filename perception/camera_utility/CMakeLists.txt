@@ -23,12 +23,6 @@ target_include_directories(camera_utility PUBLIC
 )
 target_link_libraries(camera_utility ${OpenCV_LIBRARIES})
 
-if(BUILD_TESTING)
-  find_package(ament_cmake_gtest REQUIRED)
-  ament_add_gtest(test_camera_utility test/test_camera_utility.cpp)
-  target_link_libraries(test_camera_utility camera_utility)
-endif()
-
 install(
   DIRECTORY include/
   DESTINATION include

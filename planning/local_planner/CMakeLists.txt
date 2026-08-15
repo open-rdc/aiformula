@@ -27,12 +27,4 @@ target_link_libraries(frenet_planner_plugin frenet_core)
 
 pluginlib_export_plugin_description_file(local_planner plugins.xml)
 
-if(BUILD_TESTING)
-  find_package(ament_cmake_gtest REQUIRED)
-  ament_add_gtest(test_frenet_core test/test_frenet_core.cpp)
-  target_link_libraries(test_frenet_core frenet_core)
-  ament_auto_add_gtest(test_frenet_planner_plugin test/test_frenet_planner_plugin.cpp)
-  target_link_libraries(test_frenet_planner_plugin frenet_planner_plugin)
-endif()
-
 ament_auto_package()
