@@ -14,10 +14,14 @@ build/
 install/
 log/
 
+test/
+
 simulator_old/
+planning/e2e_planner/data/
+planning/e2e_planner/runs/
+docs/
 #ファイル名で指定
 AGENTS.md
-CLAUDE.md
 .codex
 *project.md
 

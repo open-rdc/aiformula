@@ -1,0 +1,72 @@
+<?xml version="1.0" ?>
+<sdf version="1.5">
+  <model name="panel">
+    <static>true</static>
+      <link name="panel">
+        <visual name="visual">
+          <geometry>
+            <mesh>
+              <uri>package://simulator/models/panel/meshes/red_panel.dae</uri>
+              <scale>0.15 0.15 0.15</scale>
+            </mesh>
+          </geometry>
+        </visual>
+      </link>
+      <link name="screen">
+        <visual name="screen_visual">
+          <geometry>
+            <mesh>
+              <uri>package://simulator/models/panel/meshes/screen.dae</uri>
+              <scale>0.15 0.15 0.15</scale>
+            </mesh>
+          </geometry>
+            <material>
+                <ambient>1.0 0.0 0.0 1.0</ambient>
+                <diffuse>1.0 0.0 0.0 1.0</diffuse>
+                <specular>1.0 1.0 1.0 1.0</specular>
+                <emissive>1.0 0.0 0.0 1.0</emissive>
+            </material>
+        </visual>
+        <light type="spot" name="led"> 
+            <pose>0 -0.045 0.0 -1.57 0 0</pose> 
+            <diffuse>1.0 0.0 0.0 1.0</diffuse>
+            <specular>1.0 0.0 0.0 1.0</specular>
+            <attenuation>
+                <range>10.0</range>
+                <linear>0.05</linear>
+                <constant>0.01</constant>
+                <quadratic>0.1</quadratic>
+            </attenuation>
+            <spot>
+                <inner_angle>1.0</inner_angle>
+                <outer_angle>1.5</outer_angle>
+                <falloff>1.0</falloff>
+            </spot>
+            <cast_shadows>true</cast_shadows>
+            <visualize>false</visualize>
+        </light>
+      </link>
+      <plugin
+        filename="ColorControl"
+        name="ignition::gazebo::ColorControl">
+        <duration_time>10</duration_time>
+        <robot_name>ai_car1</robot_name>
+        <control_name>screen_visual</control_name>
+        <target_position>80.25 5.0 0.5</target_position>
+        <detection_reaction>5.0</detection_reaction>
+        <color>1.0 0.0 0.0 1.0</color>
+        <color_name>Red</color_name>
+      </plugin>
+      <plugin
+        filename="LightControl"
+        name="ignition::gazebo::LightControl">
+        <duration>10</duration>
+        <robot_name>ai_car1</robot_name>
+        <control_name>led</control_name>
+        <target_position>80.25 5.0 0.5</target_position>
+        <detection_reaction>5.0</detection_reaction>
+        <color>1.0 0.0 0.0 1.0</color>
+        <color_name>Red</color_name>
+      </plugin>
+  </model>
+</sdf>

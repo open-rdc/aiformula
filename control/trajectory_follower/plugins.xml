@@ -1,0 +1,14 @@
+<class_libraries>
+  <library path="pure_pursuit_plugin">
+    <class type="trajectory_follower::PurePursuitPlugin"
+           base_class_type="trajectory_follower::ControllerPlugin">
+      <description>Pure Pursuit controller plugin</description>
+    </class>
+  </library>
+  <library path="pid_mpc_plugin">
+    <class type="trajectory_follower::PidMpcPlugin"
+           base_class_type="trajectory_follower::ControllerPlugin">
+      <description>PID(longitudinal) + MPC(lateral) controller plugin</description>
+    </class>
+  </library>
+</class_libraries>

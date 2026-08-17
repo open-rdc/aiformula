@@ -1,0 +1,8 @@
+<class_libraries>
+  <library path="frenet_planner_plugin">
+    <class type="local_planner::FrenetPlannerPlugin"
+           base_class_type="local_planner::LocalPlannerPlugin">
+      <description>Frenet local planner that follows the global path and performs static obstacle avoidance</description>
+    </class>
+  </library>
+</class_libraries>

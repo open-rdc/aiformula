@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>camera_utility</name>
+  <version>0.0.0</version>
+  <description>カメラの内部・外部パラメータを用いて画像ピクセルと路面座標を相互変換するユーティリティ</description>
+  <maintainer email="s25s1045sc@chibateck.ac.jp">Kyo Yamashita</maintainer>
+  <license>MIT</license>
+
+  <buildtool_depend>ament_cmake_auto</buildtool_depend>
+
+  <depend>rclcpp</depend>
+  <depend>tf2</depend>
+  <depend>OpenCV</depend>
+  <depend>utilities</depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
