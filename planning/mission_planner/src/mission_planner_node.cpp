@@ -130,10 +130,14 @@ MissionPlannerNode::MissionPlannerNode(
   current_route_is_loop_(false),
   last_navigation_command_turn_(read_default_navigation_command(*this))
 {
+    rclcpp::SubscriptionOptions no_intra_process_options;
+    no_intra_process_options.use_intra_process_comm = rclcpp::IntraProcessSetting::Disable;
+
     vector_map_subscription_ = create_subscription<vectormap_msgs::msg::VectorMap>(
         "/vector_map",
         rclcpp::QoS(1).transient_local(),
-        std::bind(&MissionPlannerNode::vector_map_callback, this, std::placeholders::_1));
+        std::bind(&MissionPlannerNode::vector_map_callback, this, std::placeholders::_1),
+        no_intra_process_options);
     pose_subscription_ = create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>(
         "/localization/pose",
         rclcpp::SensorDataQoS().keep_last(1),

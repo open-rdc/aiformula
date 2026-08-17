@@ -29,9 +29,13 @@ VectormapVisualizerNode::VectormapVisualizerNode(
     image_subscription_ = this->create_subscription<sensor_msgs::msg::Image>(
         "/zed/zed_node/rgb/image_rect_color", rclcpp::QoS(10),
         std::bind(&VectormapVisualizerNode::image_callback, this, std::placeholders::_1));
+    rclcpp::SubscriptionOptions no_intra_process_options;
+    no_intra_process_options.use_intra_process_comm = rclcpp::IntraProcessSetting::Disable;
+
     vector_map_subscription_ = this->create_subscription<visualization_msgs::msg::MarkerArray>(
         "/vector_map/visualize", rclcpp::QoS(1).transient_local(),
-        std::bind(&VectormapVisualizerNode::vector_map_callback, this, std::placeholders::_1));
+        std::bind(&VectormapVisualizerNode::vector_map_callback, this, std::placeholders::_1),
+        no_intra_process_options);
 
     vectormap_visualize_publisher_ = this->create_publisher<sensor_msgs::msg::Image>(
         "/perception/vectormap_visualize", rclcpp::QoS(10));

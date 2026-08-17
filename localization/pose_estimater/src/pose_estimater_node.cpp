@@ -103,8 +103,11 @@ PoseEstimaterNode::PoseEstimaterNode(const std::string& name_space, const rclcpp
       gnss_position_variance_(get_parameter("gnss_position_variance").as_double()),
       imu_yaw_variance_(get_parameter("imu_yaw_variance").as_double()),
       particle_filter_(make_particle_filter_config(*this), std::random_device{}()) {
+    rclcpp::SubscriptionOptions no_intra_process_options;
+    no_intra_process_options.use_intra_process_comm = rclcpp::IntraProcessSetting::Disable;
+
     lane_line_points_subscription_ = this->create_subscription<sensor_msgs::msg::PointCloud2>("/perception/lane_line_points", rclcpp::SensorDataQoS().keep_last(1), std::bind(&PoseEstimaterNode::lane_line_points_callback, this, std::placeholders::_1));
-    vector_map_subscription_       = this->create_subscription<vectormap_msgs::msg::VectorMap>("/vector_map", rclcpp::QoS(1).transient_local(), std::bind(&PoseEstimaterNode::vector_map_callback, this, std::placeholders::_1));
+    vector_map_subscription_       = this->create_subscription<vectormap_msgs::msg::VectorMap>("/vector_map", rclcpp::QoS(1).transient_local(), std::bind(&PoseEstimaterNode::vector_map_callback, this, std::placeholders::_1), no_intra_process_options);
     gnss_subscription_             = this->create_subscription<sensor_msgs::msg::NavSatFix>("/vectornav/gnss", rclcpp::SensorDataQoS().keep_last(1), std::bind(&PoseEstimaterNode::gnss_callback, this, std::placeholders::_1));
     imu_subscription_              = this->create_subscription<sensor_msgs::msg::Imu>("/vectornav/imu", rclcpp::SensorDataQoS().keep_last(1), std::bind(&PoseEstimaterNode::imu_callback, this, std::placeholders::_1));
     velocity_subscription_         = this->create_subscription<geometry_msgs::msg::TwistWithCovarianceStamped>("/vectornav/velocity_body", rclcpp::SensorDataQoS().keep_last(1), std::bind(&PoseEstimaterNode::velocity_callback, this, std::placeholders::_1));
