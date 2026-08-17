@@ -2,7 +2,6 @@
 
 #include "zed_wrapper/zed_wrapper_node.hpp"
 #include "controller/controller_node.hpp"
-#include "chassis_driver/chassis_driver_node.hpp"
 #include "lane_line_publisher/lane_line_publisher_node.hpp"
 #include "lane_line_publisher/vectormap_visualizer_node.hpp"
 #include "ekf_localizer/map_odom_tf_node.hpp"
@@ -29,7 +28,6 @@ int main(int argc, char * argv[]){
     }
 
     auto controller_node = std::make_shared<controller::Controller>(nodes_option);
-    auto chassis_driver_node = std::make_shared<chassis_driver::ChassisDriver>(nodes_option);
     auto vectormap_server_node = std::make_shared<vectormap_server::VectormapServerNode>(nodes_option);
     auto lane_line_publisher_node = std::make_shared<lane_line_publisher::LaneLinePublisherNode>(nodes_option);
     auto vectormap_visualizer_node = std::make_shared<lane_line_publisher::VectormapVisualizerNode>(nodes_option);
@@ -50,7 +48,6 @@ int main(int argc, char * argv[]){
     }
 #endif
     exec.add_node(controller_node);
-    exec.add_node(chassis_driver_node);
     exec.add_node(vectormap_server_node);
     exec.add_node(lane_line_publisher_node);
     exec.add_node(vectormap_visualizer_node);
