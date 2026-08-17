@@ -43,6 +43,22 @@ Python ノード（`road_detector`）だけは合成対象外で、独立プロ�
 - `launch:` セクションの真偽値が
   起動するハードウェアノードを切り替える。`sim: true` のときは `use_sim_time` が自動で有効化される
 
+### 独自メッセージは `msgs/` 配下に置く
+
+自作の msg パッケージはすべて `src/msgs/` 直下に並べる。ドメイン側のディレクトリ
+（`map/`, `perception/`, `control/` など）には msg パッケージを置かない。
+
+```
+src/msgs/
+├── vectormap_msgs/       # 地図（VectorMap, Lanelet, LineString, LaneConnection, MapArea）
+├── object_detection_msgs/# 物体検出（ObjectInfo, ObjectInfoArray）
+└── steered_drive_msg/    # 車体指令（SteeredDrive）
+```
+
+- パッケージ名・型名はディレクトリ位置に依存しないため、移動しても利用側の
+  `#include` や `<depend>` は変更不要
+- サブモジュール配下の msg（`socketcan_interface_msg`, `odrive_node`, `vectornav_msgs`）は対象外
+
 ### pluginlib
 
 `motion_control`（`controller_plugin`）と `local_planner`（`local_planner_plugin`）は pluginlib 方式。
