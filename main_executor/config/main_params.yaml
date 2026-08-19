@@ -176,28 +176,3 @@ controller_server_node:
         weight_steer_rate             : 5.0
         weight_terminal_lat_error     : 1.0
         weight_terminal_heading_error : 1.0
-
-chassis_driver_node:
-  ros__parameters:
-    interval_ms : 2
-    cmd_timeout_ms : 500
-    wheel_radius : 0.124
-    reduction_ratio : 1.0
-    reverse_left_flag : false
-    reverse_right_flag : false
-    caster:
-      max_count : 16384
-      gear_ratio : 0.59090909090909
-      wheel_radius : 0.12
-      reel_radius : 0.02
-      steering_radius : 0.032
-      preload_length : 0.03
-      preload_gain : 0.1
-    drive_pid:
-      p_gain : 3.0
-      i_gain : 0.0
-      d_gain : 0.1
-
-socketcan_interface_node:
-  ros__parameters:
-    if_name : "can_main"

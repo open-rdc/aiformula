@@ -10,9 +10,7 @@
   <build_depend>rclcpp</build_depend>
   <exec_depend>rclcpp</exec_depend>
 
-  <depend>socketcan_interface</depend>
   <depend>controller</depend>
-  <depend>chassis_driver</depend>
   <depend>frenet_planner</depend>
   <depend>path_tracker</depend>
   <depend>utilities</depend>
@@ -26,7 +24,6 @@
   <depend>zed_wrapper</depend>
   <depend>road_detector</depend>
   <depend>vectormap_server</depend>
-  <depend>gnssnav</depend>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 

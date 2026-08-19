@@ -7,7 +7,6 @@
 #include <std_msgs/msg/char.hpp>
 #include <std_msgs/msg/string.hpp>
 #include <string>
-#include "socketcan_interface_msg/msg/socketcan_if.hpp"
 #include "steered_drive_msg/msg/steered_drive.hpp"
 
 #include "utilities/utils.hpp"
@@ -55,10 +54,10 @@ private:
     enum class Axes{
         L_x,
         L_y,
-        L2,
         R_x,
+	L2,
+	R2,
         R_y,
-        R2,
         left_and_right,
         up_and_down
     };
@@ -69,11 +68,10 @@ private:
         Rectangles,
         L1,
         R1,
-
-        Share,
-        Options,
-	L2,
+        L2,
 	R2,
+	Share,
+	Options,
         PS,
         L3,
         R3

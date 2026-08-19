@@ -46,13 +46,6 @@ def generate_launch_description():
         parameters = [config_file_path],
         output='screen'
     )
-    # socketcanノードの作成
-    socketcan_node = Node(
-        package = 'socketcan_interface',
-        executable = 'socketcan_interface_node',
-        parameters = [config_file_path],
-        output='screen'
-    )
     # 操縦機ノードの作成
     joy_node = Node(
         package = 'joy',
@@ -66,12 +59,6 @@ def generate_launch_description():
             get_package_share_directory('vectornav'), 'launch/'),
             'vectornav.launch.py'])
     )
-    # odrive起動の作成
-    odrive_launch = launch.actions.IncludeLaunchDescription(
-        AnyLaunchDescriptionSource([os.path.join(
-            get_package_share_directory('main_executor'), 'launch/'),
-            'odrive_can_launch.yaml'])
-    )
 
     # 起動エンティティクラスの作成
     launch_discription = LaunchDescription()
@@ -81,8 +68,6 @@ def generate_launch_description():
         launch_discription.add_action(joy_node)
     if(launch_params['sim'] is False):
         launch_discription.add_action(vectornav_launch)
-        launch_discription.add_action(odrive_launch)
-        launch_discription.add_action(socketcan_node)
 
     launch_discription.add_action(robot_state_publisher)
     launch_discription.add_action(main_exec_node)
