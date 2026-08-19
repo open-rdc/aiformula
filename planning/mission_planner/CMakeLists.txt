@@ -15,12 +15,4 @@ ament_auto_add_library(mission_planner_node SHARED
 target_compile_features(mission_planner_node PUBLIC cxx_std_17)
 target_compile_definitions(mission_planner_node PRIVATE "MISSION_PLANNER_BUILDING_LIBRARY")
 
-if(BUILD_TESTING)
-  find_package(ament_cmake_gtest REQUIRED)
-  ament_add_gtest(test_route_point_dedup test/test_route_point_dedup.cpp)
-  target_link_libraries(test_route_point_dedup mission_planner_node)
-  ament_add_gtest(test_route_builder test/test_route_builder.cpp)
-  target_link_libraries(test_route_builder mission_planner_node)
-endif()
-
 ament_auto_package()

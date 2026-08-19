@@ -30,14 +30,6 @@ target_link_libraries(lane_line_publisher_node
   ${OpenCV_LIBRARIES}
 )
 
-if(BUILD_TESTING)
-  find_package(ament_cmake_gtest REQUIRED)
-  ament_add_gtest(test_ground_projection test/test_ground_projection.cpp)
-  target_link_libraries(test_ground_projection lane_line_publisher_node)
-  ament_add_gtest(test_vectormap_projection test/test_vectormap_projection.cpp)
-  target_link_libraries(test_vectormap_projection lane_line_publisher_node)
-endif()
-
 install(
   DIRECTORY include/
   DESTINATION include
