@@ -16,11 +16,13 @@ find_path(NVINFER_INCLUDE_DIR NvInfer.h
 find_library(NVINFER_LIBRARY nvinfer
   HINTS ${CUDA_LIBRARIES} /usr/local/cuda/lib64 /usr/lib/aarch64-linux-gnu /usr/lib/x86_64-linux-gnu)
 
-# engine は実行時に必要なのでインストールする。
-# .pt(150MB) と .onnx(90MB) は engine を作るための中間成果物で実行時には不要なため除外する
-install(DIRECTORY data/ DESTINATION share/${PROJECT_NAME}/data
+# デプロイ成果物だけをインストールする。.pt と .onnx は engine を作るための中間成果物。
+install(DIRECTORY weights/
+  DESTINATION share/${PROJECT_NAME}/weights
   PATTERN "*.pt" EXCLUDE
-  PATTERN "*.onnx" EXCLUDE)
+  PATTERN "*.onnx" EXCLUDE
+  PATTERN "__pycache__" EXCLUDE
+)
 
 if(NOT CUDA_FOUND OR NOT NVINFER_INCLUDE_DIR OR NOT NVINFER_LIBRARY)
   message(WARNING "TensorRT/CUDA not found — skipping road_detector build")

@@ -22,7 +22,7 @@ RoadDetectorNode::RoadDetectorNode(const rclcpp::NodeOptions& options)
     mask_publisher_      = create_publisher<sensor_msgs::msg::Image>("/perception/lane_mask", rclcpp::QoS(10));
     visualize_publisher_ = create_publisher<sensor_msgs::msg::Image>("/perception/lane_mask_visualize", rclcpp::QoS(10));
 
-    const std::string engine_path = ament_index_cpp::get_package_share_directory("road_detector") + "/data/weights/yolopv2.engine";
+    const std::string engine_path = ament_index_cpp::get_package_share_directory("road_detector") + "/weights/yolopv2.engine";
     segmenter_ = std::make_unique<LaneSegmenter>(engine_path);
     geometry_  = compute_letterbox_geometry(image_size_, segmenter_->input_size());
 
