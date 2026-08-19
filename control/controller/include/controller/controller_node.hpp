@@ -7,7 +7,6 @@
 #include <std_msgs/msg/char.hpp>
 #include <std_msgs/msg/string.hpp>
 #include <string>
-#include "socketcan_interface_msg/msg/socketcan_if.hpp"
 #include "steered_drive_msg/msg/steered_drive.hpp"
 
 #include "utilities/utils.hpp"
