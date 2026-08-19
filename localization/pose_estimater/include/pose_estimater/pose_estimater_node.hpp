@@ -31,12 +31,12 @@ class PoseEstimaterNode : public rclcpp::Node {
     explicit PoseEstimaterNode (const std::string &name_space, const rclcpp::NodeOptions &options = rclcpp::NodeOptions ());
 
    private:
-    void lane_line_points_callback (const sensor_msgs::msg::PointCloud2::SharedPtr msg);
-    void vector_map_callback (const vectormap_msgs::msg::VectorMap::SharedPtr msg);
-    void gnss_callback (const sensor_msgs::msg::NavSatFix::SharedPtr msg);
-    void imu_callback (const sensor_msgs::msg::Imu::SharedPtr msg);
-    void velocity_callback (const geometry_msgs::msg::TwistWithCovarianceStamped::SharedPtr msg);
-    void initial_pose_callback (const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg);
+    void lane_line_points_callback (const sensor_msgs::msg::PointCloud2::ConstSharedPtr msg);
+    void vector_map_callback (const vectormap_msgs::msg::VectorMap::ConstSharedPtr msg);
+    void gnss_callback (const sensor_msgs::msg::NavSatFix::ConstSharedPtr msg);
+    void imu_callback (const sensor_msgs::msg::Imu::ConstSharedPtr msg);
+    void velocity_callback (const geometry_msgs::msg::TwistWithCovarianceStamped::ConstSharedPtr msg);
+    void initial_pose_callback (const geometry_msgs::msg::PoseWithCovarianceStamped::ConstSharedPtr msg);
     void timer_callback ();
 
     void rebuild_map_points (const vectormap_msgs::msg::VectorMap &map_msg);
@@ -61,14 +61,14 @@ class PoseEstimaterNode : public rclcpp::Node {
     const double      imu_yaw_variance_;
     ParticleFilter    particle_filter_;
 
-    std::shared_ptr<const PfTargetMap>                        map_points_;
-    sensor_msgs::msg::PointCloud2::SharedPtr                  latest_lane_line_points_;
-    sensor_msgs::msg::NavSatFix::SharedPtr                    latest_gnss_msg_;
-    sensor_msgs::msg::Imu::SharedPtr                          latest_imu_msg_;
-    geometry_msgs::msg::TwistWithCovarianceStamped::SharedPtr latest_velocity_msg_;
-    geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr  pending_initial_pose_;
-    std::mutex                                                data_mutex_;
-    sensor_msgs::msg::PointCloud2::SharedPtr                  processed_lane_line_points_;
+    std::shared_ptr<const PfTargetMap>                             map_points_;
+    sensor_msgs::msg::PointCloud2::ConstSharedPtr                  latest_lane_line_points_;
+    sensor_msgs::msg::NavSatFix::ConstSharedPtr                    latest_gnss_msg_;
+    sensor_msgs::msg::Imu::ConstSharedPtr                          latest_imu_msg_;
+    geometry_msgs::msg::TwistWithCovarianceStamped::ConstSharedPtr latest_velocity_msg_;
+    geometry_msgs::msg::PoseWithCovarianceStamped::ConstSharedPtr  pending_initial_pose_;
+    std::mutex                                                     data_mutex_;
+    sensor_msgs::msg::PointCloud2::ConstSharedPtr                  processed_lane_line_points_;
 
     rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr                  lane_line_points_subscription_;
     rclcpp::Subscription<vectormap_msgs::msg::VectorMap>::SharedPtr                 vector_map_subscription_;

@@ -54,10 +54,10 @@ public:
     };
 
 private:
-    void vector_map_callback(const vectormap_msgs::msg::VectorMap::SharedPtr msg);
-    void pose_callback(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg);
-    void navigation_command_callback(const std_msgs::msg::String::SharedPtr msg);
-    void lane_change_callback(const std_msgs::msg::Empty::SharedPtr msg);
+    void vector_map_callback(const vectormap_msgs::msg::VectorMap::ConstSharedPtr msg);
+    void pose_callback(const geometry_msgs::msg::PoseWithCovarianceStamped::ConstSharedPtr msg);
+    void navigation_command_callback(const std_msgs::msg::String::ConstSharedPtr msg);
+    void lane_change_callback(const std_msgs::msg::Empty::ConstSharedPtr msg);
     void timer_callback();
 
     void build_map_lookup(const vectormap_msgs::msg::VectorMap& map_msg);
@@ -70,7 +70,7 @@ private:
         std::size_t& fallback_count) const;
     std::unordered_set<uint64_t> build_reachable_lanelet_set() const;
     std::pair<uint64_t, double> find_nearest_lanelet_within_route(const Point2D& point) const;
-    nav_msgs::msg::Path make_global_path_message(const rclcpp::Time& stamp) const;
+    nav_msgs::msg::Path::UniquePtr make_global_path_message(const rclcpp::Time& stamp) const;
     void report_curvature_qa() const;
 
     const int update_period_ms_;
@@ -97,7 +97,7 @@ private:
     std::unordered_map<uint64_t, uint64_t> left_adjacent_lanelet_by_id_;
     std::unordered_map<uint64_t, uint64_t> right_adjacent_lanelet_by_id_;
 
-    geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr latest_pose_;
+    geometry_msgs::msg::PoseWithCovarianceStamped::ConstSharedPtr latest_pose_;
     mutable std::mutex data_mutex_;
 
     rclcpp::Subscription<vectormap_msgs::msg::VectorMap>::SharedPtr vector_map_subscription_;

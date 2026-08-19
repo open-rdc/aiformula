@@ -89,7 +89,7 @@ drive_pid(get_parameter("interval_ms").as_int())
         linear_limit.vel, rtod(steering_limit.pos));
 }
 
-void ChassisDriver::_subscriber_callback_vel(const steered_drive_msg::msg::SteeredDrive::SharedPtr msg){
+void ChassisDriver::_subscriber_callback_vel(const steered_drive_msg::msg::SteeredDrive::ConstSharedPtr msg){
     if(mode == Mode::stop) return;
     mode = Mode::cmd;
 
@@ -128,7 +128,7 @@ void ChassisDriver::_publisher_callback(){
         orientation_msg.w = std::cos(odom_yaw * 0.5);
         odom_msg.pose.pose.orientation = orientation_msg;
 
-        publisher_odom->publish(odom_msg);
+        publisher_odom->publish(std::make_unique<nav_msgs::msg::Odometry>(std::move(odom_msg)));
     }
 
 /*速度計画*/
@@ -163,18 +163,18 @@ void ChassisDriver::_publisher_callback(){
     // RCLCPP_INFO(this->get_logger(), "DEL:%.2f POS:%.2f ENC:%.2f", rtod(delta), rtod(motor_pos), rtod(caster_orientation));
 
     // ODriveにトルク指令を送信
-    auto msg_odrive_control = std::make_shared<odrive_can::msg::ControlMessage>();
+    auto msg_odrive_control = std::make_unique<odrive_can::msg::ControlMessage>();
     msg_odrive_control->control_mode = 3;
     msg_odrive_control->input_mode = 1;
     msg_odrive_control->input_pos = motor_pos;
     msg_odrive_control->input_vel = 0.0;
     msg_odrive_control->input_torque = 0.0;
-    publisher_odrive->publish(*msg_odrive_control);
+    publisher_odrive->publish(std::move(msg_odrive_control));
 
     // （テスト用）従動輪{目標舵角，実測舵角，回転位置｝を出版
-    std_msgs::msg::Float64MultiArray caster_data_msg;
-    caster_data_msg.data = {delta, caster_orientation, caster_rotation};
-    publisher_caster_data->publish(caster_data_msg);
+    auto caster_data_msg = std::make_unique<std_msgs::msg::Float64MultiArray>();
+    caster_data_msg->data = {delta, caster_orientation, caster_rotation};
+    publisher_caster_data->publish(std::move(caster_data_msg));
 
 /*駆動輪制御*/
     // 直進時にはプリロードがかかるため，トルク差は0にする
@@ -183,7 +183,7 @@ void ChassisDriver::_publisher_callback(){
     send_rpm(linear_vel, angular_command);
 }
 
-void ChassisDriver::_subscriber_callback_restart(const std_msgs::msg::Empty::SharedPtr msg){
+void ChassisDriver::_subscriber_callback_restart(const std_msgs::msg::Empty::ConstSharedPtr msg){
     mode = Mode::stay;
 
     velplanner::Physics_t physics_zero(0.0, 0.0, 0.0);
@@ -205,7 +205,7 @@ void ChassisDriver::_subscriber_callback_restart(const std_msgs::msg::Empty::Sha
     RCLCPP_INFO(this->get_logger(), "再起動");
 }
 
-void ChassisDriver::_subscriber_callback_caster_orientation(const socketcan_interface_msg::msg::SocketcanIF::SharedPtr msg){
+void ChassisDriver::_subscriber_callback_caster_orientation(const socketcan_interface_msg::msg::SocketcanIF::ConstSharedPtr msg){
     uint8_t _candata[8];
     for(int i=0; i<msg->candlc; i++) _candata[i] = msg->candata[i];
 
@@ -213,7 +213,7 @@ void ChassisDriver::_subscriber_callback_caster_orientation(const socketcan_inte
     caster_orientation = count / static_cast<double>(caster_max_count) * 2.0 * d_pi;
     // RCLCPP_INFO(this->get_logger(), "CAS_ORI:%f CNT:%d", rtod(caster_orientation), count);
 }
-void ChassisDriver::_subscriber_callback_caster_rotation(const socketcan_interface_msg::msg::SocketcanIF::SharedPtr msg){
+void ChassisDriver::_subscriber_callback_caster_rotation(const socketcan_interface_msg::msg::SocketcanIF::ConstSharedPtr msg){
     uint8_t _candata[8];
     for(int i=0; i<msg->candlc; i++) _candata[i] = msg->candata[i];
 
@@ -234,7 +234,7 @@ void ChassisDriver::_subscriber_callback_caster_rotation(const socketcan_interfa
     // RCLCPP_INFO(this->get_logger(), "CAS_ROT:%f CNT:%d", rtod(caster_rotation), count);
     // RCLCPP_INFO(this->get_logger(), "ROT CRR:%f CNT:%d", rtod(current_rotation), count);
 }
-void ChassisDriver::_subscriber_callback_emergency(const socketcan_interface_msg::msg::SocketcanIF::SharedPtr msg){
+void ChassisDriver::_subscriber_callback_emergency(const socketcan_interface_msg::msg::SocketcanIF::ConstSharedPtr msg){
     uint8_t _candata[8];
     for(int i=0; i<msg->candlc; i++) _candata[i] = msg->candata[i];
 
@@ -243,7 +243,7 @@ void ChassisDriver::_subscriber_callback_emergency(const socketcan_interface_msg
         RCLCPP_INFO(this->get_logger(), "緊急停止!");
     }
 }
-void ChassisDriver::_subscriber_callback_bodyvel(const geometry_msgs::msg::TwistWithCovarianceStamped::SharedPtr msg){
+void ChassisDriver::_subscriber_callback_bodyvel(const geometry_msgs::msg::TwistWithCovarianceStamped::ConstSharedPtr msg){
     current_body_vel = msg->twist.twist;
     // RCLCPP_INFO(this->get_logger(), "VEL:%.2f", current_body_vel.linear.x);
 }
@@ -260,7 +260,7 @@ void ChassisDriver::send_rpm(const double linear_vel, const double angular_vel){
 
     // RCLCPP_INFO(this->get_logger(), "right:%f  left:%f", right_rpm, left_rpm);
     // 出版
-    auto msg_can = std::make_shared<socketcan_interface_msg::msg::SocketcanIF>();
+    auto msg_can = std::make_unique<socketcan_interface_msg::msg::SocketcanIF>();
     msg_can->canid = 0x210;
     msg_can->candlc = 8;
 
@@ -269,7 +269,7 @@ void ChassisDriver::send_rpm(const double linear_vel, const double angular_vel){
     int32_to_bytes(_candata+4, static_cast<int32_t>(left_rpm));
 
     for(int i=0; i<msg_can->candlc; i++) msg_can->candata[i]=_candata[i];
-    publisher_can->publish(*msg_can);
+    publisher_can->publish(std::move(msg_can));
 
 }
 

@@ -59,7 +59,7 @@ ObjectDetectorNode::ObjectDetectorNode(
         "/perception/objects_visualize", qos);
 }
 
-void ObjectDetectorNode::pointcloud_callback(const sensor_msgs::msg::PointCloud2::SharedPtr msg)
+void ObjectDetectorNode::pointcloud_callback(const sensor_msgs::msg::PointCloud2::ConstSharedPtr msg)
 {
     RCLCPP_DEBUG(
         get_logger(),
@@ -251,19 +251,25 @@ void ObjectDetectorNode::pointcloud_callback(const sensor_msgs::msg::PointCloud2
         ++id;
     }
 
-    objects_publisher_->publish(objects_msg);
-    marker_publisher_->publish(marker_array);
+    objects_publisher_->publish(
+        std::make_unique<object_detection_msgs::msg::ObjectInfoArray>(std::move(objects_msg)));
+    // マーカーはrviz用途のみ
+    if (marker_publisher_->get_subscription_count() > 0) {
+        marker_publisher_->publish(
+            std::make_unique<visualization_msgs::msg::MarkerArray>(std::move(marker_array)));
+    }
 }
 
 void ObjectDetectorNode::publish_empty(const rclcpp::Time& stamp)
 {
-    object_detection_msgs::msg::ObjectInfoArray objects_msg;
-    objects_msg.header.stamp = stamp;
-    objects_msg.header.frame_id = "map";
-    objects_publisher_->publish(objects_msg);
+    auto objects_msg = std::make_unique<object_detection_msgs::msg::ObjectInfoArray>();
+    objects_msg->header.stamp = stamp;
+    objects_msg->header.frame_id = "map";
+    objects_publisher_->publish(std::move(objects_msg));
 
-    visualization_msgs::msg::MarkerArray marker_array;
-    marker_publisher_->publish(marker_array);
+    if (marker_publisher_->get_subscription_count() > 0) {
+        marker_publisher_->publish(std::make_unique<visualization_msgs::msg::MarkerArray>());
+    }
 }
 
 }

@@ -118,31 +118,31 @@ PoseEstimaterNode::PoseEstimaterNode(const std::string& name_space, const rclcpp
     timer_                         = this->create_wall_timer(std::chrono::milliseconds(interval_ms_), std::bind(&PoseEstimaterNode::timer_callback, this));
 }
 
-void PoseEstimaterNode::lane_line_points_callback(const sensor_msgs::msg::PointCloud2::SharedPtr msg) {
+void PoseEstimaterNode::lane_line_points_callback(const sensor_msgs::msg::PointCloud2::ConstSharedPtr msg) {
     std::lock_guard<std::mutex> lock(data_mutex_);
     latest_lane_line_points_ = msg;
 }
 
-void PoseEstimaterNode::vector_map_callback(const vectormap_msgs::msg::VectorMap::SharedPtr msg) {
+void PoseEstimaterNode::vector_map_callback(const vectormap_msgs::msg::VectorMap::ConstSharedPtr msg) {
     rebuild_map_points(*msg);
 }
 
-void PoseEstimaterNode::gnss_callback(const sensor_msgs::msg::NavSatFix::SharedPtr msg) {
+void PoseEstimaterNode::gnss_callback(const sensor_msgs::msg::NavSatFix::ConstSharedPtr msg) {
     std::lock_guard<std::mutex> lock(data_mutex_);
     latest_gnss_msg_ = msg;
 }
 
-void PoseEstimaterNode::imu_callback(const sensor_msgs::msg::Imu::SharedPtr msg) {
+void PoseEstimaterNode::imu_callback(const sensor_msgs::msg::Imu::ConstSharedPtr msg) {
     std::lock_guard<std::mutex> lock(data_mutex_);
     latest_imu_msg_ = msg;
 }
 
-void PoseEstimaterNode::velocity_callback(const geometry_msgs::msg::TwistWithCovarianceStamped::SharedPtr msg) {
+void PoseEstimaterNode::velocity_callback(const geometry_msgs::msg::TwistWithCovarianceStamped::ConstSharedPtr msg) {
     std::lock_guard<std::mutex> lock(data_mutex_);
     latest_velocity_msg_ = msg;
 }
 
-void PoseEstimaterNode::initial_pose_callback(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg) {
+void PoseEstimaterNode::initial_pose_callback(const geometry_msgs::msg::PoseWithCovarianceStamped::ConstSharedPtr msg) {
     std::lock_guard<std::mutex> lock(data_mutex_);
     pending_initial_pose_ = msg;
 }
@@ -219,30 +219,30 @@ void PoseEstimaterNode::publish_particle_pose_array(const builtin_interfaces::ms
         return;
     }
 
-    geometry_msgs::msg::PoseArray pose_array;
-    pose_array.header.stamp    = stamp;
-    pose_array.header.frame_id = "map";
-    const auto& particles      = particle_filter_.particles();
-    pose_array.poses.reserve(particles.size());
+    auto pose_array = std::make_unique<geometry_msgs::msg::PoseArray>();
+    pose_array->header.stamp    = stamp;
+    pose_array->header.frame_id = "map";
+    const auto& particles       = particle_filter_.particles();
+    pose_array->poses.reserve(particles.size());
     for (const auto& particle : particles) {
         geometry_msgs::msg::Pose pose;
         pose.position.x  = particle.x;
         pose.position.y  = particle.y;
         pose.position.z  = 0.0;
         pose.orientation = utils::yaw_to_quaternion(particle.yaw);
-        pose_array.poses.push_back(pose);
+        pose_array->poses.push_back(pose);
     }
-    particle_pose_array_publisher_->publish(pose_array);
+    particle_pose_array_publisher_->publish(std::move(pose_array));
 }
 
 void PoseEstimaterNode::timer_callback() {
     // lockを短時間保持するために、必要なデータをコピーしてから処理する。
-    sensor_msgs::msg::PointCloud2::SharedPtr                  lane_line_points_msg;
-    sensor_msgs::msg::NavSatFix::SharedPtr                    gnss_msg;
-    sensor_msgs::msg::Imu::SharedPtr                          imu_msg;
-    geometry_msgs::msg::TwistWithCovarianceStamped::SharedPtr velocity_msg;
-    geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr  initial_pose_msg;
-    std::shared_ptr<const PfTargetMap>                        map_points;
+    sensor_msgs::msg::PointCloud2::ConstSharedPtr                  lane_line_points_msg;
+    sensor_msgs::msg::NavSatFix::ConstSharedPtr                    gnss_msg;
+    sensor_msgs::msg::Imu::ConstSharedPtr                          imu_msg;
+    geometry_msgs::msg::TwistWithCovarianceStamped::ConstSharedPtr velocity_msg;
+    geometry_msgs::msg::PoseWithCovarianceStamped::ConstSharedPtr  initial_pose_msg;
+    std::shared_ptr<const PfTargetMap>                             map_points;
     {
         std::lock_guard<std::mutex> lock(data_mutex_);
         lane_line_points_msg = latest_lane_line_points_;
@@ -255,10 +255,11 @@ void PoseEstimaterNode::timer_callback() {
     }
 
     if (initial_pose_msg) {
-        initial_pose_msg->header.frame_id = "map";
-        initial_pose_msg->header.stamp    = this->get_clock()->now();
-        initialize_particle_filter(*initial_pose_msg);
-        pf_pose_publisher_->publish(*initial_pose_msg);
+        auto initial_pose = std::make_unique<geometry_msgs::msg::PoseWithCovarianceStamped>(*initial_pose_msg);
+        initial_pose->header.frame_id = "map";
+        initial_pose->header.stamp    = this->get_clock()->now();
+        initialize_particle_filter(*initial_pose);
+        pf_pose_publisher_->publish(std::move(initial_pose));
         return;
     }
 
@@ -272,11 +273,11 @@ void PoseEstimaterNode::timer_callback() {
         }
         if (!map_points || map_points->empty()) {
             RCLCPP_DEBUG(this->get_logger(), "Vector mapを待機中");
-            pf_pose_publisher_->publish(raw_pose);
+            pf_pose_publisher_->publish(std::make_unique<geometry_msgs::msg::PoseWithCovarianceStamped>(raw_pose));
             return;
         }
         initialize_particle_filter(raw_pose);
-        pf_pose_publisher_->publish(raw_pose);
+        pf_pose_publisher_->publish(std::make_unique<geometry_msgs::msg::PoseWithCovarianceStamped>(raw_pose));
         publish_particle_pose_array(raw_pose.header.stamp);
         return;
     }
@@ -309,7 +310,7 @@ void PoseEstimaterNode::timer_callback() {
         }
     }
 
-    pf_pose_publisher_->publish(make_pose(estimate_stamp, particle_filter_.estimate()));
+    pf_pose_publisher_->publish(std::make_unique<geometry_msgs::msg::PoseWithCovarianceStamped>(make_pose(estimate_stamp, particle_filter_.estimate())));
     publish_particle_pose_array(estimate_stamp);
 }
 

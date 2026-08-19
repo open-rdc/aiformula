@@ -41,7 +41,7 @@ LaneLinePublisherNode::LaneLinePublisherNode(
         "/perception/lane_line", rclcpp::QoS(10));
 }
 
-void LaneLinePublisherNode::lane_mask_callback(const sensor_msgs::msg::Image::SharedPtr msg)
+void LaneLinePublisherNode::lane_mask_callback(const sensor_msgs::msg::Image::ConstSharedPtr msg)
 {
     cv::Mat skeleton_mask;
     const auto mask_image = cv_bridge::toCvShare(msg, sensor_msgs::image_encodings::MONO8);
@@ -59,27 +59,30 @@ void LaneLinePublisherNode::lane_mask_callback(const sensor_msgs::msg::Image::Sh
     const auto base_points = voxel_downsample(observed_points, voxel_grid_size_meter_);
 
     lane_line_points_publisher_->publish(make_lane_line_point_cloud(base_points, msg->header.stamp));
-    lane_line_marker_publisher_->publish(make_lane_line_marker_array(base_points, msg->header.stamp));
+    // マーカーはrviz用途のみなので、購読者がいないときは組み立てもしない
+    if (lane_line_marker_publisher_->get_subscription_count() > 0) {
+        lane_line_marker_publisher_->publish(make_lane_line_marker_array(base_points, msg->header.stamp));
+    }
 }
 
-sensor_msgs::msg::PointCloud2 LaneLinePublisherNode::make_lane_line_point_cloud(
+sensor_msgs::msg::PointCloud2::UniquePtr LaneLinePublisherNode::make_lane_line_point_cloud(
     const std::vector<Eigen::Vector2d>& base_points,
     const builtin_interfaces::msg::Time& stamp) const
 {
-    sensor_msgs::msg::PointCloud2 cloud;
-    cloud.header.stamp = stamp;
-    cloud.header.frame_id = "base_link";
-    cloud.height = 1;
-    cloud.is_dense = true;
-    cloud.is_bigendian = false;
+    auto cloud = std::make_unique<sensor_msgs::msg::PointCloud2>();
+    cloud->header.stamp = stamp;
+    cloud->header.frame_id = "base_link";
+    cloud->height = 1;
+    cloud->is_dense = true;
+    cloud->is_bigendian = false;
 
-    sensor_msgs::PointCloud2Modifier modifier(cloud);
+    sensor_msgs::PointCloud2Modifier modifier(*cloud);
     modifier.setPointCloud2FieldsByString(1, "xyz");
     modifier.resize(base_points.size());
 
-    sensor_msgs::PointCloud2Iterator<float> iter_x(cloud, "x");
-    sensor_msgs::PointCloud2Iterator<float> iter_y(cloud, "y");
-    sensor_msgs::PointCloud2Iterator<float> iter_z(cloud, "z");
+    sensor_msgs::PointCloud2Iterator<float> iter_x(*cloud, "x");
+    sensor_msgs::PointCloud2Iterator<float> iter_y(*cloud, "y");
+    sensor_msgs::PointCloud2Iterator<float> iter_z(*cloud, "z");
     for (const auto& p : base_points) {
         *iter_x = static_cast<float>(p.x());
         *iter_y = static_cast<float>(p.y());
@@ -92,17 +95,17 @@ sensor_msgs::msg::PointCloud2 LaneLinePublisherNode::make_lane_line_point_cloud(
     return cloud;
 }
 
-visualization_msgs::msg::MarkerArray LaneLinePublisherNode::make_lane_line_marker_array(
+visualization_msgs::msg::MarkerArray::UniquePtr LaneLinePublisherNode::make_lane_line_marker_array(
     const std::vector<Eigen::Vector2d>& base_points,
     const builtin_interfaces::msg::Time& stamp) const
 {
-    visualization_msgs::msg::MarkerArray marker_array;
+    auto marker_array = std::make_unique<visualization_msgs::msg::MarkerArray>();
 
     visualization_msgs::msg::Marker delete_marker;
     delete_marker.header.stamp = stamp;
     delete_marker.header.frame_id = "base_link";
     delete_marker.action = visualization_msgs::msg::Marker::DELETEALL;
-    marker_array.markers.push_back(delete_marker);
+    marker_array->markers.push_back(delete_marker);
 
     visualization_msgs::msg::Marker points_marker;
     points_marker.header = delete_marker.header;
@@ -127,7 +130,7 @@ visualization_msgs::msg::MarkerArray LaneLinePublisherNode::make_lane_line_marke
         points_marker.points.push_back(point);
     }
 
-    marker_array.markers.push_back(std::move(points_marker));
+    marker_array->markers.push_back(std::move(points_marker));
     return marker_array;
 }
 

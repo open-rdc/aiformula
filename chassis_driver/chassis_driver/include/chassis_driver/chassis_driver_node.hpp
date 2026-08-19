@@ -34,12 +34,12 @@ private:
     rclcpp::Subscription<geometry_msgs::msg::TwistWithCovarianceStamped>::SharedPtr _subscription_bodyvel;
     rclcpp::TimerBase::SharedPtr _pub_timer;
 
-    void _subscriber_callback_vel(const steered_drive_msg::msg::SteeredDrive::SharedPtr msg);
-    void _subscriber_callback_restart(const std_msgs::msg::Empty::SharedPtr msg);
-    void _subscriber_callback_caster_orientation(const socketcan_interface_msg::msg::SocketcanIF::SharedPtr msg);
-    void _subscriber_callback_caster_rotation(const socketcan_interface_msg::msg::SocketcanIF::SharedPtr msg);
-    void _subscriber_callback_emergency(const socketcan_interface_msg::msg::SocketcanIF::SharedPtr msg);
-    void _subscriber_callback_bodyvel(const geometry_msgs::msg::TwistWithCovarianceStamped::SharedPtr msg);
+    void _subscriber_callback_vel(const steered_drive_msg::msg::SteeredDrive::ConstSharedPtr msg);
+    void _subscriber_callback_restart(const std_msgs::msg::Empty::ConstSharedPtr msg);
+    void _subscriber_callback_caster_orientation(const socketcan_interface_msg::msg::SocketcanIF::ConstSharedPtr msg);
+    void _subscriber_callback_caster_rotation(const socketcan_interface_msg::msg::SocketcanIF::ConstSharedPtr msg);
+    void _subscriber_callback_emergency(const socketcan_interface_msg::msg::SocketcanIF::ConstSharedPtr msg);
+    void _subscriber_callback_bodyvel(const geometry_msgs::msg::TwistWithCovarianceStamped::ConstSharedPtr msg);
     void _publisher_callback();
     void send_rpm(const double linear_vel, const double angular_vel);
     static double normalize_angle(double angle);

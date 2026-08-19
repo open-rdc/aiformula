@@ -34,13 +34,13 @@ public:
         const rclcpp::NodeOptions & options = rclcpp::NodeOptions());
 
 private:
-    void path_callback(const nav_msgs::msg::Path::SharedPtr msg);
+    void path_callback(const nav_msgs::msg::Path::ConstSharedPtr msg);
     void pose_callback(
-        const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg);
+        const geometry_msgs::msg::PoseWithCovarianceStamped::ConstSharedPtr msg);
     void velocity_callback(
-        const geometry_msgs::msg::TwistWithCovarianceStamped::SharedPtr msg);
-    void autonomous_callback(const std_msgs::msg::Bool::SharedPtr msg);
-    void caster_data_callback(const std_msgs::msg::Float64MultiArray::SharedPtr msg);
+        const geometry_msgs::msg::TwistWithCovarianceStamped::ConstSharedPtr msg);
+    void autonomous_callback(const std_msgs::msg::Bool::ConstSharedPtr msg);
+    void caster_data_callback(const std_msgs::msg::Float64MultiArray::ConstSharedPtr msg);
     void timer_callback();
 
     nav_msgs::msg::Path transform_path_to_base(
@@ -53,10 +53,10 @@ private:
     ControllerPlugin::SharedPtr plugin_;
 
     bool autonomous_flag_=false;
-    nav_msgs::msg::Path::SharedPtr path_;
-    geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr pose_;
-    geometry_msgs::msg::TwistWithCovarianceStamped::SharedPtr velocity_;
-    std_msgs::msg::Float64MultiArray::SharedPtr caster_data_;
+    nav_msgs::msg::Path::ConstSharedPtr path_;
+    geometry_msgs::msg::PoseWithCovarianceStamped::ConstSharedPtr pose_;
+    geometry_msgs::msg::TwistWithCovarianceStamped::ConstSharedPtr velocity_;
+    std_msgs::msg::Float64MultiArray::ConstSharedPtr caster_data_;
     std::optional<steered_drive_msg::msg::SteeredDrive> last_cmd_vel_;
     mutable std::mutex data_mutex_;
 

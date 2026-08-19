@@ -27,7 +27,7 @@ public:
         const rclcpp::NodeOptions& options = rclcpp::NodeOptions());
 
 private:
-    void pointcloud_callback(const sensor_msgs::msg::PointCloud2::SharedPtr msg);
+    void pointcloud_callback(const sensor_msgs::msg::PointCloud2::ConstSharedPtr msg);
     void publish_empty(const rclcpp::Time& stamp);
 
     const double ground_z_threshold_m_;

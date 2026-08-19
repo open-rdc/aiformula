@@ -26,7 +26,7 @@ MapOdomTfNode::MapOdomTfNode (const std::string &name_space, const rclcpp::NodeO
     timer_ = create_wall_timer (std::chrono::milliseconds (publish_period_ms_), std::bind (&MapOdomTfNode::timer_callback, this));
 }
 
-void MapOdomTfNode::localized_pose_callback (const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg) {
+void MapOdomTfNode::localized_pose_callback (const geometry_msgs::msg::PoseWithCovarianceStamped::ConstSharedPtr msg) {
     geometry_msgs::msg::TransformStamped odom_to_base;
     try {
         odom_to_base = tf_buffer_->lookupTransform ("odom", "base_link", tf2::TimePointZero);

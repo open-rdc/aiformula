@@ -43,28 +43,28 @@ LocalPlannerServer::LocalPlannerServer(
         std::bind(&LocalPlannerServer::timer_callback, this));
 }
 
-void LocalPlannerServer::global_path_callback(const nav_msgs::msg::Path::SharedPtr msg)
+void LocalPlannerServer::global_path_callback(const nav_msgs::msg::Path::ConstSharedPtr msg)
 {
     std::lock_guard<std::mutex> lock(data_mutex_);
     plugin_->setGlobalPath(*msg);
 }
 
 void LocalPlannerServer::pose_callback(
-    const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg)
+    const geometry_msgs::msg::PoseWithCovarianceStamped::ConstSharedPtr msg)
 {
     std::lock_guard<std::mutex> lock(data_mutex_);
     pose_ = msg;
 }
 
 void LocalPlannerServer::velocity_callback(
-    const geometry_msgs::msg::TwistWithCovarianceStamped::SharedPtr msg)
+    const geometry_msgs::msg::TwistWithCovarianceStamped::ConstSharedPtr msg)
 {
     std::lock_guard<std::mutex> lock(data_mutex_);
     velocity_ = msg;
 }
 
 void LocalPlannerServer::objects_callback(
-    const object_detection_msgs::msg::ObjectInfoArray::SharedPtr msg)
+    const object_detection_msgs::msg::ObjectInfoArray::ConstSharedPtr msg)
 {
     std::lock_guard<std::mutex> lock(data_mutex_);
     objects_ = msg;
@@ -92,7 +92,7 @@ void LocalPlannerServer::timer_callback()
         RCLCPP_DEBUG(get_logger(), "ローカル経路の計算に失敗しました");
         return;
     }
-    local_path_publisher_->publish(*result);
+    local_path_publisher_->publish(std::make_unique<nav_msgs::msg::Path>(std::move(*result)));
 }
 
 }

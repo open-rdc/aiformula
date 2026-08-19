@@ -159,7 +159,7 @@ MissionPlannerNode::MissionPlannerNode(
 }
 
 void MissionPlannerNode::vector_map_callback(
-    const vectormap_msgs::msg::VectorMap::SharedPtr msg)
+    const vectormap_msgs::msg::VectorMap::ConstSharedPtr msg)
 {
     std::lock_guard<std::mutex> lock(data_mutex_);
     if (map_ready_) {
@@ -169,13 +169,13 @@ void MissionPlannerNode::vector_map_callback(
 }
 
 void MissionPlannerNode::pose_callback(
-    const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg)
+    const geometry_msgs::msg::PoseWithCovarianceStamped::ConstSharedPtr msg)
 {
     std::lock_guard<std::mutex> lock(data_mutex_);
     latest_pose_ = msg;
 }
 
-void MissionPlannerNode::navigation_command_callback(const std_msgs::msg::String::SharedPtr msg)
+void MissionPlannerNode::navigation_command_callback(const std_msgs::msg::String::ConstSharedPtr msg)
 {
     const auto requested_turn = parse_navigation_command(msg->data);
     if (!requested_turn) {
@@ -200,7 +200,7 @@ void MissionPlannerNode::navigation_command_callback(const std_msgs::msg::String
     global_path_publisher_->publish(make_global_path_message(now()));
 }
 
-void MissionPlannerNode::lane_change_callback(const std_msgs::msg::Empty::SharedPtr)
+void MissionPlannerNode::lane_change_callback(const std_msgs::msg::Empty::ConstSharedPtr)
 {
     std::lock_guard<std::mutex> lock(data_mutex_);
     if (!global_path_ready_ || !latest_pose_) {
@@ -308,21 +308,21 @@ void MissionPlannerNode::timer_callback()
     }
 }
 
-nav_msgs::msg::Path MissionPlannerNode::make_global_path_message(
+nav_msgs::msg::Path::UniquePtr MissionPlannerNode::make_global_path_message(
     const rclcpp::Time& stamp) const
 {
-    nav_msgs::msg::Path path;
-    path.header.stamp = stamp;
-    path.header.frame_id = "map";
-    path.poses.reserve(global_samples_.size());
+    auto path = std::make_unique<nav_msgs::msg::Path>();
+    path->header.stamp = stamp;
+    path->header.frame_id = "map";
+    path->poses.reserve(global_samples_.size());
     for (const auto& point : global_samples_) {
         geometry_msgs::msg::PoseStamped pose;
-        pose.header = path.header;
+        pose.header = path->header;
         pose.pose.position.x = point.x;
         pose.pose.position.y = point.y;
         pose.pose.position.z = 0.0;
         pose.pose.orientation = utils::yaw_to_quaternion(point.yaw);
-        path.poses.push_back(pose);
+        path->poses.push_back(pose);
     }
     return path;
 }

@@ -29,10 +29,10 @@ public:
         const rclcpp::NodeOptions& options = rclcpp::NodeOptions());
 
 private:
-    void global_path_callback(const nav_msgs::msg::Path::SharedPtr msg);
-    void pose_callback(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg);
-    void velocity_callback(const geometry_msgs::msg::TwistWithCovarianceStamped::SharedPtr msg);
-    void objects_callback(const object_detection_msgs::msg::ObjectInfoArray::SharedPtr msg);
+    void global_path_callback(const nav_msgs::msg::Path::ConstSharedPtr msg);
+    void pose_callback(const geometry_msgs::msg::PoseWithCovarianceStamped::ConstSharedPtr msg);
+    void velocity_callback(const geometry_msgs::msg::TwistWithCovarianceStamped::ConstSharedPtr msg);
+    void objects_callback(const object_detection_msgs::msg::ObjectInfoArray::ConstSharedPtr msg);
     void timer_callback();
 
     pluginlib::ClassLoader<LocalPlannerPlugin> plugin_loader_;
@@ -41,9 +41,9 @@ private:
     const int interval_ms_;
     const rclcpp::QoS qos_;
 
-    geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr pose_;
-    geometry_msgs::msg::TwistWithCovarianceStamped::SharedPtr velocity_;
-    object_detection_msgs::msg::ObjectInfoArray::SharedPtr objects_;
+    geometry_msgs::msg::PoseWithCovarianceStamped::ConstSharedPtr pose_;
+    geometry_msgs::msg::TwistWithCovarianceStamped::ConstSharedPtr velocity_;
+    object_detection_msgs::msg::ObjectInfoArray::ConstSharedPtr objects_;
     mutable std::mutex data_mutex_;
 
     rclcpp::Subscription<nav_msgs::msg::Path>::SharedPtr global_path_subscription_;
