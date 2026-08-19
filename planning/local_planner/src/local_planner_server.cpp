@@ -20,24 +20,13 @@ LocalPlannerServer::LocalPlannerServer(
     plugin_ = plugin_loader_.createSharedInstance(plugin_name);
     plugin_->initialize(get_logger(), get_clock(), get_node_parameters_interface());
 
-    global_path_subscription_ = create_subscription<nav_msgs::msg::Path>(
-        "/planner/global_path",
-        qos_,
-        std::bind(&LocalPlannerServer::global_path_callback, this, std::placeholders::_1));
-    pose_subscription_ = create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>(
-        "/localization/pose",
-        qos_,
-        std::bind(&LocalPlannerServer::pose_callback, this, std::placeholders::_1));
-    velocity_subscription_ = create_subscription<geometry_msgs::msg::TwistWithCovarianceStamped>(
-        "/vectornav/velocity_body",
-        qos_,
-        std::bind(&LocalPlannerServer::velocity_callback, this, std::placeholders::_1));
-    objects_subscription_ = create_subscription<object_detection_msgs::msg::ObjectInfoArray>(
-        "/perception/objects",
-        qos_,
-        std::bind(&LocalPlannerServer::objects_callback, this, std::placeholders::_1));
+    global_path_subscription_ = create_subscription<nav_msgs::msg::Path>("/planner/global_path", qos_, std::bind(&LocalPlannerServer::global_path_callback, this, std::placeholders::_1));
+    pose_subscription_ = create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>("/localization/pose", qos_, std::bind(&LocalPlannerServer::pose_callback, this, std::placeholders::_1));
+    velocity_subscription_ = create_subscription<geometry_msgs::msg::TwistWithCovarianceStamped>("/vectornav/velocity_body", qos_, std::bind(&LocalPlannerServer::velocity_callback, this, std::placeholders::_1));
+    objects_subscription_ = create_subscription<object_detection_msgs::msg::ObjectInfoArray>("/perception/objects", rclcpp::SensorDataQoS().keep_last(1), std::bind(&LocalPlannerServer::objects_callback, this, std::placeholders::_1));
 
     local_path_publisher_ = create_publisher<nav_msgs::msg::Path>("/planner/local_path", qos_);
+
     timer_ = create_wall_timer(
         std::chrono::milliseconds(interval_ms_),
         std::bind(&LocalPlannerServer::timer_callback, this));

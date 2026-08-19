@@ -33,7 +33,7 @@ PylonDetectorNode::PylonDetectorNode(
     image_subscription_ = create_subscription<sensor_msgs::msg::Image>("/zed/zed_node/rgb/image_rect_color", rclcpp::SensorDataQoS().keep_last(1), std::bind(&PylonDetectorNode::image_callback, this, std::placeholders::_1));
 
     objects_publisher_ = create_publisher<object_detection_msgs::msg::ObjectInfoArray>("/perception/objects", rclcpp::SensorDataQoS().keep_last(1));
-    marker_publisher_ = create_publisher<visualization_msgs::msg::MarkerArray>("/perception/objects_visualize", rclcpp::SystemDefaultsQoS());
+    marker_publisher_ = create_publisher<visualization_msgs::msg::MarkerArray>("/perception/objects_visualize", rclcpp::QoS(1));
     debug_image_publisher_ = create_publisher<sensor_msgs::msg::Image>("/perception/objects_debug_image", rclcpp::SensorDataQoS().keep_last(1));
 }
 
