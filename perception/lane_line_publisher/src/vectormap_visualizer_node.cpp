@@ -29,22 +29,26 @@ VectormapVisualizerNode::VectormapVisualizerNode(
     image_subscription_ = this->create_subscription<sensor_msgs::msg::Image>(
         "/zed/zed_node/rgb/image_rect_color", rclcpp::QoS(10),
         std::bind(&VectormapVisualizerNode::image_callback, this, std::placeholders::_1));
+    rclcpp::SubscriptionOptions no_intra_process_options;
+    no_intra_process_options.use_intra_process_comm = rclcpp::IntraProcessSetting::Disable;
+
     vector_map_subscription_ = this->create_subscription<visualization_msgs::msg::MarkerArray>(
         "/vector_map/visualize", rclcpp::QoS(1).transient_local(),
-        std::bind(&VectormapVisualizerNode::vector_map_callback, this, std::placeholders::_1));
+        std::bind(&VectormapVisualizerNode::vector_map_callback, this, std::placeholders::_1),
+        no_intra_process_options);
 
     vectormap_visualize_publisher_ = this->create_publisher<sensor_msgs::msg::Image>(
         "/perception/vectormap_visualize", rclcpp::QoS(10));
 }
 
 void VectormapVisualizerNode::vector_map_callback(
-    const visualization_msgs::msg::MarkerArray::SharedPtr msg)
+    const visualization_msgs::msg::MarkerArray::ConstSharedPtr msg)
 {
     std::lock_guard<std::mutex> lock(vector_map_mutex_);
     latest_vector_map_markers_ = *msg;
 }
 
-void VectormapVisualizerNode::image_callback(const sensor_msgs::msg::Image::SharedPtr msg)
+void VectormapVisualizerNode::image_callback(const sensor_msgs::msg::Image::ConstSharedPtr msg)
 {
     if (vectormap_visualize_publisher_->get_subscription_count() == 0) {
         return;
@@ -82,8 +86,10 @@ void VectormapVisualizerNode::image_callback(const sensor_msgs::msg::Image::Shar
             vector_map_markers, base_T_map, base_T_camera_, camera_intrinsics_);
         draw_projected_line_strings(image, projected_line_strings);
 
-        vectormap_visualize_publisher_->publish(
-            *cv_bridge::CvImage(msg->header, sensor_msgs::image_encodings::BGR8, image).toImageMsg());
+        auto visualize_msg = std::make_unique<sensor_msgs::msg::Image>();
+        cv_bridge::CvImage(msg->header, sensor_msgs::image_encodings::BGR8, image)
+            .toImageMsg(*visualize_msg);
+        vectormap_visualize_publisher_->publish(std::move(visualize_msg));
     } catch (const std::exception& error) {
         RCLCPP_WARN_THROTTLE(
             this->get_logger(), *this->get_clock(), 1000,

@@ -26,7 +26,7 @@ public:
 private:
     rclcpp::Subscription<sensor_msgs::msg::Joy>::SharedPtr _subscription_joy;
 
-    void _subscriber_callback_joy(const sensor_msgs::msg::Joy::SharedPtr msg);
+    void _subscriber_callback_joy(const sensor_msgs::msg::Joy::ConstSharedPtr msg);
     void publish_nav_cmd(const std::string& command);
 
     rclcpp::Publisher<steered_drive_msg::msg::SteeredDrive>::SharedPtr publisher_vel;

@@ -29,8 +29,8 @@ public:
         const rclcpp::NodeOptions& options = rclcpp::NodeOptions());
 
 private:
-    void image_callback(const sensor_msgs::msg::Image::SharedPtr msg);
-    void vector_map_callback(const visualization_msgs::msg::MarkerArray::SharedPtr msg);
+    void image_callback(const sensor_msgs::msg::Image::ConstSharedPtr msg);
+    void vector_map_callback(const visualization_msgs::msg::MarkerArray::ConstSharedPtr msg);
 
     const camera_utility::CameraIntrinsics camera_intrinsics_;
     const tf2::Transform base_T_camera_;

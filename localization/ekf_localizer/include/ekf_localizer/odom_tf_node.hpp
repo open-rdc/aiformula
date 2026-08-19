@@ -26,8 +26,8 @@ class OdomTfNode : public rclcpp::Node {
     explicit OdomTfNode (const std::string &name_space, const rclcpp::NodeOptions &options = rclcpp::NodeOptions ());
 
    private:
-    void imu_callback (const sensor_msgs::msg::Imu::SharedPtr msg);
-    void velocity_callback (const geometry_msgs::msg::TwistWithCovarianceStamped::SharedPtr msg);
+    void imu_callback (const sensor_msgs::msg::Imu::ConstSharedPtr msg);
+    void velocity_callback (const geometry_msgs::msg::TwistWithCovarianceStamped::ConstSharedPtr msg);
     void timer_callback ();
 
     void                                 integrate_velocity (const geometry_msgs::msg::TwistWithCovarianceStamped &velocity_msg, const rclcpp::Time &stamp);

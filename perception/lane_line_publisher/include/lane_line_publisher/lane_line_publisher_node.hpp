@@ -29,12 +29,12 @@ public:
         const rclcpp::NodeOptions& options = rclcpp::NodeOptions());
 
 private:
-    void lane_mask_callback(const sensor_msgs::msg::Image::SharedPtr msg);
+    void lane_mask_callback(const sensor_msgs::msg::Image::ConstSharedPtr msg);
 
-    sensor_msgs::msg::PointCloud2 make_lane_line_point_cloud(
+    sensor_msgs::msg::PointCloud2::UniquePtr make_lane_line_point_cloud(
         const std::vector<Eigen::Vector2d>& base_points,
         const builtin_interfaces::msg::Time& stamp) const;
-    visualization_msgs::msg::MarkerArray make_lane_line_marker_array(
+    visualization_msgs::msg::MarkerArray::UniquePtr make_lane_line_marker_array(
         const std::vector<Eigen::Vector2d>& base_points,
         const builtin_interfaces::msg::Time& stamp) const;
 

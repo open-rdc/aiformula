@@ -101,48 +101,52 @@ void ZedWrapperNode::grab_callback()
 
     const rclcpp::Time stamp = now();
 
-    sl::Mat left_image;
-    implementation_->zed.retrieveImage(left_image, sl::VIEW::LEFT, sl::MEM::CPU, implementation_->publish_resolution);
-    {
-        sensor_msgs::msg::Image msg;
-        msg.header.stamp    = stamp;
-        msg.header.frame_id = "camera_depth_link";
-        msg.width    = static_cast<uint32_t>(left_image.getWidth());
-        msg.height   = static_cast<uint32_t>(left_image.getHeight());
-        msg.encoding = "bgra8";
-        msg.step     = static_cast<uint32_t>(left_image.getStepBytes());
-        const size_t nbytes = msg.height * msg.step;
-        msg.data.resize(nbytes);
-        std::memcpy(msg.data.data(), left_image.getPtr<sl::uchar1>(), nbytes);
-        image_publisher_->publish(msg);
+    // subscriberがいない場合は処理しない
+    if (image_publisher_->get_subscription_count() > 0) {
+        sl::Mat left_image;
+        implementation_->zed.retrieveImage(left_image, sl::VIEW::LEFT, sl::MEM::CPU, implementation_->publish_resolution);
+
+        auto msg = std::make_unique<sensor_msgs::msg::Image>();
+        msg->header.stamp    = stamp;
+        msg->header.frame_id = "camera_depth_link";
+        msg->width    = static_cast<uint32_t>(left_image.getWidth());
+        msg->height   = static_cast<uint32_t>(left_image.getHeight());
+        msg->encoding = "bgra8";
+        msg->step     = static_cast<uint32_t>(left_image.getStepBytes());
+        const size_t nbytes = msg->height * msg->step;
+        msg->data.resize(nbytes);
+        std::memcpy(msg->data.data(), left_image.getPtr<sl::uchar1>(), nbytes);
+        image_publisher_->publish(std::move(msg));
     }
 
-    sl::Mat pc_mat;
-    implementation_->zed.retrieveMeasure(pc_mat, sl::MEASURE::XYZRGBA, sl::MEM::CPU, implementation_->publish_resolution);
-    {
-        sensor_msgs::msg::PointCloud2 msg;
-        msg.header.stamp    = stamp;
-        msg.header.frame_id = "camera_depth_link";
-        msg.height     = static_cast<uint32_t>(pc_mat.getHeight());
-        msg.width      = static_cast<uint32_t>(pc_mat.getWidth());
-        msg.is_dense   = false;
-        msg.point_step = 16;
-        msg.row_step   = msg.point_step * msg.width;
+    // subscriberがいない場合は処理しない
+    if (pointcloud_publisher_->get_subscription_count() > 0) {
+        sl::Mat pc_mat;
+        implementation_->zed.retrieveMeasure(pc_mat, sl::MEASURE::XYZRGBA, sl::MEM::CPU, implementation_->publish_resolution);
 
-        msg.fields.resize(4);
-        msg.fields[0].name = "x";    msg.fields[0].offset = 0;
-        msg.fields[1].name = "y";    msg.fields[1].offset = 4;
-        msg.fields[2].name = "z";    msg.fields[2].offset = 8;
-        msg.fields[3].name = "rgba"; msg.fields[3].offset = 12;
-        for (auto & f : msg.fields) {
+        auto msg = std::make_unique<sensor_msgs::msg::PointCloud2>();
+        msg->header.stamp    = stamp;
+        msg->header.frame_id = "camera_depth_link";
+        msg->height     = static_cast<uint32_t>(pc_mat.getHeight());
+        msg->width      = static_cast<uint32_t>(pc_mat.getWidth());
+        msg->is_dense   = false;
+        msg->point_step = 16;
+        msg->row_step   = msg->point_step * msg->width;
+
+        msg->fields.resize(4);
+        msg->fields[0].name = "x";    msg->fields[0].offset = 0;
+        msg->fields[1].name = "y";    msg->fields[1].offset = 4;
+        msg->fields[2].name = "z";    msg->fields[2].offset = 8;
+        msg->fields[3].name = "rgba"; msg->fields[3].offset = 12;
+        for (auto & f : msg->fields) {
             f.datatype = sensor_msgs::msg::PointField::FLOAT32;
             f.count    = 1;
         }
 
-        const size_t nbytes = static_cast<size_t>(msg.height) * msg.row_step;
-        msg.data.resize(nbytes);
-        std::memcpy(msg.data.data(), pc_mat.getPtr<sl::uchar1>(), nbytes);
-        pointcloud_publisher_->publish(msg);
+        const size_t nbytes = static_cast<size_t>(msg->height) * msg->row_step;
+        msg->data.resize(nbytes);
+        std::memcpy(msg->data.data(), pc_mat.getPtr<sl::uchar1>(), nbytes);
+        pointcloud_publisher_->publish(std::move(msg));
     }
 }
 

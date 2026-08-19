@@ -44,7 +44,7 @@ OdomTfNode::OdomTfNode (const std::string &name_space, const rclcpp::NodeOptions
     timer_                 = create_wall_timer (std::chrono::milliseconds (publish_period_ms_), std::bind (&OdomTfNode::timer_callback, this));
 }
 
-void OdomTfNode::imu_callback (const sensor_msgs::msg::Imu::SharedPtr msg) {
+void OdomTfNode::imu_callback (const sensor_msgs::msg::Imu::ConstSharedPtr msg) {
     const double imu_yaw = normalize_angle (HALF_PI + utils::yaw_from_quaternion (msg->orientation));
     if (!std::isfinite (imu_yaw)) {
         RCLCPP_WARN_THROTTLE (get_logger (), *get_clock (), 1000, "IMUのyawが非有限値のため無視する");
@@ -62,7 +62,7 @@ void OdomTfNode::imu_callback (const sensor_msgs::msg::Imu::SharedPtr msg) {
     }
 }
 
-void OdomTfNode::velocity_callback (const geometry_msgs::msg::TwistWithCovarianceStamped::SharedPtr msg) {
+void OdomTfNode::velocity_callback (const geometry_msgs::msg::TwistWithCovarianceStamped::ConstSharedPtr msg) {
     const rclcpp::Time          stamp (msg->header.stamp, get_clock ()->get_clock_type ());
     std::lock_guard<std::mutex> lock (data_mutex_);
     if (!has_initial_imu_yaw_) {
@@ -126,7 +126,7 @@ void OdomTfNode::timer_callback () {
     }
 
     tf_broadcaster_->sendTransform (transform);
-    odom_publisher_->publish (odometry);
+    odom_publisher_->publish (std::make_unique<nav_msgs::msg::Odometry> (std::move (odometry)));
 }
 
 geometry_msgs::msg::TransformStamped OdomTfNode::make_transform (const rclcpp::Time &stamp) const {

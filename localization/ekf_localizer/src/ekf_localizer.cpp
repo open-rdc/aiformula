@@ -58,10 +58,8 @@ void EkfLocalizer::initialize (const double x, const double y, const double yaw,
     has_last_yaw_stamp_          = false;
 }
 
+// 共分散のclamp
 void EkfLocalizer::clamp_covariance_floor () {
-    // 停止継続時など同じ位置に一致し続けるPF観測により共分散が過剰に収縮すると、
-    // 直後の旋回・急発進のような正しい観測までMahalanobisゲートで弾かれ続ける
-    // ロック状態に陥る。下限を設けて防ぐ。
     covariance_ (0, 0) = std::max (covariance_ (0, 0), config_.min_position_variance);
     covariance_ (1, 1) = std::max (covariance_ (1, 1), config_.min_position_variance);
     covariance_ (2, 2) = std::max (covariance_ (2, 2), config_.min_yaw_variance);

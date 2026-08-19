@@ -22,6 +22,7 @@ int main(int argc, char * argv[]){
     rclcpp::NodeOptions nodes_option;
     nodes_option.allow_undeclared_parameters(true);
     nodes_option.automatically_declare_parameters_from_overrides(true);
+    nodes_option.use_intra_process_comms(true);
     const bool use_sim = rclcpp::Node("launch", nodes_option).get_parameter("sim").as_bool();
 
     if (use_sim) {

@@ -51,7 +51,7 @@ ControllerServer::ControllerServer(
         std::bind(&ControllerServer::timer_callback, this));
 }
 
-void ControllerServer::autonomous_callback(const std_msgs::msg::Bool::SharedPtr msg)
+void ControllerServer::autonomous_callback(const std_msgs::msg::Bool::ConstSharedPtr msg)
 {
     std::lock_guard<std::mutex> lock(data_mutex_);
     if (msg->data && !autonomous_flag_) {
@@ -61,14 +61,14 @@ void ControllerServer::autonomous_callback(const std_msgs::msg::Bool::SharedPtr 
     autonomous_flag_ = msg->data;
 }
 
-void ControllerServer::path_callback(const nav_msgs::msg::Path::SharedPtr msg)
+void ControllerServer::path_callback(const nav_msgs::msg::Path::ConstSharedPtr msg)
 {
     std::lock_guard<std::mutex> lock(data_mutex_);
     path_ = msg;
 }
 
 void ControllerServer::pose_callback(
-    const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg)
+    const geometry_msgs::msg::PoseWithCovarianceStamped::ConstSharedPtr msg)
 {
     if (msg->header.frame_id != "map") {
         RCLCPP_WARN(
@@ -81,14 +81,14 @@ void ControllerServer::pose_callback(
 }
 
 void ControllerServer::velocity_callback(
-    const geometry_msgs::msg::TwistWithCovarianceStamped::SharedPtr msg)
+    const geometry_msgs::msg::TwistWithCovarianceStamped::ConstSharedPtr msg)
 {
     std::lock_guard<std::mutex> lock(data_mutex_);
     velocity_ = msg;
 }
 
 void ControllerServer::caster_data_callback(
-    const std_msgs::msg::Float64MultiArray::SharedPtr msg)
+    const std_msgs::msg::Float64MultiArray::ConstSharedPtr msg)
 {
     std::lock_guard<std::mutex> lock(data_mutex_);
     caster_data_ = msg;
@@ -118,10 +118,10 @@ void ControllerServer::timer_callback()
         return;
     }
     if (!last_cmd_vel_) {
-        steered_drive_msg::msg::SteeredDrive stop_command;
-        stop_command.velocity = 0.0;
-        stop_command.steering_angle = 0.0;
-        command_publisher_->publish(stop_command);
+        auto stop_command = std::make_unique<steered_drive_msg::msg::SteeredDrive>();
+        stop_command->velocity = 0.0;
+        stop_command->steering_angle = 0.0;
+        command_publisher_->publish(std::move(stop_command));
     }
 
     const nav_msgs::msg::Path path_in_base = transform_path_to_base(*path_, *pose_);
@@ -135,8 +135,8 @@ void ControllerServer::timer_callback()
         RCLCPP_DEBUG(this->get_logger(), "コマンド計算に失敗しました");
         return;
     }
-    command_publisher_->publish(*command);
     last_cmd_vel_ = command;
+    command_publisher_->publish(std::make_unique<steered_drive_msg::msg::SteeredDrive>(*command));
 }
 
 nav_msgs::msg::Path ControllerServer::transform_path_to_base(
