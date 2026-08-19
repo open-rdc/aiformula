@@ -101,7 +101,7 @@ void ZedWrapperNode::grab_callback()
 
     const rclcpp::Time stamp = now();
 
-    // 購読者がいない間はretrieve+memcpy自体を行わない（画像0.9MB／点群3.7MBの丸損を避ける）
+    // subscriberがいない場合は処理しない
     if (image_publisher_->get_subscription_count() > 0) {
         sl::Mat left_image;
         implementation_->zed.retrieveImage(left_image, sl::VIEW::LEFT, sl::MEM::CPU, implementation_->publish_resolution);
@@ -119,6 +119,7 @@ void ZedWrapperNode::grab_callback()
         image_publisher_->publish(std::move(msg));
     }
 
+    // subscriberがいない場合は処理しない
     if (pointcloud_publisher_->get_subscription_count() > 0) {
         sl::Mat pc_mat;
         implementation_->zed.retrieveMeasure(pc_mat, sl::MEASURE::XYZRGBA, sl::MEM::CPU, implementation_->publish_resolution);

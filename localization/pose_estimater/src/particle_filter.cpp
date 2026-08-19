@@ -128,8 +128,7 @@ void ParticleFilter::set_particles_for_test (std::vector<Particle> particles) {
 void ParticleFilter::predict (const double linear_velocity, const double yaw_rate, const double dt) {
     const double delta_s   = linear_velocity * dt;
     const double delta_yaw = yaw_rate * dt;
-    // emcl2 の OdomModel と同じスケーリング。分散が |Δs|・|Δθ| に線形なので
-    // 累積拡散はステップ分割数(タイマー周期)に依らない。
+
     const double fw_std  = std::sqrt (config_.odom_fw_dev_per_fw * config_.odom_fw_dev_per_fw * std::abs (delta_s) + config_.odom_fw_dev_per_rot * config_.odom_fw_dev_per_rot * std::abs (delta_yaw));
     const double rot_std = std::sqrt (config_.odom_rot_dev_per_fw * config_.odom_rot_dev_per_fw * std::abs (delta_s) + config_.odom_rot_dev_per_rot * config_.odom_rot_dev_per_rot * std::abs (delta_yaw));
 
@@ -206,12 +205,6 @@ void ParticleFilter::update_weights (const std::vector<Eigen::Vector2d> &source_
     const double inv_two_sigma_sq = 1.0 / (2.0 * config_.likelihood_dev * config_.likelihood_dev);
     const double inv_point_count  = 1.0 / static_cast<double> (source_points_base_link.size ());
 
-    // 対応距離を超えた点は距離を上限で打ち切って一定の罰を与える。無罰にすると
-    // 地図から外れた点が増えるほど罰の総和が減り、車線幅ぶんずれた姿勢が
-    // 真値より高い尤度を得てしまう。
-    // さらに観測点数で正規化し、実効的な尤度の鋭さを likelihood_dev だけで
-    // 決まるようにする。点数ぶん累積すると実効σが σ/√N まで縮み、
-    // initialize() のばら撒き幅とスケールが合わなくなる。
     std::vector<double> log_likelihoods (particles_.size ());
     for (std::size_t i = 0U; i < particles_.size (); ++i) {
         const Particle &particle = particles_[i];
@@ -235,8 +228,6 @@ void ParticleFilter::update_weights (const std::vector<Eigen::Vector2d> &source_
 
     const double best_log_likelihood = *std::max_element (log_likelihoods.begin (), log_likelihoods.end ());
 
-    // 最良値を引いてからexpするのでアンダーフローしない。最良パーティクルの係数は
-    // 常に1になるため weight_sum は必ず正になる。
     double weight_sum = 0.0;
     for (std::size_t i = 0U; i < particles_.size (); ++i) {
         particles_[i].weight *= std::exp (log_likelihoods[i] - best_log_likelihood);
@@ -246,8 +237,6 @@ void ParticleFilter::update_weights (const std::vector<Eigen::Vector2d> &source_
         particle.weight /= weight_sum;
     }
 
-    // 見失いは最良パーティクルのRMS残差で判定する。ESS比は重みの偏りしか測らないため、
-    // 全パーティクルが同程度に地図から外れている状態を検出できない。
     const double best_rms_residual = std::sqrt (-best_log_likelihood / inv_two_sigma_sq);
     if (best_rms_residual > config_.reinit_residual_threshold) {
         ++lost_streak_;
@@ -293,8 +282,7 @@ PoseEstimate2D ParticleFilter::estimate () const {
         const double yaw_delta = normalize_angle (particle.yaw - result.yaw);
         yaw_variance += normalized_weight * yaw_delta * yaw_delta;
     }
-    // リサンプルで粒子が潰れると分散が実際の推定誤差より桁違いに小さく出る。
-    // 下限を設けて、EKF側が観測を過信して利得1で追従してしまうのを防ぐ。
+
     result.position_covariance        = position_covariance;
     result.position_covariance (0, 0) = std::max (result.position_covariance (0, 0), config_.min_position_variance);
     result.position_covariance (1, 1) = std::max (result.position_covariance (1, 1), config_.min_position_variance);

@@ -25,9 +25,9 @@ struct GroundProjectionLUT
 {
     int width = 0;
     int height = 0;
-    int row_begin = 0;  // 有効な行の開始
-    int row_end = 0;    // 有効な行の終端
-    std::vector<Eigen::Vector2d> points;  // size = (row_end-row_begin)*width, 無効セルはNaN
+    int row_begin = 0;
+    int row_end = 0;
+    std::vector<Eigen::Vector2d> points;  // size:(row_end-row_begin)*width
 
     bool try_get(int row, int col, Eigen::Vector2d& out) const;
 };

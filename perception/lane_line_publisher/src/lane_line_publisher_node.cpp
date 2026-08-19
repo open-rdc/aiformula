@@ -59,7 +59,7 @@ void LaneLinePublisherNode::lane_mask_callback(const sensor_msgs::msg::Image::Co
     const auto base_points = voxel_downsample(observed_points, voxel_grid_size_meter_);
 
     lane_line_points_publisher_->publish(make_lane_line_point_cloud(base_points, msg->header.stamp));
-    // マーカーはrviz用途のみなので、購読者がいないときは組み立てもしない
+    // debug用のため，subscriberがいない場合はpublishしない
     if (lane_line_marker_publisher_->get_subscription_count() > 0) {
         lane_line_marker_publisher_->publish(make_lane_line_marker_array(base_points, msg->header.stamp));
     }
