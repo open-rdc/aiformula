@@ -20,4 +20,6 @@ target_link_libraries(pose_estimater_node
   Eigen3::Eigen
 )
 
+ament_export_include_directories(${EIGEN3_INCLUDE_DIRS})
+
 ament_auto_package()

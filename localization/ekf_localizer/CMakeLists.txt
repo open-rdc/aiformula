@@ -23,4 +23,6 @@ target_link_libraries(ekf_localizer_node
   Eigen3::Eigen
 )
 
+ament_export_include_directories(${EIGEN3_INCLUDE_DIRS})
+
 ament_auto_package()

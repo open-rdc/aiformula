@@ -36,5 +36,6 @@ install(
 )
 
 ament_export_dependencies(Eigen3 OpenCV)
+ament_export_include_directories(${EIGEN3_INCLUDE_DIRS})
 
 ament_auto_package()
