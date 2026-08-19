@@ -138,14 +138,11 @@ local_planner_server_node:
       weight_lateral_deviation : 50.0
     stop_standoff_m : 1.0
 
-object_detector_node:
+pylon_detector_node:
   ros__parameters:
-    ground_z_threshold_m : 0.1
-    voxel_leaf_size_m : 0.1
-    cluster_tolerance_m : 0.5
-    min_cluster_size : 10
-    max_cluster_size : 1000
-    marker_height_m : 1.0
+    engine_path : "yolox_s_merged_nhd.engine"
+    score_threshold : 0.3
+    nms_threshold : 0.45
 
 controller_server_node:
   ros__parameters:
