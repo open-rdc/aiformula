@@ -24,6 +24,7 @@
   <depend>local_planner</depend>
   <depend>object_detection</depend>
   <depend>zed_wrapper</depend>
+  <depend>road_detector</depend>
   <depend>vectormap_server</depend>
   <depend>gnssnav</depend>
 

@@ -14,6 +14,8 @@
 #include "vectormap_server/vectormap_server_node.hpp"
 #include "zed_wrapper/zed_wrapper_node.hpp"
 #include "object_detection/pylon_detector_node.hpp"
+#include "road_detector/road_detector_node.hpp"
+
 
 int main(int argc, char * argv[]){
     rclcpp::init(argc,argv);
@@ -66,6 +68,8 @@ int main(int argc, char * argv[]){
 #ifdef ENABLE_TENSORRT
     auto pylon_detector_node = std::make_shared<object_detection::PylonDetectorNode>(nodes_option);
     exec.add_node(pylon_detector_node);
+    auto road_detector_node = std::make_shared<road_detector::RoadDetectorNode>(nodes_option);
+    exec.add_node(road_detector_node);
 #endif
 
     exec.spin();
