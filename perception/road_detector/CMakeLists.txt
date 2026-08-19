@@ -50,7 +50,6 @@ target_link_libraries(road_detector_node
   ${NVINFER_LIBRARY}
 )
 
-install(DIRECTORY include/ DESTINATION include)
 ament_export_dependencies(OpenCV)
 
 ament_auto_package()

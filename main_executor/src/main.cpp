@@ -13,6 +13,8 @@
 #include "mission_planner/mission_planner_node.hpp"
 #include "local_planner/local_planner_server.hpp"
 #include "object_detector/object_detector_node.hpp"
+
+#include "road_detector/road_detector_node.hpp"
 #include "vectormap_server/vectormap_server_node.hpp"
 
 int main(int argc, char * argv[]){
@@ -42,6 +44,11 @@ int main(int argc, char * argv[]){
     auto controller_server_node = std::make_shared<trajectory_follower::ControllerServer>(nodes_option);
     // auto object_detector_node = std::make_shared<object_detector::ObjectDetectorNode>(nodes_option);
 
+#ifdef ENABLE_ROAD_DETECTOR
+    auto road_detector_node = std::make_shared<road_detector::RoadDetectorNode>(nodes_option);
+    exec.add_node(road_detector_node);
+#endif
+
 #ifdef ENABLE_ZED
     std::shared_ptr<zed_wrapper::ZedWrapperNode> zed_wrapper_node;
     if (!use_sim) {
@@ -49,6 +56,7 @@ int main(int argc, char * argv[]){
         exec.add_node(zed_wrapper_node);
     }
 #endif
+
     exec.add_node(controller_node);
     exec.add_node(chassis_driver_node);
     exec.add_node(vectormap_server_node);

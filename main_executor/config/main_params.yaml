@@ -37,6 +37,10 @@ zed_wrapper_node:
       mode: "NEURAL" # NEURAL, PERFORMANCE, QUALITY
       confidence_threshold : 50
 
+road_detector_node:
+  ros__parameters:
+    mask_threshold : 0.5
+
 lane_line_publisher_node:
   ros__parameters:
     mask_threshold : 128

@@ -60,14 +60,6 @@ def generate_launch_description():
         output='screen'
     )
 
-    # 白線検出ノードの作成（sim・実機いずれもカメラ画像が供給されるため無条件起動）
-    road_detector_node = Node(
-        package = 'road_detector',
-        executable = 'road_detector_node',
-        parameters = [config_file_path],
-        output='screen'
-    )
-
     # vectornav起動の作成
     vectornav_launch = launch.actions.IncludeLaunchDescription(
         AnyLaunchDescriptionSource([os.path.join(
@@ -92,7 +84,6 @@ def generate_launch_description():
         launch_discription.add_action(odrive_launch)
         launch_discription.add_action(socketcan_node)
 
-    launch_discription.add_action(road_detector_node)
     launch_discription.add_action(robot_state_publisher)
     launch_discription.add_action(main_exec_node)
 
