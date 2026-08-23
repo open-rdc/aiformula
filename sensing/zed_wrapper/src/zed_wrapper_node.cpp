@@ -5,6 +5,7 @@
 
 #include <camera_utility/camera_intrinsics.hpp>
 #include <sensor_msgs/msg/point_field.hpp>
+#include <nav_msgs/msg/odometry.hpp>
 #include <sl/Camera.hpp>
 
 namespace zed_wrapper
@@ -77,6 +78,8 @@ ZedWrapperNode::ZedWrapperNode(
         "/zed/zed_node/rgb/image_rect_color", rclcpp::QoS(10));
     pointcloud_publisher_ = create_publisher<sensor_msgs::msg::PointCloud2>(
         "/zed/zed_node/point_cloud", rclcpp::QoS(10));
+    odometry_publisher_ = create_publisher<nav_msgs::msg::Odometry>(
+        "/zed/zed_node/odom", rclcpp::QoS(10));
 
     const auto period = std::chrono::milliseconds(1000 / fps);
     timer_ = create_wall_timer(period, [this]() { grab_callback(); });
@@ -148,6 +151,32 @@ void ZedWrapperNode::grab_callback()
         std::memcpy(msg->data.data(), pc_mat.getPtr<sl::uchar1>(), nbytes);
         pointcloud_publisher_->publish(std::move(msg));
     }
-}
+
+    // subscriberがいない場合は処理しない
+    if (odometry_publisher_->get_subscription_count() > 0) {
+        sl::Pose zed_pose;
+        implementation_->zed.getPosition(zed_pose, sl::REFERENCE_FRAME::WORLD);
+
+        auto msg = std::make_unique<nav_msgs::msg::Odometry>();
+        msg->header.stamp    = stamp;
+        msg->header.frame_id = "odom";
+        msg->child_frame_id  = "base_link";
+
+        // ZEDのトラッキング状態がOKでない場合は、位置情報を更新しない
+        if (sl::POSITIONAL_TRACKING_STATE::OK != zed_pose.tracking_state) {
+            RCLCPP_WARN(get_logger(), "ZedWrapperNode: tracking state is not OK: %d", static_cast<int>(zed_pose.tracking_state));
+        }else {
+            msg->pose.pose.position.x = zed_pose.getTranslation().tx;
+            msg->pose.pose.position.y = zed_pose.getTranslation().ty;
+            msg->pose.pose.position.z = zed_pose.getTranslation().tz;
+
+            msg->pose.pose.orientation.x = zed_pose.getOrientation().ox;
+            msg->pose.pose.orientation.y = zed_pose.getOrientation().oy;
+            msg->pose.pose.orientation.z = zed_pose.getOrientation().oz;
+            msg->pose.pose.orientation.w = zed_pose.getOrientation().ow;
+        }
+
+        odometry_publisher_->publish(std::move(msg));
+    }
 
 }
