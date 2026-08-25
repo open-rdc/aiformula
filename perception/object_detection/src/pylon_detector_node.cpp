@@ -8,7 +8,7 @@
 #include <sensor_msgs/image_encodings.hpp>
 #include <visualization_msgs/msg/marker.hpp>
 
-#include <cv_bridge/cv_bridge.h>
+#include <cv_bridge/cv_bridge.hpp>
 
 #include <cmath>
 #include <filesystem>

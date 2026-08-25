@@ -2,7 +2,7 @@
 
 #include <ament_index_cpp/get_package_share_directory.hpp>
 #include <camera_utility/camera_parameters.hpp>
-#include <cv_bridge/cv_bridge.h>
+#include <cv_bridge/cv_bridge.hpp>
 #include <opencv2/imgproc.hpp>
 #include <sensor_msgs/image_encodings.hpp>
 

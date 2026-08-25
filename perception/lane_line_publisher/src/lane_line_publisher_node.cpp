@@ -7,7 +7,7 @@
 #include <utility>
 
 #include <camera_utility/camera_parameters.hpp>
-#include <cv_bridge/cv_bridge.h>
+#include <cv_bridge/cv_bridge.hpp>
 #include <geometry_msgs/msg/point.hpp>
 #include <opencv2/imgproc.hpp>
 #include <opencv2/ximgproc.hpp>
