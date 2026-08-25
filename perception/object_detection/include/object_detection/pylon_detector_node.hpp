@@ -4,17 +4,19 @@
 #include "object_detection/yolox_tensorrt.hpp"
 
 #include <builtin_interfaces/msg/time.hpp>
-#include <camera_utility/camera_intrinsics.hpp>
+#include <camera_utility/camera_utility.hpp>
 #include <opencv2/core.hpp>
 #include <rclcpp/rclcpp.hpp>
 
 #include <object_detection_msgs/msg/object_info_array.hpp>
+#include <sensor_msgs/msg/camera_info.hpp>
 #include <sensor_msgs/msg/image.hpp>
 #include <visualization_msgs/msg/marker_array.hpp>
 
 #include <tf2/LinearMath/Transform.h>
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -39,6 +41,7 @@ class PylonDetectorNode : public rclcpp::Node {
 
    private:
     void image_callback(const sensor_msgs::msg::Image::SharedPtr msg);
+    void camera_info_callback(const sensor_msgs::msg::CameraInfo::ConstSharedPtr msg);
 
     std::vector<Obstacle> project_to_ground(
         const std::vector<Detection>& detections,
@@ -51,8 +54,8 @@ class PylonDetectorNode : public rclcpp::Node {
         const std::vector<Obstacle>&         obstacles,
         const builtin_interfaces::msg::Time& stamp) const;
 
-    const camera_utility::CameraIntrinsics intrinsics_;
-    const tf2::Transform                   base_T_camera_;
+    std::optional<camera_utility::CameraIntrinsics> intrinsics_;
+    const tf2::Transform                           base_T_camera_;
 
     static constexpr int    pylon_class_id_            = 0;
     static constexpr int    dynamic_obstacle_class_id_ = 1;
@@ -60,10 +63,11 @@ class PylonDetectorNode : public rclcpp::Node {
 
     std::unique_ptr<YoloxTensorrt> detector_;
 
-    rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr                  image_subscription_;
-    rclcpp::Publisher<object_detection_msgs::msg::ObjectInfoArray>::SharedPtr objects_publisher_;
-    rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr        marker_publisher_;
-    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr                     debug_image_publisher_;
+    rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr                   image_subscription_;
+    rclcpp::Subscription<sensor_msgs::msg::CameraInfo>::SharedPtr              camera_info_subscription_;
+    rclcpp::Publisher<object_detection_msgs::msg::ObjectInfoArray>::SharedPtr  objects_publisher_;
+    rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr         marker_publisher_;
+    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr                      debug_image_publisher_;
 };
 
 }  // namespace object_detection

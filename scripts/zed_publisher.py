@@ -19,7 +19,7 @@ class ZedPublisher(Node):
         self.bridge = CvBridge()
         
         self.declare_parameter('fps', 30)
-        self.declare_parameter('resolution', 'HD720')
+        self.declare_parameter('resolution', 'SVGA')
         
         fps = self.get_parameter('fps').value
         res_str = self.get_parameter('resolution').value

@@ -1,4 +1,4 @@
-#include "camera_utility/ground_conversion.hpp"
+#include "camera_utility/camera_utility.hpp"
 
 #include <cmath>
 
@@ -6,6 +6,26 @@
 
 namespace camera_utility
 {
+
+CameraIntrinsics fromCameraInfo(const sensor_msgs::msg::CameraInfo& msg)
+{
+    return CameraIntrinsics{
+        static_cast<int>(msg.width), static_cast<int>(msg.height),
+        msg.k[0], msg.k[4], msg.k[2], msg.k[5]};
+}
+
+tf2::Transform getBaseTCamera(rclcpp::Node& node)
+{
+    const tf2::Vector3 position(
+        node.get_parameter("camera.position.x").as_double(),
+        node.get_parameter("camera.position.y").as_double(),
+        node.get_parameter("camera.position.z").as_double());
+    return makeTf2Transform(
+        position,
+        node.get_parameter("camera.orientation.roll").as_double(),
+        node.get_parameter("camera.orientation.pitch").as_double(),
+        node.get_parameter("camera.orientation.yaw").as_double());
+}
 
 tf2::Transform makeTf2Transform(
     const tf2::Vector3& position,

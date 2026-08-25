@@ -7,7 +7,7 @@
 #include <opencv2/core.hpp>
 #include <tf2/LinearMath/Transform.h>
 
-#include <camera_utility/camera_intrinsics.hpp>
+#include <camera_utility/camera_utility.hpp>
 
 namespace lane_line_publisher
 {

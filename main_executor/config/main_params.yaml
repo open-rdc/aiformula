@@ -16,7 +16,6 @@ launch:
     wheelbase : 0.8
 
     camera:
-      size : "nHD" # nHD（640×360）, SVGA（960×600）
       position:
         x : -0.008
         y : 0.0325
