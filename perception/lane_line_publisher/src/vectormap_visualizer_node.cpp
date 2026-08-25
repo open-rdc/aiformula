@@ -1,7 +1,7 @@
 #include "lane_line_publisher/vectormap_visualizer_node.hpp"
 
 #include <camera_utility/camera_parameters.hpp>
-#include <cv_bridge/cv_bridge.h>
+#include <cv_bridge/cv_bridge.hpp>
 #include <geometry_msgs/msg/transform_stamped.hpp>
 #include <sensor_msgs/image_encodings.hpp>
 #include <tf2/exceptions.h>

@@ -9,7 +9,6 @@
 
   <buildtool_depend>ament_cmake_auto</buildtool_depend>
 
-  <depend>camera_utility</depend>
   <depend>rclcpp</depend>
   <depend>sensor_msgs</depend>
 
