@@ -35,6 +35,26 @@ CaptureConfig capture_config_from(const std::string & resolution)
     throw std::invalid_argument("ZedWrapperNode: unsupported camera.size: " + resolution);
 }
 
+sensor_msgs::msg::CameraInfo camera_info_from(sl::Camera & zed, const sl::Resolution & resolution)
+{
+    const auto calibration = zed.getCameraInformation(resolution).camera_configuration.calibration_parameters.left_cam;
+
+    sensor_msgs::msg::CameraInfo msg;
+    msg.header.frame_id = "camera_depth_link";
+    msg.width  = static_cast<uint32_t>(resolution.width);
+    msg.height = static_cast<uint32_t>(resolution.height);
+    msg.distortion_model = "plumb_bob";
+    msg.d.assign(5, 0.0);
+    msg.k = {calibration.fx, 0.0, calibration.cx,
+             0.0, calibration.fy, calibration.cy,
+             0.0, 0.0, 1.0};
+    msg.r = {1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0};
+    msg.p = {calibration.fx, 0.0, calibration.cx, 0.0,
+             0.0, calibration.fy, calibration.cy, 0.0,
+             0.0, 0.0, 1.0, 0.0};
+    return msg;
+}
+
 sl::DEPTH_MODE parse_depth_mode(const std::string & s)
 {
     if (s == "NONE")        { return sl::DEPTH_MODE::NONE; }
@@ -80,8 +100,11 @@ ZedWrapperNode::ZedWrapperNode(
 
     implementation_->runtime_params.confidence_threshold = confidence;
 
+    camera_info_msg_ = camera_info_from(implementation_->zed, capture_config.publish_resolution);
+
     image_publisher_ = create_publisher<sensor_msgs::msg::Image>("/zed/zed_node/rgb/image_rect_color", rclcpp::QoS(10));
     pointcloud_publisher_ = create_publisher<sensor_msgs::msg::PointCloud2>("/zed/zed_node/point_cloud", rclcpp::QoS(10));
+    camera_info_publisher_ = create_publisher<sensor_msgs::msg::CameraInfo>("/zed/zed_node/rgb/camera_info", rclcpp::QoS(10));
 
     const auto period = std::chrono::milliseconds(1000 / fps);
     timer_ = create_wall_timer(period, [this]() { grab_callback(); });
@@ -103,6 +126,9 @@ void ZedWrapperNode::grab_callback()
     }
 
     const rclcpp::Time stamp = now();
+
+    camera_info_msg_.header.stamp = stamp;
+    camera_info_publisher_->publish(camera_info_msg_);
 
     // subscriberがいない場合は処理しない
     if (image_publisher_->get_subscription_count() > 0) {
