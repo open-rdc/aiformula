@@ -1,7 +1,7 @@
 #include "road_detector/road_detector_node.hpp"
 
 #include <ament_index_cpp/get_package_share_directory.hpp>
-#include <cv_bridge/cv_bridge.hpp>
+#include <cv_bridge/cv_bridge.h>
 #include <opencv2/imgproc.hpp>
 #include <sensor_msgs/image_encodings.hpp>
 
