@@ -8,10 +8,8 @@ endif()
 find_package(ament_cmake_auto REQUIRED)
 ament_auto_find_build_dependencies()
 
-set(ZED_DIR "/usr/local/zed/")
 find_package(zed QUIET)
 if(NOT zed_FOUND)
-  message(WARNING "ZED SDK not found at ${ZED_DIR} — skipping zed_wrapper build")
   ament_auto_package()
   return()
 endif()
@@ -24,7 +22,7 @@ ament_auto_add_library(zed_wrapper_node SHARED
 )
 target_compile_features(zed_wrapper_node PUBLIC cxx_std_17)
 target_compile_definitions(zed_wrapper_node PRIVATE "ZED_WRAPPER_BUILDING_LIBRARY")
-target_include_directories(zed_wrapper_node PUBLIC
+target_include_directories(zed_wrapper_node PRIVATE
   ${ZED_INCLUDE_DIRS}
   ${CUDA_INCLUDE_DIRS}
 )

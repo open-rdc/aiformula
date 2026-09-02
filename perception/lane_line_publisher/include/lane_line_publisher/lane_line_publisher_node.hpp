@@ -7,6 +7,7 @@
 #include <Eigen/Core>
 #include <builtin_interfaces/msg/time.hpp>
 #include <rclcpp/rclcpp.hpp>
+#include <sensor_msgs/msg/camera_info.hpp>
 #include <sensor_msgs/msg/image.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <visualization_msgs/msg/marker_array.hpp>
@@ -30,6 +31,7 @@ public:
 
 private:
     void lane_mask_callback(const sensor_msgs::msg::Image::ConstSharedPtr msg);
+    void camera_info_callback(const sensor_msgs::msg::CameraInfo::ConstSharedPtr msg);
 
     sensor_msgs::msg::PointCloud2::UniquePtr make_lane_line_point_cloud(
         const std::vector<Eigen::Vector2d>& base_points,
@@ -40,12 +42,13 @@ private:
 
     const uint8_t mask_threshold_;
     const double voxel_grid_size_meter_;
-    const GroundProjectionLUT ground_projection_look_up_table_;
+    GroundProjectionLUT ground_projection_look_up_table_;
 
     // ノイズ除去の基準に使用
     const int min_component_pixels_=10;
 
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr mask_subscription_;
+    rclcpp::Subscription<sensor_msgs::msg::CameraInfo>::SharedPtr camera_info_subscription_;
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr lane_line_points_publisher_;
     rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr lane_line_marker_publisher_;
 };

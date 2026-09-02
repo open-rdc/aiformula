@@ -2,15 +2,17 @@
 
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <string>
 
 #include <rclcpp/rclcpp.hpp>
+#include <sensor_msgs/msg/camera_info.hpp>
 #include <sensor_msgs/msg/image.hpp>
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_listener.h>
 #include <visualization_msgs/msg/marker_array.hpp>
 
-#include <camera_utility/camera_intrinsics.hpp>
+#include <camera_utility/camera_utility.hpp>
 
 #include "lane_line_publisher/visibility_control.h"
 
@@ -31,8 +33,9 @@ public:
 private:
     void image_callback(const sensor_msgs::msg::Image::ConstSharedPtr msg);
     void vector_map_callback(const visualization_msgs::msg::MarkerArray::ConstSharedPtr msg);
+    void camera_info_callback(const sensor_msgs::msg::CameraInfo::ConstSharedPtr msg);
 
-    const camera_utility::CameraIntrinsics camera_intrinsics_;
+    std::optional<camera_utility::CameraIntrinsics> camera_intrinsics_;
     const tf2::Transform base_T_camera_;
 
     std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
@@ -42,6 +45,7 @@ private:
     visualization_msgs::msg::MarkerArray latest_vector_map_markers_;
 
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_subscription_;
+    rclcpp::Subscription<sensor_msgs::msg::CameraInfo>::SharedPtr camera_info_subscription_;
     rclcpp::Subscription<visualization_msgs::msg::MarkerArray>::SharedPtr vector_map_subscription_;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr vectormap_visualize_publisher_;
 };

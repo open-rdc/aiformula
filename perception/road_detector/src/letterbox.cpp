@@ -40,7 +40,7 @@ LetterboxGeometry compute_letterbox_geometry(const cv::Size& image_size, const c
             "letterbox 後のサイズ " + std::to_string(letterboxed.width) + "x" +
             std::to_string(letterboxed.height) + " が engine の入力 " +
             std::to_string(input_size.width) + "x" + std::to_string(input_size.height) +
-            " と一致しません(camera.size と engine の対応を確認してください)");
+            " と一致しません(配信画像の解像度と engine の対応を確認してください)");
     }
     return geometry;
 }

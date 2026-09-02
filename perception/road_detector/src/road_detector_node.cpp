@@ -1,7 +1,6 @@
 #include "road_detector/road_detector_node.hpp"
 
 #include <ament_index_cpp/get_package_share_directory.hpp>
-#include <camera_utility/camera_parameters.hpp>
 #include <cv_bridge/cv_bridge.h>
 #include <opencv2/imgproc.hpp>
 #include <sensor_msgs/image_encodings.hpp>
@@ -15,16 +14,11 @@ RoadDetectorNode::RoadDetectorNode(const rclcpp::NodeOptions& options)
       image_size_(0, 0),
       mask_threshold_(static_cast<float>(get_parameter("mask_threshold").as_double()))
 {
-    // カメラ解像度は camera.size(/**: セクション)から引く
-    const auto intrinsics = camera_utility::getCameraIntrinsics(*this);
-    image_size_ = cv::Size(intrinsics.width, intrinsics.height);
-
     mask_publisher_      = create_publisher<sensor_msgs::msg::Image>("/perception/lane_mask", rclcpp::QoS(10));
     visualize_publisher_ = create_publisher<sensor_msgs::msg::Image>("/perception/lane_mask_visualize", rclcpp::QoS(10));
 
     const std::string engine_path = ament_index_cpp::get_package_share_directory("road_detector") + "/weights/yolopv2.engine";
     segmenter_ = std::make_unique<LaneSegmenter>(engine_path);
-    geometry_  = compute_letterbox_geometry(image_size_, segmenter_->input_size());
 
     image_subscription_ = create_subscription<sensor_msgs::msg::Image>("/zed/zed_node/rgb/image_rect_color", rclcpp::QoS(1).best_effort(), std::bind(&RoadDetectorNode::image_callback, this, std::placeholders::_1));
 
@@ -34,10 +28,20 @@ RoadDetectorNode::RoadDetectorNode(const rclcpp::NodeOptions& options)
 void RoadDetectorNode::image_callback(const sensor_msgs::msg::Image::ConstSharedPtr msg)
 {
     const cv::Mat frame = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::BGR8)->image;
-    
-    cv::Mat resized;
-    cv::resize(frame, resized, image_size_, 0.0, 0.0, cv::INTER_LINEAR);
-    const cv::Mat padded     = apply_letterbox(resized, segmenter_->input_size(), geometry_);
+
+    // 受信画像の解像度を作業解像度とする（配信元の解像度に自動追従）
+    const cv::Size frame_size(frame.cols, frame.rows);
+    if (image_size_ != frame_size) {
+        // 例外を握らないと単一プロセス構成の全ノードが道連れになる
+        try {
+            geometry_ = compute_letterbox_geometry(frame_size, segmenter_->input_size());
+        } catch (const std::exception& e) {
+            RCLCPP_ERROR_THROTTLE(get_logger(), *get_clock(), 5000, "letterbox設定に失敗しました: %s", e.what());
+            return;
+        }
+        image_size_ = frame_size;
+    }
+    const cv::Mat padded     = apply_letterbox(frame, segmenter_->input_size(), geometry_);
     const cv::Mat confidence = segmenter_->infer(padded);
     if (confidence.empty()) {
         RCLCPP_ERROR_THROTTLE(
@@ -49,7 +53,7 @@ void RoadDetectorNode::image_callback(const sensor_msgs::msg::Image::ConstShared
 
     publish_mask(mask, msg->header);
     if (visualize_publisher_->get_subscription_count() > 0) {
-        publish_visualize(resized, mask, msg->header);
+        publish_visualize(frame, mask, msg->header);
     }
 }
 

@@ -6,7 +6,7 @@
 #include <stdexcept>
 #include <utility>
 
-#include <camera_utility/camera_parameters.hpp>
+#include <camera_utility/camera_utility.hpp>
 #include <cv_bridge/cv_bridge.h>
 #include <geometry_msgs/msg/point.hpp>
 #include <opencv2/imgproc.hpp>
@@ -28,9 +28,12 @@ LaneLinePublisherNode::LaneLinePublisherNode(
     const rclcpp::NodeOptions& options)
 : rclcpp::Node("lane_line_publisher_node", name_space, options),
   mask_threshold_(static_cast<uint8_t>(get_parameter("mask_threshold").as_int())),
-  voxel_grid_size_meter_(get_parameter("voxel_grid_size_meter").as_double()),
-  ground_projection_look_up_table_(ground_projection_look_up_table(camera_utility::getCameraIntrinsics(*this), camera_utility::getBaseTCamera(*this)))
+  voxel_grid_size_meter_(get_parameter("voxel_grid_size_meter").as_double())
 {
+    camera_info_subscription_ = this->create_subscription<sensor_msgs::msg::CameraInfo>(
+        "/zed/zed_node/rgb/camera_info", rclcpp::SensorDataQoS().keep_last(1),
+        std::bind(&LaneLinePublisherNode::camera_info_callback, this, std::placeholders::_1));
+
     mask_subscription_ = this->create_subscription<sensor_msgs::msg::Image>(
         "/perception/lane_mask", rclcpp::SensorDataQoS().keep_last(1),
         std::bind(&LaneLinePublisherNode::lane_mask_callback, this, std::placeholders::_1));
@@ -41,8 +44,29 @@ LaneLinePublisherNode::LaneLinePublisherNode(
         "/perception/lane_line", rclcpp::QoS(10));
 }
 
+void LaneLinePublisherNode::camera_info_callback(const sensor_msgs::msg::CameraInfo::ConstSharedPtr msg)
+{
+    if (ground_projection_look_up_table_.width != 0) {
+        return;
+    }
+    ground_projection_look_up_table_ = ground_projection_look_up_table(camera_utility::fromCameraInfo(*msg), camera_utility::getBaseTCamera(*this));
+    RCLCPP_INFO(get_logger(), "camera_info(%ux%u)から地面投影LUTを構築しました", msg->width, msg->height);
+}
+
 void LaneLinePublisherNode::lane_mask_callback(const sensor_msgs::msg::Image::ConstSharedPtr msg)
 {
+    if (ground_projection_look_up_table_.width == 0) {
+        RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 5000, "camera_info未受信のためlane_maskをスキップします");
+        return;
+    }
+    if (static_cast<int>(msg->width) != ground_projection_look_up_table_.width ||
+        static_cast<int>(msg->height) != ground_projection_look_up_table_.height) {
+        RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 5000,
+            "lane_mask(%ux%u)とLUT(%dx%d)の寸法が一致しません", msg->width, msg->height,
+            ground_projection_look_up_table_.width, ground_projection_look_up_table_.height);
+        return;
+    }
+
     cv::Mat skeleton_mask;
     const auto mask_image = cv_bridge::toCvShare(msg, sensor_msgs::image_encodings::MONO8);
     cv::Mat binary_mask;

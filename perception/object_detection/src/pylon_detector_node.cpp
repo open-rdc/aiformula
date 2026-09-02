@@ -1,8 +1,7 @@
 #include "object_detection/pylon_detector_node.hpp"
 
 #include <ament_index_cpp/get_package_share_directory.hpp>
-#include <camera_utility/camera_parameters.hpp>
-#include <camera_utility/ground_conversion.hpp>
+#include <camera_utility/camera_utility.hpp>
 #include <opencv2/imgproc.hpp>
 
 #include <sensor_msgs/image_encodings.hpp>
@@ -24,12 +23,12 @@ PylonDetectorNode::PylonDetectorNode(
     const std::string&         name_space,
     const rclcpp::NodeOptions& options)
     : rclcpp::Node("pylon_detector_node", name_space, options),
-      intrinsics_(camera_utility::getCameraIntrinsics(*this)),
       base_T_camera_(camera_utility::getBaseTCamera(*this)) {
     const std::string engine_path =std::filesystem::path(ament_index_cpp::get_package_share_directory("object_detection")) / "weights" / get_parameter("engine_path").as_string();
     detector_ = std::make_unique<YoloxTensorrt>(engine_path, get_parameter("score_threshold").as_double(), get_parameter("nms_threshold").as_double());
     RCLCPP_INFO(get_logger(), "YOLOXエンジンを読み込みました: %s", engine_path.c_str());
 
+    camera_info_subscription_ = create_subscription<sensor_msgs::msg::CameraInfo>("/zed/zed_node/rgb/camera_info", rclcpp::SensorDataQoS().keep_last(1), std::bind(&PylonDetectorNode::camera_info_callback, this, std::placeholders::_1));
     image_subscription_ = create_subscription<sensor_msgs::msg::Image>("/zed/zed_node/rgb/image_rect_color", rclcpp::SensorDataQoS().keep_last(1), std::bind(&PylonDetectorNode::image_callback, this, std::placeholders::_1));
 
     objects_publisher_ = create_publisher<object_detection_msgs::msg::ObjectInfoArray>("/perception/objects", rclcpp::SensorDataQoS().keep_last(1));
@@ -37,7 +36,19 @@ PylonDetectorNode::PylonDetectorNode(
     debug_image_publisher_ = create_publisher<sensor_msgs::msg::Image>("/perception/objects_debug_image", rclcpp::SensorDataQoS().keep_last(1));
 }
 
+void PylonDetectorNode::camera_info_callback(const sensor_msgs::msg::CameraInfo::ConstSharedPtr msg) {
+    if (!intrinsics_) {
+        intrinsics_ = camera_utility::fromCameraInfo(*msg);
+        RCLCPP_INFO(get_logger(), "camera_info(%ux%u)を受信しました", msg->width, msg->height);
+    }
+}
+
 void PylonDetectorNode::image_callback(const sensor_msgs::msg::Image::SharedPtr msg) {
+    if (!intrinsics_) {
+        RCLCPP_WARN(get_logger(), "camera_info未受信のため画像をスキップします");
+        return;
+    }
+    
     cv::Mat image = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::BGR8)->image;
 
     const auto detections = detector_->detect(image);
@@ -69,9 +80,9 @@ std::vector<Obstacle> PylonDetectorNode::project_to_ground(
         tf2::Vector3 left;
         tf2::Vector3 right;
         const bool   projected =
-            camera_utility::pixelToPoint(cv::Point2f(static_cast<float>(box.x + box.width * 0.5), bottom), intrinsics_, base_T_camera_, center) &&
-            camera_utility::pixelToPoint(cv::Point2f(static_cast<float>(box.x), bottom), intrinsics_, base_T_camera_, left) &&
-            camera_utility::pixelToPoint(cv::Point2f(static_cast<float>(box.x + box.width), bottom), intrinsics_, base_T_camera_, right);
+            camera_utility::pixelToPoint(cv::Point2f(static_cast<float>(box.x + box.width * 0.5), bottom), *intrinsics_, base_T_camera_, center) &&
+            camera_utility::pixelToPoint(cv::Point2f(static_cast<float>(box.x), bottom), *intrinsics_, base_T_camera_, left) &&
+            camera_utility::pixelToPoint(cv::Point2f(static_cast<float>(box.x + box.width), bottom), *intrinsics_, base_T_camera_, right);
         if (!projected) {
             continue;
         }
