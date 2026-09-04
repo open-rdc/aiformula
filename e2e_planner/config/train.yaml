@@ -1,5 +1,14 @@
-epochs: 200
+epochs: 300
 batch_size: 8
 learning_rate: 0.0002
-num_workers: 2
+num_workers: 6
 weight_file: "e2e_model.pt"
+
+# Transformer 融合モデルのハイパーパラメータ
+embed_dim: 128
+num_heads: 4
+num_layers: 4
+dropout: 0.1
+
+# 勾配クリッピングの閾値（発散防止）
+grad_clip_norm: 1.0
