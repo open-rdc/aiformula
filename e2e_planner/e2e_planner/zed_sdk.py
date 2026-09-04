@@ -46,7 +46,7 @@ class ZedSdk:
         self._camera = sl.Camera()
 
         init_params = sl.InitParameters()
-        init_params.camera_resolution = sl.RESOLUTION.SVGA
+        init_params.camera_resolution = sl.RESOLUTION.HD720
         init_params.camera_fps = 30
         init_params.coordinate_units = sl.UNIT.METER
 
@@ -86,7 +86,7 @@ class ZedSdk:
             self._camera.retrieve_image(self._image, self._sl.VIEW.LEFT)
             image = self._image.get_data()
             height, width = image.shape[:2]
-            cv2.resize(image, (width // 2, height // 2))
+            image = cv2.resize(image, (width // 2, height // 2))
         if image is None:
             return None
         return image
