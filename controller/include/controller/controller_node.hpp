@@ -37,18 +37,19 @@ private:
 
     bool is_autonomous = false;
 
-    utils::UpEdge upedge_share;
+    utils::UpEdge upedge_autonomous;
     utils::UpEdge upedge_options;
 
+    // Elecom JC-U4013S (DirectInput モード) の軸配列。
+    // このパッドは軸が6個で、十字キーは軸として出てこない。
+    // 使用しているのは L_y (前後) と R_x (左右) のみ。
     enum class Axes{
         L_x,
         L_y,
-        L2,
         R_x,
         R_y,
-        R2,
-        left_and_right,
-        up_and_down
+        L2,
+        R2
     };
     enum class Buttons{
         Cross,
@@ -61,7 +62,8 @@ private:
         R2,
         Share,
         Options,
-        PS,
+        Back,      // 10: Elecom JC-U4013S には Share が無いため、自動/手動の切替はこの Back を使う
+                   //     (DualShock 配列ではこの位置は PS ボタン)
         L3,
         R3
     };

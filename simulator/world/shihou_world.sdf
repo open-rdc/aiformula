@@ -170,7 +170,7 @@
         </link>
         </model>
 
-        <!-- Lane line mesh at z=0 -->
+        <!-- 航空写真テクスチャの地面 (z=0) -->
         <model name="ground_plane">
         <static>true</static>
         <link name="link">
@@ -184,7 +184,7 @@
             <visual name="visual">
                 <geometry>
                     <mesh>
-                      <uri>package://simulator/world/meshes/lane_line_obj.dae</uri>
+                      <uri>package://simulator/world/meshes/shihou_world.dae</uri>
                     <scale>0.8 0.8 0.8</scale>
                     </mesh>
                 </geometry>

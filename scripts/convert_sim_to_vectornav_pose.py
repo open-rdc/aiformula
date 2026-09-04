@@ -18,7 +18,7 @@ class Converter(Node):
         self.imu_yaw_offset = -176
 
         self.create_subscription(NavSatFix, "/navsat", self.callback_gps, 10)
-        self.create_subscription(Imu, "/imu_raw", self.callback_imu, 10)
+        self.create_subscription(Imu, "/vectornav/imu", self.callback_imu, 10)
 
         self.publisher = self.create_publisher(PoseWithCovarianceStamped, '/vectornav/pose', 10)
 

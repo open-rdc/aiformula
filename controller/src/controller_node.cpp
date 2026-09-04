@@ -29,7 +29,7 @@ steering_max_angle(dtor(get_parameter("steering_max.pos").as_double()))
 
 void Controller::_subscriber_callback_joy(const sensor_msgs::msg::Joy::SharedPtr msg){
     // 自動か手動か
-    if(upedge_share(msg->buttons[static_cast<int>(Buttons::Share)])){
+    if(upedge_autonomous(msg->buttons[static_cast<int>(Buttons::Back)])){
         auto msg_autonomous = std::make_shared<std_msgs::msg::Bool>();
         msg_autonomous->data = is_autonomous = !is_autonomous;
         publisher_autonomous->publish(*msg_autonomous);

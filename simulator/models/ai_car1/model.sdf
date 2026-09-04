@@ -343,7 +343,7 @@
 
     <link name="camera_rgb_link">
       <sensor name="camera_rgb_link" type="camera">
-        <update_rate>60.0</update_rate>
+        <update_rate>15.0</update_rate>
         <always_on>true</always_on>
         <ignition_frame_id>camera_rgb_link</ignition_frame_id>
         <pose>0.35 0 0.55 0 0 0</pose>
@@ -352,8 +352,8 @@
           <horizontal_fov>1.91986</horizontal_fov>
           <vertical_fov>1.39626</vertical_fov>
           <image>
-             <width>480</width>
-             <height>300</height>
+             <width>640</width>
+             <height>360</height>
              <format>R8G8B8</format>
           </image>
           <clip>
@@ -365,6 +365,10 @@
     </link>
 
     <link name="camera_depth_link">
+      <!-- depth センサは未使用のため無効化（Gazebo の負荷削減）。
+           点群が必要になったら以下のコメントを解除し、launch の
+           bridge に /depth_image_raw/* を戻す -->
+      <!--
       <sensor name="camera_depth_link" type="depth">
         <update_rate>60.0</update_rate>
         <always_on>true</always_on>
@@ -378,8 +382,8 @@
           <horizontal_fov>1.91986</horizontal_fov>
           <vertical_fov>1.39626</vertical_fov>
           <image>
-             <width>480</width>
-             <height>300</height>
+             <width>640</width>
+             <height>360</height>
              <format>R8G8B8</format>
           </image>
           <clip>
@@ -388,6 +392,7 @@
           </clip>
         </camera>
       </sensor>
+      -->
     </link>
 
     <!-- GNSS sensor -->

@@ -2,7 +2,7 @@
 
 import rclpy
 from rclpy.node import Node
-from sensor_msgs.msg import Image, Joy, PointCloud2
+from sensor_msgs.msg import Image, Joy
 from geometry_msgs.msg import PoseWithCovarianceStamped
 from cv_bridge import CvBridge
 import cv2
@@ -10,13 +10,11 @@ import numpy as np
 import os
 import time
 import csv
-import copy
 from pathlib import Path
 from collections import deque
 from typing import Optional, List, Tuple, Deque
 from tf_transformations import euler_from_quaternion
 from rclpy.qos import qos_profile_sensor_data
-import sensor_msgs_py.point_cloud2 as pc2
 import pymap3d as pm
 try:
     import pyzed.sl as sl
@@ -25,17 +23,34 @@ except ImportError:
     ZED_SDK_AVAILABLE = False
 
 SAMPLE_INTERVAL = 0.2
-WAYPOINT_INTERVAL = 0.5
-NUM_WAYPOINTS = 10
+WAYPOINT_INTERVAL = 0.125
+NUM_WAYPOINTS = 20
+
+# ZED の camera_fps と揃える。grab() を撮影レートで回して古いフレームを掴まないようにする
+TIMER_PERIOD = 1.0 / 30.0
+
+# pose 履歴に残しておく最低限のマージン[s]。補間に必要な「target_time より前の1点」を確保する
+POSE_HISTORY_MARGIN = 0.5
+
+
+class PoseSample:
+    """補間に使う最小限の姿勢。ECEF 位置とヨー角だけ持つ"""
+
+    def __init__(self, timestamp: float, position: np.ndarray, yaw: float):
+        self.timestamp: float = timestamp
+        self.position: np.ndarray = position
+        self.yaw: float = yaw
+
 
 class Sample:
-    def __init__(self, image: np.ndarray, timestamp: float, reference_pose: PoseWithCovarianceStamped, point_cloud: Optional[np.ndarray] = None):
+    def __init__(self, image: np.ndarray, timestamp: float):
         self.image: np.ndarray = image
         self.timestamp: float = timestamp
-        self.reference_pose: PoseWithCovarianceStamped = reference_pose
-        self.point_cloud: Optional[np.ndarray] = point_cloud
+        # 画像取得時刻ちょうどの姿勢は後から補間で解決する
+        self.reference: Optional[PoseSample] = None
         self.waypoints: List[Tuple[float, float]] = []
         self.target_times: List[float] = [timestamp + WAYPOINT_INTERVAL * (i + 1) for i in range(NUM_WAYPOINTS)]
+
 
 class DataCollectionNode(Node):
     def __init__(self) -> None:
@@ -46,21 +61,18 @@ class DataCollectionNode(Node):
 
         self.bridge: CvBridge = CvBridge()
         self.latest_image: Optional[Image] = None
-        self.latest_pose: Optional[PoseWithCovarianceStamped] = None
-        self.latest_pointcloud: Optional[PointCloud2] = None
 
         self.samples: List[Sample] = []
-        self.pose_history: Deque[Tuple[float, PoseWithCovarianceStamped]] = deque()
-        self.collected_data: List[Tuple[np.ndarray, List[Tuple[float, float]], Optional[np.ndarray]]] = []
+        self.pose_history: Deque[PoseSample] = deque()
+        self.collected_data: List[Tuple[np.ndarray, List[Tuple[float, float]]]] = []
         self.last_sample_time: Optional[float] = None
+        self.warned_missing_stamp: bool = False
 
         self.is_paused: bool = True
         self.prev_button_state: int = 0
 
         self.zed_camera: Optional[sl.Camera] = None
         self.zed_image: Optional[sl.Mat] = None
-        self.zed_point_cloud: Optional[sl.Mat] = None
-        self.zed_pose: Optional[sl.Pose] = None
         self.zed_runtime_params: Optional[sl.RuntimeParameters] = None
 
         if self.sdk_flag_:
@@ -70,13 +82,13 @@ class DataCollectionNode(Node):
             self._initialize_zed_camera()
         else:
             self.create_subscription(Image, '/zed/zed_node/rgb/image_rect_color', self.image_callback, qos_profile_sensor_data)
-            self.create_subscription(PointCloud2, '/zed/zed_node/pointcloud', self.pointcloud_callback, qos_profile_sensor_data)
 
         # VectorNav pose subscription (used in both SDK and ROS modes)
+        # 間引かずコールバックのたびに履歴へ積む（タイマーで拾うと 10Hz に落ちてラベル誤差になる）
         self.create_subscription(PoseWithCovarianceStamped, '/vectornav/pose', self.pose_callback, qos_profile_sensor_data)
 
         self.create_subscription(Joy, '/joy', self.joy_callback, 10)
-        self.create_timer(0.1, self.timer_callback)
+        self.create_timer(TIMER_PERIOD, self.timer_callback)
 
         self.get_logger().info('⚪Create data started')
 
@@ -85,7 +97,7 @@ class DataCollectionNode(Node):
         init_params = sl.InitParameters()
         init_params.camera_resolution = sl.RESOLUTION.HD720
         init_params.camera_fps = 30
-        init_params.depth_mode = sl.DEPTH_MODE.PERFORMANCE
+        init_params.depth_mode = sl.DEPTH_MODE.NONE
         init_params.coordinate_units = sl.UNIT.METER
 
         err = self.zed_camera.open(init_params)
@@ -93,19 +105,12 @@ class DataCollectionNode(Node):
             self.get_logger().error(f'Failed to open ZED camera: {err}')
             raise RuntimeError(f'Failed to open ZED camera: {err}')
 
-        tracking_params = sl.PositionalTrackingParameters()
-        err = self.zed_camera.enable_positional_tracking(tracking_params)
-        if err != sl.ERROR_CODE.SUCCESS:
-            self.get_logger().error(f'Failed to enable positional tracking: {err}')
-            raise RuntimeError(f'Failed to enable positional tracking: {err}')
-
         self.zed_image = sl.Mat()
-        self.zed_point_cloud = sl.Mat()
-        self.zed_pose = sl.Pose()
         self.zed_runtime_params = sl.RuntimeParameters()
-        self.get_logger().info('ZED camera initialized with tracking and depth sensing')
+        self.get_logger().info('ZED camera initialized (image only)')
 
-    def _capture_data_from_zed(self) -> Tuple[Optional[np.ndarray], Optional[np.ndarray]]:
+    def _capture_data_from_zed(self) -> Tuple[Optional[np.ndarray], Optional[float]]:
+        """画像と、その画像が実際に撮影された時刻(epoch秒)を返す"""
         if self.zed_camera.grab(self.zed_runtime_params) != sl.ERROR_CODE.SUCCESS:
             return None, None
 
@@ -114,24 +119,42 @@ class DataCollectionNode(Node):
         height, width = image.shape[:2]
         resized_image = cv2.resize(image, (width // 2, height // 2))
 
-        self.zed_camera.retrieve_measure(self.zed_point_cloud, sl.MEASURE.XYZRGBA)
-        point_cloud = self.zed_point_cloud.get_data()
+        # 受信時刻ではなく撮影時刻を使う。5m/s では 100ms のズレが 0.5m のラベル誤差になる
+        image_timestamp = self.zed_camera.get_timestamp(sl.TIME_REFERENCE.IMAGE).get_nanoseconds() * 1e-9
 
-        return resized_image, point_cloud
+        return resized_image, image_timestamp
 
     def image_callback(self, msg: Image) -> None:
         self.latest_image = msg
 
+    def _stamp_to_seconds(self, stamp) -> Optional[float]:
+        seconds = stamp.sec + stamp.nanosec * 1e-9
+        if seconds <= 0.0:
+            return None
+        return seconds
+
     def pose_callback(self, msg: PoseWithCovarianceStamped) -> None:
-        self.latest_pose = msg
+        timestamp = self._stamp_to_seconds(msg.header.stamp)
+        if timestamp is None:
+            # ドライバが stamp を埋めていない場合のみ受信時刻で代用する
+            timestamp = time.time()
+            if not self.warned_missing_stamp:
+                self.get_logger().warn('/vectornav/pose has empty header.stamp; falling back to arrival time')
+                self.warned_missing_stamp = True
 
-    def pointcloud_callback(self, msg: PointCloud2) -> None:
-        self.latest_pointcloud = msg
+        # 同時刻/逆順のメッセージは補間を壊すので捨てる
+        if self.pose_history and timestamp <= self.pose_history[-1].timestamp:
+            return
 
-    def _convert_pointcloud2_to_array(self, pointcloud_msg: PointCloud2) -> np.ndarray:
-        points_list = [[point[0], point[1], point[2], point[3]]
-                       for point in pc2.read_points(pointcloud_msg, skip_nans=True, field_names=("x", "y", "z", "rgb"))]
-        return np.array(points_list, dtype=np.float32)
+        position = np.array([
+            msg.pose.pose.position.x,
+            msg.pose.pose.position.y,
+            msg.pose.pose.position.z,
+        ])
+        q = msg.pose.pose.orientation
+        _, _, yaw = euler_from_quaternion([q.x, q.y, q.z, q.w])
+
+        self.pose_history.append(PoseSample(timestamp, position, yaw))
 
     def joy_callback(self, msg: Joy) -> None:
         if len(msg.buttons) > 2:
@@ -148,38 +171,33 @@ class DataCollectionNode(Node):
             self.prev_button_state = current_button_state
 
     def timer_callback(self) -> None:
+        if self.sdk_flag_:
+            # 一時停止中もカメラバッファは消費し続けないと古いフレームが溜まる
+            image, image_timestamp = self._capture_data_from_zed()
+        else:
+            image, image_timestamp = None, None
+            if self.latest_image is not None:
+                image_timestamp = self._stamp_to_seconds(self.latest_image.header.stamp)
+                if image_timestamp is not None:
+                    image = self.bridge.imgmsg_to_cv2(self.latest_image, desired_encoding='bgra8')
+
         if self.is_paused:
             return
 
-        current_time = time.time()
-
-        if self.latest_pose is not None:
-            self.pose_history.append((current_time, copy.deepcopy(self.latest_pose)))
-
-        if self.sdk_flag_:
-            image, point_cloud = self._capture_data_from_zed()
-            if image is None or self.latest_pose is None:
-                return
-
-            if self.last_sample_time is None or current_time - self.last_sample_time >= SAMPLE_INTERVAL:
-                sample = Sample(image, current_time, copy.deepcopy(self.latest_pose), point_cloud)
-                self.samples.append(sample)
-                self.last_sample_time = current_time
-        else:
-            if self.latest_image is not None and self.latest_pose is not None:
-                if self.last_sample_time is None or current_time - self.last_sample_time >= SAMPLE_INTERVAL:
-                    cv_image = self.bridge.imgmsg_to_cv2(self.latest_image, desired_encoding='bgra8')
-                    point_cloud = self._convert_pointcloud2_to_array(self.latest_pointcloud) if self.latest_pointcloud is not None else None
-                    sample = Sample(cv_image, current_time, copy.deepcopy(self.latest_pose), point_cloud)
-                    self.samples.append(sample)
-                    self.last_sample_time = current_time
+        if image is not None and image_timestamp is not None:
+            if self.last_sample_time is None or image_timestamp - self.last_sample_time >= SAMPLE_INTERVAL:
+                self.samples.append(Sample(image, image_timestamp))
+                self.last_sample_time = image_timestamp
 
         for sample in self.samples:
-            self.collect_waypoints_for_sample(sample)
+            if sample.reference is None:
+                sample.reference = self.interpolate_pose(sample.timestamp)
+            if sample.reference is not None:
+                self.collect_waypoints_for_sample(sample)
 
         completed_samples = [sample for sample in self.samples if len(sample.waypoints) == NUM_WAYPOINTS]
         for sample in completed_samples:
-            self.collected_data.append((sample.image, sample.waypoints, sample.point_cloud))
+            self.collected_data.append((sample.image, sample.waypoints))
             self.get_logger().info(f'🟡Collected data #{len(self.collected_data)}')
 
         self.samples = [sample for sample in self.samples if len(sample.waypoints) < NUM_WAYPOINTS]
@@ -189,42 +207,63 @@ class DataCollectionNode(Node):
     def collect_waypoints_for_sample(self, sample: Sample) -> None:
         for i in range(len(sample.waypoints), NUM_WAYPOINTS):
             target_time = sample.target_times[i]
-            pose = self.find_closest_pose(target_time)
-            if pose is not None:
-                x, y = self.transform_to_robot_frame(sample.reference_pose, pose)
-                sample.waypoints.append((x, y))
-            else:
+            pose = self.interpolate_pose(target_time)
+            if pose is None:
                 break
+            x, y = self.transform_to_robot_frame(sample.reference, pose)
+            sample.waypoints.append((x, y))
 
-    def find_closest_pose(self, target_time: float) -> Optional[PoseWithCovarianceStamped]:
-        for t, pose in self.pose_history:
-            if t >= target_time:
-                return pose
+    def interpolate_pose(self, target_time: float) -> Optional[PoseSample]:
+        """target_time を挟む2点から線形補間した姿勢を返す。
+        最近傍で済ませると pose レートの半周期分（常に未来寄り）のバイアスが乗るため補間する"""
+        if len(self.pose_history) < 2:
+            return None
+        if target_time < self.pose_history[0].timestamp or target_time > self.pose_history[-1].timestamp:
+            return None
+
+        for i in range(len(self.pose_history) - 1):
+            before = self.pose_history[i]
+            after = self.pose_history[i + 1]
+            if after.timestamp < target_time:
+                continue
+
+            span = after.timestamp - before.timestamp
+            ratio = 0.0 if span <= 0.0 else (target_time - before.timestamp) / span
+
+            position = before.position + (after.position - before.position) * ratio
+            # ヨーは ±π をまたぐので最短回転側で補間する
+            delta_yaw = (after.yaw - before.yaw + np.pi) % (2.0 * np.pi) - np.pi
+            yaw = before.yaw + delta_yaw * ratio
+
+            return PoseSample(target_time, position, yaw)
+
         return None
 
     def cleanup_pose_history(self) -> None:
-        if not self.samples or not self.pose_history:
+        if not self.pose_history:
             return
-        incomplete_samples = [s for s in self.samples if len(s.waypoints) < NUM_WAYPOINTS]
-        if not incomplete_samples:
-            return
-        min_target_time = min(sample.target_times[len(sample.waypoints)] for sample in incomplete_samples)
-        while self.pose_history and self.pose_history[0][0] < min_target_time:
+
+        if self.samples:
+            # 未解決の reference と、次に必要な target_time のうち最も古い時刻まで残す
+            required_times = []
+            for sample in self.samples:
+                if sample.reference is None:
+                    required_times.append(sample.timestamp)
+                if len(sample.waypoints) < NUM_WAYPOINTS:
+                    required_times.append(sample.target_times[len(sample.waypoints)])
+            oldest_required = min(required_times) if required_times else self.pose_history[-1].timestamp
+        else:
+            oldest_required = self.pose_history[-1].timestamp
+
+        # 補間には oldest_required より前の1点が要るので、2番目が古い間だけ捨てる
+        while len(self.pose_history) > 2 and self.pose_history[1].timestamp < oldest_required - POSE_HISTORY_MARGIN:
             self.pose_history.popleft()
 
-    def transform_to_robot_frame(self, reference_pose: PoseWithCovarianceStamped, current_pose: PoseWithCovarianceStamped) -> Tuple[float, float]:
-        x0_ecef = reference_pose.pose.pose.position.x
-        y0_ecef = reference_pose.pose.pose.position.y
-        z0_ecef = reference_pose.pose.pose.position.z
-        lat0, lon0, alt0 = pm.ecef2geodetic(x0_ecef, y0_ecef, z0_ecef)
+    def transform_to_robot_frame(self, reference: PoseSample, current: PoseSample) -> Tuple[float, float]:
+        lat0, lon0, alt0 = pm.ecef2geodetic(reference.position[0], reference.position[1], reference.position[2])
+        yaw0 = reference.yaw
 
-        q0 = reference_pose.pose.pose.orientation
-        _, _, yaw0 = euler_from_quaternion([q0.x, q0.y, q0.z, q0.w])
-
-        xi_ecef = current_pose.pose.pose.position.x
-        yi_ecef = current_pose.pose.pose.position.y
-        zi_ecef = current_pose.pose.pose.position.z
-        e, n, u = pm.ecef2enu(xi_ecef, yi_ecef, zi_ecef, lat0, lon0, alt0)
+        e, n, u = pm.ecef2enu(current.position[0], current.position[1], current.position[2], lat0, lon0, alt0)
 
         x_robot = -e * np.sin(yaw0) + n * np.cos(yaw0)
         y_robot = -e * np.cos(yaw0) - n * np.sin(yaw0)
@@ -242,16 +281,13 @@ class DataCollectionNode(Node):
         dataset_dir = data_base_dir / f'{timestamp}_dataset'
         images_dir = dataset_dir / 'images'
         path_dir = dataset_dir / 'path'
-        pointclouds_dir = dataset_dir / 'pointclouds'
 
         images_dir.mkdir(parents=True, exist_ok=True)
         path_dir.mkdir(parents=True, exist_ok=True)
-        pointclouds_dir.mkdir(parents=True, exist_ok=True)
 
-        for idx, (image, waypoints, point_cloud) in enumerate(self.collected_data, start=1):
+        for idx, (image, waypoints) in enumerate(self.collected_data, start=1):
             image_path = images_dir / f'{idx:05d}.png'
             waypoints_path = path_dir / f'{idx:05d}.csv'
-            pointcloud_path = pointclouds_dir / f'{idx:05d}.npy'
 
             cv2.imwrite(str(image_path), image)
 
@@ -260,9 +296,6 @@ class DataCollectionNode(Node):
                 csv_writer.writerow(['x', 'y'])
                 for x, y in waypoints:
                     csv_writer.writerow([x, y])
-
-            if point_cloud is not None:
-                np.save(str(pointcloud_path), point_cloud)
 
         self.get_logger().info(f'🔵Saved {len(self.collected_data)} samples to {dataset_dir}')
 

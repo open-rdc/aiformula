@@ -23,7 +23,7 @@ from util.preprocess import (
     normalize_waypoints,
 )
 
-NUM_WAYPOINTS = 10
+NUM_WAYPOINTS = 20
 
 
 class E2EDataset(Dataset):

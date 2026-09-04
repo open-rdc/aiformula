@@ -26,6 +26,10 @@ def generate_launch_description():
         package = 'main_executor',
         executable = 'main_exec',
         parameters = [config_file_path],
+        # pure_pursuit_node の購読先は "/frenet_planner/path" にハードコードされているため、
+        # E2E プランナの経路を追従させるにはここでリマップする。
+        # frenet_planner の経路に戻すときはこの remappings を外す。
+        remappings = [('/frenet_planner/path', '/e2e_planner/path')],
         output='screen'
     )
     # socketcanノードの作成
