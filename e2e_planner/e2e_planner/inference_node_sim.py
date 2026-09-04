@@ -21,18 +21,19 @@ except ImportError:
     ZED_SDK_AVAILABLE = False
 
 from util.yolop_processor import YOLOPv2Processor
-
-def denormalize_waypoints(normalized: np.ndarray) -> np.ndarray:
-    denormalized = normalized.copy()
-    denormalized[0::2] = (normalized[0::2] + 1.0) * 5.0
-    denormalized[1::2] = (normalized[1::2] + 1.0) * 3.0 - 3.0
-    return denormalized
+from util.preprocess import (
+    denormalize_waypoints,
+    preprocess_mask,
+    preprocess_rgb,
+    resize_for_debug,
+    to_bgr,
+)
 
 class InferenceNode(Node):
     def __init__(self) -> None:
         super().__init__('inference_node')
 
-        self.declare_parameter('model_name', 'model.pt')
+        self.declare_parameter('model_name', 'e2e_model_local_rescale_300ep.pt')
         self.declare_parameter('interval_ms', 100)
         self.declare_parameter('sdk_flag', False)
         self.declare_parameter('debug_mode', True)
@@ -82,7 +83,7 @@ class InferenceNode(Node):
     def _initialize_zed_camera(self) -> None:
         self.zed_camera = sl.Camera()
         init_params = sl.InitParameters()
-        init_params.camera_resolution = sl.RESOLUTION.SVGA
+        init_params.camera_resolution = sl.RESOLUTION.HD720
         init_params.camera_fps = 30
 
         err = self.zed_camera.open(init_params)
@@ -104,18 +105,21 @@ class InferenceNode(Node):
             return resized_image
         return None
 
-    def preprocess_image(self, image: np.ndarray) -> Tuple[torch.Tensor, np.ndarray]:
+    def preprocess_image(self, image: np.ndarray) -> Tuple[torch.Tensor, torch.Tensor, np.ndarray, np.ndarray]:
+        """白線マスクとRGBの2入力を作る。学習時と同じ
+        「元解像度(640x360)でマスク生成 -> 128x72 リサイズ」の順序に揃えている"""
+        bgr_image = to_bgr(image)
+        height, width = bgr_image.shape[:2]
 
-        if self.sdk_flag_:
-            bgr_image = cv2.cvtColor(image, cv2.COLOR_BGRA2BGR)
-            mask = self.yolop_processor.process_image(bgr_image, (64, 48))
-        else:
-            mask = ((image[:, :, 2] > 200) & (image[:, :, 0] < 50) & (image[:, :, 1] < 50)).astype(np.uint8)
-            mask = cv2.resize(mask, (64, 48))
+        mask_full = self.yolop_processor.process_image(bgr_image, (width, height))
 
-        mask_normalized = mask.astype(np.float32)
-        tensor = torch.from_numpy(mask_normalized).unsqueeze(0).unsqueeze(0)
-        return tensor.to(self.device), mask
+        mask_input = preprocess_mask(mask_full)
+        rgb_input = preprocess_rgb(bgr_image)
+
+        mask_tensor = torch.from_numpy(mask_input).unsqueeze(0).to(self.device)
+        rgb_tensor = torch.from_numpy(rgb_input).unsqueeze(0).to(self.device)
+
+        return mask_tensor, rgb_tensor, mask_input[0], bgr_image
 
     def image_callback(self, msg: Image) -> None:
         self.latest_image = msg
@@ -135,16 +139,16 @@ class InferenceNode(Node):
             cv_image = self.bridge.imgmsg_to_cv2(self.latest_image, desired_encoding='bgra8')
             header = self.latest_image.header
 
-        input_tensor, mask = self.preprocess_image(cv_image)
+        mask_tensor, rgb_tensor, mask, bgr_image = self.preprocess_image(cv_image)
         if self.debug_mode_:
-            resized_input = cv2.resize(cv2.cvtColor(cv_image, cv2.COLOR_BGRA2BGR), (64, 48))
-            resized_input[mask == 1] = [0, 0, 255]
-            debug_msg = self.bridge.cv2_to_imgmsg(resized_input, encoding='bgr8')
+            debug_image = resize_for_debug(bgr_image)
+            debug_image[mask == 1] = [0, 0, 255]
+            debug_msg = self.bridge.cv2_to_imgmsg(debug_image, encoding='bgr8')
             debug_msg.header = header
             self.pub_debug_image.publish(debug_msg)
 
         with torch.no_grad():
-            output = self.model(input_tensor)
+            output = self.model(mask_tensor, rgb_tensor)
 
         output_normalized = output.cpu().numpy().flatten()
         output_denormalized = denormalize_waypoints(output_normalized)
