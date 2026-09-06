@@ -127,7 +127,7 @@
 
         <include>
             <uri>package://simulator/models/ai_car1</uri>
-            <pose>0 0 0 0 0 -1.5</pose>
+            <pose>0.5 0.3 0 0 0 -1.5</pose>
         </include>
         <include>
             <uri>package://simulator/models/dynamic_obstacle</uri>
