@@ -6,7 +6,14 @@
 #include <ignition/gazebo/components/Material.hh>
 #include <ignition/math/Color.hh>
 
+#include <atomic>
+#include <memory>
+#include <string>
+#include <thread>
 #include <vector>
+
+#include <rclcpp/rclcpp.hpp>
+#include <std_srvs/srv/empty.hpp>
 
 namespace ignition
 {
@@ -18,6 +25,9 @@ public:
   // Constructor
   ColorControl() = default;
 
+  // Destructor
+  ~ColorControl() override;
+
   // ISystemConfigure method
   void Configure(const Entity &_entity, const std::shared_ptr<const sdf::Element> &_sdf,
                  EntityComponentManager &_ecm, EventManager &_eventMgr) override;
@@ -27,32 +37,22 @@ public:
 
 private:
   void FindColorEntities(EntityComponentManager &_ecm);
-  void FindModelEntities(EntityComponentManager &_ecm);
-  void SetGreen();
-  void SetRed();
-  void TimerReset();
+  void ToggleSignal(const std::shared_ptr<std_srvs::srv::Empty::Request> _req,
+                    std::shared_ptr<std_srvs::srv::Empty::Response> _res);
+  void ShutdownRos();
 
   std::vector<Entity> ColorEntities;
-  Entity RobotEntity = kNullEntity;
-  
-  int time;
-  std::string ROBOT_MODEL_NAME;
   std::string COLOR_ENTITY_NAME;
-  ignition::math::Vector3d TARGET_POSITION;
-  double DETECTION_REACTION;
-  ignition::math::Color color_value;
-  std::string color_name;
-  double r;
-  double g;
-  double b;
-  double x;
-  double y;
+  std::string SERVICE_NAME;
 
-  std::chrono::steady_clock::duration reach_time;
-  bool timer_started = false;
-  bool color_changed = false;
+  std::atomic<bool> is_green_{false};
+  bool ros_ready_{false};
 
-  
+  std::shared_ptr<rclcpp::Context> context_;
+  std::shared_ptr<rclcpp::Node> ros_node_;
+  rclcpp::Service<std_srvs::srv::Empty>::SharedPtr service_;
+  std::shared_ptr<rclcpp::executors::SingleThreadedExecutor> executor_;
+  std::thread spin_thread_;
 };
 }  // namespace gazebo
 }  // namespace ignition

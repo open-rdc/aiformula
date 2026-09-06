@@ -50,13 +50,8 @@
       <plugin
         filename="ColorControl"
         name="ignition::gazebo::ColorControl">
-        <duration_time>10</duration_time>
-        <robot_name>ai_car1</robot_name>
         <control_name>screen_visual</control_name>
-        <target_position>80.25 4.5 0.0</target_position>
-        <detection_reaction>5.0</detection_reaction>
-        <color>1.0 0.0 0.0 1.0</color>
-        <color_name>Red</color_name>
+        <service_name>/panel/toggle_signal</service_name>
       </plugin>
       <!-- <plugin
         filename="LightControl"
