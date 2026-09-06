@@ -9,6 +9,7 @@
 
 #include <cv_bridge/cv_bridge.h>
 
+#include <array>
 #include <cmath>
 #include <filesystem>
 #include <functional>
@@ -57,8 +58,10 @@ void PylonDetectorNode::image_callback(const sensor_msgs::msg::Image::SharedPtr 
     objects_publisher_->publish(make_objects(obstacles, msg->header.stamp));
     marker_publisher_->publish(make_markers(obstacles, msg->header.stamp));
 
-    cv_bridge::CvImage debug_image(msg->header, sensor_msgs::image_encodings::BGR8, image);
-    debug_image_publisher_->publish(*debug_image.toImageMsg());
+    if (debug_image_publisher_->get_subscription_count() > 0) {
+        cv_bridge::CvImage debug_image(msg->header, sensor_msgs::image_encodings::BGR8, image);
+        debug_image_publisher_->publish(*debug_image.toImageMsg());
+    }
 
     RCLCPP_DEBUG(this->get_logger(), "障害物検出数: %zu", obstacles.size());
 }
@@ -66,13 +69,23 @@ void PylonDetectorNode::image_callback(const sensor_msgs::msg::Image::SharedPtr 
 std::vector<Obstacle> PylonDetectorNode::project_to_ground(
     const std::vector<Detection>& detections,
     cv::Mat&                      debug_image) const {
+    static constexpr std::array<const char*, 4> class_names{"pylon", "dynamic_obstacle", "panel_red", "panel_green"};
+
     std::vector<Obstacle> obstacles;
     obstacles.reserve(detections.size());
     for (const auto& detection : detections) {
         const cv::Rect2d& box = detection.box;
-        // markerの配色をclass id毎に割り振り
-        const cv::Scalar box_color = detection.class_id == pylon_class_id_ ? cv::Scalar(0.0, 165.0, 255.0) : cv::Scalar(0.0, 0.0, 255.0);
-        cv::rectangle(debug_image, box, box_color, 1);
+
+        // サブスクライバがいるときのみ処理
+        if (debug_image_publisher_->get_subscription_count() > 0) {
+            // markerの配色をclass id毎に割り振り
+            const cv::Scalar box_color = detection.class_id == pylon_class_id_ ? cv::Scalar(0.0, 165.0, 255.0) : cv::Scalar(0.0, 0.0, 255.0);
+            cv::rectangle(debug_image, box, box_color, 1);
+            cv::putText(
+                debug_image, cv::format("%s %.2f", class_names[static_cast<size_t>(detection.class_id)], detection.score),
+                cv::Point(static_cast<int>(box.x), static_cast<int>(box.y) - 4),
+                cv::FONT_HERSHEY_SIMPLEX, 0.4, box_color, 1);
+        }
 
         // bbox底辺を接地線とみなし、左端・中央・右端を地面へ投影する
         const auto   bottom = static_cast<float>(box.y + box.height);
@@ -89,12 +102,6 @@ std::vector<Obstacle> PylonDetectorNode::project_to_ground(
 
         const double width = std::hypot(left.x() - right.x(), left.y() - right.y());
         obstacles.push_back(Obstacle{center.x(), center.y(), width, detection.class_id});
-
-        const double distance = std::hypot(center.x(), center.y());
-        cv::putText(
-            debug_image, cv::format("%.2fm %.2fm", distance, width),
-            cv::Point(static_cast<int>(box.x), static_cast<int>(box.y) - 4),
-            cv::FONT_HERSHEY_SIMPLEX, 0.4, box_color, 1);
     }
     return obstacles;
 }
