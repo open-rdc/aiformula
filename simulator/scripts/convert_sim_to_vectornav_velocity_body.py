@@ -9,7 +9,9 @@ class Converter(Node):
     def __init__(self):
         super().__init__("sim_to_vectornav_velocity_body_converter_node")
         self.declare_parameter("frame_id", "vectornav")
+        self.declare_parameter("odom_child_frame_id", "ai_car1/chassis")
         self.body_frame_id = self.get_parameter("frame_id").value
+        self.odom_child_frame_id = self.get_parameter("odom_child_frame_id").value
 
         self.create_subscription(Odometry, "/odom", self.callback_odom, 10)
         self.publisher = self.create_publisher(TwistWithCovarianceStamped, "/vectornav/velocity_body", 10)
