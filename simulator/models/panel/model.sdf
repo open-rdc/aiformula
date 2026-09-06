@@ -6,7 +6,7 @@
         <visual name="visual">
           <geometry>
             <mesh>
-              <uri>package://simulator/models/panel/meshes/panel.dae</uri>
+              <uri>package://simulator/models/panel/meshes/panel3.dae</uri>
               <scale>0.15 0.15 0.15</scale>
             </mesh>
           </geometry>
