@@ -3,12 +3,26 @@
 #include <vector>
 
 #include <opencv2/core.hpp>
+#include <rclcpp/rclcpp.hpp>
+#include <sensor_msgs/msg/camera_info.hpp>
 #include <tf2/LinearMath/Transform.h>
-
-#include "camera_utility/camera_intrinsics.hpp"
 
 namespace camera_utility
 {
+
+struct CameraIntrinsics
+{
+    int width;
+    int height;
+    double fx;
+    double fy;
+    double cx;
+    double cy;
+};
+
+CameraIntrinsics fromCameraInfo(const sensor_msgs::msg::CameraInfo& msg);
+
+tf2::Transform getBaseTCamera(rclcpp::Node& node);
 
 tf2::Transform makeTf2Transform(
     const tf2::Vector3& position,

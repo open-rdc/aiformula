@@ -7,6 +7,7 @@
 #include <ignition/transport/Node.hh>
 #include <ignition/msgs/pose_v.pb.h>
 #include <ignition/msgs/twist.pb.h>
+#include <ignition/msgs/int32.pb.h>
 #include <ignition/plugin/Register.hh>
 #include <ignition/msgs/pose.pb.h>
 
@@ -35,8 +36,9 @@ namespace gazebo
             bool updateTargetIndex(const ignition::math::Vector3d& currentPos);
 
             ignition::transport::Node node_;
-            ignition::transport::Node::Publisher pose_pub_;
+            //ignition::transport::Node::Publisher pose_pub_;
             ignition::transport::Node::Publisher cmd_vel_pub_;
+            ignition::transport::Node::Publisher csv_pub_;            
 
             Entity RobotEntity = kNullEntity;
 
@@ -97,6 +99,9 @@ namespace gazebo
             cmd_vel_topic = _sdf->Get<std::string>("cmd_vel_topic");
         }
         dataPtr->cmd_vel_pub_ = dataPtr->node_.Advertise<ignition::msgs::Twist>(cmd_vel_topic);
+
+        std::string csv_switch_topic = "/csv_switch";
+        dataPtr->csv_pub_ = dataPtr->node_.Advertise<ignition::msgs::Int32>(csv_switch_topic);
         
         if (_sdf)
         {
@@ -237,6 +242,10 @@ namespace gazebo
         if (dataPtr->current_idx_ >= dataPtr->result_.size())
         {
             dataPtr->StopRobot();
+            dataPtr->path_flag = false;
+            ignition::msgs::Int32 msg;
+            msg.set_data(rand() % 2 + 1);
+            dataPtr->csv_pub_.Publish(msg);
             dataPtr->current_idx_ = 0;
         }
 

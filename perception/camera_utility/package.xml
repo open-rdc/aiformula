@@ -11,6 +11,7 @@
 
   <depend>rclcpp</depend>
   <depend>tf2</depend>
+  <depend>sensor_msgs</depend>
   <depend>OpenCV</depend>
   <depend>utilities</depend>
 

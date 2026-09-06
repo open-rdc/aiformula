@@ -1,6 +1,6 @@
 #include "lane_line_publisher/vectormap_visualizer_node.hpp"
 
-#include <camera_utility/camera_parameters.hpp>
+#include <camera_utility/camera_utility.hpp>
 #include <cv_bridge/cv_bridge.h>
 #include <geometry_msgs/msg/transform_stamped.hpp>
 #include <sensor_msgs/image_encodings.hpp>
@@ -20,11 +20,14 @@ VectormapVisualizerNode::VectormapVisualizerNode(
     const std::string& name_space,
     const rclcpp::NodeOptions& options)
 : rclcpp::Node("vectormap_visualizer_node", name_space, options),
-  camera_intrinsics_(camera_utility::getCameraIntrinsics(*this)),
   base_T_camera_(camera_utility::getBaseTCamera(*this))
 {
     tf_buffer_ = std::make_shared<tf2_ros::Buffer>(get_clock());
     tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
+
+    camera_info_subscription_ = this->create_subscription<sensor_msgs::msg::CameraInfo>(
+        "/zed/zed_node/rgb/camera_info", rclcpp::SensorDataQoS().keep_last(1),
+        std::bind(&VectormapVisualizerNode::camera_info_callback, this, std::placeholders::_1));
 
     image_subscription_ = this->create_subscription<sensor_msgs::msg::Image>(
         "/zed/zed_node/rgb/image_rect_color", rclcpp::QoS(10),
@@ -39,6 +42,14 @@ VectormapVisualizerNode::VectormapVisualizerNode(
 
     vectormap_visualize_publisher_ = this->create_publisher<sensor_msgs::msg::Image>(
         "/perception/vectormap_visualize", rclcpp::QoS(10));
+}
+
+void VectormapVisualizerNode::camera_info_callback(
+    const sensor_msgs::msg::CameraInfo::ConstSharedPtr msg)
+{
+    if (!camera_intrinsics_) {
+        camera_intrinsics_ = camera_utility::fromCameraInfo(*msg);
+    }
 }
 
 void VectormapVisualizerNode::vector_map_callback(
@@ -62,6 +73,10 @@ void VectormapVisualizerNode::image_callback(const sensor_msgs::msg::Image::Cons
     if (vector_map_markers.markers.empty()) {
         return;
     }
+    if (!camera_intrinsics_) {
+        RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 5000, "camera_info未受信のため可視化をスキップします");
+        return;
+    }
 
     geometry_msgs::msg::TransformStamped base_to_map;
     try {
@@ -83,7 +98,7 @@ void VectormapVisualizerNode::image_callback(const sensor_msgs::msg::Image::Cons
         auto image = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::BGR8)->image;
 
         const auto projected_line_strings = project_vector_map_markers(
-            vector_map_markers, base_T_map, base_T_camera_, camera_intrinsics_);
+            vector_map_markers, base_T_map, base_T_camera_, *camera_intrinsics_);
         draw_projected_line_strings(image, projected_line_strings);
 
         auto visualize_msg = std::make_unique<sensor_msgs::msg::Image>();

@@ -7,6 +7,7 @@
 #include <ignition/msgs/pose_v.pb.h>
 #include <ignition/gazebo/components/Name.hh>
 #include <ignition/msgs/pose_v.pb.h>
+#include <ignition/msgs/int32.pb.h>
 
 #include <unsupported/Eigen/Splines>
 #include <Eigen/Dense>
@@ -27,6 +28,7 @@ namespace gazebo
     class PathPublisherPrivate
     {
         public:
+            void setcsv(const ignition::msgs::Int32 &_msg);
             void LoadCSV();
             void setInitPose(double x, double y);
             ignition::msgs::Pose_V setMsg(const std::vector<double>& xs, const std::vector<double>& ys);
@@ -34,6 +36,8 @@ namespace gazebo
             std::pair<double, double> convertGPStoUTM(double lon, double lat);
 
             std::string file_name;
+            std::string first_file_name;
+            std::string second_file_name;
             std::string file_path_;
             std::string line_;
             std::string cell_;
@@ -66,25 +70,83 @@ namespace gazebo
     void PathPublisher::Configure(const Entity &_entity, const std::shared_ptr<const sdf::Element> &_sdf, 
                     EntityComponentManager &_ecm, EventManager &_eventMgr)
     {
-        if (_sdf && _sdf->HasElement("file_name")) {
-            dataPtr->file_name = _sdf->Get<std::string>("file_name");
+        if (_sdf && _sdf->HasElement("first_file_name"))
+        {
+            dataPtr->first_file_name = _sdf->Get<std::string>("first_file_name");
         }
-        else {
-            std::cerr << "Please set csv file in sdf file!!!!!!!!" << std::endl;
+        else
+        {
+            std::cerr << "Please set first csv file in sdf file!!!!!!!!" << std::endl;
             return;
         }
+
+        if (_sdf && _sdf->HasElement("second_file_name"))
+        {
+            dataPtr->second_file_name = _sdf->Get<std::string>("second_file_name");
+        }
+        else
+        {
+            std::cerr << "Please set second csv file in sdf file!!!!!!!!" << std::endl;
+            return;
+        }
+
+        if (rand() % 2 + 1 == 1)
+        {
+            dataPtr->file_name = dataPtr->first_file_name;
+        }
+        else
+        {
+            dataPtr->file_name = dataPtr->second_file_name;
+        }
+        std::cout << "Selected CSV file: " << dataPtr->file_name << std::endl;
+        
         std::string pkg_share = ament_index_cpp::get_package_share_directory("simulator");
-            dataPtr->file_path_ = pkg_share + "/plugin/config/" + dataPtr->file_name + ".csv";
+        dataPtr->file_path_ = pkg_share + "/plugin/config/" + dataPtr->file_name + ".csv";
 
         dataPtr->path_pub_ = dataPtr->node_.Advertise<ignition::msgs::Pose_V>("/gnss_path");
         dataPtr->origin_path_pub_ = dataPtr->node_.Advertise<ignition::msgs::Pose_V>("/origin_gnss_path");
 
         dataPtr->LoadCSV();
 
+        std::string topic = "/csv_switch";
+        if (!dataPtr->node_.Subscribe(topic, &PathPublisherPrivate::setcsv, dataPtr.get())) {
+            ignerr << "Failed to subscribe to topic [" << topic << "]" << std::endl;
+        }
+
         dataPtr->path_msg_ = dataPtr->setMsg(dataPtr->xs_, dataPtr->ys_);
         dataPtr->origin_path_msg_ = dataPtr->setMsg(dataPtr->origin_xs_, dataPtr->origin_ys_);
     }
 
+
+    void PathPublisherPrivate::setcsv(const ignition::msgs::Int32 &_msg)
+    {
+        int selected_file = _msg.data();
+        if (selected_file == 1)
+        {
+            file_name = first_file_name;
+        }
+        else if (selected_file == 2)
+        {
+            file_name = second_file_name;
+        }
+        else
+        {
+            std::cerr << "Invalid message received: " << selected_file << std::endl;
+            return;
+        }
+        std::cout << "Selected CSV file: " << file_name << std::endl;
+
+        std::string pkg_share = ament_index_cpp::get_package_share_directory("simulator");
+        file_path_ = pkg_share + "/plugin/config/" + file_name + ".csv";
+        xs_.clear();
+        ys_.clear();
+        origin_xs_.clear();
+        origin_ys_.clear();
+
+        LoadCSV();
+        path_msg_ = setMsg(xs_, ys_);
+        origin_path_msg_ = setMsg(origin_xs_, origin_ys_);
+    }
 
     void PathPublisherPrivate::LoadCSV()
     {

@@ -16,7 +16,6 @@ launch:
     wheelbase : 0.8
 
     camera:
-      size : "nHD" # nHD（640×360）, SVGA（960×600）
       position:
         x : -0.008
         y : 0.0325
@@ -33,6 +32,8 @@ controller_node:
 zed_wrapper_node:
   ros__parameters:
     fps: 15
+    camera:
+      size : "nHD" # nHD（640×360）, SVGA（960×600）, HD1080（1920×1080）, HD1200（1920×1200）
     depth:
       mode: "NEURAL" # NEURAL, PERFORMANCE, QUALITY
       confidence_threshold : 50

@@ -135,7 +135,7 @@
         </include>
         <include>
             <uri>package://simulator/models/panel</uri>
-            <pose>80.25 5.0 0.5 0 0 0</pose>
+            <pose>80.25 4.5 0.0 0 0 3.14</pose>
         </include>
 
     <!-- 用調整 -->
