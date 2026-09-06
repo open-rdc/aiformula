@@ -16,7 +16,7 @@
       <wheel_radius>0.080</wheel_radius>
       <odom_publish_frequency>30</odom_publish_frequency>
       <topic>/cmd_vel_obstacle</topic>
-      <odom_topic>odom</odom_topic>
+      <odom_topic>odom_obstacle</odom_topic>
     </plugin>
 
     <plugin
