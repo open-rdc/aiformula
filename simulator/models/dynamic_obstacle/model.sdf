@@ -22,8 +22,8 @@
     <plugin
       filename="PathPublisher"
       name="ignition::gazebo::PathPublisher">
-      <first_file_name>dynamic_obstacle_left1</first_file_name>
-      <second_file_name>dynamic_obstacle_right4</second_file_name>
+      <first_file_name>dynamic_obstacle_left</first_file_name>
+      <second_file_name>dynamic_obstacle_right</second_file_name>
     </plugin>
     <plugin
       filename="FollowPath"
