@@ -142,6 +142,7 @@ namespace gazebo
         ys_.clear();
         origin_xs_.clear();
         origin_ys_.clear();
+        init_flag_ = true;
 
         LoadCSV();
         path_msg_ = setMsg(xs_, ys_);
