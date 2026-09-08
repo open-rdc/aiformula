@@ -200,7 +200,7 @@ namespace gazebo
             }
         }
 
-        current_idx_ = (closest_idx + 2) % 100;
+        current_idx_ = (closest_idx + 2) % result_.size();
         std::cout << "Initindex: " << current_idx_ << std::endl;
         return true;
     }
