@@ -244,8 +244,8 @@ namespace gazebo
         else
         {
             std::cout << "CSV not changed" << std::endl;
-            switching_csv_ = false; // 再試行可能にする
-            setInitidxflag = false; // インデックスをリセット
+            switching_csv_ = false;
+            setInitidxflag = false;
         }
     }
 
@@ -323,7 +323,7 @@ namespace gazebo
             return;
         }
 
-        // ケースA: 初回起動時
+        // first startup, send csv switch request
         if (!dataPtr->is_initialized_)
         {
             std::cout << "First startup: Sending the first CSV switch request." << std::endl;
