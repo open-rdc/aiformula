@@ -9,7 +9,9 @@
 #include <ignition/msgs/twist.pb.h>
 #include <ignition/msgs/int32.pb.h>
 #include <ignition/plugin/Register.hh>
+#include <ignition/common/Console.hh>
 #include <ignition/msgs/pose.pb.h>
+#include <ignition/msgs/boolean.pb.h>
 
 #include <Eigen/Core>
 #include <Eigen/Dense>
@@ -17,10 +19,11 @@
 #include <vector>
 #include <string>
 #include <utility>
-#include <vector>
 #include <cmath>
 #include <mutex>
-
+#include <algorithm>
+#include <limits>
+#include <iostream>
 
 namespace ignition
 {
@@ -34,11 +37,12 @@ namespace gazebo
             void StopRobot();
             bool setInitidx(const ignition::math::Vector3d& currentPos);
             bool updateTargetIndex(const ignition::math::Vector3d& currentPos);
+            void OnCsvSwitchResponse(const ignition::msgs::Boolean &_rep, bool _result);
+            bool requestCsvSwitch(int csv_id);
+            void checkTimeoutAndRetry();
 
             ignition::transport::Node node_;
-            //ignition::transport::Node::Publisher pose_pub_;
             ignition::transport::Node::Publisher cmd_vel_pub_;
-            ignition::transport::Node::Publisher csv_pub_;            
 
             Entity RobotEntity = kNullEntity;
 
@@ -48,15 +52,21 @@ namespace gazebo
             std::mutex path_mutex_;
 
             bool setInitidxflag = false;
-            bool path_flag = false;
+            bool switching_csv_ = false;
+            bool is_initialized_ = false;
             ignition::math::PID pid_;
+
+            std::chrono::steady_clock::time_point last_request_time_;
+            int retry_count_{0};
+            const int MAX_RETRIES = 3;
+            const std::chrono::seconds REQUEST_TIMEOUT{3};
             
-            std::string ROBOT_MODEL_NAME  = "human_robot";
-            double reach_threshold_;
-            double constant_linear_vel_;  
-            double p;
-            double i;
-            double d;
+            std::string ROBOT_MODEL_NAME = "human_robot";
+            double reach_threshold_{1.3};
+            double constant_linear_vel_{1.0};  
+            double p{0.7};
+            double i{0.0};
+            double d{0.15};
     };
 
     FollowPath::FollowPath() : dataPtr(std::make_unique<FollowPathPrivate>())
@@ -68,8 +78,8 @@ namespace gazebo
     namespace
     {
         double calculateTheta(const Eigen::Vector2d& target, 
-                            const ignition::math::Vector3d& currentPos, 
-                            double current_yaw)
+                              const ignition::math::Vector3d& currentPos, 
+                              double current_yaw)
         {
             double dx = target.x() - currentPos.X();
             double dy = target.y() - currentPos.Y();
@@ -83,7 +93,7 @@ namespace gazebo
     }
 
     void FollowPath::Configure(const Entity &_entity, const std::shared_ptr<const sdf::Element> &_sdf, 
-                            EntityComponentManager &_ecm, EventManager &_eventMgr)
+                              EntityComponentManager &_ecm, EventManager &_eventMgr)
     {
         std::string topic = "/gnss_path";
         if (_sdf && _sdf->HasElement("topic_name")) {
@@ -91,26 +101,21 @@ namespace gazebo
         }
 
         if (!dataPtr->node_.Subscribe(topic, &FollowPathPrivate::setPath, dataPtr.get())) {
-            ignerr << "Failed to subscribe to topic [" << topic << "]" << std::endl;
+            std::cerr << "Failed to subscribe to topic [" << topic << "]" << std::endl;
         }
 
         std::string cmd_vel_topic = "/cmd_vel_obstacle";
         if (_sdf && _sdf->HasElement("cmd_vel_topic")) {
             cmd_vel_topic = _sdf->Get<std::string>("cmd_vel_topic");
         }
-        dataPtr->cmd_vel_pub_ = dataPtr->node_.Advertise<ignition::msgs::Twist>(cmd_vel_topic);
 
-        std::string csv_switch_topic = "/csv_switch";
-        dataPtr->csv_pub_ = dataPtr->node_.Advertise<ignition::msgs::Int32>(csv_switch_topic);
+        dataPtr->cmd_vel_pub_ = dataPtr->node_.Advertise<ignition::msgs::Twist>(cmd_vel_topic);
         
         if (_sdf)
         {
-            dataPtr->ROBOT_MODEL_NAME  = (_sdf->HasElement("robot_name")) ? _sdf->Get<std::string>("robot_name") : "human_robot";
-        
+            dataPtr->ROBOT_MODEL_NAME = (_sdf->HasElement("robot_name")) ? _sdf->Get<std::string>("robot_name") : "human_robot";
             dataPtr->reach_threshold_ = (_sdf->HasElement("threshold")) ? _sdf->Get<double>("threshold") : 1.3;
-        
             dataPtr->constant_linear_vel_ = (_sdf->HasElement("linear_vel")) ? _sdf->Get<double>("linear_vel") : 1.0;
-        
             dataPtr->p = (_sdf->HasElement("p_gain")) ? _sdf->Get<double>("p_gain") : 0.7;
             dataPtr->i = (_sdf->HasElement("i_gain")) ? _sdf->Get<double>("i_gain") : 0.0;
             dataPtr->d = (_sdf->HasElement("d_gain")) ? _sdf->Get<double>("d_gain") : 0.15;
@@ -122,14 +127,11 @@ namespace gazebo
     void FollowPathPrivate::setPath(const ignition::msgs::Pose_V &_msg)
     {
         std::lock_guard<std::mutex> lock(path_mutex_);
-
-        if (path_flag) return;
         
         result_.clear();
         for (int i = 0; i < _msg.pose_size(); ++i)
         {
             const auto &pose = _msg.pose(i);
-            
 
             if (pose.has_position())
             {
@@ -143,7 +145,13 @@ namespace gazebo
             }
         }
 
-        if (!result_.empty()) path_flag = true;
+        if (!result_.empty())
+        {
+            switching_csv_ = false;
+            setInitidxflag = false;
+            retry_count_ = 0;
+            std::cout << "Received new path (" << result_.size() << " points)." << std::endl;
+        }
     }
 
     void FollowPathPrivate::FindModelEntities(EntityComponentManager &_ecm)
@@ -191,14 +199,15 @@ namespace gazebo
                 min_dist = dist;
             }
         }
-        current_idx_ = closest_idx + 2;
-        std::cout << "Initial index set to: " << current_idx_ << std::endl;
+
+        current_idx_ = (closest_idx + 2) % 100;
+        std::cout << "Initindex: " << current_idx_ << std::endl;
         return true;
     }
 
     bool FollowPathPrivate::updateTargetIndex(const ignition::math::Vector3d& currentPos)
     {
-        if (result_.empty() || current_idx_ >= result_.size())
+        if (result_.empty())
         {
             StopRobot();
             return false;
@@ -212,7 +221,6 @@ namespace gazebo
         if (dist < reach_threshold_ && current_idx_ < result_.size() - 1)
         {
             current_idx_++;
-            // std::cout << "idx_number:" << current_idx_ << std::endl;
         }
 
         if (current_idx_ == result_.size() - 1 && dist < 0.5)
@@ -225,11 +233,79 @@ namespace gazebo
         return true;
     }
 
+    void FollowPathPrivate::OnCsvSwitchResponse(const ignition::msgs::Boolean &_rep, bool _result)
+    {
+
+        if (_result && _rep.data())
+        {
+            std::cout << "CSV changed" << std::endl;
+            retry_count_ = 0;
+        }
+        else
+        {
+            std::cout << "CSV not changed" << std::endl;
+            switching_csv_ = false; // 再試行可能にする
+            setInitidxflag = false; // インデックスをリセット
+        }
+    }
+
+    bool FollowPathPrivate::requestCsvSwitch(int csv_id)
+    {
+        if (switching_csv_) return false;
+
+        ignition::msgs::Int32 req;
+        req.set_data(csv_id);
+
+        std::string service_name = "/csv_switch";
+        switching_csv_ = true;
+        last_request_time_ = std::chrono::steady_clock::now();
+
+        bool executed = node_.Request(
+            service_name,
+            req,
+            &FollowPathPrivate::OnCsvSwitchResponse,
+            this
+        );
+
+        if (!executed)
+        {
+            std::cout << "Service [" << service_name << "] failed to send" << std::endl;
+            switching_csv_ = false;
+            return false;
+        }
+
+        std::cout << "Service [" << service_name << "] successfully sent" << std::endl;
+        return true;
+    }
+
+    void FollowPathPrivate::checkTimeoutAndRetry()
+    {
+        if (!switching_csv_) return;
+
+        auto now = std::chrono::steady_clock::now();
+        if (now - last_request_time_ > REQUEST_TIMEOUT)
+        {
+            retry_count_++;
+            std::cout << "Timeout (" << retry_count_ << "/" << MAX_RETRIES << ")" << std::endl;
+
+            switching_csv_ = false;
+
+            if (retry_count_ >= MAX_RETRIES)
+            {
+                std::cerr << "Error: Reached maximum retry count." << std::endl;
+                is_initialized_ = false;
+                retry_count_ = 0;
+                return;
+            }
+
+            requestCsvSwitch(rand() % 2 + 1);
+        }
+    }
+
     void FollowPath::PreUpdate(const UpdateInfo &_info, EntityComponentManager &_ecm)
     {
         if (_info.paused) return;
-
-        std::lock_guard<std::mutex> lock(dataPtr->path_mutex_);        
+        std::lock_guard<std::mutex> lock(dataPtr->path_mutex_);
 
         if (dataPtr->RobotEntity == kNullEntity)
         {
@@ -237,16 +313,31 @@ namespace gazebo
             if (dataPtr->RobotEntity == kNullEntity) return;
         }
 
-        if (dataPtr->result_.empty()) return;
+        // timeout & retry check
+        dataPtr->checkTimeoutAndRetry();
 
-        if (dataPtr->current_idx_ >= dataPtr->result_.size())
+        // changing path, stop robot
+        if (dataPtr->switching_csv_)
         {
             dataPtr->StopRobot();
-            dataPtr->path_flag = false;
-            ignition::msgs::Int32 msg;
-            msg.set_data(rand() % 2 + 1);
-            dataPtr->csv_pub_.Publish(msg);
-            dataPtr->current_idx_ = 0;
+            return;
+        }
+
+        // ケースA: 初回起動時
+        if (!dataPtr->is_initialized_)
+        {
+            std::cout << "First startup: Sending the first CSV switch request." << std::endl;
+            if (dataPtr->requestCsvSwitch(rand() % 2 + 1))
+            {
+                dataPtr->is_initialized_ = true;
+            }
+            return;
+        }
+
+        if (dataPtr->result_.empty())
+        {
+            dataPtr->StopRobot();
+            return;
         }
 
         auto poseComp = _ecm.Component<components::Pose>(dataPtr->RobotEntity);
@@ -257,9 +348,9 @@ namespace gazebo
 
         double current_yaw = currentRot.Yaw();
 
-        if (dataPtr->setInitidxflag == false)
+        if (!dataPtr->setInitidxflag)
         {
-            if (dataPtr->setInitidx(currentPos) == false)
+            if (!dataPtr->setInitidx(currentPos))
             {
                 return;
             }
@@ -267,6 +358,14 @@ namespace gazebo
         }
 
         if (!dataPtr->updateTargetIndex(currentPos)) return;
+
+        if (dataPtr->current_idx_ >= dataPtr->result_.size())
+        {
+            std::cout << "Goal reached: sending CSV switch request" << std::endl;
+            dataPtr->StopRobot();
+            dataPtr->requestCsvSwitch(rand() % 2 + 1);
+            return;
+        }
 
         double theta = calculateTheta(dataPtr->result_[dataPtr->current_idx_], currentPos, current_yaw);
 
@@ -284,7 +383,6 @@ namespace gazebo
 
 } // namespace gazebo
 } // namespace ignition
-
 
 IGNITION_ADD_PLUGIN(
     ignition::gazebo::FollowPath,
