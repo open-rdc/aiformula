@@ -169,7 +169,7 @@ namespace gazebo
         if (!posComp || posComp->Data().empty()) return;
         double raw_theta = posComp->Data()[0];
 
-        // ロボット（親リンク）基準の相対角度（-π ～ +π）に変換
+        // 正規化処理
         dataPtr->rotator_theta = std::atan2(std::sin(raw_theta), std::cos(raw_theta));
         std::cout << "rotator_theta (relative to parent): " << dataPtr->rotator_theta << std::endl;
             
@@ -179,8 +179,6 @@ namespace gazebo
             current_pulley_theta = dataPtr->pulley_theta;
             std::cout << "current_pulley_theta: " << current_pulley_theta << std::endl;
         }
-
-        dataPtr->rotator_theta = posComp->Data()[0];
 
         // カム機構の計算
         double abs_rotator_theta = std::abs(dataPtr->rotator_theta);
