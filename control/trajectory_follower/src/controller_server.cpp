@@ -1,12 +1,33 @@
 #include "trajectory_follower/controller_server.hpp"
 
-#include <cmath>
 #include <optional>
 
-#include "utilities/utils.hpp"
+#include <tf2/exceptions.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 
 namespace trajectory_follower
 {
+namespace
+{
+nav_msgs::msg::Path transform_path_to_base(
+    const nav_msgs::msg::Path & path,
+    const geometry_msgs::msg::TransformStamped & base_T_path)
+{
+    nav_msgs::msg::Path path_in_base;
+    path_in_base.header.frame_id = "base_link";
+    path_in_base.header.stamp = path.header.stamp;
+    path_in_base.poses.reserve(path.poses.size());
+
+    for (const auto & pose : path.poses) {
+        geometry_msgs::msg::PoseStamped pose_base;
+        tf2::doTransform(pose, pose_base, base_T_path);
+        pose_base.header = path_in_base.header;
+        path_in_base.poses.push_back(pose_base);
+    }
+
+    return path_in_base;
+}
+}
 
 ControllerServer::ControllerServer(const rclcpp::NodeOptions & options)
 : ControllerServer("", options)
@@ -25,13 +46,12 @@ ControllerServer::ControllerServer(
     plugin_ = plugin_loader_.createSharedInstance(plugin_name);
     plugin_->initialize(get_logger(), get_clock(), get_node_parameters_interface());
 
+    tf_buffer_ = std::make_shared<tf2_ros::Buffer>(get_clock());
+    tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
+
     path_subscription_ = create_subscription<nav_msgs::msg::Path>(
         "/planner/local_path", rclcpp::QoS(1).best_effort(),
         std::bind(&ControllerServer::path_callback, this, std::placeholders::_1));
-    pose_subscription_ =
-        create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>(
-            "/localization/pose", rclcpp::QoS(1).best_effort(),
-            std::bind(&ControllerServer::pose_callback, this, std::placeholders::_1));
     velocity_subscription_ =
         create_subscription<geometry_msgs::msg::TwistWithCovarianceStamped>(
             "/vectornav/velocity_body", rclcpp::QoS(1).best_effort(),
@@ -67,19 +87,6 @@ void ControllerServer::path_callback(const nav_msgs::msg::Path::ConstSharedPtr m
     path_ = msg;
 }
 
-void ControllerServer::pose_callback(
-    const geometry_msgs::msg::PoseWithCovarianceStamped::ConstSharedPtr msg)
-{
-    if (msg->header.frame_id != "map") {
-        RCLCPP_WARN(
-            get_logger(), "localization poseのframe_idがmapではありません: %s",
-            msg->header.frame_id.c_str());
-        return;
-    }
-    std::lock_guard<std::mutex> lock(data_mutex_);
-    pose_ = msg;
-}
-
 void ControllerServer::velocity_callback(
     const geometry_msgs::msg::TwistWithCovarianceStamped::ConstSharedPtr msg)
 {
@@ -105,10 +112,6 @@ void ControllerServer::timer_callback()
         RCLCPP_DEBUG(this->get_logger(), "経路を待機中");
         return;
     }
-    if (!pose_) {
-        RCLCPP_DEBUG(this->get_logger(), "自己位置を待機中");
-        return;
-    }
     if (!velocity_) {
         RCLCPP_DEBUG(this->get_logger(), "速度を待機中");
         return;
@@ -118,13 +121,21 @@ void ControllerServer::timer_callback()
         return;
     }
     if (!last_cmd_vel_) {
-        auto stop_command = std::make_unique<steered_drive_msg::msg::SteeredDrive>();
-        stop_command->velocity = 0.0;
-        stop_command->steering_angle = 0.0;
-        command_publisher_->publish(std::move(stop_command));
+        publish_stop_command();
     }
 
-    const nav_msgs::msg::Path path_in_base = transform_path_to_base(*path_, *pose_);
+    geometry_msgs::msg::TransformStamped base_T_path;
+    try {
+        base_T_path = tf_buffer_->lookupTransform("base_link", path_->header.frame_id, tf2::TimePointZero);
+    } catch (const tf2::TransformException & error) {
+        RCLCPP_WARN_THROTTLE(
+            get_logger(), *get_clock(), 2000,
+            "base_link <- %s のTFが引けないため停止指令を出します: %s",
+            path_->header.frame_id.c_str(), error.what());
+        publish_stop_command();
+        return;
+    }
+    const nav_msgs::msg::Path path_in_base = transform_path_to_base(*path_, base_T_path);
 
     if (caster_data_) {
         plugin_->setMeasuredSteer(caster_data_->data[1]);
@@ -139,33 +150,12 @@ void ControllerServer::timer_callback()
     command_publisher_->publish(std::make_unique<steered_drive_msg::msg::SteeredDrive>(*command));
 }
 
-nav_msgs::msg::Path ControllerServer::transform_path_to_base(
-    const nav_msgs::msg::Path & path,
-    const geometry_msgs::msg::PoseWithCovarianceStamped & ego_pose) const
+void ControllerServer::publish_stop_command()
 {
-    const double yaw = utils::yaw_from_quaternion(ego_pose.pose.pose.orientation);
-    const double cos_yaw = std::cos(yaw);
-    const double sin_yaw = std::sin(yaw);
-    const double ego_x = ego_pose.pose.pose.position.x;
-    const double ego_y = ego_pose.pose.pose.position.y;
-
-    nav_msgs::msg::Path path_in_base;
-    path_in_base.header.frame_id = "base_link";
-    path_in_base.header.stamp = path.header.stamp;
-    path_in_base.poses.reserve(path.poses.size());
-
-    for (const auto & p : path.poses) {
-        const double dx = p.pose.position.x - ego_x;
-        const double dy = p.pose.position.y - ego_y;
-        geometry_msgs::msg::PoseStamped pose_base;
-        pose_base.pose.position.x = cos_yaw * dx + sin_yaw * dy;
-        pose_base.pose.position.y = -sin_yaw * dx + cos_yaw * dy;
-        pose_base.pose.position.z = 0.0;
-        pose_base.pose.orientation.w = 1.0;
-        path_in_base.poses.push_back(pose_base);
-    }
-
-    return path_in_base;
+    auto stop_command = std::make_unique<steered_drive_msg::msg::SteeredDrive>();
+    stop_command->velocity = 0.0;
+    stop_command->steering_angle = 0.0;
+    command_publisher_->publish(std::move(stop_command));
 }
 
 }
