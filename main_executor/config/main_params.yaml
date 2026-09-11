@@ -2,6 +2,7 @@ launch:
   ros__parameters:
     joy: true
     sim : true
+    mapless : false
 
 /**:
   ros__parameters:
