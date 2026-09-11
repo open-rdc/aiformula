@@ -55,6 +55,7 @@ vectormap_server_node:
 pose_estimater_node:
   ros__parameters:
     interval_ms : 20
+    max_integration_dt : 0.2
     map_origin_geodetic:
       latitude :  36.11313110136178
       longitude: 139.98107529988687

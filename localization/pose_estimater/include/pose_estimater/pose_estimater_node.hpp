@@ -50,6 +50,7 @@ class PoseEstimaterNode : public rclcpp::Node {
     void publish_particle_pose_array (const builtin_interfaces::msg::Time &stamp) const;
 
     const int         interval_ms_;
+    const double      max_integration_dt_;
     const double      map_origin_lat_;
     const double      map_origin_lon_;
     const double      map_yaw_from_east_;
@@ -69,6 +70,7 @@ class PoseEstimaterNode : public rclcpp::Node {
     geometry_msgs::msg::PoseWithCovarianceStamped::ConstSharedPtr  pending_initial_pose_;
     std::mutex                                                     data_mutex_;
     sensor_msgs::msg::PointCloud2::ConstSharedPtr                  processed_lane_line_points_;
+    geometry_msgs::msg::TwistWithCovarianceStamped::ConstSharedPtr processed_velocity_msg_;
 
     rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr                  lane_line_points_subscription_;
     rclcpp::Subscription<vectormap_msgs::msg::VectorMap>::SharedPtr                 vector_map_subscription_;
