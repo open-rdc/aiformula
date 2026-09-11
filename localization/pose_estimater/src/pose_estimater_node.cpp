@@ -93,6 +93,7 @@ PoseEstimaterNode::PoseEstimaterNode(const rclcpp::NodeOptions& options) : PoseE
 PoseEstimaterNode::PoseEstimaterNode(const std::string& name_space, const rclcpp::NodeOptions& options)
     : rclcpp::Node("pose_estimater_node", name_space, options),
       interval_ms_(get_parameter("interval_ms").as_int()),
+      max_integration_dt_(get_parameter("max_integration_dt").as_double()),
       map_origin_lat_(get_parameter("map_origin_geodetic.latitude").as_double()),
       map_origin_lon_(get_parameter("map_origin_geodetic.longitude").as_double()),
       map_yaw_from_east_(get_parameter("map_yaw_from_east").as_double()),
@@ -282,11 +283,20 @@ void PoseEstimaterNode::timer_callback() {
         return;
     }
 
-    if (velocity_msg) {
-        // velocity_bodyはVN body系(x前 / y右 / z下)で来るのでREP-103へ直す。
-        const geometry_msgs::msg::Twist twist = utils::vn_body_to_rep103(velocity_msg->twist.twist);
-        const double                    dt    = static_cast<double>(interval_ms_) / 1000.0;
-        particle_filter_.predict(twist.linear.x, twist.angular.z, dt);
+    if (velocity_msg && velocity_msg != processed_velocity_msg_) {
+        if (processed_velocity_msg_) {
+            const double dt = (rclcpp::Time(velocity_msg->header.stamp) - rclcpp::Time(processed_velocity_msg_->header.stamp)).seconds();
+            if (dt <= 0.0) {
+                RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 1000, "velocity_bodyのstampが進んでいないため予測をスキップする");
+            } else if (dt > max_integration_dt_) {
+                RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 1000, "velocity_bodyのdt %.3fがmax_integration_dt %.3fを超えたため予測をスキップする", dt, max_integration_dt_);
+            } else {
+                // velocity_bodyはVN body系(x前 / y右 / z下)で来るのでREP-103へ直す。
+                const geometry_msgs::msg::Twist twist = utils::vn_body_to_rep103(velocity_msg->twist.twist);
+                particle_filter_.predict(twist.linear.x, twist.angular.z, dt);
+            }
+        }
+        processed_velocity_msg_ = velocity_msg;
     }
 
     const bool has_new_lane_line = lane_line_points_msg && lane_line_points_msg != processed_lane_line_points_;

@@ -70,7 +70,7 @@ void FrenetPlannerPlugin::setGlobalPath(const nav_msgs::msg::Path & global_path)
         global_samples_.push_back(PathPoint{s, pose.pose.position.x, pose.pose.position.y, yaw});
     }
 
-    global_path_ready_ = true;
+    global_path_ready_ = global_samples_.size() >= 2U;
 }
 
 std::optional<nav_msgs::msg::Path> FrenetPlannerPlugin::computeLocalPath(
