@@ -1,0 +1,28 @@
+# training/{loss,trainer,util} が参照するキーから再構築した学習設定。
+# 元の config/train.yaml は本体 .py と一緒に失われており、値は既定として置いたもの。
+# 実験で詰める前提の出発点で、元の学習で使われていた値とは限らない。
+
+# --- 学習率スケジュール (training/util.py LinearLR) ---
+warmup_epochs: 3
+max_lr: 0.01
+min_lr: 0.0001
+
+# --- optimizer (training/trainer.py) ---
+momentum: 0.937
+weight_decay: 0.0005
+
+# --- 損失の重み (training/loss.py ComputeLoss) ---
+exist: 1.0
+valid: 1.0
+dist: 1.0
+xp: 1.0
+
+# dist ヘッドの教師を作るガウシアンの広がり（単位は列）
+sigma: 2.0
+
+# --- BCE の pos_weight ---
+# スロットの出現率が偏っているので正例を重み付けする。
+# dataset_real_20260909 の train 実測 (straight 100% / left 22.0% / right 5.6%) から
+# (1 - p) / p で算出した。データセットを入れ替えたら合わせて見直すこと。
+exist_pos_weight: [1.0, 3.55, 16.99]
+valid_pos_weight: 1.0

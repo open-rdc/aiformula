@@ -1,10 +1,10 @@
 import torch
 from torch import nn
 
-from model.conponent.backbone import Backbone
-from model.conponent.neck import Neck
-from model.conponent.head import Head
-from model.conponent.common_layer import Conv
+from Models.model_components.vision_planner.vision_planner_backbone import Backbone
+from Models.model_components.vision_planner.vision_planner_neck import Neck
+from Models.model_components.vision_planner.vision_planner_head import Head
+from Models.model_components.common_layers import Conv
 
 # (straight / left / right）
 NUM_SLOTS = 3
@@ -42,20 +42,23 @@ class VisionPlannerNetwork:
         return Network(version)
 
     def load_model(self, version, checkpoint_path):
-        model = Network(version)
         checkpoint = torch.load(checkpoint_path, map_location="cpu", weights_only=True)
+        # "head" キーが無いチェックポイントは A/B 切り替え導入前(B案=dist)の資産なので
+        # "dist" にフォールバックする。既定を argmax にしても既存資産が読み戻せるようにするため
+        head_mode = checkpoint.get("head", "dist")
+        model = Network(version, head_mode=head_mode, backbone=checkpoint.get("backbone", "ctx"))
         model.load_state_dict(checkpoint["model_state_dict"])
         return model
 
 
 class Network(nn.Module):
-    def __init__(self, version):
+    def __init__(self, version, head_mode="argmax", backbone="ctx"):
         super(Network, self).__init__()
         weighting = VisionPlannerNetwork.DYNAMIC_WEIGHTING[version]
         width, depth, csp = weighting["width"], weighting["depth"], weighting["csp"]
-        self.backbone = Backbone(width, depth, csp)
+        self.backbone = Backbone(width, depth, csp, block=backbone)
         self.neck = Neck(width, depth, csp)
-        self.head = Head(width[3], NUM_SLOTS)
+        self.head = Head(width[3], NUM_SLOTS, mode=head_mode)
 
     def forward(self, x):
         return self.head(self.neck(self.backbone(x)))

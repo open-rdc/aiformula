@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 
-from model.conponent.common_layer import C3K2
+from Models.model_components.common_layers import C3K2
 
 
 class Neck(nn.Module):
