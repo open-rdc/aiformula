@@ -27,7 +27,7 @@ launch:
 
 controller_node:
   ros__parameters:
-    linear_max_vel : 2.0
+    linear_max_vel : 4.0
 
 zed_wrapper_node:
   ros__parameters:
@@ -145,9 +145,18 @@ local_planner_server_node:
 
 pylon_detector_node:
   ros__parameters:
-    engine_path : "yolox_s_merged_nhd.engine"
+    engine_path : "yolox_s_aiformula.engine"
     score_threshold : 0.3
     nms_threshold : 0.45
+
+vision_lane_planner_node:
+  ros__parameters:
+    engine_path : "vision_planner_n.engine"
+    exist_threshold : 0.5
+    valid_threshold : 0.5
+    default_navigation_command : "straight"
+    path_resample_interval_m : 0.2
+    min_path_points : 2
 
 controller_server_node:
   ros__parameters:
