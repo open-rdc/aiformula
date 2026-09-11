@@ -22,15 +22,16 @@
     <plugin
       filename="PathPublisher"
       name="ignition::gazebo::PathPublisher">
-      <file_name>path_lat_lon_50</file_name>
+      <first_file_name>dynamic_obstacle_left1</first_file_name>
+      <second_file_name>dynamic_obstacle_right1</second_file_name>
     </plugin>
     <plugin
       filename="FollowPath"
       name="ignition::gazebo::FollowPath">
       <robot_name>human_robot</robot_name>
-      <threshold>1.7</threshold>
+      <threshold>2.0</threshold>
       <linear_vel>1.39</linear_vel>
-      <p_gain>0.9</p_gain>
+      <p_gain>1.0</p_gain>
       <i_gain>0.0</i_gain>
       <d_gain>0.14</d_gain>
     </plugin>
@@ -66,8 +67,8 @@
         <pose>0 0 0.15 0 0 3.14159</pose>
         <geometry>
           <box>
-		<size>0.612 0.580 0.1</size>
-	  </box>
+            <size>0.612 0.580 0.1</size>
+          </box>
         </geometry>
       </collision>
     </link>
