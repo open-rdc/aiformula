@@ -1,5 +1,6 @@
 import torch
 from torch import nn
+from torch.nn.utils.fusion import fuse_conv_bn_eval
 
 from Models.model_components.vision_planner.vision_planner_backbone import Backbone
 from Models.model_components.vision_planner.vision_planner_neck import Neck
@@ -8,25 +9,6 @@ from Models.model_components.common_layers import Conv
 
 # (straight / left / right）
 NUM_SLOTS = 3
-
-def fuse_conv(conv, norm):
-    fused = nn.Conv2d(conv.in_channels,
-                      conv.out_channels,
-                      kernel_size=conv.kernel_size,
-                      stride=conv.stride,
-                      padding=conv.padding,
-                      groups=conv.groups,
-                      bias=True).requires_grad_(False).to(conv.weight.device)
-
-    w_conv = conv.weight.clone().view(conv.out_channels, -1)
-    w_norm = torch.diag(norm.weight.div(torch.sqrt(norm.eps + norm.running_var)))
-    fused.weight.copy_(torch.mm(w_norm, w_conv).view(fused.weight.size()))
-
-    b_conv = torch.zeros(conv.weight.size(0), device=conv.weight.device) if conv.bias is None else conv.bias
-    b_norm = norm.bias - norm.weight.mul(norm.running_mean).div(torch.sqrt(norm.running_var + norm.eps))
-    fused.bias.copy_(torch.mm(w_norm, b_conv.reshape(-1, 1)).reshape(-1) + b_norm)
-
-    return fused
 
 
 class VisionPlannerNetwork:
@@ -66,7 +48,7 @@ class Network(nn.Module):
     def fuse(self):
         for m in self.modules():
             if type(m) is Conv and hasattr(m, "norm"):
-                m.conv = fuse_conv(m.conv, m.norm)
+                m.conv = fuse_conv_bn_eval(m.conv, m.norm)
                 m.forward = m.fuse_forward
                 delattr(m, "norm")
         return self

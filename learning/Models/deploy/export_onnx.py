@@ -19,7 +19,7 @@ def export_onnx(weights_path, output_path, opset=11):
             '（dist は decode_positions の窓 softmax を C++ に二重実装する必要があるため）')
 
     version = checkpoint['version']
-    model = VisionPlannerNetwork().load_model(version, weights_path).fuse().eval()
+    model = VisionPlannerNetwork().load_model(version, weights_path).eval().fuse()
 
     torch.manual_seed(0)
     dummy = torch.rand(INPUT_SHAPE)

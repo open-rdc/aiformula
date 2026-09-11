@@ -156,16 +156,3 @@ class C2PSA(nn.Module):
     def forward(self, x):
         a, b = self.conv1(x).split((self.hidden, self.hidden), dim=1)
         return self.conv2(torch.cat((a, self.res_m(b)), dim=1))
-
-
-class Proto(nn.Module):
-    def __init__(self, in_channels, out_channels, hidden=None):
-        super(Proto, self).__init__()
-        hidden = hidden if hidden is not None else in_channels
-        self.conv1 = Conv(in_channels, hidden, nn.SiLU(), k=3, p=1)
-        self.up = nn.ConvTranspose2d(hidden, hidden, kernel_size=2, stride=2)
-        self.conv2 = Conv(hidden, hidden, nn.SiLU(), k=3, p=1)
-        self.conv3 = Conv(hidden, out_channels, nn.SiLU())
-
-    def forward(self, x):
-        return self.conv3(self.conv2(self.up(self.conv1(x))))
