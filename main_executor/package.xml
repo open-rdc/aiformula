@@ -21,6 +21,7 @@
   <depend>mission_planner</depend>
   <depend>local_planner</depend>
   <depend>object_detection</depend>
+  <depend>vision_lane_planner</depend>
   <depend>zed_wrapper</depend>
   <depend>road_detector</depend>
   <depend>vectormap_server</depend>
