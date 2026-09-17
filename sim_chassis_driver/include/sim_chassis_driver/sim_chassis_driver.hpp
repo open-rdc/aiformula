@@ -65,7 +65,7 @@ private:
     cmd,
     stay,
     stop
-  } mode = Mode::stop;
+  } mode = Mode::stay;
 };
 
 }  // namespace sim_chassis_driver

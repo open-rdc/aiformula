@@ -33,6 +33,7 @@ install(
     scripts/steered_to_twist.py
     scripts/convert_sim_to_vectornav_pose.py
     scripts/convert_sim_to_vectornav_velocity_body.py
+    scripts/caster_position_relay.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

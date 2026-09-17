@@ -33,7 +33,7 @@
         <rotator_joint>rotator_joint</rotator_joint>
         <subtopic>caster_reel_position_cmd</subtopic>
         <pubtopic>caster_orientation</pubtopic>
-        <k_spring>100</k_spring>
+        <k_spring>615000</k_spring>
         <alpha>0.262</alpha>
         <pulley_radius>0.020</pulley_radius>
         <rotator_radius>0.032</rotator_radius>
@@ -349,8 +349,9 @@
           </contact>
           <friction>
             <ode>
-              <mu>3.0</mu>
+              <mu>1.0</mu>
               <mu2>1.0</mu2>
+              <fdir1>1 0 0</fdir1>
             </ode>
           </friction>
         </surface>
