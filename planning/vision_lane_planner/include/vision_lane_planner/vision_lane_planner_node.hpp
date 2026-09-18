@@ -40,8 +40,8 @@ class VisionLanePlannerNode : public rclcpp::Node {
         const cv::Mat& source, const SlotPrediction& prediction,
         const std_msgs::msg::Header& header) const;
 
-    const PathBuilderParams path_params_;
-    Slot                    commanded_slot_;
+    const double path_resample_interval_m_;
+    Slot         commanded_slot_;
 
     std::unique_ptr<VisionLaneTensorrt>             inference_;
     const tf2::Transform                            base_T_camera_;

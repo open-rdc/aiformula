@@ -154,11 +154,8 @@ pylon_detector_node:
 vision_lane_planner_node:
   ros__parameters:
     engine_path : "vision_planner_n.engine"
-    exist_threshold : 0.5
-    valid_threshold : 0.5
     default_navigation_command : "straight"
     path_resample_interval_m : 0.2
-    min_path_points : 2
 
 controller_server_node:
   ros__parameters:

@@ -23,6 +23,8 @@ test/
 simulator_old/
 planning/e2e_planner/data/
 planning/e2e_planner/runs/
+learning/runs/
+learning/tests/
 docs/
 #ファイル名で指定
 AGENTS.md

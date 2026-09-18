@@ -8,7 +8,7 @@ import numpy as np
 from ament_index_python.packages import get_package_share_directory
 import torch
 
-from Models.model_components.vision_planner.vision_planner_head import decode_positions
+from Models.model_components.vision_planner.vision_planner_head import ROW_START
 from Models.model_components.vision_planner.vision_planner_network import VisionPlannerNetwork
 from Models.data_parsing.rosbag.converter import POSE_TOPIC, SOURCES, bag_topics, build_label, detect_source, image_to_array, read_topic
 from Models.data_utils.vision_planner.pose import apply_fit, ecef_to_local, fit_quality, fit_to_map, headings, interpolate_pose, resample_centerlines, speed_mask
@@ -17,7 +17,6 @@ from Models.data_utils.vision_planner.vectormap import load_vector_map, trace_pa
 
 SLOT_NAMES = ('straight', 'left', 'right')
 SLOT_COLORS = ((0, 220, 0), (230, 120, 0), (0, 140, 255))
-NUM_SLOTS = 3
 
 MIN_STILL_GAP = 30
 
@@ -29,8 +28,8 @@ def prepare_input(frame_bgr):
 
 def infer(model, frame_bgr, device):
     tensor = prepare_input(frame_bgr).unsqueeze(0).to(device)
-    exist, valid, dist = model(tensor)
-    return exist[0].detach().cpu(), valid[0].detach().cpu(), dist[0].detach().cpu()
+    valid, position = model(tensor)
+    return valid[0].detach().cpu(), position[0].detach().cpu()
 
 
 def to_model_frame(frame_bgr, convert, camera, height, width):
@@ -39,24 +38,21 @@ def to_model_frame(frame_bgr, convert, camera, height, width):
     return letterbox(frame_bgr, height, width, camera.pad_top)
 
 
-def analyze_frame(exist_logits, valid_logits, dist_logits, exist_threshold, valid_threshold, num_rows, height, width):
-    exist_prob = torch.sigmoid(exist_logits)
-    valid_prob = torch.sigmoid(valid_logits)
-    positions = decode_positions(dist_logits[None])[0]
+def analyze_frame(output, num_rows, height, width):
+    valid, positions = output
+    predicted_valid = valid.sigmoid() > 0.5
     anchors = row_anchor_targets(num_rows, height)
 
     points = []
-    for slot in range(exist_prob.shape[0]):
-        if float(exist_prob[slot]) <= exist_threshold:
-            continue
-        for row in range(num_rows):
-            if float(valid_prob[slot, row]) <= valid_threshold:
+    for slot in range(positions.shape[0]):
+        for row in range(positions.shape[1]):
+            if not predicted_valid[slot, row]:
                 continue
             points.append({'slot': slot, 'row': row,
                            'x': int(float(positions[slot, row]) * (width - 1)),
-                           'y': int(anchors[row])})
+                           'y': int(anchors[row + ROW_START])})
 
-    return points, exist_prob, valid_prob, positions
+    return points, positions
 
 
 def select_gt_points(label, num_rows, height, width):
@@ -77,8 +73,8 @@ def lateral_errors(label, positions):
     for entry in label:
         slot = SLOT_NAMES.index(entry['class'])
         for row, (column, ok) in enumerate(zip(entry['xp'], entry['h_vector'])):
-            if ok:
-                errors.append(abs(float(positions[slot, row]) - column))
+            if ok and row >= ROW_START:
+                errors.append(abs(float(positions[slot, row - ROW_START]) - column))
     return errors
 
 
@@ -133,24 +129,14 @@ def gt_status_text(has_map, gt_error_px):
     return f'GT誤差 {gt_error_px:.1f}px'
 
 
-def draw_hud(image, exist_prob, exist_threshold, frame_index, bag_name, has_map=False, gt_error_px=None):
-    y = 18
-    for slot in range(len(exist_prob)):
-        color = SLOT_COLORS[slot]
-        prob = float(exist_prob[slot])
-        marker = '>' if prob > exist_threshold else ' '
-        draw_marker(image, 14, y - 4, slot, scale=0.7)
-        text = f'{marker}{SLOT_NAMES[slot]} {prob:.2f}'
-        cv2.putText(image, text, (26, y), cv2.FONT_HERSHEY_SIMPLEX, 0.45, color, 1, cv2.LINE_AA)
-        y += 16
-
+def draw_hud(image, frame_index, bag_name, has_map=False, gt_error_px=None):
     cv2.putText(image, f'frame {frame_index}', (max(image.shape[1] - 150, 0), 18),
                cv2.FONT_HERSHEY_SIMPLEX, 0.45, (255, 255, 255), 1, cv2.LINE_AA)
     cv2.putText(image, bag_name, (8, image.shape[0] - 8), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (255, 255, 255), 1, cv2.LINE_AA)
 
     status = gt_status_text(has_map, gt_error_px)
     if status is not None:
-        cv2.putText(image, status, (8, y), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (255, 255, 255), 1, cv2.LINE_AA)
+        cv2.putText(image, status, (8, 18), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (255, 255, 255), 1, cv2.LINE_AA)
 
     return image
 
@@ -189,30 +175,12 @@ def select_stills(records, count, min_gap=MIN_STILL_GAP):
             selected.append(index)
 
     if len(selected) < count:
-        remaining = [i for i in range(n) if i not in selected]
-        pools = [sorted(remaining, key=lambda i: records[i]['straight_valid'], reverse=True),
-                sorted(remaining, key=lambda i: records[i]['straight_valid'])]
-        cursors = [0, 0]
-        pool_turn = 0
-        exhausted = [False, False]
-        while len(selected) < count and not all(exhausted):
-            pool, cursor = pools[pool_turn], cursors[pool_turn]
-            advanced = False
-            while cursor < len(pool):
-                candidate = pool[cursor]
-                cursor += 1
-                if candidate in selected:
-                    continue
-                if far_enough(candidate):
-                    selected.append(candidate)
-                    advanced = True
-                    break
-            cursors[pool_turn] = cursor
-            if cursor >= len(pool):
-                exhausted[pool_turn] = True
-            if not advanced and len(selected) >= count:
-                return sorted(selected)
-            pool_turn = 1 - pool_turn
+        step = max(n // max(count - len(selected), 1), 1)
+        for index in range(0, n, step):
+            if len(selected) >= count:
+                break
+            if index not in selected and far_enough(index):
+                selected.append(index)
 
     return sorted(selected)
 
@@ -240,33 +208,17 @@ def _build_gt_context(args, reader_factory):
     return {'vector_map': vector_map, 'times': times, 'xy': fitted, 'heading': heading, 'ok': ok}
 
 
-def _new_stats(num_slots):
-    return {
-        'frames': 0,
-        'exist_count': [0] * num_slots,
-        'straight_valid_sum': 0,
-        'gt_errors': [],
-    }
+def _new_stats():
+    return {'frames': 0, 'gt_errors': []}
 
 
-def _update_stats(stats, exist_prob, exist_threshold, straight_valid, gt_errors):
+def _update_stats(stats, gt_errors):
     stats['frames'] += 1
-    for slot in range(len(stats['exist_count'])):
-        if float(exist_prob[slot]) > exist_threshold:
-            stats['exist_count'][slot] += 1
-    stats['straight_valid_sum'] += straight_valid
     stats['gt_errors'].extend(gt_errors)
 
 
-def _print_summary(bag_name, stats, num_rows, width, has_map):
+def _print_summary(bag_name, stats, width, has_map):
     print(f'{bag_name}: 処理フレーム数 {stats["frames"]}')
-    for slot in range(len(stats['exist_count'])):
-        rate = stats['exist_count'][slot] / max(stats['frames'], 1)
-        name = SLOT_NAMES[slot] if slot < len(SLOT_NAMES) else str(slot)
-        print(f'  exist[{name}] 検出率 {rate:.3f}')
-
-    avg_valid = stats['straight_valid_sum'] / max(stats['frames'], 1)
-    print(f'  straight 平均有効行数 {avg_valid:.2f} / {num_rows}')
 
     if has_map:
         errors = stats['gt_errors']
@@ -303,8 +255,7 @@ def _write_stills(stills_dir, bag_name, records, count):
     chosen = select_stills(records, count)
     for index in chosen:
         record = records[index]
-        exist_prob = record['exist_prob']
-        name = f'{bag_name}_f{record["index"]:06d}_s{exist_prob[0]:.2f}_l{exist_prob[1]:.2f}_r{exist_prob[2]:.2f}.png'
+        name = f'{bag_name}_f{record["index"]:06d}_branch{record["branch_score"]:.3f}.png'
         cv2.imwrite(os.path.join(stills_dir, name), record['image'])
     print(f'静止画書き出し: {len(chosen)} 枚 ({stills_dir})')
     return chosen
@@ -336,7 +287,7 @@ def run_bag(args, model=None, reader_factory=None):
     gt_context = _build_gt_context(args, reader_factory) if args.with_gt else None
 
     records = []
-    stats = _new_stats(NUM_SLOTS)
+    stats = _new_stats()
     frame_count = 0
 
     for index, stamp, message in read_topic(reader_factory, args.bag, spec['topic'], lambda m: m, args.stride):
@@ -349,11 +300,9 @@ def run_bag(args, model=None, reader_factory=None):
         frame = to_model_frame(frame, spec['convert'], camera, args.input_height, args.input_width)
 
         with torch.no_grad():
-            exist, valid, dist = infer(model, frame, device)
+            output = infer(model, frame, device)
 
-        points, exist_prob, _, positions = analyze_frame(
-            exist, valid, dist, args.exist_threshold, args.valid_threshold,
-            num_rows, args.input_height, args.input_width)
+        points, positions = analyze_frame(output, num_rows, args.input_height, args.input_width)
 
         gt_points, gt_errors, gt_error_px = [], [], None
         if gt_context is not None:
@@ -370,16 +319,13 @@ def run_bag(args, model=None, reader_factory=None):
         drawn = frame.copy()
         draw_predictions(drawn, points)
         draw_gt(drawn, gt_points)
-        draw_hud(drawn, exist_prob, args.exist_threshold, index, bag_name, args.with_gt, gt_error_px)
+        draw_hud(drawn, index, bag_name, args.with_gt, gt_error_px)
 
-        straight_valid = sum(1 for p in points if p['slot'] == SLOT_NAMES.index('straight'))
-        branch_score = max(float(exist_prob[SLOT_NAMES.index('left')]), float(exist_prob[SLOT_NAMES.index('right')]))
+        branch_score = float(max((positions[1] - positions[0]).abs().max(), (positions[2] - positions[0]).abs().max()))
 
-        records.append({'index': index, 'image': drawn,
-                        'exist_prob': [float(v) for v in exist_prob],
-                        'straight_valid': straight_valid, 'branch_score': branch_score})
+        records.append({'index': index, 'image': drawn, 'branch_score': branch_score})
 
-        _update_stats(stats, exist_prob, args.exist_threshold, straight_valid, gt_errors)
+        _update_stats(stats, gt_errors)
 
         frame_count += 1
 
@@ -399,7 +345,7 @@ def run_bag(args, model=None, reader_factory=None):
     if args.stills_dir and args.stills > 0:
         _write_stills(args.stills_dir, bag_name, records, args.stills)
 
-    _print_summary(bag_name, stats, num_rows, args.input_width, args.with_gt)
+    _print_summary(bag_name, stats, args.input_width, args.with_gt)
 
     return 0
 
@@ -414,8 +360,6 @@ def main(argv=None):
     parser.add_argument('--stride', type=int, default=2)
     parser.add_argument('--fps', type=float, default=15.0)
     parser.add_argument('--max-frames', type=int, default=None)
-    parser.add_argument('--exist-threshold', type=float, default=0.5)
-    parser.add_argument('--valid-threshold', type=float, default=0.5)
     parser.add_argument('--stills-dir', default=None)
     parser.add_argument('--stills', type=int, default=0)
     parser.add_argument('--with-gt', action='store_true')

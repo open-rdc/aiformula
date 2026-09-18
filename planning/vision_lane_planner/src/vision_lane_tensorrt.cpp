@@ -15,7 +15,6 @@ namespace vision_lane_planner {
 namespace {
 
 constexpr const char* input_name    = "input";
-constexpr const char* exist_name    = "exist";
 constexpr const char* valid_name    = "valid";
 constexpr const char* position_name = "position";
 
@@ -58,12 +57,10 @@ class VisionLaneTensorrt::Implementation {
     std::unique_ptr<nvinfer1::IExecutionContext> context;
 
     std::vector<float>                      input_host;
-    std::array<float, num_slots>            exist_host{};
     std::array<float, num_slots * num_rows> valid_host{};
     std::array<float, num_slots * num_rows> position_host{};
 
     void*        input_device    = nullptr;
-    void*        exist_device    = nullptr;
     void*        valid_device    = nullptr;
     void*        position_device = nullptr;
     cudaStream_t stream          = nullptr;
@@ -71,7 +68,7 @@ class VisionLaneTensorrt::Implementation {
     std::string last_error;
 
     ~Implementation() {
-        for (void* buffer : {input_device, exist_device, valid_device, position_device}) {
+        for (void* buffer : {input_device, valid_device, position_device}) {
             if (buffer != nullptr) {
                 cudaFree(buffer);
             }
@@ -110,7 +107,6 @@ VisionLaneTensorrt::VisionLaneTensorrt(const std::string& engine_path) : impleme
     implementation_->input_host.resize(static_cast<std::size_t>(3) * input_height * input_width);
 
     cudaMalloc(&implementation_->input_device, implementation_->input_host.size() * sizeof(float));
-    cudaMalloc(&implementation_->exist_device, implementation_->exist_host.size() * sizeof(float));
     cudaMalloc(&implementation_->valid_device, implementation_->valid_host.size() * sizeof(float));
     cudaMalloc(&implementation_->position_device, implementation_->position_host.size() * sizeof(float));
     cudaStreamCreate(&implementation_->stream);
@@ -120,10 +116,6 @@ VisionLaneTensorrt::~VisionLaneTensorrt() = default;
 
 const std::string& VisionLaneTensorrt::last_error() const {
     return implementation_->last_error;
-}
-
-const std::string& VisionLaneTensorrt::last_warning() const {
-    return implementation_->logger.last_message();
 }
 
 SlotPrediction VisionLaneTensorrt::infer(const cv::Mat& padded) {
@@ -147,7 +139,6 @@ SlotPrediction VisionLaneTensorrt::infer(const cv::Mat& padded) {
         implementation_->stream);
 
     if (!implementation_->context->setTensorAddress(input_name, implementation_->input_device) ||
-        !implementation_->context->setTensorAddress(exist_name, implementation_->exist_device) ||
         !implementation_->context->setTensorAddress(valid_name, implementation_->valid_device) ||
         !implementation_->context->setTensorAddress(position_name, implementation_->position_device)) {
         return degrade("TensorRTのテンソルアドレス設定に失敗しました");
@@ -156,10 +147,6 @@ SlotPrediction VisionLaneTensorrt::infer(const cv::Mat& padded) {
         return degrade("TensorRT推論に失敗しました");
     }
 
-    cudaMemcpyAsync(
-        implementation_->exist_host.data(), implementation_->exist_device,
-        implementation_->exist_host.size() * sizeof(float), cudaMemcpyDeviceToHost,
-        implementation_->stream);
     cudaMemcpyAsync(
         implementation_->valid_host.data(), implementation_->valid_device,
         implementation_->valid_host.size() * sizeof(float), cudaMemcpyDeviceToHost,
@@ -175,7 +162,6 @@ SlotPrediction VisionLaneTensorrt::infer(const cv::Mat& padded) {
     }
 
     for (std::size_t slot = 0; slot < num_slots; ++slot) {
-        prediction.exist[slot] = implementation_->exist_host[slot];
         for (std::size_t row = 0; row < num_rows; ++row) {
             const std::size_t index           = slot * num_rows + row;
             prediction.valid_logit[slot][row] = implementation_->valid_host[index];

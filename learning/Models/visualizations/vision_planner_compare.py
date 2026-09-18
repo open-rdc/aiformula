@@ -13,7 +13,7 @@ import torch
 
 from Models.data_parsing.rosbag.converter import SOURCES, bag_topics, detect_source, image_to_array, read_topic
 from Models.data_utils.vision_planner.projection import letterbox, load_camera, row_anchor_targets
-from Models.model_components.vision_planner.vision_planner_head import decode_positions
+from Models.model_components.vision_planner.vision_planner_head import ROW_START
 from Models.model_components.vision_planner.vision_planner_network import VisionPlannerNetwork
 
 SLOT_NAMES = ('straight', 'left', 'right')
@@ -33,30 +33,25 @@ def load_models(specs, device):
 def predict(model, frame, device):
     chw = np.ascontiguousarray(frame.transpose(2, 0, 1))
     tensor = torch.from_numpy(chw).float().div(255.0).unsqueeze(0).to(device)
-    exist, valid, raw = model(tensor)
-    return (torch.sigmoid(exist[0]).cpu(), torch.sigmoid(valid[0]).cpu(),
-            decode_positions(raw)[0].cpu())
+    valid, position = model(tensor)
+    return valid[0].cpu(), position[0].cpu()
 
 
-def draw_panel(frame, exist, valid, positions, label, anchors, width,
-               exist_threshold, valid_threshold, scale):
+def draw_panel(frame, prediction, label, anchors, width, scale):
+    valid, positions = prediction
+    predicted_valid = valid.sigmoid() > 0.5
     canvas = frame.copy()
     for slot in range(NUM_SLOTS):
-        if float(exist[slot]) <= exist_threshold:
-            continue
-        for row in range(len(anchors)):
-            if float(valid[slot, row]) <= valid_threshold:
+        for row in range(positions.shape[1]):
+            if not predicted_valid[slot, row]:
                 continue
             x = int(float(positions[slot, row]) * (width - 1))
-            y = int(anchors[row])
+            y = int(anchors[row + ROW_START])
             cv2.circle(canvas, (x, y), 3, SLOT_COLORS[slot], -1)
 
     canvas = cv2.resize(canvas, scale)
     bar = np.full((26, scale[0], 3), 40, np.uint8)
     cv2.putText(bar, label, (8, 18), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
-    tags = '  '.join(f'{SLOT_NAMES[s][0].upper()}{float(exist[s]):.2f}' for s in range(NUM_SLOTS))
-    cv2.putText(bar, tags, (scale[0] - 190, 18), cv2.FONT_HERSHEY_SIMPLEX, 0.44,
-                (180, 220, 180), 1, cv2.LINE_AA)
     return np.vstack([bar, canvas])
 
 
@@ -65,15 +60,13 @@ def main(argv=None):
     parser.add_argument('--bag', required=True)
     parser.add_argument('--weights', nargs='+', required=True, help='ラベル=パス の形式')
     parser.add_argument('--out-video', required=True)
-    parser.add_argument('--params', default='/home/kyo/formula_ws/src/main_executor/config/main_params.yaml')
+    parser.add_argument('--params', required=True)
     parser.add_argument('--device', default='cuda' if torch.cuda.is_available() else 'cpu')
     parser.add_argument('--stride', type=int, default=1)
     parser.add_argument('--fps', type=float, default=15.0)
     parser.add_argument('--max-frames', type=int, default=None)
     parser.add_argument('--cols', type=int, default=3)
     parser.add_argument('--panel-width', type=int, default=480)
-    parser.add_argument('--exist-threshold', type=float, default=0.5)
-    parser.add_argument('--valid-threshold', type=float, default=0.5)
     parser.add_argument('--input-height', type=int, default=384)
     parser.add_argument('--input-width', type=int, default=640)
     args = parser.parse_args(argv)
@@ -98,9 +91,8 @@ def main(argv=None):
                 frame = spec['convert'](frame)
             frame = letterbox(frame, args.input_height, args.input_width, camera.pad_top)
 
-            panels = [draw_panel(frame, *predict(model, frame, args.device), label, anchors,
-                                 args.input_width, args.exist_threshold, args.valid_threshold,
-                                 panel_scale)
+            panels = [draw_panel(frame, predict(model, frame, args.device), label, anchors,
+                                 args.input_width, panel_scale)
                       for label, model, _ in models]
             while len(panels) % args.cols:
                 panels.append(np.zeros_like(panels[0]))

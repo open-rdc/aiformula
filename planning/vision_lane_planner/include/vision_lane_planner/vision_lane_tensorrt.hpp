@@ -29,11 +29,6 @@ class VisionLaneTensorrt {
     VISION_LANE_PLANNER_PUBLIC
     const std::string& last_error() const;
 
-    // エンジンのデシリアライズ等で TensorRT ロガーが出した直近の警告以下のメッセージ。
-    // 別デバイスで焼かれた plan file やバージョン差異の互換警告はここにしか残らない
-    VISION_LANE_PLANNER_PUBLIC
-    const std::string& last_warning() const;
-
    private:
     class Implementation;
     std::unique_ptr<Implementation> implementation_;

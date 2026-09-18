@@ -17,8 +17,8 @@ python3 -m Models.deploy.export_onnx \
   --output  ${MODEL}.onnx
 ```
 
-`head='argmax'` のチェックポイントのみ対応します（`dist` は `ValueError` で中断します）。
-出力名は `exist` / `valid` / `position`、入力は `(1,3,384,640)` 固定です。
+出力は `valid`（形状 `(1,3,23)`、ロジット）と `position`（形状 `(1,3,23)`、値域 [0,1]）の2本、
+入力は `(1,3,384,640)` 固定です。
 
 ### `.onnx` → `.engine`（デプロイ先で実行）
 

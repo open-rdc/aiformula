@@ -9,8 +9,8 @@ namespace vision_lane_planner {
 
 namespace {
 
-double sigmoid(const float logit) {
-    return 1.0 / (1.0 + std::exp(-static_cast<double>(logit)));
+double sigmoid(const double x) {
+    return 1.0 / (1.0 + std::exp(-x));
 }
 
 Point2D interpolate_at(
@@ -42,45 +42,24 @@ Slot parse_slot(const std::string& command) {
     return Slot::Straight;
 }
 
-std::optional<Slot> select_slot(
-    const SlotPrediction& prediction,
-    const Slot            commanded,
-    const double          exist_threshold) {
-    const auto exists = [&prediction, exist_threshold](const Slot slot) {
-        return sigmoid(prediction.exist[static_cast<std::size_t>(slot)]) > exist_threshold;
-    };
-
-    if (exists(commanded)) {
-        return commanded;
-    }
-    for (const Slot slot : fallback_order) {
-        if (slot == commanded) {
-            continue;
-        }
-        if (exists(slot)) {
-            return slot;
-        }
-    }
-    return std::nullopt;
-}
-
 double row_anchor_v(const std::size_t row) {
-    constexpr double row_height = static_cast<double>(input_height) / static_cast<double>(num_rows);
-    return static_cast<double>(row) * row_height + (row_height - 1.0) / 2.0;
+    constexpr double  row_height   = static_cast<double>(input_height) / static_cast<double>(row_anchor_count);
+    const std::size_t absolute_row = row_start + row;  // 出力行(0..num_rows-1) → 絶対行
+    return static_cast<double>(absolute_row) * row_height + (row_height - 1.0) / 2.0;
 }
 
 std::vector<Point2D> project_slot_rows(
     const SlotPrediction&                   prediction,
     const Slot                              slot,
     const camera_utility::CameraIntrinsics& intrinsics,
-    const tf2::Transform&                   base_T_camera,
-    const double                            valid_threshold) {
+    const tf2::Transform&                   base_T_camera) {
     const std::size_t slot_index = static_cast<std::size_t>(slot);
 
     std::vector<Point2D> points;
     points.reserve(num_rows);
     for (std::size_t offset = 0; offset < num_rows; ++offset) {
         const std::size_t row = num_rows - 1 - offset;
+
         if (sigmoid(prediction.valid_logit[slot_index][row]) <= valid_threshold) {
             continue;
         }
@@ -91,7 +70,7 @@ std::vector<Point2D> project_slot_rows(
                          static_cast<double>(pad_left);
         const double v = row_anchor_v(row) - static_cast<double>(pad_top);
         // 最終画素行より外へ外挿しないので上限は height - 1。
-        // row 46 (v=359.5) と row 47 (v=367.5) はここで落ちる
+        // 出力行 21 (絶対行46, v=359.5) と出力行 22 (絶対行47, v=367.5) はここで落ちる
         if (u < 0.0 || u > static_cast<double>(intrinsics.width - 1) || v < 0.0 ||
             v > static_cast<double>(intrinsics.height - 1)) {
             continue;
@@ -159,7 +138,7 @@ PathResult build_path(
     const Slot                              commanded,
     const camera_utility::CameraIntrinsics& intrinsics,
     const tf2::Transform&                   base_T_camera,
-    const PathBuilderParams&                params,
+    const double                            path_resample_interval_m,
     const builtin_interfaces::msg::Time&    stamp) {
     // 経路が組めなくてもヘッダは必ず埋める。publish を止めると下流が古い経路を
     // ラッチしたまま走り続け、「見えていない」ことと正常が区別できなくなる
@@ -167,21 +146,14 @@ PathResult build_path(
     result.path.header.stamp    = stamp;
     result.path.header.frame_id = "base_link";
 
-    // 推論が失敗した SlotPrediction は exist が全て 0 で、sigmoid(0)=0.5 になる。
-    // exist_threshold が 0.5 未満だと select_slot が straight を「正常な選択」として返してしまう
+    // 推論が失敗した場合は SlotPrediction::valid が false のまま返ってくる
     if (!prediction.valid) {
         return result;
     }
 
-    const auto slot = select_slot(prediction, commanded, params.exist_threshold);
-    if (!slot) {
-        return result;
-    }
-
-    const auto projected =
-        project_slot_rows(prediction, *slot, intrinsics, base_T_camera, params.valid_threshold);
-    const auto samples = truncate_and_resample(projected, params.path_resample_interval_m);
-    if (samples.size() < params.min_path_points || samples.size() < 2U) {
+    const auto projected = project_slot_rows(prediction, commanded, intrinsics, base_T_camera);
+    const auto samples = truncate_and_resample(projected, path_resample_interval_m);
+    if (samples.size() < 2U) {
         return result;
     }
 
@@ -199,7 +171,6 @@ PathResult build_path(
         pose.pose.orientation = utils::yaw_to_quaternion(yaw);
         result.path.poses.push_back(pose);
     }
-    result.valid = true;
     return result;
 }
 

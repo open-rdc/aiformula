@@ -13,8 +13,7 @@ python3 -m Models.data_parsing.rosbag.converter \
 ```bash
 python3 -m Models.training.vision_planner_trainer \
   --dataset ${DATASET} \
-  --epochs 60 \
-  --head argmax
+  --epochs 60
 ```
 
 ### 推論結果の可視化

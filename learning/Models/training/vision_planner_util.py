@@ -92,27 +92,28 @@ def next_run_dir(runs_dir):
     return os.path.join(runs_dir, f'run{max(used) + 1 if used else 1}')
 
 
-def visualize(sample, outputs, targets, num_rows):
-    from Models.model_components.vision_planner.vision_planner_head import decode_positions
+def visualize(sample, output, targets, num_rows):
+    from Models.model_components.vision_planner.vision_planner_head import ROW_START
     from Models.data_utils.vision_planner.projection import row_anchor_targets
 
-    exist, valid, dist = outputs
-    target_valid, target_xp = targets[1], targets[2]
+    valid, position = output
+    target_valid, target_xp = targets
 
     image = np.ascontiguousarray(sample.detach().cpu().numpy().transpose(1, 2, 0))
     height, width = image.shape[:2]
 
     anchors = row_anchor_targets(num_rows, height)
-    predicted = decode_positions(dist.detach()[None])[0]
+    predicted = position.detach()
+    predicted_valid = valid.detach().sigmoid() > 0.5
 
-    for slot in range(dist.shape[0]):
+    for slot in range(position.shape[0]):
         color = SLOT_COLORS[slot % len(SLOT_COLORS)]
-        for row in range(num_rows):
-            center_y = int(anchors[row])
+        for row in range(predicted.shape[1]):
+            center_y = int(anchors[row + ROW_START])
             if float(target_valid[slot, row]) > 0.5:
                 x = int(float(target_xp[slot, row]) * (width - 1))
                 cv2.line(image, (x - 4, center_y), (x + 4, center_y), color, 2)
-            if torch.sigmoid(valid[slot, row]) > 0.5 and torch.sigmoid(exist[slot]) > 0.5:
+            if predicted_valid[slot, row]:
                 x = int(float(predicted[slot, row]) * (width - 1))
                 cv2.circle(image, (x, center_y), 2, color, -1)
     return np.ascontiguousarray(image[:, :, ::-1])  # TensorBoard は RGB を期待する

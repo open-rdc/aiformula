@@ -25,22 +25,19 @@ class VisionPlannerNetwork:
 
     def load_model(self, version, checkpoint_path):
         checkpoint = torch.load(checkpoint_path, map_location="cpu", weights_only=True)
-        # "head" キーが無いチェックポイントは A/B 切り替え導入前(B案=dist)の資産なので
-        # "dist" にフォールバックする。既定を argmax にしても既存資産が読み戻せるようにするため
-        head_mode = checkpoint.get("head", "dist")
-        model = Network(version, head_mode=head_mode, backbone=checkpoint.get("backbone", "ctx"))
+        model = Network(version)
         model.load_state_dict(checkpoint["model_state_dict"])
         return model
 
 
 class Network(nn.Module):
-    def __init__(self, version, head_mode="argmax", backbone="ctx"):
+    def __init__(self, version):
         super(Network, self).__init__()
         weighting = VisionPlannerNetwork.DYNAMIC_WEIGHTING[version]
         width, depth, csp = weighting["width"], weighting["depth"], weighting["csp"]
-        self.backbone = Backbone(width, depth, csp, block=backbone)
+        self.backbone = Backbone(width, depth, csp)
         self.neck = Neck(width, depth, csp)
-        self.head = Head(width[3], NUM_SLOTS, mode=head_mode)
+        self.head = Head(width[3], NUM_SLOTS)
 
     def forward(self, x):
         return self.head(self.neck(self.backbone(x)))

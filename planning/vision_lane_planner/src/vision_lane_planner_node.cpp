@@ -24,11 +24,7 @@ VisionLanePlannerNode::VisionLanePlannerNode(
     const std::string&         name_space,
     const rclcpp::NodeOptions& options)
     : rclcpp::Node("vision_lane_planner_node", name_space, options),
-      path_params_{
-          get_parameter("exist_threshold").as_double(),
-          get_parameter("valid_threshold").as_double(),
-          get_parameter("path_resample_interval_m").as_double(),
-          static_cast<std::size_t>(get_parameter("min_path_points").as_int())},
+      path_resample_interval_m_(get_parameter("path_resample_interval_m").as_double()),
       commanded_slot_(parse_slot(get_parameter("default_navigation_command").as_string())),
       base_T_camera_(camera_utility::getBaseTCamera(*this)) {
     const std::string engine_path =
@@ -76,7 +72,7 @@ void VisionLanePlannerNode::image_callback(const sensor_msgs::msg::Image::ConstS
         RCLCPP_WARN(get_logger(), "推論に失敗しました: %s", inference_->last_error().c_str());
     }
 
-    const PathResult result = build_path(prediction, commanded_slot_, *intrinsics_, base_T_camera_, path_params_, msg->header.stamp);
+    const PathResult result = build_path(prediction, commanded_slot_, *intrinsics_, base_T_camera_, path_resample_interval_m_, msg->header.stamp);
     global_path_publisher_->publish(std::make_unique<nav_msgs::msg::Path>(result.path));
 
     // サブスクライバがいる場合のみ実行
@@ -128,7 +124,8 @@ sensor_msgs::msg::Image::UniquePtr VisionLanePlannerNode::make_debug_image(
     cv::Mat canvas = source.clone();
     for (std::size_t slot = 0; slot < num_slots; ++slot) {
         for (std::size_t row = 0; row < num_rows; ++row) {
-            if (1.0 / (1.0 + std::exp(-static_cast<double>(prediction.valid_logit[slot][row]))) <= path_params_.valid_threshold) {
+            const double sigmoid_valid = 1.0 / (1.0 + std::exp(-static_cast<double>(prediction.valid_logit[slot][row])));
+            if (sigmoid_valid <= valid_threshold) {
                 continue;
             }
             const double u = static_cast<double>(prediction.position[slot][row]) * (input_width - 1) - pad_left;
