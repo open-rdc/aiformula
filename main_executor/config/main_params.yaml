@@ -8,7 +8,7 @@ launch:
   ros__parameters:
     linear_max:
       vel : 3.0
-      acc: 5.0
+      acc: 3.0
       jer: 0.0
     steering_max :
       pos : 15.0
@@ -144,6 +144,13 @@ local_planner_server_node:
       weight_length : 1.0
       weight_lateral_deviation : 50.0
     stop_standoff_m : 1.0
+
+speed_path_planner_node:
+  ros__parameters:
+    a_lat_max          : 3.0
+    v_min              : 1.0
+    curvature_window_m : 2.0
+    stop_point_timeout_s : 0.5
 
 pylon_detector_node:
   ros__parameters:
