@@ -24,16 +24,16 @@ POSE_TOPIC = '/vectornav/pose'
 IMAGE_CHANNELS = {'bgr8': 3, 'bgra8': 4, 'rgb8': 3, 'rgba8': 4}
 
 
-def convert_960x600(image):
+def convert_SVGA(image):
     if image.shape[:2] != (600, 960):
-        raise ValueError(f'convert_960x600: 想定していない入力サイズ {image.shape[:2]}（960x600 を想定）')
+        raise ValueError(f'convert_SVGA: 想定していない入力サイズ {image.shape[:2]}（960x600 を想定）')
     resized = cv2.resize(image, (640, 400), interpolation=cv2.INTER_AREA)
     return resized[20:380]
 
 
 SOURCES = {
     'nHD': {'topic': '/zed/zed_node/rgb/image_rect_color', 'intrinsics': 'nHD', 'convert': None},
-    '960x600': {'topic': '/image_raw', 'intrinsics': '960x600', 'convert': convert_960x600},
+    'SVGA': {'topic': '/image_raw', 'intrinsics': 'SVGA', 'convert': convert_SVGA},
 }
 
 
