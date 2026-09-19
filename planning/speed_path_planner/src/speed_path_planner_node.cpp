@@ -1,7 +1,6 @@
 #include "speed_path_planner/speed_path_planner_node.hpp"
 
 #include <algorithm>
-#include <cmath>
 #include <limits>
 #include <utility>
 #include <vector>
@@ -23,14 +22,19 @@ speed_profile::Limits read_limits(rclcpp::Node& node)
         node.get_parameter("curvature_window_m").as_double()};
 }
 
-std_msgs::msg::ColorRGBA speed_color(double v, double v_max)
+std_msgs::msg::ColorRGBA speed_color(double v, double max_speed)
 {
-    const double t = std::clamp(v / v_max, 0.0, 1.0);
     std_msgs::msg::ColorRGBA color;
-    color.r = static_cast<float>(std::max(0.0, 2.0 * t - 1.0));
-    color.g = static_cast<float>(1.0 - std::abs(2.0 * t - 1.0));
-    color.b = static_cast<float>(std::max(0.0, 1.0 - 2.0 * t));
     color.a = 1.0F;
+    if (max_speed > 0.0) {
+        color.r = static_cast<float>(std::max(0.0, 1.0 - v / max_speed));
+        color.g = static_cast<float>(std::min(1.0, v / max_speed));
+        color.b = 0.0F;
+    } else {
+        color.r = 1.0F;
+        color.g = 0.0F;
+        color.b = 0.0F;
+    }
     return color;
 }
 
@@ -52,8 +56,13 @@ speed_path_msgs::msg::SpeedPath make_speed_path(
 }
 
 visualization_msgs::msg::MarkerArray::UniquePtr make_marker_array(
-    const speed_path_msgs::msg::SpeedPath& speed_path, double v_max)
+    const speed_path_msgs::msg::SpeedPath& speed_path)
 {
+    double max_speed = 0.0;
+    for (const auto& point : speed_path.points) {
+        max_speed = std::max(max_speed, point.linear_velocity);
+    }
+
     visualization_msgs::msg::Marker marker;
     marker.header = speed_path.header;
     marker.ns = "speed_path";
@@ -66,7 +75,7 @@ visualization_msgs::msg::MarkerArray::UniquePtr make_marker_array(
     marker.colors.reserve(speed_path.points.size());
     for (const auto& point : speed_path.points) {
         marker.points.push_back(point.pose.position);
-        marker.colors.push_back(speed_color(point.linear_velocity, v_max));
+        marker.colors.push_back(speed_color(point.linear_velocity, max_speed));
     }
     auto marker_array = std::make_unique<visualization_msgs::msg::MarkerArray>();
     marker_array->markers.push_back(std::move(marker));
@@ -134,7 +143,7 @@ void SpeedPathPlannerNode::path_callback(const nav_msgs::msg::Path::ConstSharedP
 
     auto speed_path = make_speed_path(*msg, speed_profile::plan(points, v_meas, stop_s, limits_));
     if (marker_publisher_->get_subscription_count() > 0) {
-        marker_publisher_->publish(make_marker_array(speed_path, limits_.v_max));
+        marker_publisher_->publish(make_marker_array(speed_path));
     }
     speed_path_publisher_->publish(std::make_unique<speed_path_msgs::msg::SpeedPath>(std::move(speed_path)));
 }
