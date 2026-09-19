@@ -13,23 +13,6 @@ double sigmoid(const double x) {
     return 1.0 / (1.0 + std::exp(-x));
 }
 
-Point2D interpolate_at(
-    const std::vector<Point2D>& points,
-    const std::vector<double>&  arc_length,
-    const double                target) {
-    for (std::size_t i = 1; i < points.size(); ++i) {
-        if (target > arc_length[i]) {
-            continue;
-        }
-        const double span  = arc_length[i] - arc_length[i - 1];
-        const double ratio = span < 1.0e-9 ? 0.0 : (target - arc_length[i - 1]) / span;
-        return Point2D{
-            points[i - 1].x + ratio * (points[i].x - points[i - 1].x),
-            points[i - 1].y + ratio * (points[i].y - points[i - 1].y)};
-    }
-    return points.back();
-}
-
 }  // namespace
 
 Slot parse_slot(const std::string& command) {
@@ -87,9 +70,7 @@ std::vector<Point2D> project_slot_rows(
     return points;
 }
 
-std::vector<Point2D> truncate_and_resample(
-    const std::vector<Point2D>& points,
-    const double                resample_interval_m) {
+std::vector<Point2D> truncate(const std::vector<Point2D>& points) {
     std::vector<Point2D> kept;
     kept.reserve(points.size());
     for (const Point2D& point : points) {
@@ -107,30 +88,12 @@ std::vector<Point2D> truncate_and_resample(
                 break;  // 地平線付近の発散で経路が折り返すのを防ぐ
             }
             if (std::hypot(point.x - kept.back().x, point.y - kept.back().y) > max_point_gap_m) {
-                break;  // 離れた2点を補間して存在しない直線を作らない
+                break;  // 離れた2点をつないで存在しない直線を作らない
             }
         }
         kept.push_back(point);
     }
-
-    if (kept.size() < 2U) {
-        return kept;
-    }
-
-    std::vector<double> arc_length(kept.size(), 0.0);
-    for (std::size_t i = 1; i < kept.size(); ++i) {
-        arc_length[i] = arc_length[i - 1] +
-                        std::hypot(kept[i].x - kept[i - 1].x, kept[i].y - kept[i - 1].y);
-    }
-
-    std::vector<Point2D> resampled;
-    resampled.reserve(
-        static_cast<std::size_t>(std::ceil(arc_length.back() / resample_interval_m)) + 2U);
-    for (double s = 0.0; s < arc_length.back(); s += resample_interval_m) {
-        resampled.push_back(interpolate_at(kept, arc_length, s));
-    }
-    resampled.push_back(kept.back());
-    return resampled;
+    return kept;
 }
 
 PathResult build_path(
@@ -138,7 +101,6 @@ PathResult build_path(
     const Slot                              commanded,
     const camera_utility::CameraIntrinsics& intrinsics,
     const tf2::Transform&                   base_T_camera,
-    const double                            path_resample_interval_m,
     const builtin_interfaces::msg::Time&    stamp) {
     // 経路が組めなくてもヘッダは必ず埋める。publish を止めると下流が古い経路を
     // ラッチしたまま走り続け、「見えていない」ことと正常が区別できなくなる
@@ -152,7 +114,7 @@ PathResult build_path(
     }
 
     const auto projected = project_slot_rows(prediction, commanded, intrinsics, base_T_camera);
-    const auto samples = truncate_and_resample(projected, path_resample_interval_m);
+    const auto samples = truncate(projected);
     if (samples.size() < 2U) {
         return result;
     }
