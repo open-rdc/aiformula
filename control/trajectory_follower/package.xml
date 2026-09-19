@@ -10,9 +10,9 @@
   <buildtool_depend>ament_cmake_auto</buildtool_depend>
 
   <depend>geometry_msgs</depend>
-  <depend>nav_msgs</depend>
   <depend>pluginlib</depend>
   <depend>rclcpp</depend>
+  <depend>speed_path_msgs</depend>
   <depend>std_msgs</depend>
   <depend>steered_drive_msg</depend>
   <depend>tf2</depend>

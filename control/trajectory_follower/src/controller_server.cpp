@@ -9,20 +9,19 @@ namespace trajectory_follower
 {
 namespace
 {
-nav_msgs::msg::Path transform_path_to_base(
-    const nav_msgs::msg::Path & path,
+speed_path_msgs::msg::SpeedPath transform_path_to_base(
+    const speed_path_msgs::msg::SpeedPath & path,
     const geometry_msgs::msg::TransformStamped & base_T_path)
 {
-    nav_msgs::msg::Path path_in_base;
+    speed_path_msgs::msg::SpeedPath path_in_base;
     path_in_base.header.frame_id = "base_link";
     path_in_base.header.stamp = path.header.stamp;
-    path_in_base.poses.reserve(path.poses.size());
+    path_in_base.points.reserve(path.points.size());
 
-    for (const auto & pose : path.poses) {
-        geometry_msgs::msg::PoseStamped pose_base;
-        tf2::doTransform(pose, pose_base, base_T_path);
-        pose_base.header = path_in_base.header;
-        path_in_base.poses.push_back(pose_base);
+    for (const auto & point : path.points) {
+        speed_path_msgs::msg::SpeedPathPoint point_base = point;
+        tf2::doTransform(point.pose, point_base.pose, base_T_path);
+        path_in_base.points.push_back(point_base);
     }
 
     return path_in_base;
@@ -49,8 +48,8 @@ ControllerServer::ControllerServer(
     tf_buffer_ = std::make_shared<tf2_ros::Buffer>(get_clock());
     tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
 
-    path_subscription_ = create_subscription<nav_msgs::msg::Path>(
-        "/planner/local_path", rclcpp::QoS(1).best_effort(),
+    path_subscription_ = create_subscription<speed_path_msgs::msg::SpeedPath>(
+        "/planner/speed_path", rclcpp::QoS(1).best_effort(),
         std::bind(&ControllerServer::path_callback, this, std::placeholders::_1));
     velocity_subscription_ =
         create_subscription<geometry_msgs::msg::TwistWithCovarianceStamped>(
@@ -81,7 +80,7 @@ void ControllerServer::autonomous_callback(const std_msgs::msg::Bool::ConstShare
     autonomous_flag_ = msg->data;
 }
 
-void ControllerServer::path_callback(const nav_msgs::msg::Path::ConstSharedPtr msg)
+void ControllerServer::path_callback(const speed_path_msgs::msg::SpeedPath::ConstSharedPtr msg)
 {
     std::lock_guard<std::mutex> lock(data_mutex_);
     path_ = msg;
@@ -116,7 +115,7 @@ void ControllerServer::timer_callback()
         RCLCPP_DEBUG(this->get_logger(), "速度を待機中");
         return;
     }
-    if (path_->poses.size() < 2) {
+    if (path_->points.size() < 2) {
         RCLCPP_DEBUG(this->get_logger(), "経路が短すぎます");
         return;
     }
@@ -135,7 +134,7 @@ void ControllerServer::timer_callback()
         publish_stop_command();
         return;
     }
-    const nav_msgs::msg::Path path_in_base = transform_path_to_base(*path_, base_T_path);
+    const speed_path_msgs::msg::SpeedPath path_in_base = transform_path_to_base(*path_, base_T_path);
 
     if (caster_data_) {
         plugin_->setMeasuredSteer(caster_data_->data[1]);
