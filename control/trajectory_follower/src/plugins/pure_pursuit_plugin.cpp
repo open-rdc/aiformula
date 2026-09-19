@@ -25,14 +25,16 @@ void PurePursuitPlugin::initialize(
     logger_ = logger;
     clock_ = clock;
 
-    lookahead_distance_ = params->get_parameter("pure_pursuit.lookahead_distance").get_value<double>();
+    lookahead_gain_ = params->get_parameter("pure_pursuit.lookahead_gain").get_value<double>();
+    lookahead_min_distance_ = params->get_parameter("pure_pursuit.lookahead_min_distance").get_value<double>();
+    lookahead_max_distance_ = params->get_parameter("pure_pursuit.lookahead_max_distance").get_value<double>();
     steered_gain_ = params->get_parameter("pure_pursuit.steered_gain").get_value<double>();
     wheelbase_ = params->get_parameter("wheelbase").get_value<double>();
     steering_max_angle_rad_ =
         utils::dtor(params->get_parameter("steering_max.pos").get_value<double>());
     velocity_preview_time_ = params->get_parameter("velocity_preview_time").get_value<double>();
 
-    if (lookahead_distance_ <= 0.0 || steered_gain_ <= 0.0 || wheelbase_ <= 0.0 ||
+    if (lookahead_min_distance_ <= 0.0 || steered_gain_ <= 0.0 || wheelbase_ <= 0.0 ||
         steering_max_angle_rad_ <= 0.0)
     {
         throw std::invalid_argument("PurePursuitPlugin: control parameters are invalid");
@@ -43,8 +45,11 @@ std::optional<steered_drive_msg::msg::SteeredDrive> PurePursuitPlugin::computeCo
     const speed_path_msgs::msg::SpeedPath & path_in_base,
     double current_velocity)
 {
+    const double lookahead_distance = std::clamp(
+        lookahead_gain_ * current_velocity, lookahead_min_distance_, lookahead_max_distance_);
+
     TargetPoint target{0.0, 0.0};
-    if (!find_lookahead_target(path_in_base, target)) {
+    if (!find_lookahead_target(path_in_base, lookahead_distance, target)) {
         return std::nullopt;
     }
 
@@ -58,7 +63,7 @@ std::optional<steered_drive_msg::msg::SteeredDrive> PurePursuitPlugin::computeCo
 
     const double alpha = std::atan2(target.y, target.x);
     const double steer_angle =
-        std::atan2(2.0 * wheelbase_ * std::sin(alpha), lookahead_distance_);
+        std::atan2(2.0 * wheelbase_ * std::sin(alpha), lookahead_distance);
     const double steer_clamped =
         std::clamp(steer_angle * steered_gain_, -steering_max_angle_rad_, steering_max_angle_rad_);
 
@@ -70,6 +75,7 @@ std::optional<steered_drive_msg::msg::SteeredDrive> PurePursuitPlugin::computeCo
 
 bool PurePursuitPlugin::find_lookahead_target(
     const speed_path_msgs::msg::SpeedPath & path,
+    double lookahead_distance,
     TargetPoint & target_out) const
 {
     bool found_fallback = false;
@@ -84,7 +90,7 @@ bool PurePursuitPlugin::find_lookahead_target(
         const double distance = std::hypot(x, y);
         fallback = {x, y};
         found_fallback = true;
-        if (distance >= lookahead_distance_) {
+        if (distance >= lookahead_distance) {
             target_out = {x, y};
             return true;
         }

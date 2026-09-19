@@ -172,7 +172,9 @@ controller_server_node:
     a_min              : -4.0
     velocity_preview_time : 0.3
     pure_pursuit:
-      lookahead_distance : 5.0
+      lookahead_gain         : 1.2
+      lookahead_min_distance : 3.0
+      lookahead_max_distance : 5.0
       steered_gain       : 1.8
     mpc:
       longitudinal:
