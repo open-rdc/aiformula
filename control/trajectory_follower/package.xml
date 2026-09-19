@@ -15,6 +15,9 @@
   <depend>rclcpp</depend>
   <depend>std_msgs</depend>
   <depend>steered_drive_msg</depend>
+  <depend>tf2</depend>
+  <depend>tf2_geometry_msgs</depend>
+  <depend>tf2_ros</depend>
   <depend>utilities</depend>
   <depend>Eigen3</depend>
 

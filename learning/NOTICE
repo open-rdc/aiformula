@@ -1,0 +1,9 @@
+The following files are modified from https://github.com/autowarefoundation/auto_steer
+(commit 727c8ae) and are licensed under the Apache License 2.0 (see LICENSE-APACHE-2.0):
+
+  Models/model_components/common_layers.py
+  Models/model_components/vision_planner/vision_planner_backbone.py
+  Models/model_components/vision_planner/vision_planner_neck.py
+  Models/model_components/vision_planner/vision_planner_network.py
+
+All other files in this directory are licensed under the MIT License (see ../LICENSE).
