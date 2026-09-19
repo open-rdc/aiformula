@@ -150,6 +150,7 @@ speed_path_planner_node:
     a_lat_max          : 3.0
     v_min              : 1.0
     curvature_window_m : 2.0
+    decel_distance_before_curve_m : 4.0
     stop_point_timeout_s : 0.5
 
 pylon_detector_node:

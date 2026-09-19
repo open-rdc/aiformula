@@ -65,6 +65,18 @@ std::vector<double> lateral_limits(const std::vector<double>& curvature, const L
     return v;
 }
 
+std::vector<double> apply_before_curve(
+    const std::vector<double>& v, const std::vector<double>& s, double distance)
+{
+    std::vector<double> out(v);
+    for (std::size_t i = 0; i < v.size(); ++i) {
+        for (std::size_t j = i + 1; j < v.size() && s[j] - s[i] <= distance; ++j) {
+            out[i] = std::min(out[i], v[j]);
+        }
+    }
+    return out;
+}
+
 void apply_stop(std::vector<double>& v, const std::vector<double>& s, double stop_s)
 {
     for (std::size_t i = 0; i < v.size(); ++i) {
@@ -107,6 +119,7 @@ Profile plan(
     Profile profile;
     profile.curvature = curvatures(points, s, limits.curvature_window_m);
     profile.velocity = lateral_limits(profile.curvature, limits);
+    profile.velocity = apply_before_curve(profile.velocity, s, limits.decel_distance_before_curve_m);
     apply_stop(profile.velocity, s, stop_s);
     backward_pass(profile.velocity, s, limits.a_lon);
     forward_pass(profile.velocity, s, std::max(v_meas, limits.v_min), limits.a_lon);
