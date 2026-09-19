@@ -24,7 +24,6 @@ VisionLanePlannerNode::VisionLanePlannerNode(
     const std::string&         name_space,
     const rclcpp::NodeOptions& options)
     : rclcpp::Node("vision_lane_planner_node", name_space, options),
-      path_resample_interval_m_(get_parameter("path_resample_interval_m").as_double()),
       commanded_slot_(parse_slot(get_parameter("default_navigation_command").as_string())),
       base_T_camera_(camera_utility::getBaseTCamera(*this)) {
     const std::string engine_path =
@@ -38,7 +37,7 @@ VisionLanePlannerNode::VisionLanePlannerNode(
     image_subscription_              = create_subscription<sensor_msgs::msg::Image>("/zed/zed_node/rgb/image_rect_color", rclcpp::SensorDataQoS().keep_last(1), std::bind(&VisionLanePlannerNode::image_callback, this, std::placeholders::_1));
     navigation_command_subscription_ = create_subscription<std_msgs::msg::String>("/planning/nav_cmd", rclcpp::SensorDataQoS().keep_last(1), std::bind(&VisionLanePlannerNode::navigation_command_callback, this, std::placeholders::_1));
 
-    global_path_publisher_ = create_publisher<nav_msgs::msg::Path>("/planner/global_path", rclcpp::QoS(1).keep_last(1));
+    vision_path_publisher_ = create_publisher<nav_msgs::msg::Path>("/planner/vision_path", rclcpp::QoS(1).keep_last(1));
     marker_publisher_      = create_publisher<visualization_msgs::msg::MarkerArray>("/planning/vision_lane_visualize", rclcpp::QoS(1));
     debug_image_publisher_ = create_publisher<sensor_msgs::msg::Image>("/planning/vision_lane_debug_image", rclcpp::SensorDataQoS().keep_last(1));
 }
@@ -72,8 +71,8 @@ void VisionLanePlannerNode::image_callback(const sensor_msgs::msg::Image::ConstS
         RCLCPP_WARN(get_logger(), "推論に失敗しました: %s", inference_->last_error().c_str());
     }
 
-    const PathResult result = build_path(prediction, commanded_slot_, *intrinsics_, base_T_camera_, path_resample_interval_m_, msg->header.stamp);
-    global_path_publisher_->publish(std::make_unique<nav_msgs::msg::Path>(result.path));
+    const PathResult result = build_path(prediction, commanded_slot_, *intrinsics_, base_T_camera_, msg->header.stamp);
+    vision_path_publisher_->publish(std::make_unique<nav_msgs::msg::Path>(result.path));
 
     // サブスクライバがいる場合のみ実行
     if (marker_publisher_->get_subscription_count() > 0) {

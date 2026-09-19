@@ -155,7 +155,16 @@ vision_lane_planner_node:
   ros__parameters:
     engine_path : "vision_planner_n.engine"
     default_navigation_command : "straight"
-    path_resample_interval_m : 0.2
+
+path_smoother_node:
+  ros__parameters:
+    window_duration_s : 0.15
+    tf_timeout_s : 0.1
+    fit_max_x_m : 8.2
+    extend_to_x_m : 20.0
+    output_interval_m : 0.2
+    ransac_threshold_m : 0.10
+    ransac_iterations : 200
 
 controller_server_node:
   ros__parameters:

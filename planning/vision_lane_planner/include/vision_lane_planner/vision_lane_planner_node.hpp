@@ -40,7 +40,6 @@ class VisionLanePlannerNode : public rclcpp::Node {
         const cv::Mat& source, const SlotPrediction& prediction,
         const std_msgs::msg::Header& header) const;
 
-    const double path_resample_interval_m_;
     Slot         commanded_slot_;
 
     std::unique_ptr<VisionLaneTensorrt>             inference_;
@@ -50,7 +49,7 @@ class VisionLanePlannerNode : public rclcpp::Node {
     rclcpp::Subscription<sensor_msgs::msg::CameraInfo>::SharedPtr      camera_info_subscription_;
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr           image_subscription_;
     rclcpp::Subscription<std_msgs::msg::String>::SharedPtr             navigation_command_subscription_;
-    rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr                  global_path_publisher_;
+    rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr                  vision_path_publisher_;
     rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr marker_publisher_;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr              debug_image_publisher_;
 };
