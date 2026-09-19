@@ -41,9 +41,13 @@ double LongitudinalPid::update(double v_ref, double a_ref, double v_meas)
     const double g = std::clamp(params_.lpf_vel_error_gain, 0.0, 1.0);
     filtered_error_ = g * filtered_error_ + (1.0 - g) * error;
 
-    integral_ += filtered_error_ * dt;
+    const bool saturated =
+        (v_cmd_ >= params_.v_max && filtered_error_ > 0.0) || (v_cmd_ <= 0.0 && filtered_error_ < 0.0);
+    if (!saturated) {
+        integral_ += filtered_error_ * dt;
+    }
     if (params_.ki > 1.0e-9) {
-        const double i_limit = params_.a_max / params_.ki;
+        const double i_limit = params_.max_integral_effort / params_.ki;
         integral_ = std::clamp(integral_, -i_limit, i_limit);
     }
     const double deriv = initialized_ ? (filtered_error_ - prev_error_) / dt : 0.0;

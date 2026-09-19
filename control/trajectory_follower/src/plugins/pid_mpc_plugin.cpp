@@ -28,6 +28,7 @@ void PidMpcPlugin::initialize(
     lon.v_max = params->get_parameter("linear_max.vel").as_double();
     lon.a_max = params->get_parameter("mpc.longitudinal.a_max").as_double();
     lon.a_min = params->get_parameter("a_min").as_double();
+    lon.max_integral_effort = params->get_parameter("mpc.longitudinal.max_integral_effort").as_double();
     lon.jerk_max = params->get_parameter("mpc.longitudinal.jerk_max").as_double();
     lon.kp = params->get_parameter("mpc.longitudinal.kp").as_double();
     lon.ki = params->get_parameter("mpc.longitudinal.ki").as_double();

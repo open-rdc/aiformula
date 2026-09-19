@@ -8,6 +8,7 @@ struct LongitudinalParams
     double v_max = 2.0;
     double a_max = 1.0;
     double a_min = -2.0;
+    double max_integral_effort = 0.5;
     double jerk_max = 2.0;
     double kp = 0.8;
     double ki = 0.1;
