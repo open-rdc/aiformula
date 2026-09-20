@@ -80,11 +80,9 @@ std::vector<Point2D> project_slot_rows(
     const camera_utility::CameraIntrinsics& intrinsics,
     const tf2::Transform&                   base_T_camera);
 
-// 単調性・ギャップ・距離で打ち切り、等間隔にリサンプルする
+// 単調性・ギャップ・距離で打ち切る
 VISION_LANE_PLANNER_PUBLIC
-std::vector<Point2D> truncate_and_resample(
-    const std::vector<Point2D>& points,
-    double                      resample_interval_m);
+std::vector<Point2D> truncate(const std::vector<Point2D>& points);
 
 VISION_LANE_PLANNER_PUBLIC
 PathResult build_path(
@@ -92,7 +90,6 @@ PathResult build_path(
     Slot                                    commanded,
     const camera_utility::CameraIntrinsics& intrinsics,
     const tf2::Transform&                   base_T_camera,
-    double                                  path_resample_interval_m,
     const builtin_interfaces::msg::Time&    stamp);
 
 }  // namespace vision_lane_planner

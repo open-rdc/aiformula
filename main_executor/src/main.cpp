@@ -7,6 +7,7 @@
 #include "local_planner/local_planner_server.hpp"
 #include "mission_planner/mission_planner_node.hpp"
 #include "object_detection/pylon_detector_node.hpp"
+#include "path_smoother/path_smoother_node.hpp"
 #include "pose_estimater/pose_estimater_node.hpp"
 #include "road_detector/road_detector_node.hpp"
 #include "speed_path_planner/speed_path_planner_node.hpp"
@@ -78,6 +79,10 @@ int main(int argc, char* argv[]) {
         exec.add_node(vision_lane_planner_node);
     } else {
         exec.add_node(road_detector_node);
+    }
+    auto path_smoother_node = mapless ? std::make_shared<path_smoother::PathSmootherNode>(nodes_option) : nullptr;
+    if (mapless) {
+        exec.add_node(path_smoother_node);
     }
 #endif
 
