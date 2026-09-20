@@ -86,14 +86,12 @@ void PathSmootherNode::path_callback(const nav_msgs::msg::Path::ConstSharedPtr m
             x_end   = std::max(x_end, points[i].x);
         }
     }
-    const Quadratic c         = fit_quadratic(kept, kept_weights);
-    const auto      samples   = sample_quadratic(c, x_start, x_end, output_interval_m_);
-    const double    end_yaw   = tangent_yaw(c, samples.back().x);
-    const auto      extension = extend_straight(samples.back(), end_yaw, extend_to_x_m_, output_interval_m_);
+    const Quadratic c       = fit_quadratic(kept, kept_weights);
+    const auto      samples = sample_quadratic(c, x_start, std::max(x_end, extend_to_x_m_), output_interval_m_);
 
     nav_msgs::msg::Path output;
     output.header = msg->header;
-    output.poses.reserve(samples.size() + extension.size());
+    output.poses.reserve(samples.size());
     const auto push = [&output](const Point2D& point, const double yaw) {
         geometry_msgs::msg::PoseStamped pose;
         pose.header           = output.header;
@@ -104,9 +102,6 @@ void PathSmootherNode::path_callback(const nav_msgs::msg::Path::ConstSharedPtr m
     };
     for (const auto& point : samples) {
         push(point, tangent_yaw(c, point.x));
-    }
-    for (const auto& point : extension) {
-        push(point, end_yaw);
     }
     path_publisher_->publish(std::make_unique<nav_msgs::msg::Path>(std::move(output)));
 }

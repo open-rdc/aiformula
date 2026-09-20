@@ -7,6 +7,8 @@ namespace path_smoother {
 
 namespace {
 
+constexpr double MAX_TANGENT_RAD = 30.0 * M_PI / 180.0;
+
 double det3(const double m[3][3]) {
     return m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1]) -
            m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0]) +
@@ -125,18 +127,13 @@ std::vector<bool> ransac_inliers(
 std::vector<Point2D> sample_quadratic(const Quadratic& c, const double x_start, const double x_end, const double interval) {
     std::vector<Point2D> points;
     // 弧長 interval を進むための x の刻みは interval·cos(yaw)。終点は x_end を超えない最後の刻み
-    for (double x = x_start; x <= x_end; x += interval * std::cos(tangent_yaw(c, x))) {
+    for (double x = x_start; x <= x_end;) {
         points.push_back(Point2D{x, evaluate(c, x)});
-    }
-    return points;
-}
-
-std::vector<Point2D> extend_straight(const Point2D& start, const double yaw, const double x_to, const double interval) {
-    std::vector<Point2D> points;
-    const double         dx = interval * std::cos(yaw);
-    const double         dy = interval * std::sin(yaw);
-    for (Point2D p{start.x + dx, start.y + dy}; p.x <= x_to; p.x += dx, p.y += dy) {
-        points.push_back(p);
+        const double yaw = tangent_yaw(c, x);
+        if (std::abs(yaw) > MAX_TANGENT_RAD) {
+            break;
+        }
+        x += interval * std::cos(yaw);
     }
     return points;
 }

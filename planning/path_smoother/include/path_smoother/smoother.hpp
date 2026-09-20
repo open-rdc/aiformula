@@ -53,8 +53,4 @@ double tangent_yaw(const Quadratic& c, double x);
 PATH_SMOOTHER_PUBLIC
 std::vector<Point2D> sample_quadratic(const Quadratic& c, double x_start, double x_end, double interval);
 
-// start の次の点から x_to を超えない範囲まで yaw 方向に interval 刻みで直線を継ぐ
-PATH_SMOOTHER_PUBLIC
-std::vector<Point2D> extend_straight(const Point2D& start, double yaw, double x_to, double interval);
-
 }  // namespace path_smoother

@@ -168,8 +168,8 @@ path_smoother_node:
   ros__parameters:
     window_duration_s : 0.15
     tf_timeout_s : 0.1
-    fit_max_x_m : 8.2
-    extend_to_x_m : 20.0
+    fit_max_x_m : 12.0
+    extend_to_x_m : 18.0
     output_interval_m : 0.2
     ransac_threshold_m : 0.10
     ransac_iterations : 200
