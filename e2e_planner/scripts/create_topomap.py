@@ -9,7 +9,10 @@ import torch
 import yaml
 from torchvision import transforms
 
-from e2e_planner.util.preprocessing import MODEL_INPUT_SIZE, center_square_crop
+try:
+    from e2e_planner.util.preprocessing import PLACENET_INPUT_SIZE, center_square_crop
+except ImportError:
+    from preprocessing import PLACENET_INPUT_SIZE, center_square_crop
 
 
 class TopomapGenerator:
@@ -19,7 +22,7 @@ class TopomapGenerator:
         2: 'left',
         3: 'right',
     }
-    SAVED_STEP = 5
+    SAVED_STEP = 1  # images/は既に5Hz(0.2s間隔)サンプリング済みなので、1=5Hzのまま全採用
 
     def __init__(self, dataset_path):
         self.dataset_root = Path(dataset_path)
@@ -36,7 +39,7 @@ class TopomapGenerator:
         self.model = self.load_model()
         self.placenet_transform = transforms.Compose([
             transforms.ToTensor(),
-            transforms.Resize(MODEL_INPUT_SIZE, antialias=True),
+            transforms.Resize(PLACENET_INPUT_SIZE, antialias=True),
             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
         ])
 
@@ -73,7 +76,7 @@ class TopomapGenerator:
         return output.squeeze(0).flatten().tolist()
 
     def build_nodes(self):
-        image_paths = sorted(self.image_dir.glob('*.png'))
+        image_paths = sorted(self.image_dir.glob('*.jpg'), key=lambda p: int(p.stem))
         nodes = []
 
         for idx, image_path in enumerate(image_paths[::self.SAVED_STEP]):
@@ -85,7 +88,7 @@ class TopomapGenerator:
             cropped_image = self._center_crop(image_path)
 
             # 保存用は cv2.resize で 85x85 に縮小
-            save_image = cv2.resize(cropped_image, MODEL_INPUT_SIZE, interpolation=cv2.INTER_AREA)
+            save_image = cv2.resize(cropped_image, PLACENET_INPUT_SIZE, interpolation=cv2.INTER_AREA)
             output_image_name = f'img{idx + 1:05d}.png'
             output_image_path = self.topomap_images_dir / output_image_name
             cv2.imwrite(str(output_image_path), save_image)
