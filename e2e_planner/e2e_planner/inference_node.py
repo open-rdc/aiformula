@@ -24,7 +24,13 @@ from .zed_sdk import ZedSdk
 
 from e2e_planner.placenav.place_recognition import PlaceRecognition
 from e2e_planner.util.yolop_processor import YOLOPv2Processor
-from e2e_planner.util.preprocessing import MODEL_INPUT_SIZE, center_square_crop, lane_mask_to_tensor_array, overlay_lane_mask
+from e2e_planner.util.preprocessing import (
+    MASK_INPUT_SIZE,
+    PLACENET_INPUT_SIZE,
+    center_square_crop,
+    lane_mask_to_tensor_array,
+    overlay_lane_mask,
+)
 
 NUM_WAYPOINTS = 6
 
@@ -130,7 +136,7 @@ class InferenceNode(Node):
                 )
                 self.placenet_transform = transforms.Compose([
                     transforms.ToTensor(),
-                    transforms.Resize((85, 85), antialias=True),
+                    transforms.Resize(PLACENET_INPUT_SIZE, antialias=True),
                     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
                 ])
         self.create_subscription(UInt8, '/command', self.command_callback, qos_profile_system_default)
@@ -227,9 +233,10 @@ class InferenceNode(Node):
         bgr_image = self._to_bgr(image)
         if self.yolop_processor is None:
             raise RuntimeError('YOLOPv2 processor is not available.')
-        if bgr_image.shape[0] >= 288 and bgr_image.shape[1] >= 288:
-            bgr_image = center_square_crop(bgr_image)
-        mask = self.yolop_processor.process_image(bgr_image, target_size=MODEL_INPUT_SIZE)
+        # 学習時 (scripts/binarize_dataset.py) はセンタークロップを行わず、全画面を
+        # そのまま YOLOP に渡して 64x48 のマスクを保存している。ここでクロップすると
+        # モデルは学習時と別の視野のマスクを受け取り、waypoint が系統的に横へずれる。
+        mask = self.yolop_processor.process_image(bgr_image, target_size=MASK_INPUT_SIZE)
 
         mask_normalized = lane_mask_to_tensor_array(mask)
         tensor = torch.from_numpy(mask_normalized).unsqueeze(0).unsqueeze(0)
