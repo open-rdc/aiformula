@@ -125,7 +125,9 @@ class Config:
 
         # データ拡張（学習側のみ。検証には適用しない）
         self.augment_config = {
-            'flip_prob': config_dict.get('augment_flip_prob', 0.5),
+            # 左右反転は既定で無効。コースは反時計回りで左折が右折の 4.86 倍あり、
+            # 反転すると分岐で曲がる向きが競合する
+            'flip_prob': config_dict.get('augment_flip_prob', 0.0),
             'color_prob': config_dict.get('augment_color_prob', 0.8),
             'brightness': config_dict.get('augment_brightness', 0.3),
             'contrast': config_dict.get('augment_contrast', 0.3),
