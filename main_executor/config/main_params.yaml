@@ -130,19 +130,19 @@ local_planner_server_node:
     local_planner_plugin : "local_planner::FrenetPlannerPlugin"
     interval_ms : 100
     # plugin パラメータ
-    local_path_horizon_m : 15.0
+    local_path_horizon_m : 20.0
     local_path_resample_interval_m : 0.2
     avoidance_detection_forward_distance_m : 20.0
-    avoidance_hard_margin_m : 0.4
-    avoidance_soft_margin_m : 0.3
-    max_avoidance_shift_m : 3.0
+    avoidance_hard_margin_m : 0.35
+    avoidance_soft_margin_m : 1.0
+    max_avoidance_shift_m : 2.4
+    obstacle_cluster_gap_m : 0.8   # この隙間以下で隣接する障害物は1つとして扱う
     frenet:
-      lateral_sample_step_m : 0.25
-      collision_check_margin_m : 0.2
-      target_lengths_m : [7.5, 15.0]
+      lateral_sample_step_m : 0.15
+      collision_check_margin_m : 0.15
+      target_lengths_m : [15.0]
       weight_curvature : 2000.0
-      weight_length : 1.0
-      weight_lateral_deviation : 50.0
+      weight_lateral_deviation : 150.0
     stop_standoff_m : 1.0
 
 speed_path_planner_node:

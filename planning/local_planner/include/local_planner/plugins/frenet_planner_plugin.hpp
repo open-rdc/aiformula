@@ -37,19 +37,21 @@ private:
     struct PathPoint { double s; double x; double y; double yaw; };
     struct CartesianPoint { double x; double y; double yaw; };
     struct ProjectedPose { double s; double d; double path_yaw; };
-    struct FrenetObstacle { double s; double d; double half_width; };
+    struct FrenetObstacle { double s; double d; double half_width; double half_length; };
 
     std::vector<CartesianPoint> plan_best_path(
         double start_s,
         double end_s,
         const frenet::FrenetState & initial,
-        const std::optional<FrenetObstacle> & obstacle) const;
+        const std::vector<FrenetObstacle> & obstacles) const;
     std::vector<CartesianPoint> make_stop_path(
         const frenet::FrenetState & initial,
         const FrenetObstacle & obstacle) const;
-    std::vector<double> make_target_s_list(double start_s, double end_s) const;
-    std::vector<double> make_target_grid(const std::optional<FrenetObstacle> & obstacle) const;
-    std::optional<FrenetObstacle> find_static_obstacle(
+    std::vector<double> make_target_s_list(
+        double start_s, double end_s,
+        const std::vector<FrenetObstacle> & obstacles) const;
+    std::vector<double> make_target_grid(const std::vector<FrenetObstacle> & obstacles) const;
+    std::vector<FrenetObstacle> find_obstacles(
         double current_s,
         const object_detection_msgs::msg::ObjectInfoArray & objects) const;
 
@@ -63,7 +65,6 @@ private:
     double max_path_s() const;
     double reference_curvature_at(double s) const;
     static std::vector<double> compute_curvatures(const std::vector<CartesianPoint> & points);
-    static double compute_path_length(const std::vector<CartesianPoint> & points);
 
     nav_msgs::msg::Path make_path_message(
         const std::vector<CartesianPoint> & points,
@@ -78,11 +79,12 @@ private:
     double avoidance_detection_forward_distance_m_{15.0};
     double avoidance_hard_margin_m_{0.4};
     double avoidance_soft_margin_m_{0.3};
+    double obstacle_cluster_gap_m_{0.8};
     double max_avoidance_shift_m_{1.0};
     double frenet_lateral_sample_step_m_{0.25};
     double frenet_collision_check_margin_m_{0.2};
     std::vector<double> frenet_target_lengths_m_{7.5, 15.0};
-    frenet::CostWeights cost_weights_{2000.0, 1.0, 50.0};
+    frenet::CostWeights cost_weights_{2000.0, 50.0};
     double stop_standoff_m_{1.0};
     double kappa_max_{0.0};
 

@@ -17,22 +17,16 @@ double curvature_cost(const std::vector<double> & curvatures, const double weigh
     return weight * curvature_sum / static_cast<double>(curvatures.size());
 }
 
-double length_cost(const double path_length, const double weight)
-{
-    return -weight * path_length;
-}
-
 double lateral_deviation_cost(const double final_lateral_deviation, const double weight)
 {
     return weight * std::abs(final_lateral_deviation);
 }
 
 double candidate_cost(
-    const std::vector<double> & curvatures, const double path_length,
-    const double final_lateral_deviation, const CostWeights & weights)
+    const std::vector<double> & curvatures, const double final_lateral_deviation,
+    const CostWeights & weights)
 {
     return curvature_cost(curvatures, weights.curvature) +
-        length_cost(path_length, weights.length) +
         lateral_deviation_cost(final_lateral_deviation, weights.lateral_deviation);
 }
 
