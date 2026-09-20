@@ -1,8 +1,8 @@
 launch:
   ros__parameters:
-    joy: true
+    joy: false
     sim : true
-    mapless : false
+    mapless : true
 
 /**:
   ros__parameters:

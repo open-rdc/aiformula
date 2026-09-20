@@ -36,10 +36,10 @@ int main(int argc, char* argv[]) {
     auto controller_node           = std::make_shared<controller::Controller>(nodes_option);
     auto lane_line_publisher_node  = std::make_shared<lane_line_publisher::LaneLinePublisherNode>(nodes_option);
     auto vectormap_visualizer_node = std::make_shared<lane_line_publisher::VectormapVisualizerNode>(nodes_option);
-    auto pose_estimater_node       = std::make_shared<pose_estimater::PoseEstimaterNode>(nodes_option);
-    auto ekf_localizer_node        = std::make_shared<ekf_localizer::EkfLocalizerNode>(nodes_option);
+    auto pose_estimater_node       = mapless ? nullptr : std::make_shared<pose_estimater::PoseEstimaterNode>(nodes_option);
+    auto ekf_localizer_node        = mapless ? nullptr : std::make_shared<ekf_localizer::EkfLocalizerNode>(nodes_option);
     auto odom_tf_node              = std::make_shared<ekf_localizer::OdomTfNode>(nodes_option);
-    auto map_odom_tf_node          = std::make_shared<ekf_localizer::MapOdomTfNode>(nodes_option);
+    auto map_odom_tf_node          = mapless ? nullptr : std::make_shared<ekf_localizer::MapOdomTfNode>(nodes_option);
     auto local_planner_server_node = std::make_shared<local_planner::LocalPlannerServer>(nodes_option);
     auto speed_path_planner_node   = std::make_shared<speed_path_planner::SpeedPathPlannerNode>(nodes_option);
     auto controller_server_node    = std::make_shared<trajectory_follower::ControllerServer>(nodes_option);
@@ -47,10 +47,12 @@ int main(int argc, char* argv[]) {
     exec.add_node(controller_node);
     exec.add_node(lane_line_publisher_node);
     exec.add_node(vectormap_visualizer_node);
-    exec.add_node(pose_estimater_node);
-    exec.add_node(ekf_localizer_node);
     exec.add_node(odom_tf_node);
-    exec.add_node(map_odom_tf_node);
+    if (!mapless) {
+        exec.add_node(pose_estimater_node);
+        exec.add_node(ekf_localizer_node);
+        exec.add_node(map_odom_tf_node);
+    }
     exec.add_node(local_planner_server_node);
     exec.add_node(speed_path_planner_node);
     exec.add_node(controller_server_node);
