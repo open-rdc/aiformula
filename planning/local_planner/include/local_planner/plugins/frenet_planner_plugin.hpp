@@ -44,6 +44,7 @@ private:
         double end_s,
         const frenet::FrenetState & initial,
         const std::vector<FrenetObstacle> & obstacles) const;
+    double mean_deviation_from_previous(const std::vector<CartesianPoint> & points) const;
     std::vector<CartesianPoint> make_stop_path(
         const frenet::FrenetState & initial,
         const FrenetObstacle & obstacle) const;
@@ -84,7 +85,7 @@ private:
     double frenet_lateral_sample_step_m_{0.25};
     double frenet_collision_check_margin_m_{0.2};
     std::vector<double> frenet_target_lengths_m_{7.5, 15.0};
-    frenet::CostWeights cost_weights_{2000.0, 50.0};
+    frenet::CostWeights cost_weights_{2000.0, 50.0, 0.0};
     double stop_standoff_m_{1.0};
     double kappa_max_{0.0};
 
@@ -92,6 +93,7 @@ private:
 
     std::string path_frame_id_;
     std::vector<PathPoint> global_samples_;
+    std::vector<CartesianPoint> previous_points_;
 };
 
 }

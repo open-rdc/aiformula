@@ -22,12 +22,18 @@ double lateral_deviation_cost(const double final_lateral_deviation, const double
     return weight * std::abs(final_lateral_deviation);
 }
 
+double path_change_cost(const double mean_deviation, const double weight)
+{
+    return weight * mean_deviation;
+}
+
 double candidate_cost(
     const std::vector<double> & curvatures, const double final_lateral_deviation,
-    const CostWeights & weights)
+    const double mean_deviation, const CostWeights & weights)
 {
     return curvature_cost(curvatures, weights.curvature) +
-        lateral_deviation_cost(final_lateral_deviation, weights.lateral_deviation);
+        lateral_deviation_cost(final_lateral_deviation, weights.lateral_deviation) +
+        path_change_cost(mean_deviation, weights.side_change);
 }
 
 }

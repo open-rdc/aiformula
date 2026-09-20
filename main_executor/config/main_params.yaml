@@ -143,6 +143,7 @@ local_planner_server_node:
       target_lengths_m : [15.0]
       weight_curvature : 2000.0
       weight_lateral_deviation : 150.0
+      weight_side_change : 300.0
     stop_standoff_m : 1.0
 
 speed_path_planner_node:
