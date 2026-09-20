@@ -16,7 +16,7 @@ class Network(nn.Module):
         self.output_dim = num_waypoints * 2
         self.branches = nn.ModuleList([
             nn.Sequential(
-                nn.Linear(3136, 512),
+                nn.Linear(960, 512),
                 nn.ReLU(),
                 nn.Linear(512, self.output_dim),
             )
