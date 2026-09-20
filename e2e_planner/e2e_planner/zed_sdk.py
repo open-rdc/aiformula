@@ -10,6 +10,11 @@ import cv2
 import numpy as np
 
 
+# 学習データ (rosbag の /zed/zed_node/rgb/image_rect_color) の解像度。
+# ZED SDK から直接読む実機経路でも、この解像度に揃えてから後段へ渡す。
+TRAIN_IMAGE_SIZE = (640, 360)
+
+
 class ZedRosMsg:
     def __init__(self, node: Node) -> None:
         self.latest_pointcloud: Optional[PointCloud2] = None
@@ -85,8 +90,13 @@ class ZedSdk:
         else:
             self._camera.retrieve_image(self._image, self._sl.VIEW.LEFT)
             image = self._image.get_data()
-            height, width = image.shape[:2]
-            cv2.resize(image, (width // 2, height // 2))
+            # 元のコードは cv2.resize の戻り値を捨てていたため縮小が効いておらず、
+            # SVGA (960x600) のまま後段に渡っていた。ここを 640x360 に揃えないと
+            # YOLOP マスクも placenet のセンタークロップも学習時と違う視野になる。
+            # TODO(実機確認): SVGA は 16:10 で、640x360 (16:9) と縦横比が異なるため
+            #   単純リサイズでは縦が圧縮される。zed_wrapper が 640x360 をどう作っていたか
+            #   (縦クロップかリサイズか) を、同じ場所で撮った rosbag の1枚と見比べて確定すること。
+            image = cv2.resize(image, TRAIN_IMAGE_SIZE, interpolation=cv2.INTER_AREA)
         if image is None:
             return None
         return image
