@@ -5,7 +5,7 @@ import time
 import yaml
 import torch
 import torch.nn as nn
-from torch.utils.data import Dataset, DataLoader, random_split
+from torch.utils.data import Dataset, DataLoader, Subset, random_split
 from torch.utils.tensorboard import SummaryWriter
 import cv2
 import csv
@@ -22,14 +22,20 @@ from util.preprocess import (
     preprocess_rgb,
     normalize_waypoints,
 )
+from util.augment_train import horizontal_flip, color_jitter, to_grayscale
 
 NUM_WAYPOINTS = 20
+
+# train/val の分割を run 間で固定する。拡張の有無で val が変わると比較できない
+SPLIT_SEED = 42
 
 
 class E2EDataset(Dataset):
     """白線マスク画像と対応するRGB画像のペアを返す"""
 
-    def __init__(self, dataset_path: Path):
+    def __init__(self, dataset_path: Path, augment_config: dict = None):
+        # augment_config が None のときは拡張なし（検証用）
+        self.augment_config = augment_config
         self.dataset_path = dataset_path
         self.mask_images_dir = dataset_path / 'mask_images'
         self.rgb_images_dir = dataset_path / 'images'
@@ -61,9 +67,36 @@ class E2EDataset(Dataset):
             reader = csv.DictReader(f)
             waypoints = [[float(row['x']), float(row['y'])] for row in reader]
 
-        mask_tensor = torch.from_numpy(preprocess_mask(extract_red_mask(mask_bgr)))
+        mask_binary = extract_red_mask(mask_bgr)
+        waypoints_m = np.array(waypoints, dtype=np.float32)
+
+        if self.augment_config is not None:
+            # numpy のグローバル RNG は DataLoader の worker 間で再シードされないため、
+            # 全 worker が同じ乱数列を出してしまう。torch の RNG は worker ごとに
+            # 正しくずらされるので、そこから種を引いて per-sample の Generator を作る
+            rng = np.random.default_rng(int(torch.randint(0, 2**31 - 1, (1,)).item()))
+            cfg = self.augment_config
+
+            if rng.random() < cfg['flip_prob']:
+                rgb_bgr, mask_binary, waypoints_m = horizontal_flip(
+                    rgb_bgr, mask_binary, waypoints_m)
+
+            if rng.random() < cfg['color_prob']:
+                rgb_bgr = color_jitter(
+                    rgb_bgr, rng,
+                    brightness=cfg['brightness'],
+                    contrast=cfg['contrast'],
+                    saturation=cfg['saturation'],
+                    hue=cfg['hue'],
+                )
+
+            # 色そのものを落とす。色を手がかりにできない状態でも走れるようにする
+            if rng.random() < cfg['gray_prob']:
+                rgb_bgr = to_grayscale(rgb_bgr)
+
+        mask_tensor = torch.from_numpy(preprocess_mask(mask_binary))
         rgb_tensor = torch.from_numpy(preprocess_rgb(rgb_bgr))
-        waypoints_tensor = torch.from_numpy(normalize_waypoints(np.array(waypoints, dtype=np.float32)))
+        waypoints_tensor = torch.from_numpy(normalize_waypoints(waypoints_m))
 
         return mask_tensor, rgb_tensor, waypoints_tensor
 
@@ -90,6 +123,23 @@ class Config:
         self.dropout = config_dict.get('dropout', 0.1)
         self.grad_clip_norm = config_dict.get('grad_clip_norm', 1.0)
 
+        # データ拡張（学習側のみ。検証には適用しない）
+        self.augment_config = {
+            'flip_prob': config_dict.get('augment_flip_prob', 0.5),
+            'color_prob': config_dict.get('augment_color_prob', 0.8),
+            'brightness': config_dict.get('augment_brightness', 0.3),
+            'contrast': config_dict.get('augment_contrast', 0.3),
+            'saturation': config_dict.get('augment_saturation', 0.3),
+            'hue': config_dict.get('augment_hue', 0.03),
+            'gray_prob': config_dict.get('augment_gray_prob', 0.3),
+        }
+        self.augment_enabled = config_dict.get('augment', True)
+
+        # train/val の分け方。'temporal' は時系列で後半を val にする（既定）。
+        # 'random' は従来どおりランダム分割だが、隣接フレームのリークがある
+        self.split_mode = config_dict.get('split_mode', 'temporal')
+        self.split_gap = config_dict.get('split_gap', 25)
+
         self.weights_dir = package_root / 'weights'
         self.weights_dir.mkdir(exist_ok=True)
 
@@ -104,10 +154,35 @@ class Trainer:
         self.config = config
         self.device = config.device
 
-        dataset = E2EDataset(dataset_path)
-        train_size = int(0.8 * len(dataset))
-        val_size = len(dataset) - train_size
-        train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
+        # random_split の Subset は元の Dataset を共有するので、そのままだと
+        # 検証にも拡張がかかる。拡張あり/なしの 2 インスタンスを作り、
+        # 同じ index で Subset を組み直す
+        aug_cfg = config.augment_config if config.augment_enabled else None
+        train_source = E2EDataset(dataset_path, augment_config=aug_cfg)
+        val_source = E2EDataset(dataset_path, augment_config=None)
+
+        dataset = val_source
+        n = len(dataset)
+        train_size = int(0.8 * n)
+
+        if config.split_mode == 'temporal':
+            # ファイル名は収集順の連番なので index 順 = 時系列順。
+            # random_split だと 0.2s しか離れていないほぼ同一フレームが train と val に
+            # 分かれて入り、val loss が汎化性能を過大評価する（リーク）。
+            # 前半 80% を train、後半を val にして時間で切り離す。
+            # さらに境界に gap を空ける: waypoint は 2.5s 先まで見るので、
+            # 境界付近のフレームは train と未来の軌跡を共有してしまう
+            gap = config.split_gap
+            train_indices = list(range(train_size))
+            val_indices = list(range(min(train_size + gap, n), n))
+        else:
+            split_generator = torch.Generator().manual_seed(SPLIT_SEED)
+            tr_idx, va_idx = random_split(
+                range(n), [train_size, n - train_size], generator=split_generator)
+            train_indices, val_indices = list(tr_idx), list(va_idx)
+
+        train_dataset = Subset(train_source, train_indices)
+        val_dataset = Subset(val_source, val_indices)
 
         self.train_loader = DataLoader(
             train_dataset,
@@ -140,6 +215,9 @@ class Trainer:
         print(f'Using device: {self.device}')
         print(f'Dataset: {len(dataset)} mask/RGB pairs')
         print(f'Train size: {len(train_dataset)}, Val size: {len(val_dataset)}')
+        print(f'Augment (train only): {aug_cfg if aug_cfg else "disabled"}')
+        print(f'Split: {config.split_mode}' +
+              (f' (gap={config.split_gap} samples)' if config.split_mode == 'temporal' else ''))
 
     def validate(self) -> float:
         self.model.eval()
