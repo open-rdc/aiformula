@@ -23,8 +23,11 @@ def launch_setup(context, *args, **kwargs):
             'debug_mode': True,
             'default_command': 1,
             'use_place_recognition': True,
-            'yolop_input_size': 256,
-            'yolop_fp16': True,
+            # 学習時 (scripts/binarize_dataset.py) は YOLOPv2Processor を引数省略で生成しており
+            # input_size=640 / use_fp16=False。letterbox の縮小率は 640 のときだけ 1.0 になり、
+            # 640x360 の入力が無縮小で YOLOP に入る。256 だと 256x144 まで潰れてマスクが変わる。
+            'yolop_input_size': 640,
+            'yolop_fp16': False,
             'placenet_model_name': 'placenet.pt',
             'topomap_dir_name': 'topomap',
             'placenet_delta': 5.0,
