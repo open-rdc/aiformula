@@ -9,6 +9,7 @@
 #include "object_detection/pylon_detector_node.hpp"
 #include "pose_estimater/pose_estimater_node.hpp"
 #include "road_detector/road_detector_node.hpp"
+#include "speed_path_planner/speed_path_planner_node.hpp"
 #include "trajectory_follower/controller_server.hpp"
 #include "vectormap_server/vectormap_server_node.hpp"
 #include "vision_lane_planner/vision_lane_planner_node.hpp"
@@ -39,6 +40,7 @@ int main(int argc, char* argv[]) {
     auto odom_tf_node              = std::make_shared<ekf_localizer::OdomTfNode>(nodes_option);
     auto map_odom_tf_node          = std::make_shared<ekf_localizer::MapOdomTfNode>(nodes_option);
     auto local_planner_server_node = std::make_shared<local_planner::LocalPlannerServer>(nodes_option);
+    auto speed_path_planner_node   = std::make_shared<speed_path_planner::SpeedPathPlannerNode>(nodes_option);
     auto controller_server_node    = std::make_shared<trajectory_follower::ControllerServer>(nodes_option);
 
     exec.add_node(controller_node);
@@ -49,6 +51,7 @@ int main(int argc, char* argv[]) {
     exec.add_node(odom_tf_node);
     exec.add_node(map_odom_tf_node);
     exec.add_node(local_planner_server_node);
+    exec.add_node(speed_path_planner_node);
     exec.add_node(controller_server_node);
 
     auto vectormap_server_node = mapless ? nullptr : std::make_shared<vectormap_server::VectormapServerNode>(nodes_option);

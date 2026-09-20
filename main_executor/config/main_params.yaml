@@ -8,7 +8,7 @@ launch:
   ros__parameters:
     linear_max:
       vel : 3.0
-      acc: 5.0
+      acc: 3.0
       jer: 0.0
     steering_max :
       pos : 15.0
@@ -145,6 +145,14 @@ local_planner_server_node:
       weight_lateral_deviation : 50.0
     stop_standoff_m : 1.0
 
+speed_path_planner_node:
+  ros__parameters:
+    a_lat_max          : 3.0
+    v_min              : 1.0
+    curvature_window_m : 2.0
+    decel_distance_before_curve_m : 4.0
+    stop_point_timeout_s : 0.5
+
 pylon_detector_node:
   ros__parameters:
     engine_path : "yolox_s_aiformula.engine"
@@ -161,16 +169,19 @@ controller_server_node:
   ros__parameters:
     interval_ms  : 50
     controller_plugin  : "trajectory_follower::PurePursuitPlugin"
-    a_lat_max          : 5.0
-    a_min              : -2.0
+    a_min              : -4.0
+    velocity_preview_time : 0.3
     pure_pursuit:
-      lookahead_distance : 5.0
+      lookahead_gain         : 1.2
+      lookahead_min_distance : 3.0
+      lookahead_max_distance : 5.0
       steered_gain       : 1.8
     mpc:
       longitudinal:
         a_max              : 5.0
-        jerk_max           : 5.0
-        kp                 : 0.8
+        max_integral_effort : 0.5
+        jerk_max           : 15.0
+        kp                 : 1.5
         ki                 : 0.1
         kd                 : 0.0
         lpf_vel_error_gain : 0.9
