@@ -5,7 +5,8 @@ import numpy as np
 
 
 PLACENET_CROP_SIZE = 288
-MODEL_INPUT_SIZE = (85, 85)
+PLACENET_INPUT_SIZE = (85, 85)
+MASK_INPUT_SIZE = (64, 48)
 
 
 def center_square_crop(image: np.ndarray, crop_size: int = PLACENET_CROP_SIZE) -> np.ndarray:
@@ -33,12 +34,7 @@ def color_mask_to_binary(mask_image: np.ndarray) -> np.ndarray:
 
 def preprocess_lane_mask(mask: np.ndarray) -> np.ndarray:
     binary_mask = color_mask_to_binary(mask)
-    height, width = binary_mask.shape[:2]
-    if height < PLACENET_CROP_SIZE or width < PLACENET_CROP_SIZE:
-        return cv2.resize(binary_mask, MODEL_INPUT_SIZE, interpolation=cv2.INTER_NEAREST)
-
-    cropped_mask = center_square_crop(binary_mask)
-    return cv2.resize(cropped_mask, MODEL_INPUT_SIZE, interpolation=cv2.INTER_NEAREST)
+    return cv2.resize(binary_mask, MASK_INPUT_SIZE, interpolation=cv2.INTER_NEAREST)
 
 
 def lane_mask_to_tensor_array(mask: np.ndarray) -> np.ndarray:
@@ -46,11 +42,9 @@ def lane_mask_to_tensor_array(mask: np.ndarray) -> np.ndarray:
 
 
 def overlay_lane_mask(image_bgr: np.ndarray, processed_mask: np.ndarray) -> np.ndarray:
-    height, width = image_bgr.shape[:2]
-    if height < PLACENET_CROP_SIZE or width < PLACENET_CROP_SIZE:
-        cropped_image = image_bgr
-    else:
-        cropped_image = center_square_crop(image_bgr)
-    debug_image = cv2.resize(cropped_image, MODEL_INPUT_SIZE, interpolation=cv2.INTER_AREA)
+    # inference_node のデバッグ表示専用。マスクは全画面から作られるため、
+    # ここでもクロップせずに全画面を縮小して重ねる。両者の視野を揃えておかないと
+    # デバッグ画像が切り分けの役に立たなくなる。
+    debug_image = cv2.resize(image_bgr, MASK_INPUT_SIZE, interpolation=cv2.INTER_AREA)
     debug_image[processed_mask == 1] = [0, 0, 255]
     return debug_image
