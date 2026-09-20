@@ -69,11 +69,12 @@ int main(int argc, char* argv[]) {
 #ifdef ENABLE_TENSORRT
     auto pylon_detector_node = std::make_shared<object_detection::PylonDetectorNode>(nodes_option);
     exec.add_node(pylon_detector_node);
-    auto road_detector_node = std::make_shared<road_detector::RoadDetectorNode>(nodes_option);
-    exec.add_node(road_detector_node);
+    auto road_detector_node       = mapless ? nullptr : std::make_shared<road_detector::RoadDetectorNode>(nodes_option);
     auto vision_lane_planner_node = mapless ? std::make_shared<vision_lane_planner::VisionLanePlannerNode>(nodes_option) : nullptr;
     if (mapless) {
         exec.add_node(vision_lane_planner_node);
+    } else {
+        exec.add_node(road_detector_node);
     }
 #endif
 
