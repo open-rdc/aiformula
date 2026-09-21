@@ -58,6 +58,23 @@
             filename="libignition-gazebo-sensors-system.so"
             name="ignition::gazebo::systems::Sensors">
         </plugin>
+        <plugin
+            filename="PylonControl"
+            name="ignition::gazebo::PylonControl">
+            <path_file_name>dynamic_obstacle_left1</path_file_name>
+            <panel_model_name>panel</panel_model_name>
+            <robot_model_name>ai_car1</robot_model_name>
+            <pylon_model_name>pylon</pylon_model_name>
+            <setting_service_name>/pylon/setting</setting_service_name>
+            <clear_service_name>/pylon/clear</clear_service_name>
+            <clearance>20.0</clearance>
+            <group_interval>10.0</group_interval>
+            <lateral_range>3.0</lateral_range>
+            <pylon_interval>0.5</pylon_interval>
+            <group_num>3</group_num>
+            <min_pylon_num>2</min_pylon_num>
+            <max_pylon_num>4</max_pylon_num>
+        </plugin>
 
         <light type="directional" name="sun">
             <cast_shadows>true</cast_shadows>
@@ -136,6 +153,24 @@
         <include>
             <uri>package://simulator/models/panel</uri>
             <pose>80.25 4.5 0.0 0 0 3.24</pose>
+        </include>
+        <include>
+            <uri>https://fuel.gazebosim.org/1.0/openrobotics/models/construction cone</uri>
+            <name>panel_cone_0</name>
+            <pose>79.747 3.200 0 0 0 1.5708</pose>
+            <static>true</static>
+        </include>
+        <include>
+            <uri>https://fuel.gazebosim.org/1.0/openrobotics/models/construction cone</uri>
+            <name>panel_cone_1</name>
+            <pose>80.250 3.200 0 0 0 1.5708</pose>
+            <static>true</static>
+        </include>
+        <include>
+            <uri>https://fuel.gazebosim.org/1.0/openrobotics/models/construction cone</uri>
+            <name>panel_cone_2</name>
+            <pose>80.753 3.200 0 0 0 1.5708</pose>
+            <static>true</static>
         </include>
 
     <!-- 用調整 -->
