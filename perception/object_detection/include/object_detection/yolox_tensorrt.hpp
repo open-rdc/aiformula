@@ -8,7 +8,6 @@
 
 namespace object_detection {
 
-// 検出結果。class_id は学習時のクラス割り当て(0: パイロン, 1: 動的障害物)
 struct Detection {
     cv::Rect2d box;
     int        class_id;

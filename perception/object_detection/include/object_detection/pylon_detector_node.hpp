@@ -57,9 +57,8 @@ class PylonDetectorNode : public rclcpp::Node {
     std::optional<camera_utility::CameraIntrinsics> intrinsics_;
     const tf2::Transform                           base_T_camera_;
 
-    static constexpr int    pylon_class_id_            = 0;
-    static constexpr int    dynamic_obstacle_class_id_ = 1;
-    static constexpr double marker_height_m_           = 0.4;
+    static constexpr double marker_height_m_ = 0.4;
+    static constexpr double panel_height_m_  = 1.0;
 
     std::unique_ptr<YoloxTensorrt> detector_;
 

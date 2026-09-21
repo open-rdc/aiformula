@@ -160,6 +160,10 @@ pylon_detector_node:
     score_threshold : 0.3
     nms_threshold : 0.45
 
+traffic_signal_stop_node:
+  ros__parameters:
+    stop_line_offset_m : -4.7
+
 vision_lane_planner_node:
   ros__parameters:
     engine_path : "vision_planner_n.engine"
