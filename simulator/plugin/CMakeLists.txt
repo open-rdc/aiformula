@@ -38,6 +38,10 @@ add_library(LightControl SHARED
   LightControl.cc
 )
 
+add_library(PylonControl SHARED
+  PylonControl.cc
+)
+
 target_include_directories(PathPublisher PRIVATE
   .
   ${PROJ_INCLUDE_DIRS}
@@ -55,6 +59,11 @@ target_include_directories(ColorControl PRIVATE
 )
 target_include_directories(LightControl PRIVATE
   .
+)
+
+target_include_directories(PylonControl PRIVATE
+  .
+  ${PROJ_INCLUDE_DIRS}
 )
 
 target_link_libraries(PathPublisher
@@ -86,10 +95,22 @@ target_link_libraries(LightControl
     ignition-gazebo6::core
 )
 
+target_link_libraries(PylonControl
+  PRIVATE
+    ignition-gazebo6::core
+    ignition-transport11::core
+    ignition-msgs8::core
+    ament_index_cpp::ament_index_cpp
+    rclcpp::rclcpp
+    std_srvs::std_srvs__rosidl_typesupport_cpp
+    ${PROJ_LIBRARIES}
+)
+
 install(TARGETS 
   PathPublisher 
   FollowPath
   ColorControl
   LightControl
+  PylonControl
   DESTINATION lib
 )
