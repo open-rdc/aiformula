@@ -11,6 +11,7 @@
 #include "pose_estimater/pose_estimater_node.hpp"
 #include "road_detector/road_detector_node.hpp"
 #include "speed_path_planner/speed_path_planner_node.hpp"
+#include "traffic_signal_stop/traffic_signal_stop_node.hpp"
 #include "trajectory_follower/controller_server.hpp"
 #include "vectormap_server/vectormap_server_node.hpp"
 #include "vision_lane_planner/vision_lane_planner_node.hpp"
@@ -75,6 +76,8 @@ int main(int argc, char* argv[]) {
 #ifdef ENABLE_TENSORRT
     auto pylon_detector_node = std::make_shared<object_detection::PylonDetectorNode>(nodes_option);
     exec.add_node(pylon_detector_node);
+    auto traffic_signal_stop_node = std::make_shared<traffic_signal_stop::TrafficSignalStopNode>(nodes_option);
+    exec.add_node(traffic_signal_stop_node);
     auto road_detector_node       = mapless ? nullptr : std::make_shared<road_detector::RoadDetectorNode>(nodes_option);
     auto vision_lane_planner_node = mapless ? std::make_shared<vision_lane_planner::VisionLanePlannerNode>(nodes_option) : nullptr;
     if (mapless) {
