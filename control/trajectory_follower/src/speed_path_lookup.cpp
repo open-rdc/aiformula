@@ -24,7 +24,7 @@ speed_path_msgs::msg::SpeedPathPoint preview_point(
         }
     }
 
-    const double target = std::max(v_meas, 0.0) * preview_time;
+    const double target = std::max(std::max(v_meas, 0.0) * preview_time, 0.5);
     double s = 0.0;
     for (std::size_t i = nearest + 1; i < points.size(); ++i) {
         const auto & a = points[i - 1];
