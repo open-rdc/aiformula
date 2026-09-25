@@ -222,7 +222,7 @@
         </geometry>
         <surface>
           <contact>
-            <collide_bitmask>0x04</collide_bitmask>
+            <collide_bitmask>0x0C</collide_bitmask>
           </contact>
         </surface>
       </collision>
