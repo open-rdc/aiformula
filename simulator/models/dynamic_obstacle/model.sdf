@@ -70,6 +70,11 @@
             <size>0.612 0.580 0.1</size>
           </box>
         </geometry>
+        <surface>
+          <contact>
+            <collide_bitmask>0x0A</collide_bitmask>
+          </contact>
+        </surface>
       </collision>
     </link>
 
@@ -96,6 +101,11 @@
 	          <length>0.08</length>
           </cylinder>
         </geometry>
+        <surface>
+          <contact>
+            <collide_bitmask>0x0A</collide_bitmask>
+          </contact>
+        </surface>
       </collision>
     </link>
 
@@ -122,6 +132,11 @@
             <length>0.08</length>
           </cylinder>
         </geometry>
+        <surface>
+          <contact>
+            <collide_bitmask>0x0A</collide_bitmask>
+          </contact>
+        </surface>
       </collision>
     </link>
 
@@ -151,6 +166,11 @@
             <length>0.08</length>
           </cylinder>
         </geometry>
+        <surface>
+          <contact>
+            <collide_bitmask>0x0A</collide_bitmask>
+          </contact>
+        </surface>
       </collision>
     </link>
 
@@ -174,6 +194,11 @@
             <length>0.08</length>
           </cylinder>
         </geometry>
+        <surface>
+          <contact>
+            <collide_bitmask>0x0A</collide_bitmask>
+          </contact>
+        </surface>
       </collision>
     </link>
 
