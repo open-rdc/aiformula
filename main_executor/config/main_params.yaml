@@ -1,13 +1,14 @@
 launch:
   ros__parameters:
-    joy: true
+    joy: false
     sim : true
+    mapless : true
 
 /**:
   ros__parameters:
     linear_max:
       vel : 3.0
-      acc: 5.0
+      acc: 3.0
       jer: 0.0
     steering_max :
       pos : 15.0
@@ -27,7 +28,7 @@ launch:
 
 controller_node:
   ros__parameters:
-    linear_max_vel : 2.0
+    linear_max_vel : 4.0
 
 zed_wrapper_node:
   ros__parameters:
@@ -54,6 +55,7 @@ vectormap_server_node:
 pose_estimater_node:
   ros__parameters:
     interval_ms : 20
+    max_integration_dt : 0.2
     map_origin_geodetic:
       latitude :  36.11313110136178
       longitude: 139.98107529988687
@@ -128,41 +130,65 @@ local_planner_server_node:
     local_planner_plugin : "local_planner::FrenetPlannerPlugin"
     interval_ms : 100
     # plugin パラメータ
-    local_path_horizon_m : 15.0
+    local_path_horizon_m : 20.0
     local_path_resample_interval_m : 0.2
     avoidance_detection_forward_distance_m : 20.0
-    avoidance_hard_margin_m : 0.4
-    avoidance_soft_margin_m : 0.3
-    max_avoidance_shift_m : 3.0
+    avoidance_hard_margin_m : 0.35
+    avoidance_soft_margin_m : 1.0
+    max_avoidance_shift_m : 2.4
+    obstacle_cluster_gap_m : 0.8   # この隙間以下で隣接する障害物は1つとして扱う
     frenet:
-      lateral_sample_step_m : 0.25
-      collision_check_margin_m : 0.2
-      target_lengths_m : [7.5, 15.0]
+      lateral_sample_step_m : 0.15
+      collision_check_margin_m : 0.15
+      target_lengths_m : [15.0]
       weight_curvature : 2000.0
-      weight_length : 1.0
-      weight_lateral_deviation : 50.0
+      weight_lateral_deviation : 150.0
+      weight_side_change : 300.0
     stop_standoff_m : 1.0
+
+speed_path_planner_node:
+  ros__parameters:
+    a_lat_max          : 3.0
+    stop_point_timeout_s : 0.5
 
 pylon_detector_node:
   ros__parameters:
-    engine_path : "yolox_s_merged_nhd.engine"
+    engine_path : "yolox_s_aiformula.engine"
     score_threshold : 0.3
     nms_threshold : 0.45
+
+vision_lane_planner_node:
+  ros__parameters:
+    engine_path : "vision_planner_n.engine"
+    default_navigation_command : "straight"
+
+path_smoother_node:
+  ros__parameters:
+    window_duration_s : 0.15
+    tf_timeout_s : 0.1
+    fit_max_x_m : 12.0
+    extend_to_x_m : 18.0
+    output_interval_m : 0.2
+    ransac_threshold_m : 0.10
+    ransac_iterations : 200
 
 controller_server_node:
   ros__parameters:
     interval_ms  : 50
     controller_plugin  : "trajectory_follower::PurePursuitPlugin"
-    a_lat_max          : 5.0
-    a_min              : -2.0
+    a_min              : -4.0
+    velocity_preview_time : 0.3
     pure_pursuit:
-      lookahead_distance : 5.0
+      lookahead_gain         : 1.2
+      lookahead_min_distance : 3.0
+      lookahead_max_distance : 5.0
       steered_gain       : 1.8
     mpc:
       longitudinal:
         a_max              : 5.0
-        jerk_max           : 5.0
-        kp                 : 0.8
+        max_integral_effort : 0.5
+        jerk_max           : 15.0
+        kp                 : 1.5
         ki                 : 0.1
         kd                 : 0.0
         lpf_vel_error_gain : 0.9

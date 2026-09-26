@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>vision_lane_planner</name>
+  <version>0.1.0</version>
+  <description>学習済みVisionPlannerのTensorRT engineで画像から経路を生成し、base_link座標のPathを出力するノード</description>
+  <maintainer email="teiruyamashita@icloud.com">kyo</maintainer>
+  <license>MIT</license>
+
+  <buildtool_depend>ament_cmake_auto</buildtool_depend>
+
+  <depend>ament_index_cpp</depend>
+  <depend>builtin_interfaces</depend>
+  <depend>camera_utility</depend>
+  <depend>cv_bridge</depend>
+  <depend>geometry_msgs</depend>
+  <depend>nav_msgs</depend>
+  <depend>OpenCV</depend>
+  <depend>rclcpp</depend>
+  <depend>sensor_msgs</depend>
+  <depend>std_msgs</depend>
+  <depend>tf2</depend>
+  <depend>utilities</depend>
+  <depend>visualization_msgs</depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
