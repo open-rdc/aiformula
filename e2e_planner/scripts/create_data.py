@@ -15,7 +15,13 @@ from collections import deque
 from typing import Optional, List, Tuple, Deque
 from tf_transformations import euler_from_quaternion
 from rclpy.qos import qos_profile_sensor_data
-import pymap3d as pm
+from util.waypoints import (
+    PoseSample,
+    build_forward_arc,
+    interpolate_pose,
+    pose_at_distance,
+    transform_to_robot_frame,
+)
 try:
     import pyzed.sl as sl
     ZED_SDK_AVAILABLE = True
@@ -23,23 +29,31 @@ except ImportError:
     ZED_SDK_AVAILABLE = False
 
 SAMPLE_INTERVAL = 0.2
-WAYPOINT_INTERVAL = 0.125
 NUM_WAYPOINTS = 20
+
+# waypoint を「時間」で切るか「距離」で切るか。
+#
+# 'time' は WAYPOINT_INTERVAL 秒ごと = 収集時の速度で経路長が決まる。3.0 m/s で集めると
+# 2.5s 先は 7.5 m にしかならず、5.5 m/s で走らせると pure_pursuit の lookahead が
+# 経路末端に張り付いて linear_scale = distance/lookahead で速度が頭打ちになる。
+#
+# 'distance' は WAYPOINT_DISTANCE m ごと = 純粋な幾何経路になり収集速度から独立する。
+# 低速で集めたバグからでも目標速度に必要な長さの経路が作れる。
+# ただし走行ラインそのものは収集時の速度のものなので、限界域の挙動は別途データが要る。
+WAYPOINT_MODE = 'distance'
+
+WAYPOINT_INTERVAL = 0.125   # 'time' のとき使う[s]
+WAYPOINT_DISTANCE = 0.5     # 'distance' のとき使う[m]。0.5 x 20点 = 10 m 先まで
+
+# 'distance' で、目標距離に達しないまま放置されたサンプルを捨てるまでの時間[s]。
+# 停車すると弧長が伸びず永久に完成しないため、pose_history が無限に伸びるのを防ぐ
+MAX_SAMPLE_WAIT = 30.0
 
 # ZED の camera_fps と揃える。grab() を撮影レートで回して古いフレームを掴まないようにする
 TIMER_PERIOD = 1.0 / 30.0
 
 # pose 履歴に残しておく最低限のマージン[s]。補間に必要な「target_time より前の1点」を確保する
 POSE_HISTORY_MARGIN = 0.5
-
-
-class PoseSample:
-    """補間に使う最小限の姿勢。ECEF 位置とヨー角だけ持つ"""
-
-    def __init__(self, timestamp: float, position: np.ndarray, yaw: float):
-        self.timestamp: float = timestamp
-        self.position: np.ndarray = position
-        self.yaw: float = yaw
 
 
 class Sample:
@@ -50,6 +64,7 @@ class Sample:
         self.reference: Optional[PoseSample] = None
         self.waypoints: List[Tuple[float, float]] = []
         self.target_times: List[float] = [timestamp + WAYPOINT_INTERVAL * (i + 1) for i in range(NUM_WAYPOINTS)]
+        self.target_distances: List[float] = [WAYPOINT_DISTANCE * (i + 1) for i in range(NUM_WAYPOINTS)]
 
 
 class DataCollectionNode(Node):
@@ -90,7 +105,10 @@ class DataCollectionNode(Node):
         self.create_subscription(Joy, '/joy', self.joy_callback, 10)
         self.create_timer(TIMER_PERIOD, self.timer_callback)
 
-        self.get_logger().info('⚪Create data started')
+        horizon = (f'{WAYPOINT_DISTANCE * NUM_WAYPOINTS:.1f} m ({WAYPOINT_DISTANCE} m x {NUM_WAYPOINTS}点)'
+                   if WAYPOINT_MODE == 'distance'
+                   else f'{WAYPOINT_INTERVAL * NUM_WAYPOINTS:.2f} s ({WAYPOINT_INTERVAL} s x {NUM_WAYPOINTS}点)')
+        self.get_logger().info(f'⚪Create data started / waypoint mode={WAYPOINT_MODE}, horizon={horizon}')
 
     def _initialize_zed_camera(self) -> None:
         self.zed_camera = sl.Camera()
@@ -191,7 +209,7 @@ class DataCollectionNode(Node):
 
         for sample in self.samples:
             if sample.reference is None:
-                sample.reference = self.interpolate_pose(sample.timestamp)
+                sample.reference = interpolate_pose(self.pose_history, sample.timestamp)
             if sample.reference is not None:
                 self.collect_waypoints_for_sample(sample)
 
@@ -201,74 +219,67 @@ class DataCollectionNode(Node):
             self.get_logger().info(f'🟡Collected data #{len(self.collected_data)}')
 
         self.samples = [sample for sample in self.samples if len(sample.waypoints) < NUM_WAYPOINTS]
+        self.drop_stale_samples()
 
         self.cleanup_pose_history()
 
+    def drop_stale_samples(self) -> None:
+        """距離モードで、停車などにより目標距離に届かないサンプルを捨てる"""
+        if WAYPOINT_MODE != 'distance' or not self.samples or not self.pose_history:
+            return
+
+        latest = self.pose_history[-1].timestamp
+        kept = [s for s in self.samples if latest - s.timestamp <= MAX_SAMPLE_WAIT]
+        dropped = len(self.samples) - len(kept)
+        if dropped:
+            self.get_logger().warn(
+                f'{dropped} 件のサンプルを破棄しました'
+                f'（{MAX_SAMPLE_WAIT:.0f}s 以内に {WAYPOINT_DISTANCE * NUM_WAYPOINTS:.1f}m 進まなかった）')
+        self.samples = kept
+
     def collect_waypoints_for_sample(self, sample: Sample) -> None:
+        if WAYPOINT_MODE == 'distance':
+            arc = build_forward_arc(self.pose_history, sample.reference)
+            for i in range(len(sample.waypoints), NUM_WAYPOINTS):
+                pose = pose_at_distance(arc, sample.target_distances[i])
+                if pose is None:
+                    break
+                x, y = transform_to_robot_frame(sample.reference, pose)
+                sample.waypoints.append((x, y))
+            return
+
         for i in range(len(sample.waypoints), NUM_WAYPOINTS):
             target_time = sample.target_times[i]
-            pose = self.interpolate_pose(target_time)
+            pose = interpolate_pose(self.pose_history, target_time)
             if pose is None:
                 break
-            x, y = self.transform_to_robot_frame(sample.reference, pose)
+            x, y = transform_to_robot_frame(sample.reference, pose)
             sample.waypoints.append((x, y))
-
-    def interpolate_pose(self, target_time: float) -> Optional[PoseSample]:
-        """target_time を挟む2点から線形補間した姿勢を返す。
-        最近傍で済ませると pose レートの半周期分（常に未来寄り）のバイアスが乗るため補間する"""
-        if len(self.pose_history) < 2:
-            return None
-        if target_time < self.pose_history[0].timestamp or target_time > self.pose_history[-1].timestamp:
-            return None
-
-        for i in range(len(self.pose_history) - 1):
-            before = self.pose_history[i]
-            after = self.pose_history[i + 1]
-            if after.timestamp < target_time:
-                continue
-
-            span = after.timestamp - before.timestamp
-            ratio = 0.0 if span <= 0.0 else (target_time - before.timestamp) / span
-
-            position = before.position + (after.position - before.position) * ratio
-            # ヨーは ±π をまたぐので最短回転側で補間する
-            delta_yaw = (after.yaw - before.yaw + np.pi) % (2.0 * np.pi) - np.pi
-            yaw = before.yaw + delta_yaw * ratio
-
-            return PoseSample(target_time, position, yaw)
-
-        return None
 
     def cleanup_pose_history(self) -> None:
         if not self.pose_history:
             return
 
         if self.samples:
-            # 未解決の reference と、次に必要な target_time のうち最も古い時刻まで残す
-            required_times = []
-            for sample in self.samples:
-                if sample.reference is None:
-                    required_times.append(sample.timestamp)
-                if len(sample.waypoints) < NUM_WAYPOINTS:
-                    required_times.append(sample.target_times[len(sample.waypoints)])
-            oldest_required = min(required_times) if required_times else self.pose_history[-1].timestamp
+            if WAYPOINT_MODE == 'distance':
+                # 目標距離に達する時刻は事前に分からないので、未完成サンプルの
+                # 基準時刻そのものまで残す（そこから前方の弧長を積み直すため）
+                oldest_required = min(sample.timestamp for sample in self.samples)
+            else:
+                # 未解決の reference と、次に必要な target_time のうち最も古い時刻まで残す
+                required_times = []
+                for sample in self.samples:
+                    if sample.reference is None:
+                        required_times.append(sample.timestamp)
+                    if len(sample.waypoints) < NUM_WAYPOINTS:
+                        required_times.append(sample.target_times[len(sample.waypoints)])
+                oldest_required = min(required_times) if required_times else self.pose_history[-1].timestamp
         else:
             oldest_required = self.pose_history[-1].timestamp
 
         # 補間には oldest_required より前の1点が要るので、2番目が古い間だけ捨てる
         while len(self.pose_history) > 2 and self.pose_history[1].timestamp < oldest_required - POSE_HISTORY_MARGIN:
             self.pose_history.popleft()
-
-    def transform_to_robot_frame(self, reference: PoseSample, current: PoseSample) -> Tuple[float, float]:
-        lat0, lon0, alt0 = pm.ecef2geodetic(reference.position[0], reference.position[1], reference.position[2])
-        yaw0 = reference.yaw
-
-        e, n, u = pm.ecef2enu(current.position[0], current.position[1], current.position[2], lat0, lon0, alt0)
-
-        x_robot = -e * np.sin(yaw0) + n * np.cos(yaw0)
-        y_robot = -e * np.cos(yaw0) - n * np.sin(yaw0)
-
-        return x_robot, y_robot
 
     def save_data(self) -> None:
         if len(self.collected_data) == 0:
