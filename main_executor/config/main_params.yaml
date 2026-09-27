@@ -159,7 +159,7 @@ pylon_detector_node:
 
 traffic_signal_stop_node:
   ros__parameters:
-    stop_line_offset_m : -4.7
+    stop_distance_to_panel_pylon_m : 3.3
 
 vision_lane_planner_node:
   ros__parameters:

@@ -25,7 +25,7 @@ public:
 private:
     void objects_callback(const object_detection_msgs::msg::ObjectInfoArray::ConstSharedPtr msg);
 
-    const double stop_line_offset_m_;
+    const double stop_distance_to_panel_pylon_m_;
 
     rclcpp::Subscription<object_detection_msgs::msg::ObjectInfoArray>::SharedPtr objects_subscription_;
     rclcpp::Publisher<speed_path_msgs::msg::StopPoint>::SharedPtr stop_point_publisher_;

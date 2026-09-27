@@ -18,7 +18,7 @@ TrafficSignalStopNode::TrafficSignalStopNode(
     const std::string& name_space,
     const rclcpp::NodeOptions& options)
 : rclcpp::Node("traffic_signal_stop_node", name_space, options),
-  stop_line_offset_m_(get_parameter("stop_line_offset_m").as_double())
+  stop_distance_to_panel_pylon_m_(get_parameter("stop_distance_to_panel_pylon_m").as_double())
 {
     objects_subscription_ = create_subscription<object_detection_msgs::msg::ObjectInfoArray>(
         "/perception/objects", rclcpp::SensorDataQoS().keep_last(1),
@@ -59,7 +59,7 @@ void TrafficSignalStopNode::objects_callback(const object_detection_msgs::msg::O
     }
 
     speed_path_msgs::msg::StopPoint stop_point;
-    stop_point.distance = pylon->x + stop_line_offset_m_;
+    stop_point.distance = pylon->x - stop_distance_to_panel_pylon_m_;
     stop_point_publisher_->publish(stop_point);
 }
 
