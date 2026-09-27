@@ -20,7 +20,8 @@ def compute_loss(outputs, targets, branch_scale, smooth_scale):
     loss_xp = error.sum() / weight.sum()
     loss_valid = F.binary_cross_entropy_with_logits(valid, target_valid)
 
-    curvature = position[..., 2:] - 2 * position[..., 1:-1] + position[..., :-2]
+    residual = position - target_xp
+    curvature = residual[..., 2:] - 2 * residual[..., 1:-1] + residual[..., :-2]
     mask = target_valid[..., 2:] * target_valid[..., 1:-1] * target_valid[..., :-2]
     loss_smooth = (curvature.abs() * mask).sum() / mask.sum().clamp(min=1.0)
 
