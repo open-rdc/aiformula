@@ -121,19 +121,18 @@ sensor_msgs::msg::Image::UniquePtr VisionLanePlannerNode::make_debug_image(
         cv::Scalar(0, 220, 0), cv::Scalar(0, 120, 230), cv::Scalar(255, 140, 0)};
 
     cv::Mat canvas = source.clone();
-    for (std::size_t slot = 0; slot < num_slots; ++slot) {
-        for (std::size_t row = 0; row < num_rows; ++row) {
-            const double sigmoid_valid = 1.0 / (1.0 + std::exp(-static_cast<double>(prediction.valid_logit[slot][row])));
-            if (sigmoid_valid <= valid_threshold) {
-                continue;
-            }
-            const double u = static_cast<double>(prediction.position[slot][row]) * (input_width - 1) - pad_left;
-            const double v = row_anchor_v(row) - pad_top;
-            if (u < 0.0 || u > canvas.cols - 1 || v < 0.0 || v > canvas.rows - 1) {
-                continue;
-            }
-            cv::circle(canvas, cv::Point(static_cast<int>(u), static_cast<int>(v)), 3, slot_colors[slot], -1);
+    const std::size_t slot = static_cast<std::size_t>(commanded_slot_);
+    for (std::size_t row = 0; row < num_rows; ++row) {
+        const double sigmoid_valid = 1.0 / (1.0 + std::exp(-static_cast<double>(prediction.valid_logit[slot][row])));
+        if (sigmoid_valid <= valid_threshold) {
+            continue;
         }
+        const double u = static_cast<double>(prediction.position[slot][row]) * (input_width - 1) - pad_left;
+        const double v = row_anchor_v(row) - pad_top;
+        if (u < 0.0 || u > canvas.cols - 1 || v < 0.0 || v > canvas.rows - 1) {
+            continue;
+        }
+        cv::circle(canvas, cv::Point(static_cast<int>(u), static_cast<int>(v)), 3, slot_colors[slot], -1);
     }
 
     auto message = std::make_unique<sensor_msgs::msg::Image>();

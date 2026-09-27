@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <stdexcept>
 
 namespace speed_path_planner::speed_profile
 {
@@ -34,21 +35,15 @@ std::vector<double> arc_lengths(const std::vector<Point2D>& points)
     return s;
 }
 
-std::vector<double> curvatures(
-    const std::vector<Point2D>& points, const std::vector<double>& s, double window_m)
+std::vector<double> curvatures(const std::vector<Point2D>& points)
 {
     const std::size_t n = points.size();
+    if (n < 3) {
+        throw std::invalid_argument("curvatures requires at least three path points");
+    }
     std::vector<double> kappa(n, 0.0);
-    for (std::size_t i = 0; i < n; ++i) {
-        std::size_t lo = i;
-        while (lo > 0 && s[i] - s[lo] < window_m) {
-            --lo;
-        }
-        std::size_t hi = i;
-        while (hi + 1 < n && s[hi] - s[i] < window_m) {
-            ++hi;
-        }
-        kappa[i] = menger_curvature(points[lo], points[i], points[hi]);
+    for (std::size_t i = 1; i + 1 < n; ++i) {
+        kappa[i] = menger_curvature(points[i - 1], points[i], points[i + 1]);
     }
     kappa[0] = kappa[1];
     kappa[n - 1] = kappa[n - 2];
@@ -59,22 +54,10 @@ std::vector<double> lateral_limits(const std::vector<double>& curvature, const L
 {
     std::vector<double> v(curvature.size());
     for (std::size_t i = 0; i < curvature.size(); ++i) {
-        v[i] = std::clamp(
-            std::sqrt(limits.a_lat_max / std::abs(curvature[i])), limits.v_min, limits.v_max);
+        v[i] = std::min(
+            std::sqrt(limits.a_lat_max / std::abs(curvature[i])), limits.v_max);
     }
     return v;
-}
-
-std::vector<double> apply_before_curve(
-    const std::vector<double>& v, const std::vector<double>& s, double distance)
-{
-    std::vector<double> out(v);
-    for (std::size_t i = 0; i < v.size(); ++i) {
-        for (std::size_t j = i + 1; j < v.size() && s[j] - s[i] <= distance; ++j) {
-            out[i] = std::min(out[i], v[j]);
-        }
-    }
-    return out;
 }
 
 void apply_stop(std::vector<double>& v, const std::vector<double>& s, double stop_s)
@@ -117,12 +100,11 @@ Profile plan(
 {
     const auto s = arc_lengths(points);
     Profile profile;
-    profile.curvature = curvatures(points, s, limits.curvature_window_m);
+    profile.curvature = curvatures(points);
     profile.velocity = lateral_limits(profile.curvature, limits);
-    profile.velocity = apply_before_curve(profile.velocity, s, limits.decel_distance_before_curve_m);
     apply_stop(profile.velocity, s, stop_s);
     backward_pass(profile.velocity, s, limits.a_lon);
-    forward_pass(profile.velocity, s, std::max(v_meas, limits.v_min), limits.a_lon);
+    forward_pass(profile.velocity, s, std::max(v_meas, 0.0), limits.a_lon);
     profile.acceleration = accelerations(profile.velocity, s);
     return profile;
 }
