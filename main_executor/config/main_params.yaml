@@ -9,7 +9,7 @@ launch:
     linear_max:
       vel : 3.0
       acc: 3.0
-      jer: 0.0
+      jer: 15.0
     steering_max :
       pos : 15.0
 
@@ -185,21 +185,19 @@ controller_server_node:
       steered_gain       : 1.8
     mpc:
       longitudinal:
-        a_max              : 5.0
         max_integral_effort : 0.5
-        jerk_max           : 15.0
         kp                 : 1.5
-        ki                 : 0.1
+        ki                 : 0.3
         kd                 : 0.0
-        lpf_vel_error_gain : 0.9
+        lpf_vel_error_gain : 0.5
       lateral:
         horizon                       : 20
         prediction_dt                 : 0.1
         min_predict_speed             : 0.5
-        steer_tau                     : 0.3
+        steer_tau                     : 0.35
         weight_lat_error              : 1.0
         weight_heading_error          : 1.0
-        weight_steering_input         : 0.5
-        weight_steer_rate             : 5.0
+        weight_steering_input         : 0.1
+        weight_steer_rate             : 30.0
         weight_terminal_lat_error     : 1.0
         weight_terminal_heading_error : 1.0
