@@ -15,6 +15,8 @@ namespace local_planner
 {
 namespace
 {
+using object_detection_msgs::msg::ObjectInfo;
+
 constexpr double EPSILON = 1.0e-6;
 constexpr double AVOIDANCE_STEERING_SAFETY_FACTOR = 0.8;
 constexpr double COLLISION_LONGITUDINAL_MIN_M = 0.5;
@@ -319,6 +321,9 @@ std::vector<FrenetPlannerPlugin::FrenetObstacle> FrenetPlannerPlugin::find_obsta
     std::vector<FrenetObstacle> found;
     found.reserve(objects.objects.size());
     for (const auto& obj : objects.objects) {
+        if (obj.id == ObjectInfo::ID_PANEL_RED || obj.id == ObjectInfo::ID_PANEL_GREEN) {
+            continue;
+        }
         const ProjectedPose frenet_pose = project_to_path(Point2D{obj.x, obj.y});
         const double half_width = 0.5 * std::max(0.0, static_cast<double>(obj.width));
         const double delta_s = frenet_pose.s - current_s;

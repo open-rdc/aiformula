@@ -23,6 +23,7 @@
   <depend>local_planner</depend>
   <depend>speed_path_planner</depend>
   <depend>object_detection</depend>
+  <depend>traffic_signal_stop</depend>
   <depend>vision_lane_planner</depend>
   <depend>zed_wrapper</depend>
   <depend>road_detector</depend>

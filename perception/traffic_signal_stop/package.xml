@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>traffic_signal_stop</name>
+  <version>0.0.0</version>
+  <description>赤信号パネル検出時に前方パイロンまでの距離から停止点を発行するノード</description>
+  <maintainer email="s21c1135sc@chibatech.ac.jp">Kyo Yamashita</maintainer>
+  <license>MIT</license>
+
+  <buildtool_depend>ament_cmake_auto</buildtool_depend>
+
+  <depend>rclcpp</depend>
+  <depend>object_detection_msgs</depend>
+  <depend>speed_path_msgs</depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
