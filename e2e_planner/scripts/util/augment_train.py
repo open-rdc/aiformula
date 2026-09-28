@@ -79,3 +79,22 @@ def color_jitter(
         out = cv2.cvtColor(hsv.astype(np.uint8), cv2.COLOR_HSV2BGR)
 
     return out
+
+
+def jitter_stack(
+    images: list,
+    seed: int,
+    brightness: float = 0.3,
+    contrast: float = 0.3,
+    saturation: float = 0.3,
+    hue: float = 0.03,
+) -> list:
+    """フレームスタックの全フレームに**同じ**色変換をかける。
+
+    フレームごとに独立に振ると、現実には起こらない「0.5秒で空の色が変わる」入力に
+    なってしまい、モデルがフレーム間の明るさの差を手がかりにできなくなる。
+    同じ seed から rng を作り直すことで、各フレームに同一の乱数列を引かせる。
+    """
+    return [color_jitter(image, np.random.default_rng(seed),
+                         brightness, contrast, saturation, hue)
+            for image in images]
