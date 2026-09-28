@@ -8,8 +8,6 @@
 #include <Eigen/Core>
 #include <Eigen/Dense>
 
-#include "trajectory_follower/mpc/speed_limit.hpp"
-
 namespace trajectory_follower
 {
 
@@ -30,7 +28,9 @@ void LateralMpc::configure(const LateralMpcParams & params)
 }
 
 double LateralMpc::computeSteering(
-    const std::vector<std::array<double, 2>> & path_xy, double v)
+    const std::vector<std::array<double, 2>> & path_xy,
+    const std::vector<double> & curvatures,
+    double v)
 {
     const int n = static_cast<int>(path_xy.size());
     if (n < 3) {
@@ -42,13 +42,6 @@ double LateralMpc::computeSteering(
         arc[i] = arc[i - 1] + std::hypot(path_xy[i][0] - path_xy[i - 1][0],
                                          path_xy[i][1] - path_xy[i - 1][1]);
     }
-    std::vector<double> curv(n, 0.0);
-    for (int i = 1; i < n - 1; ++i) {
-        curv[i] = menger_curvature(path_xy[i - 1], path_xy[i], path_xy[i + 1]);
-    }
-    curv[0] = curv[1];
-    curv[n - 1] = curv[n - 2];
-
     int nearest = 0;
     double best = std::numeric_limits<double>::max();
     for (int i = 0; i < n; ++i) {
@@ -88,7 +81,7 @@ double LateralMpc::computeSteering(
         const double s_abs = arc[nearest] + s;
         int j = nearest;
         while (j < n - 1 && arc[j] < s_abs) ++j;
-        return curv[j];
+        return curvatures[j];
     };
 
     std::vector<Eigen::Matrix3d> Apow(N + 1, Eigen::Matrix3d::Identity());

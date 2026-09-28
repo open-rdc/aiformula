@@ -22,7 +22,7 @@ RoadDetectorNode::RoadDetectorNode(const rclcpp::NodeOptions& options)
 
     image_subscription_ = create_subscription<sensor_msgs::msg::Image>("/zed/zed_node/rgb/image_rect_color", rclcpp::QoS(1).best_effort(), std::bind(&RoadDetectorNode::image_callback, this, std::placeholders::_1));
 
-    RCLCPP_INFO(get_logger(), "road_detector 起動 (engine=%s, 入力=%dx%d)", engine_path.c_str(), segmenter_->input_size().width, segmenter_->input_size().height);
+    RCLCPP_INFO(get_logger(), "YOLOPv2エンジンを読み込みました: %s (入力=%dx%d)", engine_path.c_str(), segmenter_->input_size().width, segmenter_->input_size().height);
 }
 
 void RoadDetectorNode::image_callback(const sensor_msgs::msg::Image::ConstSharedPtr msg)
