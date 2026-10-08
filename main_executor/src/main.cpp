@@ -33,36 +33,34 @@ int main(int argc, char* argv[]) {
         nodes_option.parameter_overrides({rclcpp::Parameter("use_sim_time", true)});
     }
 
-    auto controller_node           = std::make_shared<controller::Controller>(nodes_option);
     auto lane_line_publisher_node  = std::make_shared<lane_line_publisher::LaneLinePublisherNode>(nodes_option);
     auto vectormap_visualizer_node = std::make_shared<lane_line_publisher::VectormapVisualizerNode>(nodes_option);
+    auto vectormap_server_node     = mapless ? nullptr : std::make_shared<vectormap_server::VectormapServerNode>(nodes_option);
     auto pose_estimater_node       = mapless ? nullptr : std::make_shared<pose_estimater::PoseEstimaterNode>(nodes_option);
     auto ekf_localizer_node        = mapless ? nullptr : std::make_shared<ekf_localizer::EkfLocalizerNode>(nodes_option);
-    auto odom_tf_node              = std::make_shared<ekf_localizer::OdomTfNode>(nodes_option);
     auto map_odom_tf_node          = mapless ? nullptr : std::make_shared<ekf_localizer::MapOdomTfNode>(nodes_option);
+    auto odom_tf_node              = std::make_shared<ekf_localizer::OdomTfNode>(nodes_option);
+    auto mission_planner_node      = mapless ? nullptr : std::make_shared<mission_planner::MissionPlannerNode>(nodes_option);
     auto local_planner_server_node = std::make_shared<local_planner::LocalPlannerServer>(nodes_option);
     auto speed_path_planner_node   = std::make_shared<speed_path_planner::SpeedPathPlannerNode>(nodes_option);
     auto controller_server_node    = std::make_shared<trajectory_follower::ControllerServer>(nodes_option);
+    auto controller_node           = std::make_shared<controller::Controller>(nodes_option);
 
-    exec.add_node(controller_node);
     exec.add_node(lane_line_publisher_node);
-    exec.add_node(vectormap_visualizer_node);
-    exec.add_node(odom_tf_node);
     if (!mapless) {
+        exec.add_node(vectormap_server_node);
+        exec.add_node(vectormap_visualizer_node);
         exec.add_node(pose_estimater_node);
         exec.add_node(ekf_localizer_node);
         exec.add_node(map_odom_tf_node);
+        exec.add_node(mission_planner_node);
+
     }
+    exec.add_node(odom_tf_node);
     exec.add_node(local_planner_server_node);
     exec.add_node(speed_path_planner_node);
     exec.add_node(controller_server_node);
-
-    auto vectormap_server_node = mapless ? nullptr : std::make_shared<vectormap_server::VectormapServerNode>(nodes_option);
-    auto mission_planner_node  = mapless ? nullptr : std::make_shared<mission_planner::MissionPlannerNode>(nodes_option);
-    if (!mapless) {
-        exec.add_node(vectormap_server_node);
-        exec.add_node(mission_planner_node);
-    }
+    exec.add_node(controller_node);
 
 #ifdef ENABLE_ZED
     std::shared_ptr<zed_wrapper::ZedWrapperNode> zed_wrapper_node;
@@ -73,18 +71,17 @@ int main(int argc, char* argv[]) {
 #endif
 
 #ifdef ENABLE_TENSORRT
-    auto pylon_detector_node = std::make_shared<object_detection::PylonDetectorNode>(nodes_option);
-    exec.add_node(pylon_detector_node);
+    auto pylon_detector_node      = std::make_shared<object_detection::PylonDetectorNode>(nodes_option);
     auto road_detector_node       = mapless ? nullptr : std::make_shared<road_detector::RoadDetectorNode>(nodes_option);
     auto vision_lane_planner_node = mapless ? std::make_shared<vision_lane_planner::VisionLanePlannerNode>(nodes_option) : nullptr;
+    auto path_smoother_node       = mapless ? std::make_shared<path_smoother::PathSmootherNode>(nodes_option) : nullptr;
+
+    exec.add_node(pylon_detector_node);
     if (mapless) {
         exec.add_node(vision_lane_planner_node);
+        exec.add_node(path_smoother_node);
     } else {
         exec.add_node(road_detector_node);
-    }
-    auto path_smoother_node = mapless ? std::make_shared<path_smoother::PathSmootherNode>(nodes_option) : nullptr;
-    if (mapless) {
-        exec.add_node(path_smoother_node);
     }
 #endif
 
