@@ -20,7 +20,7 @@ public:
     void setMeasuredSteer(double steer) override;
 
     std::optional<steered_drive_msg::msg::SteeredDrive> computeCommand(
-        const nav_msgs::msg::Path & path_in_base,
+        const speed_path_msgs::msg::SpeedPath & path_in_base,
         double current_velocity) override;
 
 private:
@@ -29,6 +29,7 @@ private:
 
     LongitudinalPid longitudinal_;
     LateralMpc lateral_;
+    double velocity_preview_time_{0.0};
 };
 
 }

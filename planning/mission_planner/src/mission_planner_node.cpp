@@ -63,10 +63,10 @@ uint8_t read_default_navigation_command(rclcpp::Node& node)
 
 double read_curvature_limit_per_m(rclcpp::Node& node)
 {
-    constexpr double kCurvatureSafetyFactor = 0.8;
+    constexpr double curvature_safety_factor = 0.8;
     const double wheelbase_m = node.get_parameter("wheelbase").as_double();
     const double steering_max_deg = node.get_parameter("steering_max.pos").as_double();
-    return kCurvatureSafetyFactor * std::tan(utils::dtor(steering_max_deg)) / wheelbase_m;
+    return curvature_safety_factor * std::tan(utils::dtor(steering_max_deg)) / wheelbase_m;
 }
 
 double compute_remaining_arc_length_m(

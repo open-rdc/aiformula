@@ -1,0 +1,12 @@
+# --- 学習率スケジュール (training/util.py LinearLR) ---
+warmup_epochs: 3
+max_lr: 0.01
+min_lr: 0.0001
+
+# --- optimizer (training/trainer.py) ---
+momentum: 0.937
+weight_decay: 0.0005
+
+# --- 損失の重み (training/vision_planner_loss.py) ---
+branch_scale: 2.0
+smooth_scale: 15.0

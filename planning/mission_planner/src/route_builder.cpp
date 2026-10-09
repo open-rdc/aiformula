@@ -21,7 +21,7 @@ using LaneConnection = vectormap_msgs::msg::LaneConnection;
 using LineString = vectormap_msgs::msg::LineString;
 
 constexpr double EPSILON = 1.0e-6;
-constexpr int kSmoothingSamplesPerSegment = 10;
+constexpr int smoothing_samples_per_segment = 10;
 
 double distance_2d(const Point2D& a, const Point2D& b)
 {
@@ -99,11 +99,11 @@ Point2D catmull_rom_point(
     const Point2D& p3,
     const double u)
 {
-    constexpr double kCentripetalAlpha = 0.5;
+    constexpr double centripetal_alpha = 0.5;
     const double t0 = 0.0;
-    const double t1 = t0 + std::max(std::pow(distance_2d(p0, p1), kCentripetalAlpha), EPSILON);
-    const double t2 = t1 + std::max(std::pow(distance_2d(p1, p2), kCentripetalAlpha), EPSILON);
-    const double t3 = t2 + std::max(std::pow(distance_2d(p2, p3), kCentripetalAlpha), EPSILON);
+    const double t1 = t0 + std::max(std::pow(distance_2d(p0, p1), centripetal_alpha), EPSILON);
+    const double t2 = t1 + std::max(std::pow(distance_2d(p1, p2), centripetal_alpha), EPSILON);
+    const double t3 = t2 + std::max(std::pow(distance_2d(p2, p3), centripetal_alpha), EPSILON);
     const double t = t1 + u * (t2 - t1);
 
     const auto a1 = blend_point(p0, p1, t0, t1, t);
@@ -516,7 +516,7 @@ bool MissionPlannerNode::apply_route_lanelet_ids(
         }
     }
 
-    const auto smoothed_points = catmull_rom_smooth(route_points, kSmoothingSamplesPerSegment);
+    const auto smoothed_points = catmull_rom_smooth(route_points, smoothing_samples_per_segment);
 
     std::vector<Point2D> resample_points;
     std::vector<double> raw_s;

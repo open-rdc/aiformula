@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>path_smoother</name>
+  <version>0.1.0</version>
+  <description>vision_lane_planner の推論点列を直近数フレームぶん odom で集め、弧長重み付きRANSACと2次多項式で平滑化して20 mまで直線延長したPathを出力するノード</description>
+  <maintainer email="teiruyamashita@icloud.com">kyo</maintainer>
+  <license>MIT</license>
+  <buildtool_depend>ament_cmake_auto</buildtool_depend>
+  <depend>geometry_msgs</depend>
+  <depend>message_filters</depend>
+  <depend>nav_msgs</depend>
+  <depend>rclcpp</depend>
+  <depend>tf2</depend>
+  <depend>tf2_geometry_msgs</depend>
+  <depend>tf2_ros</depend>
+  <depend>utilities</depend>
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
