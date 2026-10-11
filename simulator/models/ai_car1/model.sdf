@@ -11,7 +11,7 @@
       <left_joint>left_wheel_joint</left_joint>
       <right_joint>right_wheel_joint</right_joint>
       <wheel_separation>0.6</wheel_separation>
-      <wheel_radius>0.12</wheel_radius>
+      <wheel_radius>0.127</wheel_radius>
       <odom_publish_frequency>30</odom_publish_frequency>
       <topic>cmd_vel_twist</topic>
       <odom_topic>odom</odom_topic>
@@ -45,7 +45,7 @@
     <!-- chassis -->
 
     <link name='chassis'>
-      <pose relative_to='__model__'>0 0 0.15 0 0 0</pose>
+      <pose relative_to='__model__'>0 0 0.127 0 0 0</pose>
 
       <inertial> <!--inertial properties of the link mass, inertia matix-->
         <inertia>
@@ -66,6 +66,7 @@
             <uri>package://simulator/models/ai_car1/meshes/AIF_body.dae</uri>
           </mesh>
         </geometry>
+        <visibility_flags>4294967294</visibility_flags>
       </visual>
 
       <collision name='collision'>
@@ -105,7 +106,7 @@
         <pose>0 -0.3 0 1.57 0 1.57</pose>
           <mesh>
             <uri>package://simulator/models/ai_car1/meshes/tire.dae</uri>
-            <scale>0.05 0.12 0.12</scale>
+            <scale>0.0625 0.127 0.127</scale>
           </mesh>
         </geometry>
       </visual>
@@ -114,7 +115,7 @@
         <pose>0 -0.3 0 1.57 0 1.57</pose>
           <mesh>
             <uri>package://simulator/models/ai_car1/meshes/tire.dae</uri>
-            <scale>0.05 0.12 0.12</scale>
+            <scale>0.0625 0.127 0.127</scale>
           </mesh>
         </geometry>
         <surface>
@@ -147,7 +148,7 @@
         <pose>0 0.3 0 1.57 0 1.57</pose>
           <mesh>
             <uri>package://simulator/models/ai_car1/meshes/tire.dae</uri>
-            <scale>0.05 0.12 0.12</scale>
+            <scale>0.0625 0.127 0.127</scale>
           </mesh>
         </geometry>
       </visual>
@@ -157,7 +158,7 @@
         <pose>0 0.3 0 1.57 0 1.57</pose>
           <mesh>
             <uri>package://simulator/models/ai_car1/meshes/tire.dae</uri>
-            <scale>0.05 0.12 0.12</scale>
+            <scale>0.0625 0.127 0.127</scale>
           </mesh>
         </geometry>
         <surface>
@@ -171,7 +172,7 @@
     <!-- caster wheel -->
 
     <frame name="caster_frame" attached_to='chassis'>
-        <pose>-0.8 0 0 0 0 1.57</pose>
+        <pose>-0.733 0 -0.002 0 0 1.57</pose>
     </frame>
 
     <link name='caster_yaw'>
@@ -190,7 +191,7 @@
     </link>
 
     <link name='caster'>
-      <pose relative_to='caster_yaw'/>
+      <pose relative_to='caster_yaw'>0 0.04 0 0 0 0</pose>
       <inertial>
         <mass>1.0</mass>
         <inertia>
@@ -208,7 +209,7 @@
         <geometry>
           <mesh>
             <uri>package://simulator/models/ai_car1/meshes/tire.dae</uri>
-            <scale>0.1 0.1 0.1</scale>
+            <scale>0.1 0.125 0.125</scale>
           </mesh>
         </geometry>
       </visual>
@@ -217,7 +218,7 @@
         <geometry>
           <mesh>
             <uri>package://simulator/models/ai_car1/meshes/tire.dae</uri>
-            <scale>0.1 0.1 0.1</scale>
+            <scale>0.1 0.125 0.125</scale>
           </mesh>
         </geometry>
         <surface>
@@ -340,8 +341,7 @@
 
 
     <link name="camera_link">
-      <!-- 取付姿勢は localization の camera_to_base から導出（scripts/camera_extrinsic_sim_pose.py）。 -->
-      <pose relative_to="chassis">0.055 0.0 0.54 -0.0034939840 0.0436329672 -0.0036430636</pose>
+      <pose relative_to="chassis">-0.008 0.0325 0.4277 0.00867605 -0.00346759 0.00624156</pose>
       <inertial>
         <mass>0.01</mass>
         <inertia>
@@ -361,13 +361,30 @@
         <pose>0 0 0 0 0 0</pose>
         <topic>image_raw</topic>
         <camera name="camera">
-          <horizontal_fov>1.82861281254</horizontal_fov>
-          <vertical_fov>1.26187565183</vertical_fov>
+          <visibility_mask>1</visibility_mask>
+          <horizontal_fov>1.798255304332</horizontal_fov>
           <image>
              <width>640</width>
              <height>360</height>
              <format>R8G8B8</format>
           </image>
+          <lens>
+            <intrinsics>
+              <fx>254.391622</fx>
+              <fy>254.391622</fy>
+              <cx>330.013020833</cx>
+              <cy>181.149637858</cy>
+              <s>0</s>
+            </intrinsics>
+            <projection>
+              <p_fx>254.391622</p_fx>
+              <p_fy>254.391622</p_fy>
+              <p_cx>330.013020833</p_cx>
+              <p_cy>181.149637858</p_cy>
+              <tx>0</tx>
+              <ty>0</ty>
+            </projection>
+          </lens>
           <clip>
             <near>0.02</near>
             <far>300</far>
@@ -388,13 +405,30 @@
           <topic>depth_points</topic>
         </pointcloud>
         <camera name="camera">
-          <horizontal_fov>1.82861281254</horizontal_fov>
-          <vertical_fov>1.26187565183</vertical_fov>
+          <visibility_mask>1</visibility_mask>
+          <horizontal_fov>1.798255304332</horizontal_fov>
           <image>
              <width>640</width>
              <height>360</height>
              <format>R8G8B8</format>
           </image>
+          <lens>
+            <intrinsics>
+              <fx>254.391622</fx>
+              <fy>254.391622</fy>
+              <cx>330.013020833</cx>
+              <cy>181.149637858</cy>
+              <s>0</s>
+            </intrinsics>
+            <projection>
+              <p_fx>254.391622</p_fx>
+              <p_fy>254.391622</p_fy>
+              <p_cx>330.013020833</p_cx>
+              <p_cy>181.149637858</p_cy>
+              <tx>0</tx>
+              <ty>0</ty>
+            </projection>
+          </lens>
           <clip>
             <near>0.02</near>
             <far>20</far>

@@ -72,6 +72,7 @@ void FrenetPlannerPlugin::setGlobalPath(const nav_msgs::msg::Path & global_path)
     global_samples_.clear();
     global_samples_.reserve(global_path.poses.size());
     path_frame_id_ = global_path.header.frame_id;
+    global_path_stamp_ = global_path.header.stamp;
 
     double s = 0.0;
     for (std::size_t i = 0U; i < global_path.poses.size(); ++i) {
@@ -126,7 +127,7 @@ std::optional<nav_msgs::msg::Path> FrenetPlannerPlugin::computeLocalPath(
         return std::nullopt;
     }
     previous_points_ = points;
-    return make_path_message(points, clock_->now());
+    return make_path_message(points, rclcpp::Time(global_path_stamp_));
 }
 
 std::vector<FrenetPlannerPlugin::CartesianPoint> FrenetPlannerPlugin::plan_best_path(

@@ -18,7 +18,6 @@ from Models.model_components.vision_planner.vision_planner_network import Vision
 
 SLOT_NAMES = ('straight', 'left', 'right')
 SLOT_COLORS = ((0, 220, 0), (230, 120, 0), (0, 140, 255))
-NUM_SLOTS = 3
 
 
 def load_models(specs, device):
@@ -41,13 +40,12 @@ def draw_panel(frame, prediction, label, anchors, width, scale):
     valid, positions = prediction
     predicted_valid = valid.sigmoid() > 0.5
     canvas = frame.copy()
-    for slot in range(NUM_SLOTS):
-        for row in range(positions.shape[1]):
-            if not predicted_valid[slot, row]:
-                continue
-            x = int(float(positions[slot, row]) * (width - 1))
-            y = int(anchors[row + ROW_START])
-            cv2.circle(canvas, (x, y), 3, SLOT_COLORS[slot], -1)
+    for row in range(positions.shape[1]):
+        if not predicted_valid[0, row]:
+            continue
+        x = int(float(positions[0, row]) * (width - 1))
+        y = int(anchors[row + ROW_START])
+        cv2.circle(canvas, (x, y), 3, SLOT_COLORS[0], -1)
 
     canvas = cv2.resize(canvas, scale)
     bar = np.full((26, scale[0], 3), 40, np.uint8)

@@ -7,8 +7,6 @@ namespace path_smoother {
 
 namespace {
 
-constexpr double MAX_TANGENT_RAD = 30.0 * M_PI / 180.0;
-
 double det3(const double m[3][3]) {
     return m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1]) -
            m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0]) +
@@ -130,9 +128,6 @@ std::vector<Point2D> sample_quadratic(const Quadratic& c, const double x_start, 
     for (double x = x_start; x <= x_end;) {
         points.push_back(Point2D{x, evaluate(c, x)});
         const double yaw = tangent_yaw(c, x);
-        if (std::abs(yaw) > MAX_TANGENT_RAD) {
-            break;
-        }
         x += interval * std::cos(yaw);
     }
     return points;

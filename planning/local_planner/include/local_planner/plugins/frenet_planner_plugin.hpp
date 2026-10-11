@@ -92,6 +92,7 @@ private:
     bool global_path_ready_{false};
 
     std::string path_frame_id_;
+    builtin_interfaces::msg::Time global_path_stamp_;
     std::vector<PathPoint> global_samples_;
     std::vector<CartesianPoint> previous_points_;
 };
