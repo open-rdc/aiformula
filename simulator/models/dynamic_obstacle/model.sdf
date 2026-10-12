@@ -19,7 +19,7 @@
       <odom_topic>odom_obstacle</odom_topic>
     </plugin>
 
-    <!-- <plugin
+    <plugin
       filename="PathPublisher"
       name="ignition::gazebo::PathPublisher">
       <first_file_name>dynamic_obstacle_left1</first_file_name>
@@ -34,7 +34,7 @@
       <p_gain>1.0</p_gain>
       <i_gain>0.0</i_gain>
       <d_gain>0.14</d_gain>
-    </plugin> -->
+    </plugin>
 
     <!-- chassis -->
 
