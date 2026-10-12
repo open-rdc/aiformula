@@ -3,8 +3,8 @@
 #include <memory>
 #include <optional>
 
-#include <nav_msgs/msg/path.hpp>
 #include <rclcpp/rclcpp.hpp>
+#include <speed_path_msgs/msg/speed_path.hpp>
 #include <steered_drive_msg/msg/steered_drive.hpp>
 
 namespace trajectory_follower
@@ -26,7 +26,7 @@ public:
     virtual void setMeasuredSteer(double) {}
 
     virtual std::optional<steered_drive_msg::msg::SteeredDrive> computeCommand(
-        const nav_msgs::msg::Path & path_in_base,
+        const speed_path_msgs::msg::SpeedPath & path_in_base,
         double current_velocity) = 0;
 };
 

@@ -28,7 +28,10 @@ class LateralMpc
 public:
     void configure(const LateralMpcParams & params);
 
-    double computeSteering(const std::vector<std::array<double, 2>> & path_xy, double v);
+    double computeSteering(
+        const std::vector<std::array<double, 2>> & path_xy,
+        const std::vector<double> & curvatures,
+        double v);
 
     void reset();
 

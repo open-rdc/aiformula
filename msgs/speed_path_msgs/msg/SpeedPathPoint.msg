@@ -1,0 +1,4 @@
+geometry_msgs/Pose pose
+float64 linear_velocity
+float64 linear_acceleration
+float64 curvature
