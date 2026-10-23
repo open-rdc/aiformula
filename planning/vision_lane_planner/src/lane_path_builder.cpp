@@ -1,0 +1,139 @@
+#include "vision_lane_planner/lane_path_builder.hpp"
+
+#include <opencv2/core.hpp>
+#include <utilities/utils.hpp>
+
+#include <cmath>
+
+namespace vision_lane_planner {
+
+namespace {
+
+double sigmoid(const double x) {
+    return 1.0 / (1.0 + std::exp(-x));
+}
+
+}  // namespace
+
+Slot parse_slot(const std::string& command) {
+    if (command == "left") {
+        return Slot::Left;
+    }
+    if (command == "right") {
+        return Slot::Right;
+    }
+    return Slot::Straight;
+}
+
+double row_anchor_v(const std::size_t row) {
+    constexpr double  row_height   = static_cast<double>(input_height) / static_cast<double>(row_anchor_count);
+    const std::size_t absolute_row = row_start + row;  // 出力行(0..num_rows-1) → 絶対行
+    return static_cast<double>(absolute_row) * row_height + (row_height - 1.0) / 2.0;
+}
+
+std::vector<Point2D> project_slot_rows(
+    const SlotPrediction&                   prediction,
+    const Slot                              slot,
+    const camera_utility::CameraIntrinsics& intrinsics,
+    const tf2::Transform&                   base_T_camera) {
+    const std::size_t slot_index = static_cast<std::size_t>(slot);
+
+    std::vector<Point2D> points;
+    points.reserve(num_rows);
+    for (std::size_t offset = 0; offset < num_rows; ++offset) {
+        const std::size_t row = num_rows - 1 - offset;
+
+        if (sigmoid(prediction.valid_logit[slot_index][row]) <= valid_threshold) {
+            continue;
+        }
+
+        // 行アンカーは letterbox 後の座標なので、pad を引いて元画像の座標へ戻す
+        const double u = static_cast<double>(prediction.position[slot_index][row]) *
+                             static_cast<double>(input_width - 1) -
+                         static_cast<double>(pad_left);
+        const double v = row_anchor_v(row) - static_cast<double>(pad_top);
+        // 最終画素行より外へ外挿しないので上限は height - 1。
+        // 出力行 21 (絶対行46, v=359.5) と出力行 22 (絶対行47, v=367.5) はここで落ちる
+        if (u < 0.0 || u > static_cast<double>(intrinsics.width - 1) || v < 0.0 ||
+            v > static_cast<double>(intrinsics.height - 1)) {
+            continue;
+        }
+
+        tf2::Vector3 base_point;
+        if (!camera_utility::pixelToPoint(
+                cv::Point2f(static_cast<float>(u), static_cast<float>(v)), intrinsics, base_T_camera, base_point,
+                0.0)) {
+            continue;
+        }
+        points.push_back(Point2D{base_point.x(), base_point.y()});
+    }
+    return points;
+}
+
+std::vector<Point2D> truncate(const std::vector<Point2D>& points) {
+    std::vector<Point2D> kept;
+    kept.reserve(points.size());
+    for (const Point2D& point : points) {
+        if (point.x > max_range_m) {
+            break;
+        }
+        if (kept.empty()) {
+            // まだ1点も採用していない間だけ読み飛ばす(自車の真下・後方は使わない)。
+            // 採用済みなら下の単調性チェックが先に break するのでここには来ない
+            if (point.x <= 0.0) {
+                continue;
+            }
+        } else {
+            if (point.x <= kept.back().x) {
+                break;  // 地平線付近の発散で経路が折り返すのを防ぐ
+            }
+            if (std::hypot(point.x - kept.back().x, point.y - kept.back().y) > max_point_gap_m) {
+                break;  // 離れた2点をつないで存在しない直線を作らない
+            }
+        }
+        kept.push_back(point);
+    }
+    return kept;
+}
+
+PathResult build_path(
+    const SlotPrediction&                   prediction,
+    const Slot                              commanded,
+    const camera_utility::CameraIntrinsics& intrinsics,
+    const tf2::Transform&                   base_T_camera,
+    const builtin_interfaces::msg::Time&    stamp) {
+    // 経路が組めなくてもヘッダは必ず埋める。publish を止めると下流が古い経路を
+    // ラッチしたまま走り続け、「見えていない」ことと正常が区別できなくなる
+    PathResult result;
+    result.path.header.stamp    = stamp;
+    result.path.header.frame_id = "base_link";
+
+    // 推論が失敗した場合は SlotPrediction::valid が false のまま返ってくる
+    if (!prediction.valid) {
+        return result;
+    }
+
+    const auto projected = project_slot_rows(prediction, commanded, intrinsics, base_T_camera);
+    const auto samples = truncate(projected);
+    if (samples.size() < 2U) {
+        return result;
+    }
+
+    result.path.poses.reserve(samples.size());
+    double yaw = 0.0;
+    for (std::size_t i = 0; i < samples.size(); ++i) {
+        if (i + 1 < samples.size()) {
+            yaw = std::atan2(samples[i + 1].y - samples[i].y, samples[i + 1].x - samples[i].x);
+        }
+        geometry_msgs::msg::PoseStamped pose;
+        pose.header           = result.path.header;
+        pose.pose.position.x  = samples[i].x;
+        pose.pose.position.y  = samples[i].y;
+        pose.pose.position.z  = 0.0;
+        pose.pose.orientation = utils::yaw_to_quaternion(yaw);
+        result.path.poses.push_back(pose);
+    }
+    return result;
+}
+
+}  // namespace vision_lane_planner

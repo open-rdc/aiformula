@@ -35,13 +35,13 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 1.57"/>
       <geometry>
-        <mesh filename="package://simulator/models/ai_car1/meshes/tire.dae" scale="0.05 0.12 0.12"/>
+        <mesh filename="package://simulator/models/ai_car1/meshes/tire.dae" scale="0.0625 0.127 0.127"/>
       </geometry>
     </visual>
     <collision>
       <origin xyz="0 0 0" rpy="0 0 1.57"/>
       <geometry>
-        <mesh filename="package://simulator/models/ai_car1/meshes/tire.dae" scale="0.05 0.12 0.12"/>
+        <mesh filename="package://simulator/models/ai_car1/meshes/tire.dae" scale="0.0625 0.127 0.127"/>
       </geometry>
     </collision>
   </link>
@@ -56,13 +56,13 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 1.57"/>
       <geometry>
-      <mesh filename="package://simulator/models/ai_car1/meshes/tire.dae" scale="0.05 0.12 0.12"/>
+      <mesh filename="package://simulator/models/ai_car1/meshes/tire.dae" scale="0.0625 0.127 0.127"/>
       </geometry>
     </visual>
     <collision>
       <origin xyz="0 0 0" rpy="0 0 1.57"/>
       <geometry>
-      <mesh filename="package://simulator/models/ai_car1/meshes/tire.dae" scale="0.05 0.12 0.12"/>
+      <mesh filename="package://simulator/models/ai_car1/meshes/tire.dae" scale="0.0625 0.127 0.127"/>
       </geometry>
     </collision>
   </link>
@@ -80,7 +80,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <sphere radius="0.062"/>
+        <sphere radius="0.125"/>
       </geometry>
       <material name="gray">
         <color rgba="0.2 0.2 0.2 1"/>
@@ -89,7 +89,7 @@
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <sphere radius="0.062"/>
+        <sphere radius="0.125"/>
       </geometry>
     </collision>
   </link>
@@ -98,7 +98,7 @@
   <joint name="base_to_chassis" type="fixed">
     <parent link="base_link"/>
     <child link="chassis"/>
-    <origin xyz="0 0 0.15" rpy="0 0 0"/>
+    <origin xyz="0 0 0.127" rpy="0 0 0"/>
   </joint>
 
   <joint name="left_wheel_joint" type="revolute">
@@ -120,7 +120,7 @@
   <joint name="caster_yaw_wheel" type="revolute">
     <parent link="chassis"/>
     <child link="caster_yaw"/>
-    <origin xyz="-0.8 0 0" rpy="0 0 1.57"/>
+    <origin xyz="-0.733 0 -0.002" rpy="0 0 1.57"/>
     <axis xyz="0 0 1"/>
     <limit lower="-0.26" upper="0.26" effort="1000000.0" velocity="10.0"/>
     <dynamics damping="10.0" friction="0.0"/>
@@ -129,7 +129,7 @@
   <joint name="caster_pitch_joint" type="revolute">
     <parent link="caster_yaw"/>
     <child link="caster"/>
-    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <origin xyz="0 0.04 0" rpy="0 0 0"/>
     <axis xyz="0 1 0"/>
     <limit lower="-1e9" upper="1e9" effort="1.0" velocity="10.0"/>
     <dynamics damping="0.01" friction="0.0"/>
@@ -150,8 +150,7 @@
   <joint name="camera_joint" type="fixed">
     <parent link="chassis"/>
     <child link="camera_link"/>
-    <!-- 取付姿勢は localization の camera_to_base から導出（scripts/camera_extrinsic_sim_pose.py）。 -->
-    <origin xyz="0.055 0 0.54" rpy="-0.0034939840 0.0436329672 -0.0036430636"/>
+    <origin xyz="-0.008 0.0325 0.4277" rpy="0.00867605 -0.00346759 0.00624156"/>
   </joint>
 
   <link name="camera_rgb_link"/>

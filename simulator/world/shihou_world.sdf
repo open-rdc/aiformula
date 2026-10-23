@@ -122,6 +122,7 @@
         <!-- Lane line mesh at z=0 -->
         <model name="ground_plane">
         <static>true</static>
+        <pose>1.225816 0.278738 0 0 0 0.02568048</pose>
         <link name="link">
             <collision name="collision">
                 <geometry>
