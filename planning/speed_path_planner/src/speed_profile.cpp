@@ -95,8 +95,27 @@ std::vector<double> accelerations(const std::vector<double>& v, const std::vecto
     return a;
 }
 
+double velocity_at_distance(
+    const std::vector<double>& s, const std::vector<double>& velocity, double distance)
+{
+    if (s.empty() || s.size() != velocity.size()) {
+        throw std::invalid_argument("velocity_at_distance requires non-empty s matching velocity");
+    }
+    if (distance <= s.front()) {
+        return velocity.front();
+    }
+    for (std::size_t i = 1; i < s.size(); ++i) {
+        if (distance <= s[i]) {
+            const double ds = s[i] - s[i - 1];
+            const double r = ds > EPSILON ? (distance - s[i - 1]) / ds : 1.0;
+            return velocity[i - 1] + r * (velocity[i] - velocity[i - 1]);
+        }
+    }
+    return velocity.back();
+}
+
 Profile plan(
-    const std::vector<Point2D>& points, double v_meas, double stop_s, const Limits& limits)
+    const std::vector<Point2D>& points, double v_start, double stop_s, const Limits& limits)
 {
     const auto s = arc_lengths(points);
     Profile profile;
@@ -104,7 +123,7 @@ Profile plan(
     profile.velocity = lateral_limits(profile.curvature, limits);
     apply_stop(profile.velocity, s, stop_s);
     backward_pass(profile.velocity, s, limits.a_lon);
-    forward_pass(profile.velocity, s, std::max(v_meas, 0.0), limits.a_lon);
+    forward_pass(profile.velocity, s, std::max(v_start, 0.0), limits.a_lon);
     profile.acceleration = accelerations(profile.velocity, s);
     return profile;
 }

@@ -61,7 +61,7 @@ int main(int argc, char* argv[]) {
     exec.add_node(local_planner_server_node);
     exec.add_node(speed_path_planner_node);
     exec.add_node(controller_server_node);
-    exec.add_node(controller_node);
+    // exec.add_node(controller_node);
 
 #ifdef ENABLE_ZED
     std::shared_ptr<zed_wrapper::ZedWrapperNode> zed_wrapper_node;

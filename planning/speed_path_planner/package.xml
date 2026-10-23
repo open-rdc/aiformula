@@ -14,6 +14,8 @@
   <depend>rclcpp</depend>
   <depend>speed_path_msgs</depend>
   <depend>std_msgs</depend>
+  <depend>tf2</depend>
+  <depend>tf2_ros</depend>
   <depend>visualization_msgs</depend>
 
   <export>

@@ -1,6 +1,7 @@
 #include "speed_path_planner/speed_path_planner_node.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <limits>
 #include <utility>
 #include <vector>
@@ -91,8 +92,13 @@ SpeedPathPlannerNode::SpeedPathPlannerNode(
     const rclcpp::NodeOptions& options)
 : rclcpp::Node("speed_path_planner_node", name_space, options),
   limits_(read_limits(*this)),
-  stop_point_timeout_s_(get_parameter("stop_point_timeout_s").as_double())
+  stop_point_timeout_s_(get_parameter("stop_point_timeout_s").as_double()),
+  replan_velocity_deviation_(get_parameter("replan_velocity_deviation").as_double()),
+  previous_plan_timeout_s_(get_parameter("previous_plan_timeout_s").as_double())
 {
+    tf_buffer_ = std::make_shared<tf2_ros::Buffer>(get_clock());
+    tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
+
     stop_point_subscription_ = create_subscription<speed_path_msgs::msg::StopPoint>(
         "/planning/stop_point", rclcpp::QoS(1),
         std::bind(&SpeedPathPlannerNode::stop_point_callback, this, std::placeholders::_1));
@@ -139,11 +145,63 @@ void SpeedPathPlannerNode::path_callback(const nav_msgs::msg::Path::ConstSharedP
         points.push_back({pose.pose.position.x, pose.pose.position.y});
     }
 
-    auto speed_path = make_speed_path(*msg, speed_profile::plan(points, v_meas, stop_s, limits_));
+    const auto base_position = lookup_base_position(msg->header.frame_id);
+    const double v_start = start_velocity(msg->header.frame_id, base_position, v_meas);
+    auto profile = speed_profile::plan(points, v_start, stop_s, limits_);
+    if (base_position) {
+        previous_s_ = speed_profile::arc_lengths(points);
+        previous_velocity_ = profile.velocity;
+        previous_frame_id_ = msg->header.frame_id;
+        previous_base_position_ = *base_position;
+        previous_plan_time_ = now();
+    } else {
+        previous_s_.clear();
+    }
+
+    auto speed_path = make_speed_path(*msg, profile);
     if (marker_publisher_->get_subscription_count() > 0) {
         marker_publisher_->publish(make_marker_array(speed_path));
     }
     speed_path_publisher_->publish(std::make_unique<speed_path_msgs::msg::SpeedPath>(std::move(speed_path)));
+}
+
+std::optional<speed_profile::Point2D> SpeedPathPlannerNode::lookup_base_position(const std::string& frame_id)
+{
+    try {
+        const auto path_T_base = tf_buffer_->lookupTransform(frame_id, "base_link", tf2::TimePointZero);
+        return speed_profile::Point2D{path_T_base.transform.translation.x, path_T_base.transform.translation.y};
+    } catch (const tf2::TransformException& error) {
+        RCLCPP_WARN_THROTTLE(
+            get_logger(), *get_clock(), 2000,
+            "%s <- base_link のTFが引けないため実測速度を起点にします: %s", frame_id.c_str(), error.what());
+        return std::nullopt;
+    }
+}
+
+// 計画の起点速度。実測速度から毎回積み直すと指令が「実測+α」に縛られ加速が鈍るため、
+// 前回計画を「前回始点から自車の走行距離だけ進んだ点」で読んだ値を引き継ぐ。
+// 自車位置そのもので読むと、始点が自車より前にある経路（mapless）では常に始点に射影され速度が伸びない。
+// 前回計画が使えないか実測と大きく乖離したときだけ実測に戻す
+double SpeedPathPlannerNode::start_velocity(
+    const std::string& frame_id,
+    const std::optional<speed_profile::Point2D>& base_position,
+    double v_meas)
+{
+    if (!base_position || previous_s_.size() < 2 || previous_frame_id_ != frame_id ||
+        (now() - previous_plan_time_).seconds() > previous_plan_timeout_s_)
+    {
+        return v_meas;
+    }
+
+    const double travelled = std::hypot(
+        (*base_position)[0] - previous_base_position_[0], (*base_position)[1] - previous_base_position_[1]);
+    const double v_previous = speed_profile::velocity_at_distance(previous_s_, previous_velocity_, travelled);
+    if (std::abs(v_previous - v_meas) > replan_velocity_deviation_) {
+        RCLCPP_DEBUG(
+            get_logger(), "前回計画(%.2f)と実測(%.2f)の乖離が大きいため実測から再計画", v_previous, v_meas);
+        return v_meas;
+    }
+    return v_previous;
 }
 
 }

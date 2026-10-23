@@ -37,8 +37,12 @@ SPEED_PATH_PLANNER_PUBLIC
 void forward_pass(std::vector<double>& v, const std::vector<double>& s, double v_start, double a_lon);
 SPEED_PATH_PLANNER_PUBLIC
 std::vector<double> accelerations(const std::vector<double>& v, const std::vector<double>& s);
+// 弧長 distance における速度を線形補間で返す（範囲外は端点の値）
+SPEED_PATH_PLANNER_PUBLIC
+double velocity_at_distance(
+    const std::vector<double>& s, const std::vector<double>& velocity, double distance);
 SPEED_PATH_PLANNER_PUBLIC
 Profile plan(
-    const std::vector<Point2D>& points, double v_meas, double stop_s, const Limits& limits);
+    const std::vector<Point2D>& points, double v_start, double stop_s, const Limits& limits);
 
 }
