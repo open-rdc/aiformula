@@ -53,7 +53,7 @@ ControllerServer::ControllerServer(
         std::bind(&ControllerServer::path_callback, this, std::placeholders::_1));
     velocity_subscription_ =
         create_subscription<geometry_msgs::msg::TwistWithCovarianceStamped>(
-            "/vectornav/velocity_body", rclcpp::QoS(1).best_effort(),
+            "/chassis/velocity_body", rclcpp::QoS(1).best_effort(),
             std::bind(&ControllerServer::velocity_callback, this, std::placeholders::_1));
     autonomous_subscription_ = create_subscription<std_msgs::msg::Bool>(
         "/autonomous", rclcpp::QoS(10),
