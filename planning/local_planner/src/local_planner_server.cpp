@@ -92,7 +92,7 @@ LocalPlannerServer::LocalPlannerServer(
     tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
 
     global_path_subscription_ = create_subscription<nav_msgs::msg::Path>("/planner/global_path", qos_, std::bind(&LocalPlannerServer::global_path_callback, this, std::placeholders::_1));
-    velocity_subscription_ = create_subscription<geometry_msgs::msg::TwistWithCovarianceStamped>("/vectornav/velocity_body", qos_, std::bind(&LocalPlannerServer::velocity_callback, this, std::placeholders::_1));
+    velocity_subscription_ = create_subscription<geometry_msgs::msg::TwistWithCovarianceStamped>("/chassis/velocity_body", qos_, std::bind(&LocalPlannerServer::velocity_callback, this, std::placeholders::_1));
     objects_subscription_ = create_subscription<object_detection_msgs::msg::ObjectInfoArray>("/perception/objects", rclcpp::SensorDataQoS().keep_last(1), std::bind(&LocalPlannerServer::objects_callback, this, std::placeholders::_1));
 
     local_path_publisher_ = create_publisher<nav_msgs::msg::Path>("/planner/local_path", qos_);

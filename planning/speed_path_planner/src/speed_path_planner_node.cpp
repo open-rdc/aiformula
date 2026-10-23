@@ -97,7 +97,7 @@ SpeedPathPlannerNode::SpeedPathPlannerNode(
         "/planning/stop_point", rclcpp::QoS(1),
         std::bind(&SpeedPathPlannerNode::stop_point_callback, this, std::placeholders::_1));
     velocity_subscription_ = create_subscription<geometry_msgs::msg::TwistWithCovarianceStamped>(
-        "/vectornav/velocity_body", rclcpp::QoS(10),
+        "/chassis/velocity_body", rclcpp::QoS(10),
         std::bind(&SpeedPathPlannerNode::velocity_callback, this, std::placeholders::_1));
     path_subscription_ = create_subscription<nav_msgs::msg::Path>(
         "/planner/local_path", rclcpp::QoS(1),
