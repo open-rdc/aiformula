@@ -16,6 +16,8 @@
 
 namespace object_detection {
 
+using object_detection_msgs::msg::ObjectInfo;
+
 PylonDetectorNode::PylonDetectorNode(const rclcpp::NodeOptions& options)
     : PylonDetectorNode("", options) {
 }
@@ -79,7 +81,7 @@ std::vector<Obstacle> PylonDetectorNode::project_to_ground(
         // サブスクライバがいるときのみ処理
         if (debug_image_publisher_->get_subscription_count() > 0) {
             // markerの配色をclass id毎に割り振り
-            const cv::Scalar box_color = detection.class_id == pylon_class_id_ ? cv::Scalar(0.0, 165.0, 255.0) : cv::Scalar(0.0, 0.0, 255.0);
+            const cv::Scalar box_color = detection.class_id == ObjectInfo::ID_PYLON ? cv::Scalar(0.0, 165.0, 255.0) : cv::Scalar(0.0, 0.0, 255.0);
             cv::rectangle(debug_image, box, box_color, 1);
             cv::putText(
                 debug_image, cv::format("%s %.2f", class_names[static_cast<size_t>(detection.class_id)], detection.score),
@@ -87,15 +89,16 @@ std::vector<Obstacle> PylonDetectorNode::project_to_ground(
                 cv::FONT_HERSHEY_SIMPLEX, 0.4, box_color, 1);
         }
 
-        // bbox底辺を接地線とみなし、左端・中央・右端を地面へ投影する
-        const auto   bottom = static_cast<float>(box.y + box.height);
+        const bool   is_panel = detection.class_id == ObjectInfo::ID_PANEL_RED || detection.class_id == ObjectInfo::ID_PANEL_GREEN;
+        const auto   row      = static_cast<float>(is_panel ? box.y + box.height * 0.5 : box.y + box.height);
+        const double plane_z  = is_panel ? panel_height_m_ : 0.0;
         tf2::Vector3 center;
         tf2::Vector3 left;
         tf2::Vector3 right;
         const bool   projected =
-            camera_utility::pixelToPoint(cv::Point2f(static_cast<float>(box.x + box.width * 0.5), bottom), *intrinsics_, base_T_camera_, center) &&
-            camera_utility::pixelToPoint(cv::Point2f(static_cast<float>(box.x), bottom), *intrinsics_, base_T_camera_, left) &&
-            camera_utility::pixelToPoint(cv::Point2f(static_cast<float>(box.x + box.width), bottom), *intrinsics_, base_T_camera_, right);
+            camera_utility::pixelToPoint(cv::Point2f(static_cast<float>(box.x + box.width * 0.5), row), *intrinsics_, base_T_camera_, center, plane_z) &&
+            camera_utility::pixelToPoint(cv::Point2f(static_cast<float>(box.x), row), *intrinsics_, base_T_camera_, left, plane_z) &&
+            camera_utility::pixelToPoint(cv::Point2f(static_cast<float>(box.x + box.width), row), *intrinsics_, base_T_camera_, right, plane_z);
         if (!projected) {
             continue;
         }
@@ -114,7 +117,7 @@ object_detection_msgs::msg::ObjectInfoArray PylonDetectorNode::make_objects(
     objects.header.frame_id = "base_link";
     objects.objects.reserve(obstacles.size());
     for (const auto& obstacle : obstacles) {
-        object_detection_msgs::msg::ObjectInfo object;
+        ObjectInfo object;
         object.x     = static_cast<float>(obstacle.x);
         object.y     = static_cast<float>(obstacle.y);
         object.width = static_cast<float>(obstacle.width);
@@ -149,7 +152,7 @@ visualization_msgs::msg::MarkerArray PylonDetectorNode::make_markers(
         marker.scale.y            = obstacles[i].width;
         marker.scale.z            = marker_height_m_;
         marker.color.r            = 1.0F;
-        marker.color.g            = obstacles[i].class_id == pylon_class_id_ ? 0.5F : 0.0F;
+        marker.color.g            = obstacles[i].class_id == ObjectInfo::ID_PYLON ? 0.5F : 0.0F;
         marker.color.b            = 0.0F;
         marker.color.a            = 1.0F;
         markers.markers.push_back(marker);
