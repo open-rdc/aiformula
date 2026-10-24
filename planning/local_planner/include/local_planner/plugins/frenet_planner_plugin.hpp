@@ -38,6 +38,10 @@ private:
     frenet::ReferencePath reference_;
     std_msgs::msg::Header global_path_header_;
     std::vector<frenet::Pose2D> previous_points_;
+    int avoid_side_{0};  // 回避中の障害物を避けている側（+1: 左、-1: 右、0: 未定）
+    frenet::Pose2D avoid_obstacle_{};
+    int side_release_count_{3};
+    int side_blocked_count_{0};
     double stop_distance_m_{std::numeric_limits<double>::infinity()};
 };
 

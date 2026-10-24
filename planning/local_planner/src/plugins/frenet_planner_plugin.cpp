@@ -1,6 +1,7 @@
 #include "local_planner/plugins/frenet_planner_plugin.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <limits>
 
 #include <pluginlib/class_list_macros.hpp>
@@ -42,6 +43,7 @@ void FrenetPlannerPlugin::initialize(
     params_.weight_side_change = params->get_parameter("frenet.weight_side_change").as_double();
     params_.kappa_max = params->get_parameter("frenet.kappa_max").as_double();
     params_.stop_standoff_m = params->get_parameter("stop_standoff_m").as_double();
+    side_release_count_ = params->get_parameter("frenet.side_release_count").as_int();
 }
 
 void FrenetPlannerPlugin::setGlobalPath(const nav_msgs::msg::Path & global_path)
@@ -79,14 +81,37 @@ nav_msgs::msg::Path FrenetPlannerPlugin::computeLocalPath(
     }
     const auto obstacles = frenet::find_obstacles(reference_, initial.s, obstacle_candidates, params_);
 
-    // 3. 合流先 (s, d) の候補を作る
+    // 3. 合流先 (s, d) の候補を作る。前回と同じ障害物なら、前回避けた側だけにする
+    frenet::Pose2D front{};
+    if (!obstacles.empty()) {
+        front = reference_.to_cartesian({obstacles.front().s}, {obstacles.front().d}).front();
+    }
+    if (obstacles.empty() || std::hypot(front.x - avoid_obstacle_.x, front.y - avoid_obstacle_.y) >
+        obstacles.front().half_width + params_.cluster_gap_m) {
+        avoid_side_ = 0;
+    }
     const auto target_s_list = frenet::make_target_s_list(
         initial, end_s, velocity.twist.twist.linear.x, obstacles, params_);
-    const auto target_d_list = frenet::make_target_d_list(obstacles, params_);
 
-    // 4. 候補経路を生成し、制約とコストで最良の経路を選ぶ
+    // 4. 候補経路を生成し、制約とコストで最良の経路を選ぶ。その側で side_release_count_ 周期続けて通れなければ両側から選び直す
     auto points = frenet::select_best_path(
-        reference_, initial, end_s, target_s_list, target_d_list, obstacles, previous_points_, params_);
+        reference_, initial, end_s, target_s_list, frenet::make_target_d_list(obstacles, avoid_side_, params_),
+        obstacles, previous_points_, params_);
+    if (!points.empty() || avoid_side_ == 0) {
+        side_blocked_count_ = 0;
+    } else if (++side_blocked_count_ < side_release_count_) {
+        points = previous_points_;
+    } else {
+        side_blocked_count_ = 0;
+        avoid_side_ = 0;
+        points = frenet::select_best_path(
+            reference_, initial, end_s, target_s_list, frenet::make_target_d_list(obstacles, 0, params_),
+            obstacles, previous_points_, params_);
+    }
+    if (!points.empty() && !obstacles.empty()) {
+        avoid_side_ = reference_.project({points.back().x, points.back().y}).d > obstacles.front().d ? 1 : -1;
+        avoid_obstacle_ = front;
+    }
 
     // 5. 回避できなければ参照線へ戻る経路にし、先頭の障害物の手前を止まる位置とする
     stop_distance_m_ = std::numeric_limits<double>::infinity();

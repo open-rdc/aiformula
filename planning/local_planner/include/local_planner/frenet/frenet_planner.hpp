@@ -47,8 +47,9 @@ std::vector<double> make_target_s_list(
     const FrenetState & initial, double end_s, double speed,
     const std::vector<FrenetObstacle> & obstacles, const Parameters & params);
 
-// 合流後の横位置の候補。障害物から離れる側を先に並べる
-std::vector<double> make_target_d_list(const std::vector<FrenetObstacle> & obstacles, const Parameters & params);
+// 合流後の横位置の候補。障害物から離れる側を先に並べ、side が 0 でなければ先頭の障害物のその側（+1: 左、-1: 右）だけにする
+std::vector<double> make_target_d_list(
+    const std::vector<FrenetObstacle> & obstacles, int side, const Parameters & params);
 
 // (target_s, target_d) へ quintic で合流する候補のうち、衝突・曲率の制約を満たしコスト最小のものを返す
 std::vector<Pose2D> select_best_path(
