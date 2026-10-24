@@ -144,7 +144,8 @@ std::vector<double> make_target_s_list(
     return targets;
 }
 
-std::vector<double> make_target_d_list(const std::vector<FrenetObstacle> & obstacles, const Parameters & params)
+std::vector<double> make_target_d_list(
+    const std::vector<FrenetObstacle> & obstacles, const int side, const Parameters & params)
 {
     const int step_count = static_cast<int>(std::ceil(params.max_shift_m / params.lateral_sample_step_m - EPSILON));
     const double away_sign = (!obstacles.empty() && obstacles.front().d >= 0.0) ? -1.0 : 1.0;
@@ -154,6 +155,12 @@ std::vector<double> make_target_d_list(const std::vector<FrenetObstacle> & obsta
         const double magnitude = std::min(k * params.lateral_sample_step_m, params.max_shift_m);
         targets.push_back(away_sign * magnitude);
         targets.push_back(-away_sign * magnitude);
+    }
+    if (side != 0) {
+        const double obstacle_d = obstacles.front().d;
+        targets.erase(
+            std::remove_if(targets.begin(), targets.end(), [&](const double d) { return (d - obstacle_d) * side <= 0.0; }),
+            targets.end());
     }
     return targets;
 }

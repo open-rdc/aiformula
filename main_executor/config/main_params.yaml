@@ -151,6 +151,7 @@ local_planner_server_node:
       weight_lateral_deviation : 150.0
       weight_side_change : 300.0
       kappa_max : 0.268   # 候補経路の曲率の上限 [1/m]
+      side_release_count : 3   # 回避する側を何周期続けて通れなければ反対側を許すか
     stop_standoff_m : 1.0
 
 speed_path_planner_node:
