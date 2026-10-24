@@ -243,15 +243,4 @@ std::vector<Pose2D> select_best_path(
     return {};
 }
 
-std::vector<Pose2D> make_stop_path(
-    const ReferencePath & reference, const FrenetState & initial, const FrenetObstacle & obstacle,
-    const Parameters & params)
-{
-    const double stop_s = std::max(initial.s + params.resample_interval_m, obstacle.s - params.stop_standoff_m);
-    std::vector<double> s_points;
-    std::vector<double> offsets;
-    sample_quintic(initial, stop_s, initial.d, params.resample_interval_m, s_points, offsets);
-    return reference.to_cartesian(s_points, offsets);
-}
-
 }

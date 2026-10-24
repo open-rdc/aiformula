@@ -98,6 +98,10 @@ std::vector<double> accelerations(const std::vector<double>& v, const std::vecto
 Profile plan(
     const std::vector<Point2D>& points, double v_meas, double stop_s, const Limits& limits)
 {
+    if (points.size() < 3) {
+        const std::vector<double> zeros(points.size(), 0.0);
+        return Profile{zeros, zeros, zeros};
+    }
     const auto s = arc_lengths(points);
     Profile profile;
     profile.curvature = curvatures(points);

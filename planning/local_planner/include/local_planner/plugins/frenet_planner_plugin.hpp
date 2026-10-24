@@ -1,5 +1,6 @@
 #pragma once
 
+#include <limits>
 #include <vector>
 
 #include <geometry_msgs/msg/pose.hpp>
@@ -30,11 +31,14 @@ public:
         const geometry_msgs::msg::TwistWithCovarianceStamped & velocity,
         const object_detection_msgs::msg::ObjectInfoArray & objects) override;
 
+    double stopDistance() const override;
+
 private:
     frenet::Parameters params_;
     frenet::ReferencePath reference_;
     std_msgs::msg::Header global_path_header_;
     std::vector<frenet::Pose2D> previous_points_;
+    double stop_distance_m_{std::numeric_limits<double>::infinity()};
 };
 
 }

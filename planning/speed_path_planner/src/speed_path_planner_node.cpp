@@ -94,7 +94,7 @@ SpeedPathPlannerNode::SpeedPathPlannerNode(
   stop_point_timeout_s_(get_parameter("stop_point_timeout_s").as_double())
 {
     stop_point_subscription_ = create_subscription<speed_path_msgs::msg::StopPoint>(
-        "/planning/stop_point", rclcpp::QoS(1),
+        "/planning/stop_point", rclcpp::QoS(10),
         std::bind(&SpeedPathPlannerNode::stop_point_callback, this, std::placeholders::_1));
     velocity_subscription_ = create_subscription<geometry_msgs::msg::TwistWithCovarianceStamped>(
         "/vectornav/velocity_body", rclcpp::QoS(10),
@@ -110,8 +110,7 @@ SpeedPathPlannerNode::SpeedPathPlannerNode(
 void SpeedPathPlannerNode::stop_point_callback(const speed_path_msgs::msg::StopPoint::ConstSharedPtr msg)
 {
     std::lock_guard<std::mutex> lock(data_mutex_);
-    stop_distance_m_ = msg->distance;
-    stop_point_time_ = now();
+    stop_points_.emplace_back(now(), msg->distance);
 }
 
 void SpeedPathPlannerNode::velocity_callback(
@@ -128,9 +127,15 @@ void SpeedPathPlannerNode::path_callback(const nav_msgs::msg::Path::ConstSharedP
     {
         std::lock_guard<std::mutex> lock(data_mutex_);
         v_meas = current_velocity_;
-        stop_s = (now() - stop_point_time_).seconds() < stop_point_timeout_s_
-                     ? stop_distance_m_
-                     : std::numeric_limits<double>::infinity();
+        // 信号停止と障害物停止の両方が publish するので、timeout 内に受信した停止距離の最小を使う
+        const auto expired = now() - rclcpp::Duration::from_seconds(stop_point_timeout_s_);
+        stop_points_.erase(
+            std::remove_if(stop_points_.begin(), stop_points_.end(), [&expired](const auto& p) { return p.first < expired; }),
+            stop_points_.end());
+        stop_s = std::numeric_limits<double>::infinity();
+        for (const auto& stop_point : stop_points_) {
+            stop_s = std::min(stop_s, stop_point.second);
+        }
     }
 
     std::vector<speed_profile::Point2D> points;

@@ -1,5 +1,7 @@
 #include "local_planner/local_planner_server.hpp"
 
+#include <cmath>
+
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 
 namespace local_planner
@@ -21,6 +23,7 @@ LocalPlannerServer::LocalPlannerServer(const rclcpp::NodeOptions& options)
     velocity_subscription_ = create_subscription<geometry_msgs::msg::TwistWithCovarianceStamped>("/vectornav/velocity_body", 10, std::bind(&LocalPlannerServer::velocity_callback, this, std::placeholders::_1));
     objects_subscription_ = create_subscription<object_detection_msgs::msg::ObjectInfoArray>("/perception/objects", rclcpp::SensorDataQoS().keep_last(1), std::bind(&LocalPlannerServer::objects_callback, this, std::placeholders::_1));
     local_path_publisher_ = create_publisher<nav_msgs::msg::Path>("/planner/local_path", 10);
+    stop_point_publisher_ = create_publisher<speed_path_msgs::msg::StopPoint>("/planning/stop_point", rclcpp::QoS(1));
 
     timer_ = create_wall_timer(std::chrono::milliseconds(get_parameter("interval_ms").as_int()), std::bind(&LocalPlannerServer::timer_callback, this));
 }
@@ -85,6 +88,12 @@ void LocalPlannerServer::timer_callback()
         return;
     }
     local_path_publisher_->publish(local_path);
+
+    if (std::isfinite(plugin_->stopDistance())) {
+        speed_path_msgs::msg::StopPoint stop_point;
+        stop_point.distance = plugin_->stopDistance();
+        stop_point_publisher_->publish(stop_point);
+    }
 }
 
 }

@@ -5,6 +5,7 @@
 #include <object_detection_msgs/msg/object_info_array.hpp>
 #include <pluginlib/class_loader.hpp>
 #include <rclcpp/rclcpp.hpp>
+#include <speed_path_msgs/msg/stop_point.hpp>
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_listener.h>
 
@@ -40,6 +41,7 @@ private:
     rclcpp::Subscription<geometry_msgs::msg::TwistWithCovarianceStamped>::SharedPtr velocity_subscription_;
     rclcpp::Subscription<object_detection_msgs::msg::ObjectInfoArray>::SharedPtr objects_subscription_;
     rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr local_path_publisher_;
+    rclcpp::Publisher<speed_path_msgs::msg::StopPoint>::SharedPtr stop_point_publisher_;
     rclcpp::TimerBase::SharedPtr timer_;
 };
 

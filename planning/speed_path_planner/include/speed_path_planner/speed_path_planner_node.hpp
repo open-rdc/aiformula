@@ -1,8 +1,9 @@
 #pragma once
 
-#include <limits>
 #include <mutex>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include <geometry_msgs/msg/twist_with_covariance_stamped.hpp>
 #include <nav_msgs/msg/path.hpp>
@@ -36,8 +37,7 @@ private:
     const speed_profile::Limits limits_;
     const double stop_point_timeout_s_;
     double current_velocity_{0.0};
-    double stop_distance_m_{std::numeric_limits<double>::infinity()};
-    rclcpp::Time stop_point_time_{0, 0, RCL_ROS_TIME};
+    std::vector<std::pair<rclcpp::Time, double>> stop_points_;  // 受信時刻と停止距離
     std::mutex data_mutex_;
 
     rclcpp::Subscription<nav_msgs::msg::Path>::SharedPtr path_subscription_;
