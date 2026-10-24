@@ -136,14 +136,19 @@ local_planner_server_node:
     avoidance_hard_margin_m : 0.35
     avoidance_soft_margin_m : 1.0
     max_avoidance_shift_m : 2.4
-    obstacle_cluster_gap_m : 0.8   # この隙間以下で隣接する障害物は1つとして扱う
+    obstacle_cluster_gap_m : 0.8
     frenet:
       lateral_sample_step_m : 0.15
       collision_check_margin_m : 0.15
-      target_lengths_m : [15.0]
+      avoidance_target_lengths_m : [15.0]   # 障害物があるときの回避経路の距離
+      merge_time_s : 1.0   # 障害物がないときの合流距離 = merge_time_s × 車速
+      merge_lateral_accel_mps2 : 1.0   # 合流時の横加速度上限
+      merge_length_min_m : 4.0
+      merge_length_max_m : 15.0
       weight_curvature : 2000.0
       weight_lateral_deviation : 150.0
       weight_side_change : 300.0
+      kappa_max : 0.268   # 候補経路の曲率の上限 [1/m]
     stop_standoff_m : 1.0
 
 speed_path_planner_node:
