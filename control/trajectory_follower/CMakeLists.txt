@@ -10,8 +10,8 @@ ament_auto_find_build_dependencies()
 find_package(Eigen3 REQUIRED)
 
 ament_auto_add_library(pid_mpc_core SHARED
-  src/mpc/longitudinal_pid.cpp
-  src/mpc/lateral_mpc.cpp
+  src/pid_mpc/longitudinal_pid.cpp
+  src/pid_mpc/lateral_mpc.cpp
 )
 target_compile_features(pid_mpc_core PUBLIC cxx_std_17)
 target_link_libraries(pid_mpc_core Eigen3::Eigen)

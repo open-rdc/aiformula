@@ -1,7 +1,6 @@
 #pragma once
 
 #include <memory>
-#include <optional>
 
 #include <rclcpp/rclcpp.hpp>
 #include <speed_path_msgs/msg/speed_path.hpp>
@@ -25,7 +24,7 @@ public:
 
     virtual void setMeasuredSteer(double) {}
 
-    virtual std::optional<steered_drive_msg::msg::SteeredDrive> computeCommand(
+    virtual steered_drive_msg::msg::SteeredDrive computeCommand(
         const speed_path_msgs::msg::SpeedPath & path_in_base,
         double current_velocity) = 0;
 };

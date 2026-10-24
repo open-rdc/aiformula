@@ -2,7 +2,6 @@
 
 #include <array>
 #include <cmath>
-#include <stdexcept>
 #include <vector>
 
 #include <pluginlib/class_list_macros.hpp>
@@ -14,13 +13,10 @@ namespace trajectory_follower
 {
 
 void PidMpcPlugin::initialize(
-    const rclcpp::Logger & logger,
-    const rclcpp::Clock::SharedPtr & clock,
+    const rclcpp::Logger &,
+    const rclcpp::Clock::SharedPtr &,
     const rclcpp::node_interfaces::NodeParametersInterface::SharedPtr & params)
 {
-    logger_ = logger;
-    clock_ = clock;
-
     const double dt =
         static_cast<double>(params->get_parameter("interval_ms").as_int()) / 1000.0;
 
@@ -45,25 +41,14 @@ void PidMpcPlugin::initialize(
     lat.weight_heading_error = params->get_parameter("mpc.lateral.weight_heading_error").as_double();
     lat.weight_steering_input = params->get_parameter("mpc.lateral.weight_steering_input").as_double();
     lat.weight_steer_rate = params->get_parameter("mpc.lateral.weight_steer_rate").as_double();
-    lat.weight_terminal_lat_error =
-        params->get_parameter("mpc.lateral.weight_terminal_lat_error").as_double();
-    lat.weight_terminal_heading_error =
-        params->get_parameter("mpc.lateral.weight_terminal_heading_error").as_double();
+    lat.weight_terminal_lat_error = params->get_parameter("mpc.lateral.weight_terminal_lat_error").as_double();
+    lat.weight_terminal_heading_error = params->get_parameter("mpc.lateral.weight_terminal_heading_error").as_double();
     lat.horizon = params->get_parameter("mpc.lateral.horizon").as_int();
     lat.prediction_dt = params->get_parameter("mpc.lateral.prediction_dt").as_double();
     lat.min_predict_speed = params->get_parameter("mpc.lateral.min_predict_speed").as_double();
     lateral_.configure(lat);
 
     velocity_preview_time_ = params->get_parameter("velocity_preview_time").as_double();
-
-    if (lon.v_max <= 0.0 || lat.wheelbase <= 0.0 || lat.steer_limit <= 0.0) {
-        throw std::invalid_argument("PidMpcPlugin: control parameters are invalid");
-    }
-
-    RCLCPP_INFO(
-        logger_,
-        "PidMpcPlugin 初期化: 縦PID(kp=%.2f ki=%.2f kd=%.2f) + 横MPC(N=%d dt=%.2f)",
-        lon.kp, lon.ki, lon.kd, lat.horizon, lat.prediction_dt);
 }
 
 void PidMpcPlugin::reset()
@@ -77,17 +62,13 @@ void PidMpcPlugin::setMeasuredSteer(double steer)
     lateral_.setMeasuredSteer(steer);
 }
 
-std::optional<steered_drive_msg::msg::SteeredDrive> PidMpcPlugin::computeCommand(
+steered_drive_msg::msg::SteeredDrive PidMpcPlugin::computeCommand(
     const speed_path_msgs::msg::SpeedPath & path_in_base,
     double current_velocity)
 {
+    // 1. 経路を MPC の入力形式に変換する
     const auto & points = path_in_base.points;
     const int n = static_cast<int>(points.size());
-    if (n < 3) {
-        RCLCPP_WARN_THROTTLE(logger_, *clock_, 1000, "経路点が不足 (3点未満)");
-        return std::nullopt;
-    }
-
     std::vector<std::array<double, 2>> path_xy;
     std::vector<double> curvatures;
     path_xy.reserve(n);
@@ -97,14 +78,14 @@ std::optional<steered_drive_msg::msg::SteeredDrive> PidMpcPlugin::computeCommand
         curvatures.push_back(point.curvature);
     }
 
+    // 2. 縦方向: 先読み点の速度・加速度を PID で追従する
     const auto reference = preview_point(path_in_base, current_velocity, velocity_preview_time_);
-    const double v_cmd = longitudinal_.update(
-        reference.linear_velocity, reference.linear_acceleration, current_velocity);
-    const double steer = lateral_.computeSteering(path_xy, curvatures, current_velocity);
 
+    // 3. 横方向: MPC で舵角を求める
     steered_drive_msg::msg::SteeredDrive command;
-    command.velocity = v_cmd;
-    command.steering_angle = steer;
+    command.velocity = longitudinal_.update(
+        reference.linear_velocity, reference.linear_acceleration, current_velocity);
+    command.steering_angle = lateral_.computeSteering(path_xy, curvatures, current_velocity);
     return command;
 }
 

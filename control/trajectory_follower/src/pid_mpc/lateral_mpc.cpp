@@ -1,4 +1,4 @@
-#include "trajectory_follower/mpc/lateral_mpc.hpp"
+#include "trajectory_follower/pid_mpc/lateral_mpc.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -11,14 +11,46 @@
 namespace trajectory_follower
 {
 
-namespace
+TrackingError computeTrackingError(
+    const std::vector<std::array<double, 2>> & path_xy,
+    const std::vector<double> & curvatures)
 {
-double normalize_angle(double a)
-{
-    while (a > M_PI) a -= 2.0 * M_PI;
-    while (a < -M_PI) a += 2.0 * M_PI;
-    return a;
-}
+    const int n = static_cast<int>(path_xy.size());
+    int nearest = 0;
+    double best = std::numeric_limits<double>::max();
+    for (int i = 0; i < n; ++i) {
+        const double d = path_xy[i][0] * path_xy[i][0] + path_xy[i][1] * path_xy[i][1];
+        if (d < best) {
+            best = d;
+            nearest = i;
+        }
+    }
+
+    const int hi = (nearest < n - 1) ? nearest + 1 : nearest;
+    const int lo = (nearest < n - 1) ? nearest : nearest - 1;
+    const double chord_theta = std::atan2(path_xy[hi][1] - path_xy[lo][1],
+                                          path_xy[hi][0] - path_xy[lo][0]);
+    const double chord_len = std::hypot(path_xy[hi][0] - path_xy[lo][0],
+                                        path_xy[hi][1] - path_xy[lo][1]);
+    // 弦の向きは弦中点の接線方向なので、曲率で最近傍点上の向きに補正する
+    const double kappa_n = curvatures[nearest];
+    const double theta = std::remainder(
+        chord_theta + ((nearest < n - 1) ? -0.5 : 0.5) * kappa_n * chord_len, 2.0 * M_PI);
+
+    const double x0 = path_xy[nearest][0];
+    const double y0 = path_xy[nearest][1];
+    TrackingError err;
+    err.nearest = nearest;
+    err.e_y = std::sin(theta) * x0 - std::cos(theta) * y0;
+    err.e_yaw = std::remainder(0.0 - theta, 2.0 * M_PI);
+
+    // 経路が自車より前から始まる場合は、定曲率の円弧で垂線の足まで外挿する
+    const double a_fwd = x0 * std::cos(theta) + y0 * std::sin(theta);
+    if (nearest == 0 && a_fwd > 0.0) {
+        err.e_yaw = std::remainder(-theta + kappa_n * a_fwd, 2.0 * M_PI);
+        err.e_y -= 0.5 * kappa_n * a_fwd * a_fwd;
+    }
+    return err;
 }
 
 void LateralMpc::configure(const LateralMpcParams & params)
@@ -33,40 +65,24 @@ double LateralMpc::computeSteering(
     double v)
 {
     const int n = static_cast<int>(path_xy.size());
-    if (n < 3) {
-        return std::clamp(prev_steer_, -params_.steer_limit, params_.steer_limit);
-    }
 
+    // 1. 経路上の追従誤差を求める
     std::vector<double> arc(n, 0.0);
     for (int i = 1; i < n; ++i) {
         arc[i] = arc[i - 1] + std::hypot(path_xy[i][0] - path_xy[i - 1][0],
                                          path_xy[i][1] - path_xy[i - 1][1]);
     }
-    int nearest = 0;
-    double best = std::numeric_limits<double>::max();
-    for (int i = 0; i < n; ++i) {
-        const double d = path_xy[i][0] * path_xy[i][0] + path_xy[i][1] * path_xy[i][1];
-        if (d < best) {
-            best = d;
-            nearest = i;
-        }
-    }
+    const TrackingError err = computeTrackingError(path_xy, curvatures);
+    const int nearest = err.nearest;
+    const double e_y = err.e_y;
+    const double e_yaw = err.e_yaw;
 
-    const int hi = (nearest < n - 1) ? nearest + 1 : nearest;
-    const int lo = (nearest < n - 1) ? nearest : nearest - 1;
-    const double theta = std::atan2(path_xy[hi][1] - path_xy[lo][1],
-                                    path_xy[hi][0] - path_xy[lo][0]);
-
-    const double x0 = path_xy[nearest][0];
-    const double y0 = path_xy[nearest][1];
-    const double e_y = std::sin(theta) * x0 - std::cos(theta) * y0;
-    const double e_yaw = normalize_angle(0.0 - theta);
-
-    const int N = std::max(1, params_.horizon);
+    // 2. 離散化モデルを作る
+    const int N = params_.horizon;
     const double dt = params_.prediction_dt;
     const double V = std::max(v, params_.min_predict_speed);
     const double L = params_.wheelbase;
-    const double tau = std::max(params_.steer_tau, 1.0e-3);
+    const double tau = params_.steer_tau;
     const double ds = V * dt;
 
     Eigen::Matrix3d Ac;
@@ -84,6 +100,7 @@ double LateralMpc::computeSteering(
         return curvatures[j];
     };
 
+    // 3. 予測行列を作る
     std::vector<Eigen::Matrix3d> Apow(N + 1, Eigen::Matrix3d::Identity());
     for (int k = 1; k <= N; ++k) {
         Apow[k] = Apow[k - 1] * Ad;
@@ -112,6 +129,7 @@ double LateralMpc::computeSteering(
         Sw.segment<3>(r) = acc;
     }
 
+    // 4. コスト行列を作る
     Eigen::VectorXd qdiag(3 * N);
     for (int k = 1; k <= N; ++k) {
         const int r = (k - 1) * 3;
@@ -133,40 +151,30 @@ double LateralMpc::computeSteering(
     const double R = params_.weight_steering_input;
     const double Rd = params_.weight_steer_rate;
 
-    double steer_state = prev_steer_;
-    if (measured_steer_) {
-        const double normalized =
-            std::atan2(std::sin(*measured_steer_), std::cos(*measured_steer_));
-        steer_state = std::clamp(normalized, -params_.steer_limit, params_.steer_limit);
-        measured_steer_.reset();
-    }
+    const Eigen::VectorXd x0vec = (Eigen::Vector3d() << e_y, e_yaw, steer_state_).finished();
 
-    const Eigen::VectorXd x0vec = (Eigen::Vector3d() << e_y, e_yaw, steer_state).finished();
-
+    // 5. QP を解く
     const Eigen::MatrixXd SuTQ = Su.transpose() * Qbar;
     Eigen::MatrixXd M = SuTQ * Su + R * Eigen::MatrixXd::Identity(N, N) + Rd * (D.transpose() * D);
     const Eigen::VectorXd rhs = -(SuTQ * (Sx * x0vec + Sw)) + Rd * (D.transpose() * pvec);
 
     const Eigen::VectorXd U = M.ldlt().solve(rhs);
 
-    double steer = U(0);
-    if (!std::isfinite(steer)) {
-        steer = prev_steer_;
-    }
-    steer = std::clamp(steer, -params_.steer_limit, params_.steer_limit);
+    const double steer = std::clamp(U(0), -params_.steer_limit, params_.steer_limit);
     prev_steer_ = steer;
+    steer_state_ = steer;
     return steer;
 }
 
 void LateralMpc::reset()
 {
     prev_steer_ = 0.0;
-    measured_steer_.reset();
+    steer_state_ = 0.0;
 }
 
 void LateralMpc::setMeasuredSteer(double steer)
 {
-    measured_steer_ = steer;
+    steer_state_ = std::clamp(std::remainder(steer, 2.0 * M_PI), -params_.steer_limit, params_.steer_limit);
 }
 
 }

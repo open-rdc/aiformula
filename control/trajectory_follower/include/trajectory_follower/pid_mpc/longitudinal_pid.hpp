@@ -5,16 +5,16 @@ namespace trajectory_follower
 
 struct LongitudinalParams
 {
-    double v_max = 2.0;
-    double a_max = 1.0;
-    double a_min = -2.0;
-    double max_integral_effort = 0.5;
-    double jerk_max = 2.0;
-    double kp = 0.8;
-    double ki = 0.1;
-    double kd = 0.0;
-    double lpf_vel_error_gain = 0.9;
-    double dt = 0.05;
+    double v_max;
+    double a_max;
+    double a_min;
+    double max_integral_effort;
+    double jerk_max;
+    double kp;
+    double ki;
+    double kd;
+    double lpf_vel_error_gain;
+    double dt;
 };
 
 class LongitudinalPid
