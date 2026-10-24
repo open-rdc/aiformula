@@ -11,6 +11,8 @@
 #include "pose_estimater/pose_estimater_node.hpp"
 #include "road_detector/road_detector_node.hpp"
 #include "speed_path_planner/speed_path_planner_node.hpp"
+#include "topomap_localizer/topomap_localizer_node.hpp"
+#include "topomap_server/topomap_server_node.hpp"
 #include "traffic_signal_stop/traffic_signal_stop_node.hpp"
 #include "trajectory_follower/controller_server.hpp"
 #include "vectormap_server/vectormap_server_node.hpp"
@@ -40,6 +42,8 @@ int main(int argc, char* argv[]) {
     auto pose_estimater_node       = mapless ? nullptr : std::make_shared<pose_estimater::PoseEstimaterNode>(nodes_option);
     auto ekf_localizer_node        = mapless ? nullptr : std::make_shared<ekf_localizer::EkfLocalizerNode>(nodes_option);
     auto map_odom_tf_node          = mapless ? nullptr : std::make_shared<ekf_localizer::MapOdomTfNode>(nodes_option);
+    auto topomap_server_node       = mapless ? std::make_shared<topomap_server::TopomapServerNode>(nodes_option) : nullptr;
+    auto topomap_localizer_node    = mapless ? std::make_shared<topomap_localizer::TopomapLocalizerNode>(nodes_option) : nullptr;
     auto odom_tf_node              = std::make_shared<ekf_localizer::OdomTfNode>(nodes_option);
     auto mission_planner_node      = mapless ? nullptr : std::make_shared<mission_planner::MissionPlannerNode>(nodes_option);
     auto local_planner_server_node = std::make_shared<local_planner::LocalPlannerServer>(nodes_option);
@@ -56,6 +60,9 @@ int main(int argc, char* argv[]) {
         exec.add_node(map_odom_tf_node);
         exec.add_node(mission_planner_node);
 
+    } else {
+        exec.add_node(topomap_server_node);
+        exec.add_node(topomap_localizer_node);
     }
     exec.add_node(odom_tf_node);
     exec.add_node(local_planner_server_node);
