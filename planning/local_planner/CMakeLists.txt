@@ -14,10 +14,8 @@ target_compile_features(local_planner_server PUBLIC cxx_std_17)
 target_compile_definitions(local_planner_server PRIVATE "LOCAL_PLANNER_BUILDING_LIBRARY")
 
 ament_auto_add_library(frenet_core SHARED
-  src/frenet/polynomial.cpp
-  src/frenet/frenet_planner.cpp
-  src/frenet/hard_constraint.cpp
-  src/frenet/soft_constraint.cpp)
+  src/frenet/reference_path.cpp
+  src/frenet/frenet_planner.cpp)
 target_compile_features(frenet_core PUBLIC cxx_std_17)
 
 ament_auto_add_library(frenet_planner_plugin SHARED
