@@ -136,6 +136,8 @@ local_planner_server_node:
     avoidance_hard_margin_m : 0.35
     avoidance_soft_margin_m : 1.0
     max_avoidance_shift_m : 2.4
+    lane_width_m : 4.0   # 車線幅
+    lane_boundary_margin_m : 0.1   # 回避時に車輪を車線の端から内側に残す余裕
     obstacle_cluster_gap_m : 0.8
     frenet:
       lateral_sample_step_m : 0.15

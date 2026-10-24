@@ -26,7 +26,10 @@ void FrenetPlannerPlugin::initialize(
     params_.hard_margin_m = params->get_parameter("avoidance_hard_margin_m").as_double();
     params_.soft_margin_m = params->get_parameter("avoidance_soft_margin_m").as_double();
     params_.cluster_gap_m = params->get_parameter("obstacle_cluster_gap_m").as_double();
-    params_.max_shift_m = params->get_parameter("max_avoidance_shift_m").as_double();
+    params_.max_shift_m = std::min(
+        params->get_parameter("max_avoidance_shift_m").as_double(),
+        0.5 * (params->get_parameter("lane_width_m").as_double() - params_.tread_m) -
+            params->get_parameter("lane_boundary_margin_m").as_double());
     params_.lateral_sample_step_m = params->get_parameter("frenet.lateral_sample_step_m").as_double();
     params_.collision_check_margin_m = params->get_parameter("frenet.collision_check_margin_m").as_double();
     params_.avoidance_target_lengths_m = params->get_parameter("frenet.avoidance_target_lengths_m").as_double_array();
