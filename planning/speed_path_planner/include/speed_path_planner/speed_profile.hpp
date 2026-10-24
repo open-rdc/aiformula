@@ -14,6 +14,8 @@ struct Limits
     double v_max;
     double a_lon;
     double a_lat_max;
+    double stop_decel;
+    double stop_decel_max;
 };
 
 struct Profile
@@ -30,7 +32,7 @@ std::vector<double> curvatures(const std::vector<Point2D>& points);
 SPEED_PATH_PLANNER_PUBLIC
 std::vector<double> lateral_limits(const std::vector<double>& curvature, const Limits& limits);
 SPEED_PATH_PLANNER_PUBLIC
-void apply_stop(std::vector<double>& v, const std::vector<double>& s, double stop_s);
+void apply_stop(std::vector<double>& v, const std::vector<double>& s, double stop_s, double decel);
 SPEED_PATH_PLANNER_PUBLIC
 void backward_pass(std::vector<double>& v, const std::vector<double>& s, double a_lon);
 SPEED_PATH_PLANNER_PUBLIC
