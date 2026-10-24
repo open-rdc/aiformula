@@ -52,6 +52,21 @@ vectormap_server_node:
   ros__parameters:
     map_path : "aiformula_course.osm"
 
+topomap_server_node:
+  ros__parameters:
+    map_path : "aiformula_topomap.osm"
+
+topomap_localizer_node:
+  ros__parameters:
+    interval_ms : 50
+    route : [10000000000, 10000000001, 10000000002, 10000000006, 10000000003, 10000000004] # 周回する node id（青）
+    initial_pose : [1.5, 3.0, -89.0] # 起動時の base_link の map 上の姿勢 [x, y, yaw_deg]
+    trigger_distance_m : 20.0
+    turn_angle_deg : 60.0
+    heading_tolerance_deg : 45.0
+    straight_angle_deg : 30.0
+    anchor_window : 4
+
 pose_estimater_node:
   ros__parameters:
     interval_ms : 20
