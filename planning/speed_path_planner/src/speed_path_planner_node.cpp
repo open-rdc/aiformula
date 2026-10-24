@@ -17,7 +17,9 @@ speed_profile::Limits read_limits(rclcpp::Node& node)
     return speed_profile::Limits{
         node.get_parameter("linear_max.vel").as_double(),
         node.get_parameter("linear_max.acc").as_double(),
-        node.get_parameter("a_lat_max").as_double()};
+        node.get_parameter("a_lat_max").as_double(),
+        node.get_parameter("stop_decel").as_double(),
+        node.get_parameter("stop_decel_max").as_double()};
 }
 
 std_msgs::msg::ColorRGBA speed_color(double v, double max_speed)

@@ -60,12 +60,10 @@ std::vector<double> lateral_limits(const std::vector<double>& curvature, const L
     return v;
 }
 
-void apply_stop(std::vector<double>& v, const std::vector<double>& s, double stop_s)
+void apply_stop(std::vector<double>& v, const std::vector<double>& s, double stop_s, double decel)
 {
     for (std::size_t i = 0; i < v.size(); ++i) {
-        if (s[i] >= stop_s) {
-            v[i] = 0.0;
-        }
+        v[i] = s[i] >= stop_s ? 0.0 : std::min(v[i], std::sqrt(2.0 * decel * (stop_s - s[i])));
     }
 }
 
@@ -106,8 +104,10 @@ Profile plan(
     Profile profile;
     profile.curvature = curvatures(points);
     profile.velocity = lateral_limits(profile.curvature, limits);
-    apply_stop(profile.velocity, s, stop_s);
     backward_pass(profile.velocity, s, limits.a_lon);
+    // 停止点へは stop_decel で減速し、それで止まれなければ stop_decel_max まで強める
+    const double required_decel = v_meas * v_meas / (2.0 * (stop_s - s[0]));
+    apply_stop(profile.velocity, s, stop_s, std::clamp(required_decel, limits.stop_decel, limits.stop_decel_max));
     forward_pass(profile.velocity, s, std::max(v_meas, 0.0), limits.a_lon);
     profile.acceleration = accelerations(profile.velocity, s);
     return profile;

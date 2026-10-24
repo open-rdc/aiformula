@@ -153,7 +153,9 @@ local_planner_server_node:
 
 speed_path_planner_node:
   ros__parameters:
-    a_lat_max          : 3.0
+    a_lat_max          : 3.0   # 最大横加速度 [m/s^2]
+    stop_decel         : 1.5   # 停止点へ向けた減速度 [m/s^2]
+    stop_decel_max     : 4.0   # stop_decel で止まれないときに使う減速度の上限 [m/s^2]
     stop_point_timeout_s : 0.5
 
 pylon_detector_node:
