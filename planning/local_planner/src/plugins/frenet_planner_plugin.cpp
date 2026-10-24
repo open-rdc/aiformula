@@ -1,6 +1,7 @@
 #include "local_planner/plugins/frenet_planner_plugin.hpp"
 
 #include <algorithm>
+#include <limits>
 
 #include <pluginlib/class_list_macros.hpp>
 
@@ -84,9 +85,12 @@ nav_msgs::msg::Path FrenetPlannerPlugin::computeLocalPath(
     auto points = frenet::select_best_path(
         reference_, initial, end_s, target_s_list, target_d_list, obstacles, previous_points_, params_);
 
-    // 5. 回避できなければ、先頭の障害物の手前で止まる経路にする
+    // 5. 回避できなければ参照線へ戻る経路にし、先頭の障害物の手前を止まる位置とする
+    stop_distance_m_ = std::numeric_limits<double>::infinity();
     if (points.empty() && !obstacles.empty()) {
-        points = frenet::make_stop_path(reference_, initial, obstacles.front(), params_);
+        const auto merge_s_list = frenet::make_target_s_list(initial, end_s, velocity.twist.twist.linear.x, {}, params_);
+        points = frenet::select_best_path(reference_, initial, end_s, merge_s_list, {0.0}, {}, previous_points_, params_);
+        stop_distance_m_ = obstacles.front().s - params_.stop_standoff_m - initial.s - params_.resample_interval_m;
     }
     previous_points_ = points;
 
@@ -101,6 +105,11 @@ nav_msgs::msg::Path FrenetPlannerPlugin::computeLocalPath(
         path.poses.push_back(pose);
     }
     return path;
+}
+
+double FrenetPlannerPlugin::stopDistance() const
+{
+    return stop_distance_m_;
 }
 
 }

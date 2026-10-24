@@ -57,9 +57,4 @@ std::vector<Pose2D> select_best_path(
     const std::vector<FrenetObstacle> & obstacles, const std::vector<Pose2D> & previous_points,
     const Parameters & params);
 
-// 障害物の stop_standoff_m 手前で終わる経路
-std::vector<Pose2D> make_stop_path(
-    const ReferencePath & reference, const FrenetState & initial, const FrenetObstacle & obstacle,
-    const Parameters & params);
-
 }

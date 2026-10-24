@@ -1,5 +1,6 @@
 #pragma once
 
+#include <limits>
 #include <memory>
 
 #include <geometry_msgs/msg/pose.hpp>
@@ -28,6 +29,9 @@ public:
         const geometry_msgs::msg::Pose & ego_pose,
         const geometry_msgs::msg::TwistWithCovarianceStamped & velocity,
         const object_detection_msgs::msg::ObjectInfoArray & objects) = 0;
+
+    // 直前の local path の先頭から止まる位置までの距離。止まらないときは無限大
+    virtual double stopDistance() const { return std::numeric_limits<double>::infinity(); }
 };
 
 }
