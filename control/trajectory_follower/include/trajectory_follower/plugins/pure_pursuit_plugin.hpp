@@ -9,27 +9,15 @@ class PurePursuitPlugin : public ControllerPlugin
 {
 public:
     void initialize(
-        const rclcpp::Logger & logger,
-        const rclcpp::Clock::SharedPtr & clock,
+        const rclcpp::Logger &,
+        const rclcpp::Clock::SharedPtr &,
         const rclcpp::node_interfaces::NodeParametersInterface::SharedPtr & params) override;
 
-    std::optional<steered_drive_msg::msg::SteeredDrive> computeCommand(
+    steered_drive_msg::msg::SteeredDrive computeCommand(
         const speed_path_msgs::msg::SpeedPath & path_in_base,
         double current_velocity) override;
 
 private:
-    struct TargetPoint
-    {
-        double x;
-        double y;
-    };
-
-    bool find_lookahead_target(
-        const speed_path_msgs::msg::SpeedPath & path, double lookahead_distance,
-        TargetPoint & target_out) const;
-
-    rclcpp::Logger logger_{rclcpp::get_logger("pure_pursuit_plugin")};
-    rclcpp::Clock::SharedPtr clock_{std::make_shared<rclcpp::Clock>()};
     double lookahead_gain_{0.0};
     double lookahead_min_distance_{0.0};
     double lookahead_max_distance_{0.0};

@@ -1,15 +1,10 @@
-#include "trajectory_follower/mpc/longitudinal_pid.hpp"
+#include "trajectory_follower/pid_mpc/longitudinal_pid.hpp"
 
 #include <algorithm>
 #include <cmath>
 
 namespace trajectory_follower
 {
-
-namespace
-{
-constexpr double STOP_VELOCITY_EPS = 0.05;
-}
 
 void LongitudinalPid::configure(const LongitudinalParams & params)
 {
@@ -19,12 +14,8 @@ void LongitudinalPid::configure(const LongitudinalParams & params)
 
 double LongitudinalPid::update(double v_ref, double a_ref, double v_meas)
 {
-    if (v_ref <= STOP_VELOCITY_EPS && std::abs(v_meas) <= STOP_VELOCITY_EPS) {
-        integral_ = 0.0;
-        prev_error_ = 0.0;
-        filtered_error_ = 0.0;
-        prev_a_cmd_ = 0.0;
-        v_cmd_ = 0.0;
+    if (v_ref <= 0.05 && std::abs(v_meas) <= 0.05) {
+        reset();
         initialized_ = true;
         return 0.0;
     }
@@ -38,18 +29,15 @@ double LongitudinalPid::update(double v_ref, double a_ref, double v_meas)
         prev_error_ = error;
     }
 
-    const double g = std::clamp(params_.lpf_vel_error_gain, 0.0, 1.0);
-    filtered_error_ = g * filtered_error_ + (1.0 - g) * error;
+    filtered_error_ = params_.lpf_vel_error_gain * filtered_error_ + (1.0 - params_.lpf_vel_error_gain) * error;
 
     const bool saturated =
         (v_cmd_ >= params_.v_max && filtered_error_ > 0.0) || (v_cmd_ <= 0.0 && filtered_error_ < 0.0);
     if (!saturated) {
         integral_ += filtered_error_ * dt;
     }
-    if (params_.ki > 1.0e-9) {
-        const double i_limit = params_.max_integral_effort / params_.ki;
-        integral_ = std::clamp(integral_, -i_limit, i_limit);
-    }
+    const double i_limit = params_.max_integral_effort / params_.ki;
+    integral_ = std::clamp(integral_, -i_limit, i_limit);
     const double deriv = initialized_ ? (filtered_error_ - prev_error_) / dt : 0.0;
     const double a_fb = params_.kp * filtered_error_ + params_.ki * integral_ + params_.kd * deriv;
 

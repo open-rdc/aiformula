@@ -1,11 +1,5 @@
 #pragma once
 
-#include <chrono>
-#include <memory>
-#include <mutex>
-#include <optional>
-#include <string>
-
 #include <geometry_msgs/msg/twist_with_covariance_stamped.hpp>
 #include <pluginlib/class_loader.hpp>
 #include <rclcpp/rclcpp.hpp>
@@ -26,24 +20,14 @@ class ControllerServer : public rclcpp::Node
 {
 public:
     TRAJECTORY_FOLLOWER_PUBLIC
-    explicit ControllerServer(
-        const rclcpp::NodeOptions & options = rclcpp::NodeOptions());
-
-    TRAJECTORY_FOLLOWER_PUBLIC
-    explicit ControllerServer(
-        const std::string & name_space,
-        const rclcpp::NodeOptions & options = rclcpp::NodeOptions());
+    explicit ControllerServer(const rclcpp::NodeOptions & options = rclcpp::NodeOptions());
 
 private:
     void path_callback(const speed_path_msgs::msg::SpeedPath::ConstSharedPtr msg);
-    void velocity_callback(
-        const geometry_msgs::msg::TwistWithCovarianceStamped::ConstSharedPtr msg);
+    void velocity_callback(const geometry_msgs::msg::TwistWithCovarianceStamped::ConstSharedPtr msg);
     void autonomous_callback(const std_msgs::msg::Bool::ConstSharedPtr msg);
     void caster_data_callback(const std_msgs::msg::Float64MultiArray::ConstSharedPtr msg);
     void timer_callback();
-    void publish_stop_command();
-
-    const int interval_ms_;
 
     pluginlib::ClassLoader<ControllerPlugin> plugin_loader_;
     ControllerPlugin::SharedPtr plugin_;
@@ -55,8 +39,6 @@ private:
     speed_path_msgs::msg::SpeedPath::ConstSharedPtr path_;
     geometry_msgs::msg::TwistWithCovarianceStamped::ConstSharedPtr velocity_;
     std_msgs::msg::Float64MultiArray::ConstSharedPtr caster_data_;
-    std::optional<steered_drive_msg::msg::SteeredDrive> last_cmd_vel_;
-    mutable std::mutex data_mutex_;
 
     rclcpp::Subscription<speed_path_msgs::msg::SpeedPath>::SharedPtr path_subscription_;
     rclcpp::Subscription<geometry_msgs::msg::TwistWithCovarianceStamped>::SharedPtr velocity_subscription_;
