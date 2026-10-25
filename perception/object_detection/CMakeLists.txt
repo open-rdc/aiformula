@@ -29,18 +29,18 @@ endif()
 
 ament_export_definitions("ENABLE_TENSORRT")
 
-ament_auto_add_library(pylon_detector_node SHARED
-  src/pylon_detector_node.cpp
-  src/yolox_tensorrt.cpp
+ament_auto_add_library(object_detector_node SHARED
+  src/object_detector_node.cpp
+  src/rfdetr_tensorrt.cpp
 )
-target_compile_features(pylon_detector_node PUBLIC cxx_std_17)
-target_compile_definitions(pylon_detector_node PRIVATE "OBJECT_DETECTION_BUILDING_LIBRARY")
-target_include_directories(pylon_detector_node PUBLIC
+target_compile_features(object_detector_node PUBLIC cxx_std_17)
+target_compile_definitions(object_detector_node PRIVATE "OBJECT_DETECTION_BUILDING_LIBRARY")
+target_include_directories(object_detector_node PUBLIC
   ${OpenCV_INCLUDE_DIRS}
   ${CUDA_INCLUDE_DIRS}
   ${NVINFER_INCLUDE_DIR}
 )
-target_link_libraries(pylon_detector_node
+target_link_libraries(object_detector_node
   ${OpenCV_LIBRARIES}
   ${CUDA_LIBRARIES}
   ${NVINFER_LIBRARY}

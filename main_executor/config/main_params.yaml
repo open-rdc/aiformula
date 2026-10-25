@@ -161,11 +161,10 @@ speed_path_planner_node:
     stop_decel_max     : 4.0   # stop_decel で止まれないときに使う減速度の上限 [m/s^2]
     stop_point_timeout_s : 0.5
 
-pylon_detector_node:
+object_detector_node:
   ros__parameters:
-    engine_path : "yolox_s_aiformula.engine"
+    engine_path : "rfdetr_l_aiformula.engine"
     score_threshold : 0.3
-    nms_threshold : 0.45
 
 traffic_signal_stop_node:
   ros__parameters:
