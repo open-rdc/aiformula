@@ -38,12 +38,14 @@ PathSmootherNode::PathSmootherNode(
 }
 
 void PathSmootherNode::path_callback(const nav_msgs::msg::Path::ConstSharedPtr msg) {
+    // 1. 受け取った経路を点列にする
     std::vector<Point2D> input;
     input.reserve(msg->poses.size());
     for (const auto& pose : msg->poses) {
         input.push_back(Point2D{pose.pose.position.x, pose.pose.position.y});
     }
 
+    // 2. 時間窓のフレームを現在の base_link に揃える
     const auto           tf = tf_buffer_.lookupTransform("odom", "base_link", tf2_ros::fromMsg(msg->header.stamp));
     const Pose2D         now{tf.transform.translation.x, tf.transform.translation.y, utils::yaw_from_quaternion(tf.transform.rotation)};
     const rclcpp::Time   stamp(msg->header.stamp);
@@ -56,6 +58,7 @@ void PathSmootherNode::path_callback(const nav_msgs::msg::Path::ConstSharedPtr m
         frames.push_back(to_base(frame.second, now));
     }
 
+    // 3. 当てはめ範囲の点と弧長の重みを集める
     std::vector<Point2D> points;
     std::vector<double>  weights;
     for (const auto& frame : frames) {
@@ -69,10 +72,11 @@ void PathSmootherNode::path_callback(const nav_msgs::msg::Path::ConstSharedPtr m
         points.insert(points.end(), kept.begin(), kept.end());
         weights.insert(weights.end(), frame_weights.begin(), frame_weights.end());
     }
-    if (points.size() < 3U) {
+    if (points.size() < 4U) {
         return;
     }
 
+    // 4. RANSAC で外れ点を除く
     const auto           inliers = ransac_inliers(points, weights, ransac_threshold_m_, ransac_iterations_);
     std::vector<Point2D> kept;
     std::vector<double>  kept_weights;
@@ -86,9 +90,11 @@ void PathSmootherNode::path_callback(const nav_msgs::msg::Path::ConstSharedPtr m
             x_end   = std::max(x_end, points[i].x);
         }
     }
-    const Quadratic c       = fit_quadratic(kept, kept_weights);
-    const auto      samples = sample_quadratic(c, x_start, std::max(x_end, extend_to_x_m_), output_interval_m_);
+    // 5. 3 次で当てはめて弧長刻みで展開する
+    const Cubic     c       = fit_cubic(kept, kept_weights);
+    const auto      samples = sample_cubic(c, x_start, std::max(x_end, extend_to_x_m_), output_interval_m_);
 
+    // 6. 接線の向きを付けて publish する
     nav_msgs::msg::Path output;
     output.header = msg->header;
     output.poses.reserve(samples.size());

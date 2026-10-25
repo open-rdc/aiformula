@@ -5,16 +5,6 @@
 
 namespace path_smoother {
 
-namespace {
-
-double det3(const double m[3][3]) {
-    return m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1]) -
-           m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0]) +
-           m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]);
-}
-
-}  // namespace
-
 std::vector<Point2D> to_odom(const std::vector<Point2D>& points_base, const Pose2D& odom_T_base) {
     const double         c = std::cos(odom_T_base.yaw);
     const double         s = std::sin(odom_T_base.yaw);
@@ -50,41 +40,46 @@ std::vector<double> arc_weights(const std::vector<Point2D>& points) {
     return weights;
 }
 
-Quadratic fit_quadratic(const std::vector<Point2D>& points, const std::vector<double>& weights) {
-    // 正規方程式 (Σ w x^(i+j)) c = Σ w y x^i をクラメルで解く
-    double s[5] = {0.0, 0.0, 0.0, 0.0, 0.0};
-    double t[3] = {0.0, 0.0, 0.0};
+Cubic fit_cubic(const std::vector<Point2D>& points, const std::vector<double>& weights) {
+    // 正規方程式 (Σ w x^(i+j)) c = Σ w y x^i をガウスの消去法で解く
+    double s[7] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+    double t[4] = {0.0, 0.0, 0.0, 0.0};
     for (std::size_t i = 0; i < points.size(); ++i) {
         double xk = 1.0;
-        for (int k = 0; k < 5; ++k) {
+        for (int k = 0; k < 7; ++k) {
             s[k] += weights[i] * xk;
-            if (k < 3) {
+            if (k < 4) {
                 t[k] += weights[i] * points[i].y * xk;
             }
             xk *= points[i].x;
         }
     }
-    const double a[3][3] = {{s[0], s[1], s[2]}, {s[1], s[2], s[3]}, {s[2], s[3], s[4]}};
-    const double det     = det3(a);
-    Quadratic    c{};
-    for (int j = 0; j < 3; ++j) {
-        double m[3][3];
-        for (int r = 0; r < 3; ++r) {
-            for (int col = 0; col < 3; ++col) {
-                m[r][col] = col == j ? t[r] : a[r][col];
+    double a[4][5] = {{s[0], s[1], s[2], s[3], t[0]}, {s[1], s[2], s[3], s[4], t[1]}, {s[2], s[3], s[4], s[5], t[2]}, {s[3], s[4], s[5], s[6], t[3]}};
+    for (int p = 0; p < 4; ++p) {
+        for (int r = p + 1; r < 4; ++r) {
+            const double f = a[r][p] / a[p][p];
+            for (int col = p; col < 5; ++col) {
+                a[r][col] -= f * a[p][col];
             }
         }
-        c[j] = det3(m) / det;
+    }
+    Cubic c{};
+    for (int r = 3; r >= 0; --r) {
+        c[r] = a[r][4];
+        for (int col = r + 1; col < 4; ++col) {
+            c[r] -= a[r][col] * c[col];
+        }
+        c[r] /= a[r][r];
     }
     return c;
 }
 
-double evaluate(const Quadratic& c, const double x) {
-    return c[0] + c[1] * x + c[2] * x * x;
+double evaluate(const Cubic& c, const double x) {
+    return c[0] + x * (c[1] + x * (c[2] + x * c[3]));
 }
 
-double tangent_yaw(const Quadratic& c, const double x) {
-    return std::atan(c[1] + 2.0 * c[2] * x);
+double tangent_yaw(const Cubic& c, const double x) {
+    return std::atan(c[1] + x * (2.0 * c[2] + x * 3.0 * c[3]));
 }
 
 std::vector<bool> ransac_inliers(
@@ -95,17 +90,18 @@ std::vector<bool> ransac_inliers(
     const std::size_t                          n = points.size();
     std::mt19937                               rng(0);
     std::uniform_int_distribution<std::size_t> pick(0, n - 1);
-    const std::vector<double>                  unit(3, 1.0);
+    const std::vector<double>                  unit(4, 1.0);
     std::vector<bool>                          best(n, true);
     double                                     best_score = 0.0;
     for (int it = 0; it < iterations; ++it) {
         const std::size_t a = pick(rng);
         const std::size_t b = pick(rng);
         const std::size_t c = pick(rng);
-        if (a == b || b == c || a == c) {
+        const std::size_t d = pick(rng);
+        if (a == b || a == c || a == d || b == c || b == d || c == d) {
             continue;
         }
-        const Quadratic   model = fit_quadratic({points[a], points[b], points[c]}, unit);
+        const Cubic       model = fit_cubic({points[a], points[b], points[c], points[d]}, unit);
         std::vector<bool> inliers(n);
         double            score = 0.0;
         for (std::size_t i = 0; i < n; ++i) {
@@ -122,7 +118,7 @@ std::vector<bool> ransac_inliers(
     return best;
 }
 
-std::vector<Point2D> sample_quadratic(const Quadratic& c, const double x_start, const double x_end, const double interval) {
+std::vector<Point2D> sample_cubic(const Cubic& c, const double x_start, const double x_end, const double interval) {
     std::vector<Point2D> points;
     // 弧長 interval を進むための x の刻みは interval·cos(yaw)。終点は x_end を超えない最後の刻み
     for (double x = x_start; x <= x_end;) {

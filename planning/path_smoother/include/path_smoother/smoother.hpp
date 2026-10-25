@@ -19,8 +19,8 @@ struct Pose2D {
     double yaw;
 };
 
-// y = c[0] + c[1] x + c[2] x^2
-using Quadratic = std::array<double, 3>;
+// y = c[0] + c[1] x + c[2] x^2 + c[3] x^3
+using Cubic = std::array<double, 4>;
 
 PATH_SMOOTHER_PUBLIC
 std::vector<Point2D> to_odom(const std::vector<Point2D>& points_base, const Pose2D& odom_T_base);
@@ -32,7 +32,7 @@ std::vector<Point2D> to_base(const std::vector<Point2D>& points_odom, const Pose
 PATH_SMOOTHER_PUBLIC
 std::vector<double> arc_weights(const std::vector<Point2D>& points);
 
-// 3 点で通した 2 次に対し |残差| < threshold の点の重み和を得点にする。シード固定で決定的
+// 4 点で通した 3 次に対し |残差| < threshold の点の重み和を得点にする。シード固定で決定的
 PATH_SMOOTHER_PUBLIC
 std::vector<bool> ransac_inliers(
     const std::vector<Point2D>& points,
@@ -41,16 +41,16 @@ std::vector<bool> ransac_inliers(
     int                         iterations);
 
 PATH_SMOOTHER_PUBLIC
-Quadratic fit_quadratic(const std::vector<Point2D>& points, const std::vector<double>& weights);
+Cubic fit_cubic(const std::vector<Point2D>& points, const std::vector<double>& weights);
 
 PATH_SMOOTHER_PUBLIC
-double evaluate(const Quadratic& c, double x);
+double evaluate(const Cubic& c, double x);
 
 PATH_SMOOTHER_PUBLIC
-double tangent_yaw(const Quadratic& c, double x);
+double tangent_yaw(const Cubic& c, double x);
 
 // x_start から弧長 interval 刻みで x_end を超えない範囲まで展開する
 PATH_SMOOTHER_PUBLIC
-std::vector<Point2D> sample_quadratic(const Quadratic& c, double x_start, double x_end, double interval);
+std::vector<Point2D> sample_cubic(const Cubic& c, double x_start, double x_end, double interval);
 
 }  // namespace path_smoother
