@@ -11,6 +11,8 @@
 #include "pose_estimater/pose_estimater_node.hpp"
 #include "road_detector/road_detector_node.hpp"
 #include "speed_path_planner/speed_path_planner_node.hpp"
+#include "topomap_localizer/topomap_localizer_node.hpp"
+#include "topomap_server/topomap_server_node.hpp"
 #include "traffic_signal_stop/traffic_signal_stop_node.hpp"
 #include "trajectory_follower/controller_server.hpp"
 #include "vectormap_server/vectormap_server_node.hpp"
@@ -28,7 +30,8 @@ int main(int argc, char* argv[]) {
     nodes_option.automatically_declare_parameters_from_overrides(true);
     nodes_option.use_intra_process_comms(true);
     const bool use_sim = rclcpp::Node("launch", nodes_option).get_parameter("sim").as_bool();
-    const bool mapless = rclcpp::Node("launch", nodes_option).get_parameter("mapless").as_bool();
+    const bool mapless = rclcpp::Node("launch", nodes_option).get_parameter("mapless.use").as_bool();
+    const bool blue    = mapless && rclcpp::Node("launch", nodes_option).get_parameter("mapless.course").as_string() == "blue";
 
     if (use_sim) {
         nodes_option.parameter_overrides({rclcpp::Parameter("use_sim_time", true)});
@@ -40,6 +43,8 @@ int main(int argc, char* argv[]) {
     auto pose_estimater_node       = mapless ? nullptr : std::make_shared<pose_estimater::PoseEstimaterNode>(nodes_option);
     auto ekf_localizer_node        = mapless ? nullptr : std::make_shared<ekf_localizer::EkfLocalizerNode>(nodes_option);
     auto map_odom_tf_node          = mapless ? nullptr : std::make_shared<ekf_localizer::MapOdomTfNode>(nodes_option);
+    auto topomap_server_node       = blue ? std::make_shared<topomap_server::TopomapServerNode>(nodes_option) : nullptr;
+    auto topomap_localizer_node    = blue ? std::make_shared<topomap_localizer::TopomapLocalizerNode>(nodes_option) : nullptr;
     auto odom_tf_node              = std::make_shared<ekf_localizer::OdomTfNode>(nodes_option);
     auto mission_planner_node      = mapless ? nullptr : std::make_shared<mission_planner::MissionPlannerNode>(nodes_option);
     auto local_planner_server_node = std::make_shared<local_planner::LocalPlannerServer>(nodes_option);
@@ -57,6 +62,10 @@ int main(int argc, char* argv[]) {
         exec.add_node(mission_planner_node);
 
     }
+    if (blue) {
+        exec.add_node(topomap_server_node);
+        exec.add_node(topomap_localizer_node);
+    }
     exec.add_node(odom_tf_node);
     exec.add_node(local_planner_server_node);
     exec.add_node(speed_path_planner_node);
@@ -73,13 +82,15 @@ int main(int argc, char* argv[]) {
 
 #ifdef ENABLE_TENSORRT
     auto pylon_detector_node      = std::make_shared<object_detection::PylonDetectorNode>(nodes_option);
-    auto traffic_signal_stop_node = std::make_shared<traffic_signal_stop::TrafficSignalStopNode>(nodes_option);
+    auto traffic_signal_stop_node = blue ? nullptr : std::make_shared<traffic_signal_stop::TrafficSignalStopNode>(nodes_option);
     auto road_detector_node       = mapless ? nullptr : std::make_shared<road_detector::RoadDetectorNode>(nodes_option);
     auto vision_lane_planner_node = mapless ? std::make_shared<vision_lane_planner::VisionLanePlannerNode>(nodes_option) : nullptr;
     auto path_smoother_node       = mapless ? std::make_shared<path_smoother::PathSmootherNode>(nodes_option) : nullptr;
 
     exec.add_node(pylon_detector_node);
-    exec.add_node(traffic_signal_stop_node);
+    if (!blue) {
+        exec.add_node(traffic_signal_stop_node);
+    }
     if (mapless) {
         exec.add_node(vision_lane_planner_node);
         exec.add_node(path_smoother_node);

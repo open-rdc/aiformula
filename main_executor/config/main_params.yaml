@@ -1,8 +1,10 @@
 launch:
   ros__parameters:
     joy: false
-    sim : true
-    mapless : true
+    sim : false
+    mapless:
+      use: true
+      course: "red" # "red" or "blue"
 
 /**:
   ros__parameters:
@@ -51,6 +53,22 @@ lane_line_publisher_node:
 vectormap_server_node:
   ros__parameters:
     map_path : "aiformula_course.osm"
+
+topomap_server_node:
+  ros__parameters:
+    map_path : "aiformula_topomap.osm"
+
+topomap_localizer_node:
+  ros__parameters:
+    interval_ms : 50
+    route : [10000000000, 10000000001, 10000000002, 10000000006, 10000000003, 10000000004]
+    initial_pose : [1.5, 3.0, -89.0] # 初期位置設定（GNSSを使わない場合に利用）
+    init_gnss_flag : false # 初期位置だけはGNSSから取得（移動は推測航法）
+    trigger_distance_m : 20.0
+    turn_angle_deg : 60.0
+    heading_tolerance_deg : 45.0
+    straight_angle_deg : 30.0
+    anchor_window : 4
 
 pose_estimater_node:
   ros__parameters:
@@ -160,6 +178,8 @@ speed_path_planner_node:
     stop_decel         : 1.5   # 停止点へ向けた減速度 [m/s^2]
     stop_decel_max     : 4.0   # stop_decel で止まれないときに使う減速度の上限 [m/s^2]
     stop_point_timeout_s : 0.5
+    branch_linear_max:
+      vel : 4.0   # 分岐路付近での速度上限 [m/s]
 
 pylon_detector_node:
   ros__parameters:
