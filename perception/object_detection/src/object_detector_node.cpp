@@ -1,4 +1,4 @@
-#include "object_detection/pylon_detector_node.hpp"
+#include "object_detection/object_detector_node.hpp"
 
 #include <ament_index_cpp/get_package_share_directory.hpp>
 #include <camera_utility/camera_utility.hpp>
@@ -18,35 +18,35 @@ namespace object_detection {
 
 using object_detection_msgs::msg::ObjectInfo;
 
-PylonDetectorNode::PylonDetectorNode(const rclcpp::NodeOptions& options)
-    : PylonDetectorNode("", options) {
+ObjectDetectorNode::ObjectDetectorNode(const rclcpp::NodeOptions& options)
+    : ObjectDetectorNode("", options) {
 }
 
-PylonDetectorNode::PylonDetectorNode(
+ObjectDetectorNode::ObjectDetectorNode(
     const std::string&         name_space,
     const rclcpp::NodeOptions& options)
-    : rclcpp::Node("pylon_detector_node", name_space, options),
+    : rclcpp::Node("object_detector_node", name_space, options),
       base_T_camera_(camera_utility::getBaseTCamera(*this)) {
     const std::string engine_path =std::filesystem::path(ament_index_cpp::get_package_share_directory("object_detection")) / "weights" / get_parameter("engine_path").as_string();
-    detector_ = std::make_unique<YoloxTensorrt>(engine_path, get_parameter("score_threshold").as_double(), get_parameter("nms_threshold").as_double());
-    RCLCPP_INFO(get_logger(), "YOLOXエンジンを読み込みました: %s", engine_path.c_str());
+    detector_ = std::make_unique<RfdetrTensorrt>(engine_path, get_parameter("score_threshold").as_double());
+    RCLCPP_INFO(get_logger(), "RF-DETRエンジンを読み込みました: %s", engine_path.c_str());
 
-    camera_info_subscription_ = create_subscription<sensor_msgs::msg::CameraInfo>("/zed/zed_node/rgb/camera_info", rclcpp::SensorDataQoS().keep_last(1), std::bind(&PylonDetectorNode::camera_info_callback, this, std::placeholders::_1));
-    image_subscription_ = create_subscription<sensor_msgs::msg::Image>("/zed/zed_node/rgb/image_rect_color", rclcpp::SensorDataQoS().keep_last(1), std::bind(&PylonDetectorNode::image_callback, this, std::placeholders::_1));
+    camera_info_subscription_ = create_subscription<sensor_msgs::msg::CameraInfo>("/zed/zed_node/rgb/camera_info", rclcpp::SensorDataQoS().keep_last(1), std::bind(&ObjectDetectorNode::camera_info_callback, this, std::placeholders::_1));
+    image_subscription_ = create_subscription<sensor_msgs::msg::Image>("/zed/zed_node/rgb/image_rect_color", rclcpp::SensorDataQoS().keep_last(1), std::bind(&ObjectDetectorNode::image_callback, this, std::placeholders::_1));
 
     objects_publisher_ = create_publisher<object_detection_msgs::msg::ObjectInfoArray>("/perception/objects", rclcpp::SensorDataQoS().keep_last(1));
     marker_publisher_ = create_publisher<visualization_msgs::msg::MarkerArray>("/perception/objects_visualize", rclcpp::QoS(1));
     debug_image_publisher_ = create_publisher<sensor_msgs::msg::Image>("/perception/objects_debug_image", rclcpp::SensorDataQoS().keep_last(1));
 }
 
-void PylonDetectorNode::camera_info_callback(const sensor_msgs::msg::CameraInfo::ConstSharedPtr msg) {
+void ObjectDetectorNode::camera_info_callback(const sensor_msgs::msg::CameraInfo::ConstSharedPtr msg) {
     if (!intrinsics_) {
         intrinsics_ = camera_utility::fromCameraInfo(*msg);
         RCLCPP_INFO(get_logger(), "camera_info(%ux%u)を受信しました", msg->width, msg->height);
     }
 }
 
-void PylonDetectorNode::image_callback(const sensor_msgs::msg::Image::SharedPtr msg) {
+void ObjectDetectorNode::image_callback(const sensor_msgs::msg::Image::SharedPtr msg) {
     if (!intrinsics_) {
         RCLCPP_WARN(get_logger(), "camera_info未受信のため画像をスキップします");
         return;
@@ -68,7 +68,7 @@ void PylonDetectorNode::image_callback(const sensor_msgs::msg::Image::SharedPtr 
     RCLCPP_DEBUG(this->get_logger(), "障害物検出数: %zu", obstacles.size());
 }
 
-std::vector<Obstacle> PylonDetectorNode::project_to_ground(
+std::vector<Obstacle> ObjectDetectorNode::project_to_ground(
     const std::vector<Detection>& detections,
     cv::Mat&                      debug_image) const {
     static constexpr std::array<const char*, 4> class_names{"pylon", "dynamic_obstacle", "panel_red", "panel_green"};
@@ -109,7 +109,7 @@ std::vector<Obstacle> PylonDetectorNode::project_to_ground(
     return obstacles;
 }
 
-object_detection_msgs::msg::ObjectInfoArray PylonDetectorNode::make_objects(
+object_detection_msgs::msg::ObjectInfoArray ObjectDetectorNode::make_objects(
     const std::vector<Obstacle>&         obstacles,
     const builtin_interfaces::msg::Time& stamp) const {
     object_detection_msgs::msg::ObjectInfoArray objects;
@@ -127,7 +127,7 @@ object_detection_msgs::msg::ObjectInfoArray PylonDetectorNode::make_objects(
     return objects;
 }
 
-visualization_msgs::msg::MarkerArray PylonDetectorNode::make_markers(
+visualization_msgs::msg::MarkerArray ObjectDetectorNode::make_markers(
     const std::vector<Obstacle>&         obstacles,
     const builtin_interfaces::msg::Time& stamp) const {
     visualization_msgs::msg::MarkerArray markers;

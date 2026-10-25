@@ -6,7 +6,7 @@
 #include "lane_line_publisher/vectormap_visualizer_node.hpp"
 #include "local_planner/local_planner_server.hpp"
 #include "mission_planner/mission_planner_node.hpp"
-#include "object_detection/pylon_detector_node.hpp"
+#include "object_detection/object_detector_node.hpp"
 #include "path_smoother/path_smoother_node.hpp"
 #include "pose_estimater/pose_estimater_node.hpp"
 #include "road_detector/road_detector_node.hpp"
@@ -72,13 +72,13 @@ int main(int argc, char* argv[]) {
 #endif
 
 #ifdef ENABLE_TENSORRT
-    auto pylon_detector_node      = std::make_shared<object_detection::PylonDetectorNode>(nodes_option);
+    auto object_detector_node     = std::make_shared<object_detection::ObjectDetectorNode>(nodes_option);
     auto traffic_signal_stop_node = std::make_shared<traffic_signal_stop::TrafficSignalStopNode>(nodes_option);
     auto road_detector_node       = mapless ? nullptr : std::make_shared<road_detector::RoadDetectorNode>(nodes_option);
     auto vision_lane_planner_node = mapless ? std::make_shared<vision_lane_planner::VisionLanePlannerNode>(nodes_option) : nullptr;
     auto path_smoother_node       = mapless ? std::make_shared<path_smoother::PathSmootherNode>(nodes_option) : nullptr;
 
-    exec.add_node(pylon_detector_node);
+    exec.add_node(object_detector_node);
     exec.add_node(traffic_signal_stop_node);
     if (mapless) {
         exec.add_node(vision_lane_planner_node);

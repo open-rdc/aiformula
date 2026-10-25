@@ -1,7 +1,7 @@
 #pragma once
 
 #include "object_detection/visibility_control.h"
-#include "object_detection/yolox_tensorrt.hpp"
+#include "object_detection/rfdetr_tensorrt.hpp"
 
 #include <builtin_interfaces/msg/time.hpp>
 #include <camera_utility/camera_utility.hpp>
@@ -29,13 +29,13 @@ struct Obstacle {
     int    class_id;
 };
 
-class PylonDetectorNode : public rclcpp::Node {
+class ObjectDetectorNode : public rclcpp::Node {
    public:
     OBJECT_DETECTION_PUBLIC
-    explicit PylonDetectorNode(const rclcpp::NodeOptions& options = rclcpp::NodeOptions());
+    explicit ObjectDetectorNode(const rclcpp::NodeOptions& options = rclcpp::NodeOptions());
 
     OBJECT_DETECTION_PUBLIC
-    explicit PylonDetectorNode(
+    explicit ObjectDetectorNode(
         const std::string&         name_space,
         const rclcpp::NodeOptions& options = rclcpp::NodeOptions());
 
@@ -60,7 +60,7 @@ class PylonDetectorNode : public rclcpp::Node {
     static constexpr double marker_height_m_ = 0.4;
     static constexpr double panel_height_m_  = 1.0;
 
-    std::unique_ptr<YoloxTensorrt> detector_;
+    std::unique_ptr<RfdetrTensorrt> detector_;
 
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr                   image_subscription_;
     rclcpp::Subscription<sensor_msgs::msg::CameraInfo>::SharedPtr              camera_info_subscription_;
