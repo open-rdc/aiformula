@@ -25,6 +25,8 @@ TopomapServerNode::TopomapServerNode(const rclcpp::NodeOptions& options)
     for (auto* node = document.RootElement()->FirstChildElement("node"); node; node = node->NextSiblingElement("node")) {
         topomap_msgs::msg::TopoNode topo_node;
         topo_node.id = node->Unsigned64Attribute("id");
+        topo_node.latitude = node->DoubleAttribute("lat");
+        topo_node.longitude = node->DoubleAttribute("lon");
         for (auto* tag = node->FirstChildElement("tag"); tag; tag = tag->NextSiblingElement("tag")) {
             const std::string key = tag->Attribute("k");
             if (key == "local_x") {

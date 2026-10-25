@@ -59,8 +59,9 @@ topomap_server_node:
 topomap_localizer_node:
   ros__parameters:
     interval_ms : 50
-    route : [10000000000, 10000000001, 10000000002, 10000000006, 10000000003, 10000000004] # 周回する node id（青）
-    initial_pose : [1.5, 3.0, -89.0] # 起動時の base_link の map 上の姿勢 [x, y, yaw_deg]
+    route : [10000000000, 10000000001, 10000000002, 10000000006, 10000000003, 10000000004]
+    initial_pose : [1.5, 3.0, -89.0] # 初期位置設定（GNSSを使わない場合に利用）
+    init_gnss_flag : false # 初期位置だけはGNSSから取得（移動は推測航法）
     trigger_distance_m : 20.0
     turn_angle_deg : 60.0
     heading_tolerance_deg : 45.0

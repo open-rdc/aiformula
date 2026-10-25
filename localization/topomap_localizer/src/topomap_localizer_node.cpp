@@ -1,5 +1,6 @@
 #include "topomap_localizer/topomap_localizer_node.hpp"
 
+#include <algorithm>
 #include <cmath>
 
 #include <geometry_msgs/msg/transform_stamped.hpp>
@@ -10,7 +11,8 @@ namespace topomap_localizer
 {
 
 TopomapLocalizerNode::TopomapLocalizerNode(const rclcpp::NodeOptions& options)
-: rclcpp::Node("topomap_localizer_node", options)
+: rclcpp::Node("topomap_localizer_node", options),
+  init_gnss_flag_(get_parameter("init_gnss_flag").as_bool())
 {
     tf_buffer_ = std::make_shared<tf2_ros::Buffer>(get_clock());
     tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
@@ -20,6 +22,13 @@ TopomapLocalizerNode::TopomapLocalizerNode(const rclcpp::NodeOptions& options)
     no_intra_process_options.use_intra_process_comm = rclcpp::IntraProcessSetting::Disable;
 
     topomap_subscription_ = create_subscription<topomap_msgs::msg::TopoMap>("/map/topomap", rclcpp::QoS(1).transient_local(), std::bind(&TopomapLocalizerNode::topomap_callback, this, std::placeholders::_1), no_intra_process_options);
+    // 自律走行を始めるたびに、その時点の姿勢で初期化し直す
+    autonomous_subscription_ = create_subscription<std_msgs::msg::Bool>("/autonomous", rclcpp::QoS(10), [this](const std_msgs::msg::Bool::ConstSharedPtr msg) {
+        initialized_ = initialized_ && !msg->data;
+        autonomous_  = autonomous_ || msg->data;
+    });
+    gnss_subscription_ = create_subscription<sensor_msgs::msg::NavSatFix>("/vectornav/gnss", rclcpp::SensorDataQoS().keep_last(1), [this](const sensor_msgs::msg::NavSatFix::ConstSharedPtr msg) { gnss_ = msg; });
+    imu_subscription_ = create_subscription<sensor_msgs::msg::Imu>("/vectornav/imu", rclcpp::SensorDataQoS().keep_last(1), [this](const sensor_msgs::msg::Imu::ConstSharedPtr msg) { imu_ = msg; });
     nav_cmd_publisher_ = create_publisher<std_msgs::msg::String>("/planning/nav_cmd", rclcpp::QoS(10));
 
     timer_ = create_wall_timer(std::chrono::milliseconds(get_parameter("interval_ms").as_int()), std::bind(&TopomapLocalizerNode::timer_callback, this));
@@ -42,8 +51,10 @@ void TopomapLocalizerNode::topomap_callback(const topomap_msgs::msg::TopoMap::Co
 
     // route の各ノードで指令を決め、straight 以外のノードを分岐目標として route 順に保持する
     targets_.clear();
+    route_points_.clear();
     const size_t n = route.size();
     for (size_t i = 0; i < n; ++i) {
+        route_points_.push_back(position(route[i]));
         const uint64_t prev = route[(i + n - 1) % n];
         const uint64_t cur = route[i];
         const uint64_t next = route[(i + 1) % n];
@@ -88,27 +99,60 @@ void TopomapLocalizerNode::topomap_callback(const topomap_msgs::msg::TopoMap::Co
         if (std::abs(tc) < std::abs(tr) && (tc * tr > 0.0 || std::abs(tc) < straight_angle)) {
             continue;
         }
-        targets_.push_back({cur, p_cur, tc > tr ? "left" : "right", std::atan2(p_next.y - p_cur.y, p_next.x - p_cur.x)});
+        targets_.push_back({cur, p_cur, tc > tr ? "left" : "right", std::atan2(p_next.y - p_cur.y, p_next.x - p_cur.x), i});
     }
 }
 
 void TopomapLocalizerNode::timer_callback()
 {
     // 1. topomap と odom->base_link から odom 上の姿勢を得る
-    if (!topomap_ || !tf_buffer_->canTransform("odom", "base_link", tf2::TimePointZero)) {
+    if (!topomap_ || !autonomous_ || !tf_buffer_->canTransform("odom", "base_link", tf2::TimePointZero)) {
         return;
     }
     const auto odom_to_base = tf_buffer_->lookupTransform("odom", "base_link", tf2::TimePointZero);
     const std::array<double, 2> p_o = {odom_to_base.transform.translation.x, odom_to_base.transform.translation.y};
     const double yaw_o = utils::yaw_from_quaternion(odom_to_base.transform.rotation);
 
-    // 2. 初回のみ初期姿勢から map->odom を決める
+    // 2. 自律走行を始めた時点の姿勢を initial_pose か GNSS から求めて map->odom を決める
     if (!initialized_) {
-        const auto initial_pose = get_parameter("initial_pose").as_double_array();
+        auto initial_pose = get_parameter("initial_pose").as_double_array();
+        if (init_gnss_flag_) {
+            if (!gnss_ || !imu_ || gnss_->status.status < sensor_msgs::msg::NavSatStatus::STATUS_FIX) {
+                return;
+            }
+            // topomap の map は x が東、y が北。ノードの緯度経度と map 座標を基準に GNSS を map へ変換する
+            constexpr double a = 6378137.0;
+            constexpr double e2 = 6.69437999014e-3;
+            const auto& ref = topomap_->nodes.front();
+            const double lat0 = utils::dtor(ref.latitude);
+            const double w = std::sqrt(1.0 - e2 * std::sin(lat0) * std::sin(lat0));
+            initial_pose[0] = ref.position.x + a / w * std::cos(lat0) * utils::dtor(gnss_->longitude - ref.longitude);
+            initial_pose[1] = ref.position.y + a * (1.0 - e2) / (w * w * w) * utils::dtor(gnss_->latitude - ref.latitude);
+            initial_pose[2] = utils::rtod(M_PI / 2.0 + utils::yaw_from_quaternion(imu_->orientation));
+        }
         theta_ = utils::dtor(initial_pose[2]);
         tx_ = initial_pose[0] - (std::cos(theta_) * p_o[0] - std::sin(theta_) * p_o[1]);
         ty_ = initial_pose[1] - (std::sin(theta_) * p_o[0] + std::cos(theta_) * p_o[1]);
-        anchors_.push_back({p_o, {initial_pose[0], initial_pose[1]}});
+        anchors_.assign({{p_o, {initial_pose[0], initial_pose[1]}}});
+
+        // 最寄りの route の辺の先にある最初の分岐目標から数える
+        size_t edge = 0;
+        double best = INFINITY;
+        for (size_t i = 0; i < route_points_.size(); ++i) {
+            const auto& p = route_points_[i];
+            const auto& q = route_points_[(i + 1) % route_points_.size()];
+            const double r = std::clamp(((initial_pose[0] - p.x) * (q.x - p.x) + (initial_pose[1] - p.y) * (q.y - p.y)) / ((q.x - p.x) * (q.x - p.x) + (q.y - p.y) * (q.y - p.y)), 0.0, 1.0);
+            const double d = std::hypot(initial_pose[0] - p.x - r * (q.x - p.x), initial_pose[1] - p.y - r * (q.y - p.y));
+            if (d < best) {
+                best = d;
+                edge = i;
+            }
+        }
+        k_ = 0;
+        while (k_ < targets_.size() && targets_[k_].index <= edge) {
+            ++k_;
+        }
+        active_ = false;
         initialized_ = true;
     }
 

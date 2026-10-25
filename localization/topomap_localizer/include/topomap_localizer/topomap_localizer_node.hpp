@@ -9,6 +9,9 @@
 
 #include <geometry_msgs/msg/point.hpp>
 #include <rclcpp/rclcpp.hpp>
+#include <sensor_msgs/msg/imu.hpp>
+#include <sensor_msgs/msg/nav_sat_fix.hpp>
+#include <std_msgs/msg/bool.hpp>
 #include <std_msgs/msg/string.hpp>
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_broadcaster.h>
@@ -33,6 +36,7 @@ private:
         geometry_msgs::msg::Point position;
         std::string command;
         double hout;
+        size_t index;
     };
 
     void topomap_callback(const topomap_msgs::msg::TopoMap::ConstSharedPtr msg);
@@ -44,7 +48,12 @@ private:
 
     topomap_msgs::msg::TopoMap::ConstSharedPtr topomap_;
     std::vector<Target> targets_;
+    std::vector<geometry_msgs::msg::Point> route_points_;
+    sensor_msgs::msg::NavSatFix::ConstSharedPtr gnss_;
+    sensor_msgs::msg::Imu::ConstSharedPtr imu_;
 
+    const bool init_gnss_flag_;
+    bool autonomous_ = false;
     bool initialized_ = false;
     double theta_ = 0.0;
     double tx_ = 0.0;
@@ -56,6 +65,9 @@ private:
     std::string command_;
 
     rclcpp::Subscription<topomap_msgs::msg::TopoMap>::SharedPtr topomap_subscription_;
+    rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr autonomous_subscription_;
+    rclcpp::Subscription<sensor_msgs::msg::NavSatFix>::SharedPtr gnss_subscription_;
+    rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr imu_subscription_;
     rclcpp::Publisher<std_msgs::msg::String>::SharedPtr nav_cmd_publisher_;
     rclcpp::TimerBase::SharedPtr timer_;
 };
