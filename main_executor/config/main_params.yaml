@@ -1,8 +1,10 @@
 launch:
   ros__parameters:
     joy: false
-    sim : true
-    mapless : true
+    sim : false
+    mapless:
+      use: true
+      course: "red" # "red" or "blue"
 
 /**:
   ros__parameters:
