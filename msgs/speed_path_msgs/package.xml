@@ -4,7 +4,7 @@
   <name>speed_path_msgs</name>
   <version>0.0.0</version>
   <description>Path with velocity, acceleration and curvature per point.</description>
-  <maintainer email="s23c1036dv@chibatech.ac.jp">Kyo Yamashita</maintainer>
+  <maintainer email="s21c1135sc@chibatech.ac.jp">Kyo Yamashita</maintainer>
   <license>MIT</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>

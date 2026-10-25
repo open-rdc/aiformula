@@ -1,7 +1,6 @@
 #include "ekf_localizer/odom_tf_node.hpp"
 
 #include "utilities/utils.hpp"
-#include "utilities/vectornav_frame.hpp"
 
 #include <cmath>
 
@@ -38,7 +37,7 @@ OdomTfNode::OdomTfNode (const std::string &name_space, const rclcpp::NodeOptions
       has_odom_state_ (false),
       latest_velocity_stamp_ (0, 0, get_clock ()->get_clock_type ()) {
     imu_subscription_      = create_subscription<sensor_msgs::msg::Imu> ("/vectornav/imu", qos_, std::bind (&OdomTfNode::imu_callback, this, std::placeholders::_1));
-    velocity_subscription_ = create_subscription<geometry_msgs::msg::TwistWithCovarianceStamped> ("/vectornav/velocity_body", qos_, std::bind (&OdomTfNode::velocity_callback, this, std::placeholders::_1));
+    velocity_subscription_ = create_subscription<geometry_msgs::msg::TwistWithCovarianceStamped> ("/chassis/velocity_body", qos_, std::bind (&OdomTfNode::velocity_callback, this, std::placeholders::_1));
     odom_publisher_        = create_publisher<nav_msgs::msg::Odometry> ("/localization/odom", qos_);
     tf_broadcaster_        = std::make_unique<tf2_ros::TransformBroadcaster> (*this);
     timer_                 = create_wall_timer (std::chrono::milliseconds (publish_period_ms_), std::bind (&OdomTfNode::timer_callback, this));
@@ -73,8 +72,7 @@ void OdomTfNode::velocity_callback (const geometry_msgs::msg::TwistWithCovarianc
 }
 
 void OdomTfNode::integrate_velocity (const geometry_msgs::msg::TwistWithCovarianceStamped &velocity_msg, const rclcpp::Time &stamp) {
-    // velocity_bodyはVN body系(x前 / y右 / z下)で来るのでREP-103へ直す。
-    const geometry_msgs::msg::Twist twist = utils::vn_body_to_rep103 (velocity_msg.twist.twist);
+    const geometry_msgs::msg::Twist &twist = velocity_msg.twist.twist;
 
     if (!std::isfinite (twist.linear.x) || !std::isfinite (twist.linear.y) || !std::isfinite (twist.angular.z)) {
         RCLCPP_WARN_THROTTLE (get_logger (), *get_clock (), 1000, "velocity_bodyのtwistに非有限値が含まれるため積分をスキップする");

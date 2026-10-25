@@ -28,6 +28,8 @@
   <depend>zed_wrapper</depend>
   <depend>road_detector</depend>
   <depend>vectormap_server</depend>
+  <depend>topomap_server</depend>
+  <depend>topomap_localizer</depend>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
