@@ -45,7 +45,7 @@ def generate_launch_description():
     return LaunchDescription([
         DeclareLaunchArgument(
             'model_name',
-            default_value='e2e_model.pt',
+            default_value='e2e_model_real20260928v2_cw_surprise.pt',
             description='weights/ 以下の重みファイル名'
         ),
         DeclareLaunchArgument(
