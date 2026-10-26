@@ -46,7 +46,8 @@ class ZedSdk:
         self._camera = sl.Camera()
 
         init_params = sl.InitParameters()
-        init_params.camera_resolution = sl.RESOLUTION.HD720
+        # ZED X は HD720 非対応。zed_wrapper の nHD と同じく HD1080 で取得して 640x360 に縮小する
+        init_params.camera_resolution = sl.RESOLUTION.HD1080
         init_params.camera_fps = 30
         init_params.coordinate_units = sl.UNIT.METER
 
@@ -85,8 +86,7 @@ class ZedSdk:
         else:
             self._camera.retrieve_image(self._image, self._sl.VIEW.LEFT)
             image = self._image.get_data()
-            height, width = image.shape[:2]
-            image = cv2.resize(image, (width // 2, height // 2))
+            image = cv2.resize(image, (640, 360), interpolation=cv2.INTER_AREA)
         if image is None:
             return None
         return image

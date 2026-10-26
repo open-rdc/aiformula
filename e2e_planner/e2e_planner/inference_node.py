@@ -1,6 +1,6 @@
 import rclpy
 from rclpy.node import Node
-from rclpy.callback_groups import ReentrantCallbackGroup
+from rclpy.callback_groups import ReentrantCallbackGroup, MutuallyExclusiveCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
 from sensor_msgs.msg import Image, PointCloud2
 from std_msgs.msg import Header
@@ -66,7 +66,8 @@ class InferenceNode(Node):
         self.get_logger().info('Debug mode enabled: publishing preprocessed images to e2e_planner/debug_image')
 
         self.torch_cb_group = ReentrantCallbackGroup()
-        self.zed_cb_group = ReentrantCallbackGroup()
+        # ZED SDK はスレッドセーフでないので grab/retrieve を並行させない
+        self.zed_cb_group = MutuallyExclusiveCallbackGroup()
 
         self.torch_timer = self.create_timer(
             interval_ms / 1000.0,
