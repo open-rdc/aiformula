@@ -29,7 +29,8 @@ def generate_launch_description():
         # pure_pursuit_node の購読先は "/frenet_planner/path" にハードコードされているため、
         # E2E プランナの経路を追従させるにはここでリマップする。
         # frenet_planner の経路に戻すときはこの remappings を外す。
-        remappings = [('/frenet_planner/path', '/e2e_planner/path')],
+        # 同一プロセスの frenet_planner の出力まで巻き込まないよう pure_pursuit_node に限定する。
+        remappings = [('pure_pursuit_node:/frenet_planner/path', '/e2e_planner/path')],
         output='screen'
     )
     # socketcanノードの作成
