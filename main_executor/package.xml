@@ -11,9 +11,9 @@
   <exec_depend>rclcpp</exec_depend>
   <test_depend>rclcpp</test_depend>
 
-  <depend>socketcan_interface</depend>
-  <depend>controller</depend>
-  <depend>chassis_driver</depend>
+  <!-- <depend>socketcan_interface</depend>
+  <depend>controller</depend> -->
+  <!-- <depend>chassis_driver</depend> -->
   <depend>frenet_planner</depend>
   <depend>path_tracker</depend>
   <depend>gnssnav</depend>
