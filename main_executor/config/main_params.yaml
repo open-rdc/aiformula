@@ -4,12 +4,12 @@ launch:
     sim : false
     mapless:
       use: true
-      course: "red" # "red" or "blue"
+      course: "blue" # "red" or "blue"
 
 /**:
   ros__parameters:
     linear_max:
-      vel : 3.0
+      vel : 5.0
       acc: 3.0
       jer: 15.0
     steering_max :
@@ -208,7 +208,7 @@ path_smoother_node:
 controller_server_node:
   ros__parameters:
     interval_ms  : 50
-    controller_plugin  : "trajectory_follower::PurePursuitPlugin"
+    controller_plugin  : "trajectory_follower::PidMpcPlugin"
     a_min              : -4.0
     velocity_preview_time : 0.3
     pure_pursuit:
