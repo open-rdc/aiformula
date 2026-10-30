@@ -35,6 +35,8 @@ def launch_setup(context, *args, **kwargs):
         prefix=resolve_python(),
         parameters=[{
             'model_name': LaunchConfiguration('model_name').perform(context),
+            'num_mask_channels': int(LaunchConfiguration('num_mask_channels').perform(context)),
+            'device': LaunchConfiguration('device').perform(context),
             'interval_ms': 100,
         }]
     )
@@ -45,8 +47,18 @@ def generate_launch_description():
     return LaunchDescription([
         DeclareLaunchArgument(
             'model_name',
-            default_value='e2e_model_real20260928v2_cw_surprise.pt',
+            default_value='e2e_model_pylon.pt',
             description='weights/ 以下の重みファイル名'
+        ),
+        DeclareLaunchArgument(
+            'num_mask_channels',
+            default_value='2',
+            description='重みの入力のマスク数。2 = 白線 + パイロン、1 = 白線だけ (feat/rgb_mask の重み)'
+        ),
+        DeclareLaunchArgument(
+            'device',
+            default_value='cuda',
+            description='推論に使うデバイス。GPU の無い PC で確かめるときだけ cpu'
         ),
         DeclareLaunchArgument(
             'sim_flag',
