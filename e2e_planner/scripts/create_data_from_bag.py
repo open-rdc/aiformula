@@ -104,7 +104,7 @@ def convert(bag: Path, out_dir: Path) -> dict:
         d = np.arctan2(n, e) - at(t, heading)
         return float(np.degrees((d + np.pi) % (2 * np.pi) - np.pi))
 
-    rows, offsets, no_pose, rejected = [], [], 0, 0
+    rows, offsets, no_pose, rejected, reasons = [], [], 0, 0, []
     for t, img in samples:
         ref = interpolate_pose(poses, t)
         if ref is None:
@@ -116,17 +116,26 @@ def convert(bag: Path, out_dir: Path) -> dict:
         if v >= MIN_SPEED:
             offsets.append(off)
         horizon = WAYPOINT_DISTANCE * NUM_WAYPOINTS
-        ok = v >= MIN_SPEED and arc[-1] - s0 >= horizon and abs(off) <= MAX_YAW_OFFSET
-        if ok:
+        why = []
+        if v < MIN_SPEED:
+            why.append('slow')
+        if arc[-1] - s0 < horizon:
+            why.append('no_horizon')
+        if abs(off) > MAX_YAW_OFFSET:
+            why.append('yaw_offset')
+        if not why:
             t_end = float(np.interp(s0 + horizon, arc, pt))
-            m = (pt >= t) & (pt <= t_end)
-            idx = np.flatnonzero(m)
+            idx = np.flatnonzero((pt >= t) & (pt <= t_end))
             lo, hi = max(idx[0] - 1, 0) if len(idx) else 0, min(idx[-1] + 1, len(pt) - 1) if len(idx) else 0
-            ok = (speed(t_end) >= MIN_SPEED
-                  and np.diff(pt[lo:hi + 1]).max(initial=0.0) <= MAX_POSE_GAP
-                  and step_speed[lo + 1:hi + 1].max(initial=0.0) <= MAX_JUMP_SPEED)
-        if not ok:
+            if speed(t_end) < MIN_SPEED:
+                why.append('stops_in_horizon')
+            if np.diff(pt[lo:hi + 1]).max(initial=0.0) > MAX_POSE_GAP:
+                why.append('pose_gap')
+            if step_speed[lo + 1:hi + 1].max(initial=0.0) > MAX_JUMP_SPEED:
+                why.append('pose_jump')
+        if why:
             rejected += 1
+            reasons.append((t, s0, v, off, '+'.join(why)))
             continue
         fwd = build_forward_arc(poses, ref)
         wps = [transform_to_robot_frame(ref, pose_at_distance(fwd, WAYPOINT_DISTANCE * (i + 1))) for i in range(NUM_WAYPOINTS)]
@@ -146,6 +155,12 @@ def convert(bag: Path, out_dir: Path) -> dict:
                 w.writerows(wps)
             mw.writerow([k, f'{t:.6f}', f'{s0:.4f}', f'{v:.4f}', f'{off:.3f}'])
 
+    # 落としたフレームと理由 (どの条件で何枚落ちたかを後から確かめるため)
+    with open(out_dir / 'rejected.csv', 'w', newline='') as fr:
+        rw = csv.writer(fr)
+        rw.writerow(['timestamp', 'arc_m', 'speed_mps', 'yaw_offset_deg', 'reason'])
+        rw.writerows((f'{t:.6f}', f'{s0:.4f}', f'{v:.4f}', f'{off:.3f}', why) for t, s0, v, off, why in reasons)
+
     bias = float(np.median(offsets)) if offsets else 0.0
     W = np.array([r[2] for r in rows]) if rows else np.zeros((0, NUM_WAYPOINTS, 2))
     sp = np.array([r[4] for r in rows]) if rows else np.zeros(0)
@@ -159,6 +174,8 @@ def convert(bag: Path, out_dir: Path) -> dict:
         'speed_mean': float(sp.mean()) if len(sp) else 0.0, 'speed_max': float(sp.max()) if len(sp) else 0.0,
         'waypoint_x_min': float(W[..., 0].min()) if len(W) else 0.0, 'waypoint_x_max': float(W[..., 0].max()) if len(W) else 0.0,
         'waypoint_y_min': float(W[..., 1].min()) if len(W) else 0.0, 'waypoint_y_max': float(W[..., 1].max()) if len(W) else 0.0,
+        'rejected_by': {k: sum(k in r[4].split('+') for r in reasons)
+                        for k in ('slow', 'no_horizon', 'yaw_offset', 'stops_in_horizon', 'pose_gap', 'pose_jump')},
         'converter': 'create_data_from_bag.py',
     }
     with open(out_dir / 'info.yaml', 'w') as f:
