@@ -1,0 +1,109 @@
+# 60 で回したら最良 val が epoch 20 で出て、後半は train が 0.00025 まで下がる
+# だけだった (train/val 比 8.4 倍)。40 なら epoch 20 で学習率が半分まで落ちるので、
+# 絞る効果はそこで効く。T_max = epochs なので途中で止めないこと (2026-09-27)
+epochs: 40
+batch_size: 8
+learning_rate: 0.0002
+num_workers: 6
+weight_file: "e2e_model.pt"
+
+# Transformer 融合モデルのハイパーパラメータ
+embed_dim: 128
+num_heads: 4
+num_layers: 4
+dropout: 0.1
+
+# マスクとRGBの融合方法
+# late  : モダリティ別の ConvStem -> Transformer で融合（従来）
+# early : 画素のまま 4ch に重ねて ConvStem 1 本。トークン 1153 -> 577、推論 2.4 倍速
+fusion: early
+
+# 過去フレームを何 m 後ろから重ねるか（fusion: early のときだけ有効）。
+# 空にすれば現在フレームのみ = 従来どおりに戻る。
+# 「何秒前」ではなく距離で引く: 同じ 1 秒前でも 2 m/s なら 2 m 後ろ、4 m/s なら
+# 4 m 後ろになり、速度によって入力の意味が変わってしまう
+# (waypoint を距離パラメータに変えたのと同じ理由)。
+# 1.5 / 3.0 m は 3 m/s なら約 0.5 秒前 / 1 秒前に相当。
+# 実測の引き当て誤差は平均 0.17 m (サンプル間隔が 0.5〜0.95 m のため)
+frame_stack_distances: []   # 過去フレームは val を悪化させたので無効 (2026-09-27)
+
+# 学習率スケジュール
+# cosine: learning_rate から lr_min まで cos カーブで下げる (T_max = epochs)。
+#   定数学習率だと最小値の周りを一定の歩幅で跳ね続け、val が ±0.0004 振動していた。
+#   終盤に歩幅を詰めて詰めきる
+# none:   従来どおり learning_rate 固定
+lr_schedule: cosine
+lr_min: 2.0e-6
+
+# 勾配クリッピングの閾値（発散防止）
+grad_clip_norm: 1.0
+
+# データ拡張（学習側のみ。検証には適用しない）
+# 左右反転は 0.0 で無効。このコースは反時計回りで左折が右折の 4.86 倍あり、
+# 反転するとその事前分布が 1:1 に均されて分岐で左右が競合する（実測 2026-09-05）。
+# 色系はマスクには適用しない
+# （mask_images は赤で描かれていて extract_red_mask の閾値が壊れるため）
+augment: true
+augment_flip_prob: 0.0
+augment_color_prob: 0.8
+augment_brightness: 0.3
+augment_contrast: 0.3
+augment_saturation: 0.3
+# 0.05 x 180 = +-9 度。天候・時間帯の差として自然な範囲。
+# シム用の 0.20 (+-36 度) は空が緑や紫に転ぶ強さで、実機のコースには来ない見た目だった。
+# シムではコーンの色が分岐のショートカットになるので色を壊す必要があったが、
+# 実機のコースは白線で区切られていて色は境界の手がかりではない (2026-09-27)
+augment_hue: 0.05
+# 確率的に色を完全に落とす。コーンの色が場所と結びついて分岐判断のショートカットに
+# なっていたため（2026-09-05）。色が無くても走れる特徴を学ばせる
+augment_gray_prob: 0.3
+
+# train/val の分け方
+# bag:      val_datasets に挙げた bag を丸ごと val にする。複数 bag を並べた
+#   データセット (create_data_from_bag.py の出力) では index 順が時系列順に
+#   ならないので temporal は使えない。bag ごと外せばリークは原理的に起きない
+# temporal: 前半80%をtrain、後半をval。単一データセット専用。
+#   random だと 0.2s しか離れていない隣接フレームが train と val に分かれて入り、
+#   val loss が汎化性能を過大評価する
+# split_gap: temporal のとき境界に空けるサンプル数。waypoint が先を見るぶん
+#   境界付近のフレームは未来の軌跡を train と共有してしまう
+split_mode: bag
+split_gap: 25
+
+# val に回す bag。実験で狙う条件が val に無いと checkpoint を選べないので、
+# 速度・撮影日・障害物の 3 方向から 1 本ずつ抜いた (合計 1284 / 11335 = 11%)。
+# 2 m/s は 630_2ms_nav 1 本しかないので train に残す
+val_datasets:
+  - rosbag2_2026_09_22-16_03_11   # 3 m/s (ヨーのズレ +0.19deg)
+  - rosbag2_2026_09_22-16_18_57   # 4 m/s (16_24_49 が train に残る)
+  - rosbag2_2026_09_22-16_44_53   # 障害物あり (残り 6 本は train)
+
+# ラベルが信用できないので train からも val からも外す bag。
+# vectornav のヨーが進行方向からずれていて、まっすぐ走っていても waypoint が
+# 傾いている。ヨーが d[deg] ずれると 10 m 先で 10*sin(d) 横にずれる (2026-09-27)
+exclude_datasets:
+  - rosbag2_2026_08_21-12_54_22   # 直進中のヨーのズレ 中央値 +6.74deg。誤差の大半がこれで説明できた
+  - rosbag2_2026_09_22-16_33_53   # 同 +2.77deg。健全な bag (±1.2deg) から外れている
+  # 13_05_57 は一度 bag ごと外したが、それで val が 0.001896 -> 0.002079 と悪化した。
+  # 直進中の中央値 -1.09deg は健全で、局所的にずれる区間はサンプル単位のフィルタが
+  # 既に 16% 落としている。bag ごと外す必要はなかった (2026-09-27)
+
+# カーブのきつさによる損失の重み付け (scripts/util/curve_weight.py)。
+# train_curve_weight.py 専用。train.py はこの節を読まない。
+# MSE は迷うと候補の平均を出すので、数の少ない急カーブほど直進側に縮む。
+# 実機データでは 10 m 先で横 6 m を超える正解が 1% あるのに、予測は最大 5.66 m だった (2026-09-28)。
+# 曲がり量 = 経路の中で |y| が最大になる点の y [m] (左 +)。
+#
+# mode:
+#   surprise : 曲がり量のヒストグラムから自己情報量 -log p を重みにする (feat/shannon_surprise の方式)
+#   none     : 重みなし (train.py と同じ学習になる)
+# train 全体で平均 1 に正規化する (実効学習率を変えないため)。
+# 5 つの瓶に固定の重みを付ける方式 (bins) も試したが、surprise のほうが急カーブに効き
+# 直線の悪化も半分だったので消した (val 急カーブ終端 0.833 -> 0.809 m、直線終端 0.603 -> 0.569 m。2026-09-28)
+curve_weighting:
+  mode: surprise
+  num_bins: 16
+  smoothing: 1.0
+  max_weight: 50.0
+  # val の |曲がり量| がこれ以上のサンプルを「急カーブ」として別に集計する (TensorBoard の CurveTight/)
+  eval_tight_m: 4.0
