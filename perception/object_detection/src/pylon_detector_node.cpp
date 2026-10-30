@@ -1,4 +1,5 @@
 #include "object_detection/pylon_detector_node.hpp"
+#include "object_detection/pylon_mask.hpp"
 
 #include <ament_index_cpp/get_package_share_directory.hpp>
 #include <camera_utility/camera_utility.hpp>
@@ -37,6 +38,8 @@ PylonDetectorNode::PylonDetectorNode(
     objects_publisher_ = create_publisher<object_detection_msgs::msg::ObjectInfoArray>("/perception/objects", rclcpp::SensorDataQoS().keep_last(1));
     marker_publisher_ = create_publisher<visualization_msgs::msg::MarkerArray>("/perception/objects_visualize", rclcpp::QoS(1));
     debug_image_publisher_ = create_publisher<sensor_msgs::msg::Image>("/perception/objects_debug_image", rclcpp::SensorDataQoS().keep_last(1));
+    // e2e_planner の入力。購読者の有無にかかわらず毎フレーム出す
+    pylon_mask_publisher_ = create_publisher<sensor_msgs::msg::Image>("/perception/pylon_mask", rclcpp::SensorDataQoS().keep_last(1));
 }
 
 void PylonDetectorNode::camera_info_callback(const sensor_msgs::msg::CameraInfo::ConstSharedPtr msg) {
@@ -55,6 +58,11 @@ void PylonDetectorNode::image_callback(const sensor_msgs::msg::Image::SharedPtr 
     cv::Mat image = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::BGR8)->image;
 
     const auto detections = detector_->detect(image);
+
+    // 枠は元画像の画素座標なので、マスクも元画像と同じ大きさで作る
+    const cv::Mat pylon_mask = draw_pylon_mask(detections, image.rows, image.cols);
+    pylon_mask_publisher_->publish(*cv_bridge::CvImage(msg->header, sensor_msgs::image_encodings::MONO8, pylon_mask).toImageMsg());
+
     const auto obstacles  = project_to_ground(detections, image);
 
     objects_publisher_->publish(make_objects(obstacles, msg->header.stamp));

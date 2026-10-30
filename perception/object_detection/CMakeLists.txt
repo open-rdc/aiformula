@@ -16,6 +16,22 @@ find_path(NVINFER_INCLUDE_DIR NvInfer.h
 find_library(NVINFER_LIBRARY nvinfer
   HINTS ${CUDA_LIBRARIES} /usr/local/cuda/lib64 /usr/lib/aarch64-linux-gnu /usr/lib/x86_64-linux-gnu)
 
+# パイロンマスクの描画は TensorRT に依存しないので、TensorRT の無い PC でもビルドとテストができるように先に作る
+add_library(pylon_mask STATIC src/pylon_mask.cpp)
+target_compile_features(pylon_mask PUBLIC cxx_std_17)
+set_target_properties(pylon_mask PROPERTIES POSITION_INDEPENDENT_CODE ON)
+target_include_directories(pylon_mask PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  ${OpenCV_INCLUDE_DIRS}
+)
+target_link_libraries(pylon_mask ${OpenCV_LIBRARIES})
+
+if(BUILD_TESTING AND EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/test/test_pylon_mask.cpp)
+  find_package(ament_cmake_gtest REQUIRED)
+  ament_add_gtest(test_pylon_mask test/test_pylon_mask.cpp)
+  target_link_libraries(test_pylon_mask pylon_mask)
+endif()
+
 # デプロイ成果物だけをインストールする。.pth と学習設定は学習側で管理する。
 install(DIRECTORY weights/
   DESTINATION share/${PROJECT_NAME}/weights
@@ -41,6 +57,7 @@ target_include_directories(pylon_detector_node PUBLIC
   ${NVINFER_INCLUDE_DIR}
 )
 target_link_libraries(pylon_detector_node
+  pylon_mask
   ${OpenCV_LIBRARIES}
   ${CUDA_LIBRARIES}
   ${NVINFER_LIBRARY}

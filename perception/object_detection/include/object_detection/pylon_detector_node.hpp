@@ -67,6 +67,7 @@ class PylonDetectorNode : public rclcpp::Node {
     rclcpp::Publisher<object_detection_msgs::msg::ObjectInfoArray>::SharedPtr  objects_publisher_;
     rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr         marker_publisher_;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr                      debug_image_publisher_;
+    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr                      pylon_mask_publisher_;
 };
 
 }  // namespace object_detection
