@@ -68,6 +68,14 @@ def generate_launch_description():
         launch_discription.add_action(joy_node)
     if(launch_params['sim'] is False):
         launch_discription.add_action(vectornav_launch)
+    # e2e_planner 起動 (e2e: true のとき vision_lane_planner の代わりに経路を出す)。
+    # e2e_planner をビルドしていない環境でも従来どおり起動できるよう、使うときだけ探す
+    if(launch_params.get('e2e', False) is True):
+        launch_discription.add_action(launch.actions.IncludeLaunchDescription(
+            AnyLaunchDescriptionSource([os.path.join(
+                get_package_share_directory('e2e_planner'), 'launch/'),
+                'e2e_planner.launch.py'])
+        ))
 
     launch_discription.add_action(robot_state_publisher)
     launch_discription.add_action(main_exec_node)

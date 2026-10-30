@@ -29,6 +29,9 @@ int main(int argc, char* argv[]) {
     nodes_option.use_intra_process_comms(true);
     const bool use_sim = rclcpp::Node("launch", nodes_option).get_parameter("sim").as_bool();
     const bool mapless = rclcpp::Node("launch", nodes_option).get_parameter("mapless").as_bool();
+    // e2e: true のときは e2e_planner (Python, launch で別プロセス起動) が /planner/vision_path を出すので、
+    // 同じトピックに出す vision_lane_planner は作らない (TensorRT の無い環境ではそもそも作られない)
+    [[maybe_unused]] const bool use_e2e = rclcpp::Node("launch", nodes_option).get_parameter("e2e").as_bool();
 
     if (use_sim) {
         nodes_option.parameter_overrides({rclcpp::Parameter("use_sim_time", true)});
@@ -75,13 +78,15 @@ int main(int argc, char* argv[]) {
     auto pylon_detector_node      = std::make_shared<object_detection::PylonDetectorNode>(nodes_option);
     auto traffic_signal_stop_node = std::make_shared<traffic_signal_stop::TrafficSignalStopNode>(nodes_option);
     auto road_detector_node       = mapless ? nullptr : std::make_shared<road_detector::RoadDetectorNode>(nodes_option);
-    auto vision_lane_planner_node = mapless ? std::make_shared<vision_lane_planner::VisionLanePlannerNode>(nodes_option) : nullptr;
+    auto vision_lane_planner_node = mapless && !use_e2e ? std::make_shared<vision_lane_planner::VisionLanePlannerNode>(nodes_option) : nullptr;
     auto path_smoother_node       = mapless ? std::make_shared<path_smoother::PathSmootherNode>(nodes_option) : nullptr;
 
     exec.add_node(pylon_detector_node);
     exec.add_node(traffic_signal_stop_node);
     if (mapless) {
-        exec.add_node(vision_lane_planner_node);
+        if (vision_lane_planner_node) {
+            exec.add_node(vision_lane_planner_node);
+        }
         exec.add_node(path_smoother_node);
     } else {
         exec.add_node(road_detector_node);
