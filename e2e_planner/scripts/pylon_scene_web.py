@@ -8,7 +8,8 @@ SmolVLA/training/data/lap_annotation_web.py と同じ操作感にしてある。
   - 画像 (パイロンマスクを赤で重ねる。M で切り替え)
   - 正解経路 (path/<stem>.csv、上から見た図。前が上、左が左)
   - タイムライン: 上段 = 避ける区間 (オレンジ)、中段 = パイロンが写っているフレーム
-    (濃い = 進路の前、薄い = 脇)、下段の緑の線 = 確認済み。クリックで移動、ドラッグで範囲を選ぶ
+    (濃い = 進路の前、薄い = 脇)、下段の緑の線 = 確認済み、灰色 = 学習に使わない範囲。
+    クリックで移動、ドラッグで範囲を選ぶ
 
 避ける区間は人が全部引く。初めて開いた bag は全フレーム「避けない・未確認」から始まる
 (自動の案は入れない)。タイムライン中段のパイロンの表示は目安だけ。
@@ -16,8 +17,10 @@ SmolVLA/training/data/lap_annotation_web.py と同じ操作感にしてある。
 キー: ←/→ 1 フレーム，Ctrl+←/→ 10 フレーム，Shift+←/→ 範囲を伸ばす (押し始めが始点)，
       Space 再生/停止，[ / ] 範囲の始点/終点を今のフレームに，
       Enter 範囲を「避ける区間」にして確認済みにし次の未確認へ，
-      Backspace 範囲を「避けない」にして確認済みにし次の未確認へ，M マスクの表示切り替え，Ctrl+S 保存
-保存: <bag>/pylon_scenes.json {"scene": [0/1...], "reviewed": [0/1...], "stems": [...]}
+      Backspace 範囲を「避けない」にして確認済みにし次の未確認へ，
+      Delete 範囲を学習に使わない，U 範囲を学習に使う (既定はすべて使う)，M マスクの表示切り替え，Ctrl+S 保存
+保存: <bag>/pylon_scenes.json {"scene": [0/1...], "reviewed": [0/1...], "use": [0/1...], "stems": [...]}
+      ("use" が無いファイルはすべて使う扱い)
 
     python3 scripts/pylon_scene_web.py ~/e2e_data/pylon_review --port 8020
     → ブラウザで http://localhost:8020
@@ -43,7 +46,7 @@ ARGS = None
 
 
 def bag_dirs() -> list[Path]:
-    return sorted(p for p in ARGS.root.iterdir() if (p / 'pylon_masks').is_dir() and (p / 'path').is_dir())
+    return sorted(p for p in ARGS.root.iterdir() if (p / 'path').is_dir())
 
 
 def bag_dir(name: str) -> Path:
@@ -73,13 +76,13 @@ def pylon_state(d: Path, ss: list[str]) -> list[int]:
     return out
 
 
-def read_labels(d: Path, ss: list[str]) -> tuple[list[int], list[int]]:
+def read_labels(d: Path, ss: list[str]) -> tuple[list[int], list[int], list[int]]:
     f = d / 'pylon_scenes.json'
     if f.exists():
         j = json.loads(f.read_text())
         if j.get('stems') == ss:
-            return j['scene'], j['reviewed']
-    return [0] * len(ss), [0] * len(ss)
+            return j['scene'], j['reviewed'], j.get('use', [1] * len(ss))
+    return [0] * len(ss), [0] * len(ss), [1] * len(ss)
 
 
 def read_path(d: Path, s: str) -> list[list[float]]:
@@ -91,20 +94,21 @@ def bag_summary(p: Path) -> dict:
     f = p / 'pylon_scenes.json'
     if f.exists() and json.loads(f.read_text()).get('stems') == ss:
         j = json.loads(f.read_text())
-        return {'name': p.name, 'n': len(ss), 'scene': sum(j['scene']), 'reviewed': sum(j['reviewed'])}
-    return {'name': p.name, 'n': len(ss), 'scene': None, 'reviewed': 0}
+        return {'name': p.name, 'n': len(ss), 'scene': sum(j['scene']), 'reviewed': sum(j['reviewed']),
+                'unused': len(ss) - sum(j.get('use', [1] * len(ss)))}
+    return {'name': p.name, 'n': len(ss), 'scene': None, 'reviewed': 0, 'unused': 0}
 
 
 def bag_detail(name: str) -> dict:
     d = bag_dir(name)
     ss = stems(d)
     state = pylon_state(d, ss)
-    scene, reviewed = read_labels(d, ss)
+    scene, reviewed, use = read_labels(d, ss)
     meta = {}
     if (d / 'meta.csv').exists():
         meta = {f"{int(r['index']):05d}": r for r in csv.DictReader(open(d / 'meta.csv'))}
     t0 = float(meta[ss[0]]['timestamp']) if ss and ss[0] in meta else None
-    return {'name': name, 'n': len(ss), 'stems': ss, 'state': state, 'scene': scene, 'reviewed': reviewed,
+    return {'name': name, 'n': len(ss), 'stems': ss, 'state': state, 'scene': scene, 'reviewed': reviewed, 'use': use,
             'paths': [read_path(d, s) for s in ss],
             't': [round(float(meta[s]['timestamp']) - t0, 2) if t0 is not None and s in meta else None for s in ss],
             'speed': [round(float(meta[s]['speed_mps']), 2) if s in meta else None for s in ss]}
@@ -113,13 +117,13 @@ def bag_detail(name: str) -> dict:
 def save(name: str, body: dict) -> dict:
     d = bag_dir(name)
     ss = stems(d)
-    sc, rv = body['scene'], body['reviewed']
-    if len(sc) != len(ss) or len(rv) != len(ss):
+    sc, rv, us = body['scene'], body['reviewed'], body['use']
+    if len(sc) != len(ss) or len(rv) != len(ss) or len(us) != len(ss):
         raise ValueError('フレーム数が合わない')
     f = d / 'pylon_scenes.json'
     tmp = f.with_suffix('.json.tmp')
     tmp.write_text(json.dumps({'stems': ss, 'scene': [int(bool(x)) for x in sc],
-                               'reviewed': [int(bool(x)) for x in rv]}))
+                               'reviewed': [int(bool(x)) for x in rv], 'use': [int(bool(x)) for x in us]}))
     os.replace(tmp, f)
     return bag_summary(d)
 
@@ -127,8 +131,9 @@ def save(name: str, body: dict) -> dict:
 def image(name: str, stem: str, with_mask: bool) -> bytes:
     d = bag_dir(name)
     im = cv2.resize(cv2.imread(str(d / 'images' / f'{stem}.png')), (640, 360))
-    if with_mask:
-        m = cv2.imread(str(d / 'pylon_masks' / f'{stem}.png'), cv2.IMREAD_GRAYSCALE) > 127
+    mf = d / 'pylon_masks' / f'{stem}.png'
+    if with_mask and mf.exists():
+        m = cv2.imread(str(mf), cv2.IMREAD_GRAYSCALE) > 127
         im[m] = (im[m] * 0.5 + np.array([0, 0, 255]) * 0.5).astype(np.uint8)
         cv2.line(im, (AHEAD_X[0], 0), (AHEAD_X[0], 359), (80, 200, 80), 1)
         cv2.line(im, (AHEAD_X[1], 0), (AHEAD_X[1], 359), (80, 200, 80), 1)
@@ -218,9 +223,11 @@ button.primary{background:var(--scene);border-color:var(--scene);color:#1d0f00;f
       <button id="yes" class="primary" title="Enter">避ける区間にする → 次へ</button>
       <button id="no" title="Backspace">避けない → 次へ</button>
       <button id="unrev">未確認に戻す</button>
+      <button id="nouse" title="Delete">学習に使わない</button>
+      <button id="douse" title="U">学習に使う</button>
       <label class="k"><input type="checkbox" id="showmask" checked> パイロンマスクを重ねる (M)</label>
     </div>
-    <div class="help">←/→ 1フレーム　Ctrl+←/→ 10フレーム　Shift+←/→ 範囲を伸ばす（押し始めが始点）　Space 再生　[ / ] 範囲の始点/終点　Enter 避ける区間にして次へ　Backspace 避けないにして次へ　M マスク　Ctrl+S 保存　タイムライン: クリックで移動、ドラッグで範囲選択。上段オレンジ = 避ける区間、中段 = パイロン（濃い = 進路の前、薄い = 脇）、下段の緑 = 確認済み。画像の緑の縦線の間が「進路の前」</div>
+    <div class="help">←/→ 1フレーム　Ctrl+←/→ 10フレーム　Shift+←/→ 範囲を伸ばす（押し始めが始点）　Space 再生　[ / ] 範囲の始点/終点　Enter 避ける区間にして次へ　Backspace 避けないにして次へ　Delete 学習に使わない　U 学習に使う　M マスク　Ctrl+S 保存　タイムライン: クリックで移動、ドラッグで範囲選択。上段オレンジ = 避ける区間、中段 = パイロン（濃い = 進路の前、薄い = 脇）、下段の緑 = 確認済み、暗く灰色 = 学習に使わない。画像の緑の縦線の間が「進路の前」</div>
   </section>
   <aside>
     <div class="box">
@@ -244,7 +251,7 @@ function segAt(i){const v=B.scene[i];let a=i,b=i;while(a>0&&B.scene[a-1]===v)a--
 async function loadBags(keep){
   const r=await (await fetch("/api/bags")).json();bags=r.bags;
   const sel=$("bagsel"),cur=keep||sel.value;
-  sel.innerHTML=bags.map(b=>`<option value="${b.name}">${b.name}　${b.n} フレーム　確認 ${Math.round(100*b.reviewed/b.n)}%　避ける ${b.scene===null?"未作成":b.scene}</option>`).join("");
+  sel.innerHTML=bags.map(b=>`<option value="${b.name}">${b.name}　${b.n} フレーム　確認 ${Math.round(100*b.reviewed/b.n)}%　避ける ${b.scene===null?"未作成":b.scene}${b.unused?`　使わない ${b.unused}`:""}</option>`).join("");
   if(cur)sel.value=cur;
 }
 async function openBag(name){
@@ -263,13 +270,13 @@ function go(i,resetSel){
 function render(){
   const t=B.t[f]!==null?`　${B.t[f].toFixed(1)} s`:"",v=B.speed[f]!==null?`　${B.speed[f].toFixed(1)} m/s`:"";
   $("frameinfo").textContent=`${f} / ${B.n-1}（${B.stems[f]}）${t}${v}`;
-  const lb=$("label");lb.textContent=(B.scene[f]?"避ける区間":"避けない")+(B.reviewed[f]?"（確認済み）":"（未確認）");
+  const lb=$("label");lb.textContent=(B.use[f]?"":"学習に使わない／")+(B.scene[f]?"避ける区間":"避けない")+(B.reviewed[f]?"（確認済み）":"（未確認）");
   lb.style.background=B.scene[f]?"var(--scene)":"#2b3038";lb.style.color=B.scene[f]?"#1d0f00":"var(--text)";
   const[a,b]=segAt(f);let fr=0,sd=0;for(let i=a;i<=b;i++){fr+=B.state[i]===2;sd+=B.state[i]===1}
   $("seginfo").textContent=`${a}–${b}（${b-a+1} フレーム）${B.scene[f]?"避ける区間":"避けない"}　パイロンが前 ${fr} / 脇 ${sd}`;
   $("range").textContent=`範囲 ${Math.min(selA,selB)}–${Math.max(selA,selB)}`;
-  const rv=B.reviewed.reduce((s,x)=>s+x,0),sc=B.scene.reduce((s,x)=>s+x,0);
-  $("bagprog").textContent=`確認 ${rv}/${B.n}（${Math.round(100*rv/B.n)}%）　避ける区間 ${sc} フレーム`;
+  const rv=B.reviewed.reduce((s,x)=>s+x,0),sc=B.scene.reduce((s,x)=>s+x,0),un=B.n-B.use.reduce((s,x)=>s+x,0);
+  $("bagprog").textContent=`確認 ${rv}/${B.n}（${Math.round(100*rv/B.n)}%）　避ける区間 ${sc} フレーム　学習に使わない ${un} フレーム`;
   drawTimeline();drawPath();
 }
 function sizeCanvas(c){const r=c.getBoundingClientRect(),dpr=devicePixelRatio||1;c.width=r.width*dpr;c.height=r.height*dpr;const g=c.getContext("2d");g.setTransform(dpr,0,0,dpr,0,0);return[g,r.width,r.height]}
@@ -280,6 +287,7 @@ function drawTimeline(){
     if(B.scene[i]){g.fillStyle="#f0883e";g.fillRect(x(i),6,w,24)}
     if(B.state[i]){g.fillStyle=B.state[i]===2?"#f85149":"#6e2f2c";g.fillRect(x(i),34,w,12)}
     if(B.reviewed[i]){g.fillStyle="#3fb950";g.fillRect(x(i),50,w,6)}
+    if(!B.use[i]){g.fillStyle="#000b";g.fillRect(x(i),0,w,Hh);g.fillStyle="#777";g.fillRect(x(i),58,w,6)}
   }
   const a=Math.min(selA,selB),b=Math.max(selA,selB);
   g.strokeStyle="#fff";g.lineWidth=2;g.strokeRect(x(a),3,x(b+1)-x(a),46);
@@ -309,7 +317,7 @@ function setRange(v){
 }
 async function save(){
   if(!B)return;setStatus("保存中");
-  const r=await (await fetch(`/api/bag/${encodeURIComponent(B.name)}/save`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({scene:B.scene,reviewed:B.reviewed})})).json();
+  const r=await (await fetch(`/api/bag/${encodeURIComponent(B.name)}/save`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({scene:B.scene,reviewed:B.reviewed,use:B.use})})).json();
   if(r.error){setStatus("保存に失敗: "+r.error);return}
   dirty=false;setStatus("保存済み");loadBags(B.name);
 }
@@ -323,6 +331,10 @@ document.addEventListener("keydown",e=>{
   const k=e.key;
   if(k==="Enter"){e.preventDefault();setRange(1)}
   else if(k==="Backspace"){e.preventDefault();setRange(0)}
+  else if(k==="Delete"||k==="u"||k==="U"){
+    // 学習に使う範囲 (避ける区間・確認済みの印はそのまま)
+    e.preventDefault();const v=k==="Delete"?0:1,a=Math.min(selA,selB),b=Math.max(selA,selB);
+    for(let i=a;i<=b;i++)B.use[i]=v;dirty=true;save();render();setStatus(`${a}–${b} を学習に${v?"使う":"使わない"}`)}
   else if(k==="ArrowRight"||k==="ArrowLeft"){
     const step=(e.ctrlKey||e.metaKey?10:1)*(k==="ArrowRight"?1:-1);
     if(e.shiftKey){if(anchor===null)anchor=f;go(f+step,false);selA=Math.min(anchor,f);selB=Math.max(anchor,f);render()}
@@ -341,6 +353,7 @@ addEventListener("mouseup",()=>{drag=null});
 $("yes").onclick=()=>setRange(1);$("no").onclick=()=>setRange(0);
 $("unrev").onclick=()=>{const a=Math.min(selA,selB),b=Math.max(selA,selB);for(let i=a;i<=b;i++)B.reviewed[i]=0;dirty=true;save()};
 $("showmask").onchange=()=>go(f,false);
+for(const[id,key]of[["nouse","Delete"],["douse","u"]])$(id).onclick=()=>document.dispatchEvent(new KeyboardEvent("keydown",{key}));
 $("bagsel").onchange=e=>openBag(e.target.value);
 addEventListener("resize",()=>B&&render());
 addEventListener("beforeunload",e=>{if(dirty){e.preventDefault();e.returnValue=""}});
