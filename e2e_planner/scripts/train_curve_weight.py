@@ -6,6 +6,7 @@ train.py はそのまま残してあるので、比較や切り戻しはそち�
 重み付けの中身は util/curve_weight.py を参照。
 """
 
+import json
 import sys
 import time
 import yaml
@@ -60,7 +61,8 @@ class E2EDataset(Dataset):
     """白線マスク画像と対応するRGB画像のペアを返す"""
 
     def __init__(self, dataset_path: Path, augment_config: dict = None,
-                 frame_stack_distances: List[float] = None, use_pylon_mask: bool = False):
+                 frame_stack_distances: List[float] = None, use_pylon_mask: bool = False,
+                 use_pylon_scenes: bool = False):
         # augment_config が None のときは拡張なし（検証用）
         self.augment_config = augment_config
         # 過去フレームを何 m 後ろから引くか。時間ではなく距離で引く:
@@ -88,16 +90,26 @@ class E2EDataset(Dataset):
                 f'pylon masks directory not found: {self.pylon_masks_dir}\n'
                 '先に scripts/create_pylon_masks.py でパイロンマスクを作ること')
 
+        # 人が確認ツール (pylon_scene_web.py) で引いた区間。{stem: (避ける区間, 確認済み, 学習に使う)}
+        scenes = self._read_pylon_scenes(dataset_path) if use_pylon_scenes else {}
+
         self.mask_files = [
             mask_file for mask_file in sorted(self.mask_images_dir.glob('*.png'))
             if (self.rgb_images_dir / mask_file.name).exists()
             and (self.path_dir / f'{mask_file.stem}.csv').exists()
             and (not use_pylon_mask or (self.pylon_masks_dir / mask_file.name).exists())
+            and scenes.get(mask_file.stem, (0, 0, 1))[2]
         ]
 
-        # コーンが近いサンプル。学習で多めに引くのに使う
-        self.pylon_near = np.array([
-            use_pylon_mask and is_pylon_near(self._read_pylon_mask(f.name)) for f in self.mask_files], dtype=bool)
+        # 学習で多めに引くサンプル。use_pylon_scenes なら人が「避ける区間」と確認したフレーム
+        # (未確認の印は数えない)、そうでなければコーンが近いフレーム
+        if use_pylon_scenes:
+            self.pylon_near = np.array([
+                bool(scenes.get(f.stem, (0, 0, 1))[0] and scenes.get(f.stem, (0, 0, 1))[1])
+                for f in self.mask_files], dtype=bool)
+        else:
+            self.pylon_near = np.array([
+                use_pylon_mask and is_pylon_near(self._read_pylon_mask(f.name)) for f in self.mask_files], dtype=bool)
 
         # 重みは train 全体の分布から決めるので、Trainer が後から CurveWeighter を
         # 差し込む。val は None のまま (= 重み 1)
@@ -110,6 +122,15 @@ class E2EDataset(Dataset):
         self.stems = [mask_file.stem for mask_file in self.mask_files]
         if self.frame_stack_distances:
             self._load_arc_lengths()
+
+    @staticmethod
+    def _read_pylon_scenes(dataset_path: Path) -> dict:
+        f = dataset_path / 'pylon_scenes.json'
+        if not f.exists():
+            return {}
+        j = json.loads(f.read_text())
+        use = j.get('use', [1] * len(j['stems']))
+        return {s: (sc, rv, u) for s, sc, rv, u in zip(j['stems'], j['scene'], j['reviewed'], use)}
 
     def _read_pylon_mask(self, name: str) -> np.ndarray:
         mask = cv2.imread(str(self.pylon_masks_dir / name), cv2.IMREAD_GRAYSCALE)
@@ -299,6 +320,9 @@ class Config:
         self.pylon_mask = bool(config_dict.get('pylon_mask', False))
         # コーンが近いサンプルを何倍引くか。1.0 なら従来どおり一様に shuffle
         self.pylon_oversample = float(config_dict.get('pylon_oversample', 1.0))
+        # true なら多めに引くのを、確認ツールで人が引いた「避ける区間」(pylon_scenes.json) にする。
+        # 「学習に使わない」範囲も外す。false なら is_pylon_near (コーンが近いフレーム)
+        self.pylon_scenes = bool(config_dict.get('pylon_scenes', False))
 
         # カーブのきつさによる損失の重み付け (util/curve_weight.py)
         self.curve_weighting = config_dict.get('curve_weighting', {}) or {'mode': 'none'}
@@ -361,7 +385,7 @@ class Trainer:
             sampler = WeightedRandomSampler(
                 oversample_weights(train_near, config.pylon_oversample).tolist(),
                 num_samples=len(train_dataset), replacement=True)
-            print(f'Pylon near: {int(train_near.sum())} / {len(train_near)} 件を {config.pylon_oversample} 倍引く')
+            print(f'Pylon {"scenes" if config.pylon_scenes else "near"}: {int(train_near.sum())} / {len(train_near)} 件を {config.pylon_oversample} 倍引く')
 
         self.train_loader = DataLoader(
             train_dataset,
@@ -496,19 +520,19 @@ class Trainer:
         stack = config.frame_stack_distances
         train_dataset = ConcatDataset(
             [E2EDataset(d, augment_config=aug_cfg, frame_stack_distances=stack,
-                        use_pylon_mask=config.pylon_mask) for d in train_dirs])
+                        use_pylon_mask=config.pylon_mask, use_pylon_scenes=config.pylon_scenes) for d in train_dirs])
         val_dataset = ConcatDataset(
             [E2EDataset(d, augment_config=None, frame_stack_distances=stack,
-                        use_pylon_mask=config.pylon_mask) for d in val_dirs])
+                        use_pylon_mask=config.pylon_mask, use_pylon_scenes=config.pylon_scenes) for d in val_dirs])
         return train_dataset, val_dataset
 
     @staticmethod
     def _split_within_dataset(dataset_path, config, aug_cfg):
         stack = config.frame_stack_distances
         train_source = E2EDataset(dataset_path, augment_config=aug_cfg, frame_stack_distances=stack,
-                                  use_pylon_mask=config.pylon_mask)
+                                  use_pylon_mask=config.pylon_mask, use_pylon_scenes=config.pylon_scenes)
         val_source = E2EDataset(dataset_path, augment_config=None, frame_stack_distances=stack,
-                                use_pylon_mask=config.pylon_mask)
+                                use_pylon_mask=config.pylon_mask, use_pylon_scenes=config.pylon_scenes)
 
         n = len(val_source)
         train_size = int(0.8 * n)
