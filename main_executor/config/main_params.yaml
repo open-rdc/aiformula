@@ -3,6 +3,7 @@ launch:
     joy: false
     sim : true
     mapless : true
+    e2e : false   # true で vision_lane_planner の代わりに e2e_planner が経路を出す (mapless のとき)
 
 /**:
   ros__parameters:
@@ -160,6 +161,7 @@ speed_path_planner_node:
     stop_decel         : 1.5   # 停止点へ向けた減速度 [m/s^2]
     stop_decel_max     : 4.0   # stop_decel で止まれないときに使う減速度の上限 [m/s^2]
     stop_point_timeout_s : 0.5
+    speed_limit_timeout_s : 0.5   # /planning/speed_limit (e2e_planner の速度上限) がこれより古ければ使わない
 
 pylon_detector_node:
   ros__parameters:

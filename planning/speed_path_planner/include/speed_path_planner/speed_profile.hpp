@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <optional>
 #include <vector>
 #include "speed_path_planner/visibility_control.h"
 
@@ -42,5 +43,9 @@ std::vector<double> accelerations(const std::vector<double>& v, const std::vecto
 SPEED_PATH_PLANNER_PUBLIC
 Profile plan(
     const std::vector<Point2D>& points, double v_meas, double stop_s, const Limits& limits);
+// 外から一時的に与えられた速度上限 (e2e_planner の /planning/speed_limit) を v_max に重ねる。
+// 上限が無いか timeout_s より古ければ v_max のまま。v_max を上げることはしない
+SPEED_PATH_PLANNER_PUBLIC
+double effective_v_max(double v_max, std::optional<double> limit, double limit_age_s, double timeout_s);
 
 }

@@ -93,6 +93,14 @@ std::vector<double> accelerations(const std::vector<double>& v, const std::vecto
     return a;
 }
 
+double effective_v_max(double v_max, std::optional<double> limit, double limit_age_s, double timeout_s)
+{
+    if (!limit || limit_age_s > timeout_s) {
+        return v_max;
+    }
+    return std::min(v_max, *limit);
+}
+
 Profile plan(
     const std::vector<Point2D>& points, double v_meas, double stop_s, const Limits& limits)
 {

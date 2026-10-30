@@ -19,4 +19,10 @@ target_compile_features(speed_path_planner_node PUBLIC cxx_std_17)
 target_compile_definitions(speed_path_planner_node PRIVATE "SPEED_PATH_PLANNER_BUILDING_LIBRARY")
 target_link_libraries(speed_path_planner_node speed_profile)
 
+if(BUILD_TESTING AND EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/test/test_speed_limit.cpp)
+  find_package(ament_cmake_gtest REQUIRED)
+  ament_add_gtest(test_speed_limit test/test_speed_limit.cpp)
+  target_link_libraries(test_speed_limit speed_profile)
+endif()
+
 ament_auto_package()

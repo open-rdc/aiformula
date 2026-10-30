@@ -93,7 +93,8 @@ SpeedPathPlannerNode::SpeedPathPlannerNode(
     const rclcpp::NodeOptions& options)
 : rclcpp::Node("speed_path_planner_node", name_space, options),
   limits_(read_limits(*this)),
-  stop_point_timeout_s_(get_parameter("stop_point_timeout_s").as_double())
+  stop_point_timeout_s_(get_parameter("stop_point_timeout_s").as_double()),
+  speed_limit_timeout_s_(get_parameter("speed_limit_timeout_s").as_double())
 {
     stop_point_subscription_ = create_subscription<speed_path_msgs::msg::StopPoint>(
         "/planning/stop_point", rclcpp::QoS(10),
@@ -101,6 +102,9 @@ SpeedPathPlannerNode::SpeedPathPlannerNode(
     velocity_subscription_ = create_subscription<geometry_msgs::msg::TwistWithCovarianceStamped>(
         "/vectornav/velocity_body", rclcpp::QoS(10),
         std::bind(&SpeedPathPlannerNode::velocity_callback, this, std::placeholders::_1));
+    speed_limit_subscription_ = create_subscription<std_msgs::msg::Float32>(
+        "/planning/speed_limit", rclcpp::QoS(10),
+        std::bind(&SpeedPathPlannerNode::speed_limit_callback, this, std::placeholders::_1));
     path_subscription_ = create_subscription<nav_msgs::msg::Path>(
         "/planner/local_path", rclcpp::QoS(1),
         std::bind(&SpeedPathPlannerNode::path_callback, this, std::placeholders::_1));
@@ -122,13 +126,24 @@ void SpeedPathPlannerNode::velocity_callback(
     current_velocity_ = msg->twist.twist.linear.x;
 }
 
+void SpeedPathPlannerNode::speed_limit_callback(const std_msgs::msg::Float32::ConstSharedPtr msg)
+{
+    std::lock_guard<std::mutex> lock(data_mutex_);
+    speed_limit_ = std::make_pair(now(), static_cast<double>(msg->data));
+}
+
 void SpeedPathPlannerNode::path_callback(const nav_msgs::msg::Path::ConstSharedPtr msg)
 {
     double v_meas;
     double stop_s;
+    speed_profile::Limits limits = limits_;
     {
         std::lock_guard<std::mutex> lock(data_mutex_);
         v_meas = current_velocity_;
+        if (speed_limit_) {
+            limits.v_max = speed_profile::effective_v_max(
+                limits_.v_max, speed_limit_->second, (now() - speed_limit_->first).seconds(), speed_limit_timeout_s_);
+        }
         // 信号停止と障害物停止の両方が publish するので、timeout 内に受信した停止距離の最小を使う
         const auto expired = now() - rclcpp::Duration::from_seconds(stop_point_timeout_s_);
         stop_points_.erase(
@@ -146,7 +161,7 @@ void SpeedPathPlannerNode::path_callback(const nav_msgs::msg::Path::ConstSharedP
         points.push_back({pose.pose.position.x, pose.pose.position.y});
     }
 
-    auto speed_path = make_speed_path(*msg, speed_profile::plan(points, v_meas, stop_s, limits_));
+    auto speed_path = make_speed_path(*msg, speed_profile::plan(points, v_meas, stop_s, limits));
     if (marker_publisher_->get_subscription_count() > 0) {
         marker_publisher_->publish(make_marker_array(speed_path));
     }
