@@ -146,11 +146,12 @@ class NetworkEarlyFusion(nn.Module):
         num_layers: int = 4,
         dropout: float = 0.1,
         num_past_frames: int = 0,
+        num_mask_channels: int = 1,
     ):
         super(NetworkEarlyFusion, self).__init__()
 
-        # 1ch(マスク) + 3ch(現在のRGB) + 3ch x 過去フレーム数
-        self.stem = ConvStem(4 + 3 * num_past_frames, embed_dim)
+        # マスク(白線 1ch、パイロンを足すと 2ch) + 3ch(現在のRGB) + 3ch x 過去フレーム数
+        self.stem = ConvStem(num_mask_channels + 3 + 3 * num_past_frames, embed_dim)
 
         num_patches = (image_height // 8) * (image_width // 8)
         num_tokens = num_patches + 1

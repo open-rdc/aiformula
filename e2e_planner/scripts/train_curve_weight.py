@@ -11,7 +11,7 @@ import time
 import yaml
 import torch
 import torch.nn as nn
-from torch.utils.data import ConcatDataset, Dataset, DataLoader, Subset, random_split
+from torch.utils.data import ConcatDataset, Dataset, DataLoader, Subset, WeightedRandomSampler, random_split
 from torch.utils.tensorboard import SummaryWriter
 import cv2
 import csv
@@ -33,6 +33,7 @@ from util.preprocess import (
 )
 from util.augment_train import horizontal_flip, jitter_stack, to_grayscale
 from util.curve_weight import CurveWeighter, curve_score
+from util.pylon_mask import is_pylon_near
 
 NUM_WAYPOINTS = 20
 
@@ -59,7 +60,7 @@ class E2EDataset(Dataset):
     """白線マスク画像と対応するRGB画像のペアを返す"""
 
     def __init__(self, dataset_path: Path, augment_config: dict = None,
-                 frame_stack_distances: List[float] = None):
+                 frame_stack_distances: List[float] = None, use_pylon_mask: bool = False):
         # augment_config が None のときは拡張なし（検証用）
         self.augment_config = augment_config
         # 過去フレームを何 m 後ろから引くか。時間ではなく距離で引く:
@@ -71,6 +72,9 @@ class E2EDataset(Dataset):
         self.mask_images_dir = dataset_path / 'mask_images'
         self.rgb_images_dir = dataset_path / 'images'
         self.path_dir = dataset_path / 'path'
+        # パイロンの枠を塗ったマスク (create_pylon_masks.py)。白線マスクの 2 ch 目として重ねる
+        self.use_pylon_mask = use_pylon_mask
+        self.pylon_masks_dir = dataset_path / 'pylon_masks'
 
         if not self.rgb_images_dir.exists():
             raise FileNotFoundError(f'RGB images directory not found: {self.rgb_images_dir}')
@@ -79,11 +83,21 @@ class E2EDataset(Dataset):
                 f'mask images directory not found: {self.mask_images_dir}\n'
                 '先に scripts/e2e_add_yolopv2_data.py でマスクを作ること')
 
+        if use_pylon_mask and not self.pylon_masks_dir.exists():
+            raise FileNotFoundError(
+                f'pylon masks directory not found: {self.pylon_masks_dir}\n'
+                '先に scripts/create_pylon_masks.py でパイロンマスクを作ること')
+
         self.mask_files = [
             mask_file for mask_file in sorted(self.mask_images_dir.glob('*.png'))
             if (self.rgb_images_dir / mask_file.name).exists()
             and (self.path_dir / f'{mask_file.stem}.csv').exists()
+            and (not use_pylon_mask or (self.pylon_masks_dir / mask_file.name).exists())
         ]
+
+        # コーンが近いサンプル。学習で多めに引くのに使う
+        self.pylon_near = np.array([
+            use_pylon_mask and is_pylon_near(self._read_pylon_mask(f.name)) for f in self.mask_files], dtype=bool)
 
         # 重みは train 全体の分布から決めるので、Trainer が後から CurveWeighter を
         # 差し込む。val は None のまま (= 重み 1)
@@ -96,6 +110,12 @@ class E2EDataset(Dataset):
         self.stems = [mask_file.stem for mask_file in self.mask_files]
         if self.frame_stack_distances:
             self._load_arc_lengths()
+
+    def _read_pylon_mask(self, name: str) -> np.ndarray:
+        mask = cv2.imread(str(self.pylon_masks_dir / name), cv2.IMREAD_GRAYSCALE)
+        if mask is None:
+            raise RuntimeError(f'Failed to load pylon mask: {name}')
+        return mask
 
     @staticmethod
     def _read_waypoints(csv_file: Path) -> List[List[float]]:
@@ -167,6 +187,8 @@ class E2EDataset(Dataset):
         waypoints = self._read_waypoints(csv_file)
 
         mask_binary = extract_red_mask(mask_bgr)
+        pylon_binary = ((self._read_pylon_mask(mask_file.name) > 127).astype(np.uint8)
+                        if self.use_pylon_mask else None)
         waypoints_m = np.array(waypoints, dtype=np.float32)
 
         if self.augment_config is not None:
@@ -184,6 +206,8 @@ class E2EDataset(Dataset):
                            for frame in rgb_frames]
                 rgb_frames = [f[0] for f in flipped]
                 mask_binary, waypoints_m = flipped[0][1], flipped[0][2]
+                if pylon_binary is not None:
+                    pylon_binary = np.ascontiguousarray(pylon_binary[:, ::-1])
 
             if rng.random() < cfg['color_prob']:
                 rgb_frames = jitter_stack(
@@ -198,7 +222,10 @@ class E2EDataset(Dataset):
             if rng.random() < cfg['gray_prob']:
                 rgb_frames = [to_grayscale(frame) for frame in rgb_frames]
 
-        mask_tensor = torch.from_numpy(preprocess_mask(mask_binary))
+        mask_channels = [preprocess_mask(mask_binary)]
+        if pylon_binary is not None:
+            mask_channels.append(preprocess_mask(pylon_binary))
+        mask_tensor = torch.from_numpy(np.concatenate(mask_channels, axis=0))
         # (3*(1+past), H, W) にチャネル方向で連結
         rgb_tensor = torch.from_numpy(
             np.concatenate([preprocess_rgb(frame) for frame in rgb_frames], axis=0))
@@ -210,6 +237,11 @@ class E2EDataset(Dataset):
 
         return (mask_tensor, rgb_tensor, waypoints_tensor,
                 torch.tensor(weight, dtype=torch.float32), torch.tensor(score, dtype=torch.float32))
+
+def oversample_weights(pylon_near: np.ndarray, factor: float) -> np.ndarray:
+    """コーンが近いサンプルを factor 倍引くための WeightedRandomSampler の重み"""
+    return np.where(pylon_near, factor, 1.0)
+
 
 class Config:
     def __init__(self, config_path: Path, package_root: Path, run_name: str):
@@ -262,6 +294,11 @@ class Config:
             'gray_prob': config_dict.get('augment_gray_prob', 0.3),
         }
         self.augment_enabled = config_dict.get('augment', True)
+
+        # パイロンマスクを白線マスクの 2 ch 目として入れるか。false なら従来どおり 1 ch
+        self.pylon_mask = bool(config_dict.get('pylon_mask', False))
+        # コーンが近いサンプルを何倍引くか。1.0 なら従来どおり一様に shuffle
+        self.pylon_oversample = float(config_dict.get('pylon_oversample', 1.0))
 
         # カーブのきつさによる損失の重み付け (util/curve_weight.py)
         self.curve_weighting = config_dict.get('curve_weighting', {}) or {'mode': 'none'}
@@ -317,10 +354,20 @@ class Trainer:
         for source in train_sources:
             source.curve_weighter = self.curve_weighter
 
+        # コーンが近いサンプルを多めに引く。1 epoch のサンプル数は train 全体と同じ
+        sampler = None
+        if config.pylon_oversample > 1.0:
+            train_near = self._train_pylon_near(train_dataset)
+            sampler = WeightedRandomSampler(
+                oversample_weights(train_near, config.pylon_oversample).tolist(),
+                num_samples=len(train_dataset), replacement=True)
+            print(f'Pylon near: {int(train_near.sum())} / {len(train_near)} 件を {config.pylon_oversample} 倍引く')
+
         self.train_loader = DataLoader(
             train_dataset,
             batch_size=config.batch_size,
-            shuffle=True,
+            shuffle=sampler is None,
+            sampler=sampler,
             num_workers=config.num_workers
         )
         self.val_loader = DataLoader(
@@ -339,7 +386,8 @@ class Trainer:
             num_heads=config.num_heads,
             num_layers=config.num_layers,
             dropout=config.dropout,
-            **({'num_past_frames': len(config.frame_stack_distances)}
+            **({'num_past_frames': len(config.frame_stack_distances),
+                'num_mask_channels': 2 if config.pylon_mask else 1}
                if config.fusion == 'early' else {}),
         ).to(self.device)
         self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=config.learning_rate)
@@ -402,6 +450,13 @@ class Trainer:
         return [train_dataset.dataset], train_dataset.dataset.curve_scores[train_dataset.indices]
 
     @staticmethod
+    def _train_pylon_near(train_dataset) -> np.ndarray:
+        """train に入るサンプルの並び順で、コーンが近いかどうか"""
+        if isinstance(train_dataset, ConcatDataset):
+            return np.concatenate([d.pylon_near for d in train_dataset.datasets])
+        return train_dataset.dataset.pylon_near[train_dataset.indices]
+
+    @staticmethod
     def weighted_mse(outputs: torch.Tensor, targets: torch.Tensor, weights: torch.Tensor) -> torch.Tensor:
         """重みが全部 1 なら nn.MSELoss と一致する"""
         return (((outputs - targets) ** 2).mean(dim=1) * weights).mean()
@@ -440,16 +495,20 @@ class Trainer:
 
         stack = config.frame_stack_distances
         train_dataset = ConcatDataset(
-            [E2EDataset(d, augment_config=aug_cfg, frame_stack_distances=stack) for d in train_dirs])
+            [E2EDataset(d, augment_config=aug_cfg, frame_stack_distances=stack,
+                        use_pylon_mask=config.pylon_mask) for d in train_dirs])
         val_dataset = ConcatDataset(
-            [E2EDataset(d, augment_config=None, frame_stack_distances=stack) for d in val_dirs])
+            [E2EDataset(d, augment_config=None, frame_stack_distances=stack,
+                        use_pylon_mask=config.pylon_mask) for d in val_dirs])
         return train_dataset, val_dataset
 
     @staticmethod
     def _split_within_dataset(dataset_path, config, aug_cfg):
         stack = config.frame_stack_distances
-        train_source = E2EDataset(dataset_path, augment_config=aug_cfg, frame_stack_distances=stack)
-        val_source = E2EDataset(dataset_path, augment_config=None, frame_stack_distances=stack)
+        train_source = E2EDataset(dataset_path, augment_config=aug_cfg, frame_stack_distances=stack,
+                                  use_pylon_mask=config.pylon_mask)
+        val_source = E2EDataset(dataset_path, augment_config=None, frame_stack_distances=stack,
+                                use_pylon_mask=config.pylon_mask)
 
         n = len(val_source)
         train_size = int(0.8 * n)
