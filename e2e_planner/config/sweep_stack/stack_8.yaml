@@ -1,5 +1,5 @@
 # 過去フレームの距離・枚数の比較 (2026-10-31)。[8.0] m 前を重ねる。ほかは train_pylon_scenes_stack.yaml と同じ
-# train_pylon_scenes.yaml に過去フレーム (4 m・8 m 前) を足したもの
+# 元は train_pylon_scenes_stack.yaml。frame_stack_distances などはこのファイルの値が効く
 # train_pylon.yaml の写しで、多めに引く場面を確認ツール (scripts/pylon_scene_web.py) で人が引いた
 # 「避ける区間」にしたもの。「学習に使わない」範囲も外す。
 # train_pylon.yaml の 1 回目 (2026-10-30) は is_pylon_near (コーンが数 m 手前) で引いたため、

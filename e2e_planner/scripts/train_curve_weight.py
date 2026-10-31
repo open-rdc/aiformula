@@ -66,7 +66,7 @@ class E2EDataset(Dataset):
                  use_pylon_scenes: bool = False, drop_backward_paths: bool = False,
                  holdout_ranges: List[Tuple[int, int]] = (), holdout_gap: int = 0, avoid_only: bool = False,
                  blue_course_only: bool = False, keep_avoid_off_course: bool = False,
-                 keep_only_ranges: List[Tuple[int, int]] = None):
+                 keep_only_ranges: List[Tuple[int, int]] = None, draw_pylon_boxes: bool = False):
         # augment_config が None のときは拡張なし（検証用）
         self.augment_config = augment_config
         # 過去フレームを何 m 後ろから引くか。時間ではなく距離で引く:
@@ -81,6 +81,8 @@ class E2EDataset(Dataset):
         # パイロンの枠を塗ったマスク (create_pylon_masks.py)。白線マスクの 2 ch 目として重ねる
         self.use_pylon_mask = use_pylon_mask
         self.pylon_masks_dir = dataset_path / 'pylon_masks'
+        # 障害物の枠を、マスクの ch ではなく RGB 画像に枠線で描き込む (draw_boxes_on_rgb)
+        self.draw_pylon_boxes = draw_pylon_boxes
 
         if not self.rgb_images_dir.exists():
             raise FileNotFoundError(f'RGB images directory not found: {self.rgb_images_dir}')
@@ -89,7 +91,7 @@ class E2EDataset(Dataset):
                 f'mask images directory not found: {self.mask_images_dir}\n'
                 '先に scripts/e2e_add_yolopv2_data.py でマスクを作ること')
 
-        if use_pylon_mask and not self.pylon_masks_dir.exists():
+        if (use_pylon_mask or draw_pylon_boxes) and not self.pylon_masks_dir.exists():
             raise FileNotFoundError(
                 f'pylon masks directory not found: {self.pylon_masks_dir}\n'
                 '先に scripts/create_pylon_masks.py でパイロンマスクを作ること')
@@ -103,7 +105,7 @@ class E2EDataset(Dataset):
             mask_file for mask_file in sorted(self.mask_images_dir.glob('*.png'))
             if (self.rgb_images_dir / mask_file.name).exists()
             and (self.path_dir / f'{mask_file.stem}.csv').exists()
-            and (not use_pylon_mask or (self.pylon_masks_dir / mask_file.name).exists())
+            and (not (use_pylon_mask or draw_pylon_boxes) or (self.pylon_masks_dir / mask_file.name).exists())
             and scenes.get(mask_file.stem, (0, 0, 1))[2]
             # 青コースの外は外す。keep_avoid_off_course なら避ける区間 (確認済み) は青コースの外でも残す
             and (not blue_course_only or course.get(mask_file.stem, 0)
@@ -246,7 +248,11 @@ class E2EDataset(Dataset):
 
         mask_binary = extract_red_mask(mask_bgr)
         pylon_binary = ((self._read_pylon_mask(mask_file.name) > 127).astype(np.uint8)
-                        if self.use_pylon_mask else None)
+                        if self.use_pylon_mask or self.draw_pylon_boxes else None)
+        # 過去フレームにも、そのフレームの障害物の枠を描く
+        box_masks = ([pylon_binary] + [(self._read_pylon_mask(f'{st}.png') > 127).astype(np.uint8)
+                                       for st in self._past_stems(idx)]
+                     if self.draw_pylon_boxes else [])
         waypoints_m = np.array(waypoints, dtype=np.float32)
 
         if self.augment_config is not None:
@@ -266,6 +272,9 @@ class E2EDataset(Dataset):
                 mask_binary, waypoints_m = flipped[0][1], flipped[0][2]
                 if pylon_binary is not None:
                     pylon_binary = np.ascontiguousarray(pylon_binary[:, ::-1])
+                box_masks = [np.ascontiguousarray(m[:, ::-1]) for m in box_masks]
+                if box_masks:
+                    box_masks[0] = pylon_binary
 
             if rng.random() < cfg['color_prob']:
                 rgb_frames = jitter_stack(
@@ -280,8 +289,12 @@ class E2EDataset(Dataset):
             if rng.random() < cfg['gray_prob']:
                 rgb_frames = [to_grayscale(frame) for frame in rgb_frames]
 
+        # 枠は色の拡張 (色相・グレースケール化) の後に描く。前に描くと枠の色が変わる
+        if self.draw_pylon_boxes:
+            rgb_frames = [draw_boxes_on_rgb(frame, m) for frame, m in zip(rgb_frames, box_masks)]
+
         mask_channels = [preprocess_mask(mask_binary)]
-        if pylon_binary is not None:
+        if self.use_pylon_mask:
             mask_channels.append(preprocess_mask(pylon_binary))
         mask_tensor = torch.from_numpy(np.concatenate(mask_channels, axis=0))
         # (3*(1+past), H, W) にチャネル方向で連結
@@ -298,6 +311,23 @@ class E2EDataset(Dataset):
 
         return (mask_tensor, rgb_tensor, waypoints_tensor,
                 torch.tensor(weight, dtype=torch.float32), torch.tensor(score, dtype=torch.float32))
+
+BOX_COLOR = (255, 0, 255)  # BGR のマゼンタ。コースにほぼ無い色
+BOX_THICKNESS = 3          # 640x360 で 3 px (256x144 に縮めると約 1 px)
+
+
+def draw_boxes_on_rgb(bgr: np.ndarray, box_mask: np.ndarray) -> np.ndarray:
+    """障害物マスク (枠を塗りつぶしたもの) の輪郭を BGR 画像に枠線で描く。
+    重なった枠は 1 つの輪郭になる。画像とマスクの大きさが違えばマスクを合わせる"""
+    if box_mask is None or not box_mask.any():
+        return bgr
+    if box_mask.shape[:2] != bgr.shape[:2]:
+        box_mask = cv2.resize(box_mask, (bgr.shape[1], bgr.shape[0]), interpolation=cv2.INTER_NEAREST)
+    contours, _ = cv2.findContours(box_mask.astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    out = np.ascontiguousarray(bgr.copy())
+    cv2.drawContours(out, contours, -1, BOX_COLOR, BOX_THICKNESS)
+    return out
+
 
 def oversample_weights(pylon_near: np.ndarray, factor: float) -> np.ndarray:
     """コーンが近いサンプルを factor 倍引くための WeightedRandomSampler の重み"""
@@ -381,6 +411,8 @@ class Config:
         self.test_datasets = list(config_dict.get('test_datasets', []) or [])
         # 避ける区間 (多めに引くサンプル) の損失を何倍にするか。1.0 なら重み付けしない
         self.avoid_loss_weight = float(config_dict.get('avoid_loss_weight', 1.0))
+        # true なら障害物の枠を RGB 画像に枠線で描き込む (pylon_mask: false と組み合わせて、マスクは白線の 1 ch)
+        self.pylon_bbox_on_rgb = bool(config_dict.get('pylon_bbox_on_rgb', False))
 
         # カーブのきつさによる損失の重み付け (util/curve_weight.py)
         self.curve_weighting = config_dict.get('curve_weighting', {}) or {'mode': 'none'}
@@ -560,7 +592,7 @@ class Trainer:
                 if not (d / 'pylon_scenes.json').exists():
                     continue
                 ds = E2EDataset(d, augment_config=None, frame_stack_distances=config.frame_stack_distances,
-                                use_pylon_mask=config.pylon_mask, use_pylon_scenes=True, avoid_only=True,
+                                use_pylon_mask=config.pylon_mask, draw_pylon_boxes=config.pylon_bbox_on_rgb, use_pylon_scenes=True, avoid_only=True,
                                 drop_backward_paths=config.drop_backward_paths, keep_only_ranges=ranges)
                 if len(ds):
                     parts.append(ds)
@@ -614,7 +646,7 @@ class Trainer:
         stack = config.frame_stack_distances
         train_dataset = ConcatDataset(
             [E2EDataset(d, augment_config=aug_cfg, frame_stack_distances=stack,
-                        use_pylon_mask=config.pylon_mask, use_pylon_scenes=config.pylon_scenes,
+                        use_pylon_mask=config.pylon_mask, draw_pylon_boxes=config.pylon_bbox_on_rgb, use_pylon_scenes=config.pylon_scenes,
                         drop_backward_paths=config.drop_backward_paths,
                         holdout_ranges=config.holdout.get(d.name, []), holdout_gap=config.holdout_gap,
                         avoid_only=d.name in config.avoid_only_datasets,
@@ -623,7 +655,7 @@ class Trainer:
              for d in train_dirs])
         val_dataset = ConcatDataset(
             [E2EDataset(d, augment_config=None, frame_stack_distances=stack,
-                        use_pylon_mask=config.pylon_mask, use_pylon_scenes=config.pylon_scenes,
+                        use_pylon_mask=config.pylon_mask, draw_pylon_boxes=config.pylon_bbox_on_rgb, use_pylon_scenes=config.pylon_scenes,
                         drop_backward_paths=config.drop_backward_paths,
                         holdout_ranges=config.holdout.get(d.name, []), holdout_gap=config.holdout_gap,
                         avoid_only=d.name in config.avoid_only_datasets,
@@ -636,7 +668,7 @@ class Trainer:
     def _split_within_dataset(dataset_path, config, aug_cfg):
         stack = config.frame_stack_distances
         train_source = E2EDataset(dataset_path, augment_config=aug_cfg, frame_stack_distances=stack,
-                                  use_pylon_mask=config.pylon_mask, use_pylon_scenes=config.pylon_scenes,
+                                  use_pylon_mask=config.pylon_mask, draw_pylon_boxes=config.pylon_bbox_on_rgb, use_pylon_scenes=config.pylon_scenes,
                         drop_backward_paths=config.drop_backward_paths,
                                   holdout_ranges=config.holdout.get(dataset_path.name, []),
                                   holdout_gap=config.holdout_gap,
@@ -644,7 +676,7 @@ class Trainer:
                                   blue_course_only=config.blue_course_only,
                         keep_avoid_off_course=config.keep_avoid_off_course)
         val_source = E2EDataset(dataset_path, augment_config=None, frame_stack_distances=stack,
-                                use_pylon_mask=config.pylon_mask, use_pylon_scenes=config.pylon_scenes,
+                                use_pylon_mask=config.pylon_mask, draw_pylon_boxes=config.pylon_bbox_on_rgb, use_pylon_scenes=config.pylon_scenes,
                         drop_backward_paths=config.drop_backward_paths,
                                   holdout_ranges=config.holdout.get(dataset_path.name, []),
                                   holdout_gap=config.holdout_gap,
