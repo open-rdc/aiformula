@@ -64,7 +64,7 @@ class E2EDataset(Dataset):
     def __init__(self, dataset_path: Path, augment_config: dict = None,
                  frame_stack_distances: List[float] = None, use_pylon_mask: bool = False,
                  use_pylon_scenes: bool = False, drop_backward_paths: bool = False,
-                 holdout_ranges: List[Tuple[int, int]] = (), holdout_gap: int = 0):
+                 holdout_ranges: List[Tuple[int, int]] = (), holdout_gap: int = 0, avoid_only: bool = False):
         # augment_config が None のときは拡張なし（検証用）
         self.augment_config = augment_config
         # 過去フレームを何 m 後ろから引くか。時間ではなく距離で引く:
@@ -101,6 +101,8 @@ class E2EDataset(Dataset):
             and (self.path_dir / f'{mask_file.stem}.csv').exists()
             and (not use_pylon_mask or (self.pylon_masks_dir / mask_file.name).exists())
             and scenes.get(mask_file.stem, (0, 0, 1))[2]
+            # avoid_only の bag (red コースなど) は「避ける区間 (確認済み)」のフレームだけ使う
+            and (not avoid_only or (scenes.get(mask_file.stem, (0, 0, 1))[0] and scenes.get(mask_file.stem, (0, 0, 1))[1]))
             and not (drop_backward_paths
                      and path_goes_backward(np.array(self._read_waypoints(self.path_dir / f'{mask_file.stem}.csv'))))
             # 評価用の範囲と、その前後 holdout_gap フレーム (ほぼ同じ画像が学習に入らないように)
@@ -337,6 +339,8 @@ class Config:
             with open(Path(config_path).parent / config_dict['holdout_file'], 'r') as f:
                 self.holdout = {name: [tuple(r) for r in ranges] for name, ranges in (yaml.safe_load(f) or {}).items()}
         self.holdout_gap = int(config_dict.get('holdout_gap', 0))
+        # 避ける区間 (pylon_scenes.json で確認済み) のフレームだけを使う bag。コースが違う red など
+        self.avoid_only_datasets = list(config_dict.get('avoid_only_datasets', []) or [])
 
         # カーブのきつさによる損失の重み付け (util/curve_weight.py)
         self.curve_weighting = config_dict.get('curve_weighting', {}) or {'mode': 'none'}
@@ -536,13 +540,15 @@ class Trainer:
             [E2EDataset(d, augment_config=aug_cfg, frame_stack_distances=stack,
                         use_pylon_mask=config.pylon_mask, use_pylon_scenes=config.pylon_scenes,
                         drop_backward_paths=config.drop_backward_paths,
-                        holdout_ranges=config.holdout.get(d.name, []), holdout_gap=config.holdout_gap)
+                        holdout_ranges=config.holdout.get(d.name, []), holdout_gap=config.holdout_gap,
+                        avoid_only=d.name in config.avoid_only_datasets)
              for d in train_dirs])
         val_dataset = ConcatDataset(
             [E2EDataset(d, augment_config=None, frame_stack_distances=stack,
                         use_pylon_mask=config.pylon_mask, use_pylon_scenes=config.pylon_scenes,
                         drop_backward_paths=config.drop_backward_paths,
-                        holdout_ranges=config.holdout.get(d.name, []), holdout_gap=config.holdout_gap)
+                        holdout_ranges=config.holdout.get(d.name, []), holdout_gap=config.holdout_gap,
+                        avoid_only=d.name in config.avoid_only_datasets)
              for d in val_dirs])
         return train_dataset, val_dataset
 
@@ -553,12 +559,14 @@ class Trainer:
                                   use_pylon_mask=config.pylon_mask, use_pylon_scenes=config.pylon_scenes,
                         drop_backward_paths=config.drop_backward_paths,
                                   holdout_ranges=config.holdout.get(dataset_path.name, []),
-                                  holdout_gap=config.holdout_gap)
+                                  holdout_gap=config.holdout_gap,
+                                  avoid_only=dataset_path.name in config.avoid_only_datasets)
         val_source = E2EDataset(dataset_path, augment_config=None, frame_stack_distances=stack,
                                 use_pylon_mask=config.pylon_mask, use_pylon_scenes=config.pylon_scenes,
                         drop_backward_paths=config.drop_backward_paths,
                                   holdout_ranges=config.holdout.get(dataset_path.name, []),
-                                  holdout_gap=config.holdout_gap)
+                                  holdout_gap=config.holdout_gap,
+                                  avoid_only=dataset_path.name in config.avoid_only_datasets)
 
         n = len(val_source)
         train_size = int(0.8 * n)
