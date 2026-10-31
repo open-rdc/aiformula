@@ -24,6 +24,8 @@ public:
 
     virtual void setMeasuredSteer(double) {}
 
+    virtual void setYawRate(double) {}
+
     virtual steered_drive_msg::msg::SteeredDrive computeCommand(
         const speed_path_msgs::msg::SpeedPath & path_in_base,
         double current_velocity) = 0;

@@ -21,6 +21,7 @@ ControllerServer::ControllerServer(const rclcpp::NodeOptions & options)
     velocity_subscription_ = create_subscription<geometry_msgs::msg::TwistWithCovarianceStamped>("/vectornav/velocity_body", rclcpp::QoS(1).best_effort(), std::bind(&ControllerServer::velocity_callback, this, std::placeholders::_1));
     autonomous_subscription_ = create_subscription<std_msgs::msg::Bool>("/autonomous", rclcpp::QoS(10), std::bind(&ControllerServer::autonomous_callback, this, std::placeholders::_1));
     caster_data_subscription_ = create_subscription<std_msgs::msg::Float64MultiArray>("/caster_data", rclcpp::SensorDataQoS().keep_last(1), std::bind(&ControllerServer::caster_data_callback, this, std::placeholders::_1));
+    imu_subscription_ = create_subscription<sensor_msgs::msg::Imu>("/vectornav/imu", rclcpp::SensorDataQoS().keep_last(1), std::bind(&ControllerServer::imu_callback, this, std::placeholders::_1));
     command_publisher_ = create_publisher<steered_drive_msg::msg::SteeredDrive>("/cmd_vel", rclcpp::QoS(10));
 
     timer_ = create_wall_timer(std::chrono::milliseconds(get_parameter("interval_ms").as_int()), std::bind(&ControllerServer::timer_callback, this));
@@ -49,6 +50,11 @@ void ControllerServer::caster_data_callback(const std_msgs::msg::Float64MultiArr
     caster_data_ = msg;
 }
 
+void ControllerServer::imu_callback(const sensor_msgs::msg::Imu::ConstSharedPtr msg)
+{
+    imu_ = msg;
+}
+
 void ControllerServer::timer_callback()
 {
     if (!autonomous_flag_ || !path_ || path_->points.size() < 2) {
@@ -74,6 +80,11 @@ void ControllerServer::timer_callback()
 
     if (caster_data_) {
         plugin_->setMeasuredSteer(caster_data_->data[1]);
+    }
+
+    if (imu_) {
+        plugin_->setYawRate(imu_->angular_velocity.z);
+        imu_.reset();
     }
 
     command_publisher_->publish(plugin_->computeCommand(path_in_base, velocity_->twist.twist.linear.x));
