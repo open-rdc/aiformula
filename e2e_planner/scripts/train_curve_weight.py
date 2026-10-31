@@ -31,6 +31,7 @@ from util.preprocess import (
     preprocess_mask,
     preprocess_rgb,
     normalize_waypoints,
+    path_goes_backward,
 )
 from util.augment_train import horizontal_flip, jitter_stack, to_grayscale
 from util.curve_weight import CurveWeighter, curve_score
@@ -62,7 +63,7 @@ class E2EDataset(Dataset):
 
     def __init__(self, dataset_path: Path, augment_config: dict = None,
                  frame_stack_distances: List[float] = None, use_pylon_mask: bool = False,
-                 use_pylon_scenes: bool = False):
+                 use_pylon_scenes: bool = False, drop_backward_paths: bool = False):
         # augment_config が None のときは拡張なし（検証用）
         self.augment_config = augment_config
         # 過去フレームを何 m 後ろから引くか。時間ではなく距離で引く:
@@ -99,6 +100,8 @@ class E2EDataset(Dataset):
             and (self.path_dir / f'{mask_file.stem}.csv').exists()
             and (not use_pylon_mask or (self.pylon_masks_dir / mask_file.name).exists())
             and scenes.get(mask_file.stem, (0, 0, 1))[2]
+            and not (drop_backward_paths
+                     and path_goes_backward(np.array(self._read_waypoints(self.path_dir / f'{mask_file.stem}.csv'))))
         ]
 
         # 学習で多めに引くサンプル。use_pylon_scenes なら人が「避ける区間」と確認したフレーム
@@ -323,6 +326,8 @@ class Config:
         # true なら多めに引くのを、確認ツールで人が引いた「避ける区間」(pylon_scenes.json) にする。
         # 「学習に使わない」範囲も外す。false なら is_pylon_near (コーンが近いフレーム)
         self.pylon_scenes = bool(config_dict.get('pylon_scenes', False))
+        # true なら正解の経路が後ろへ戻るサンプル (バックしている場面) を外す
+        self.drop_backward_paths = bool(config_dict.get('drop_backward_paths', False))
 
         # カーブのきつさによる損失の重み付け (util/curve_weight.py)
         self.curve_weighting = config_dict.get('curve_weighting', {}) or {'mode': 'none'}
@@ -520,19 +525,23 @@ class Trainer:
         stack = config.frame_stack_distances
         train_dataset = ConcatDataset(
             [E2EDataset(d, augment_config=aug_cfg, frame_stack_distances=stack,
-                        use_pylon_mask=config.pylon_mask, use_pylon_scenes=config.pylon_scenes) for d in train_dirs])
+                        use_pylon_mask=config.pylon_mask, use_pylon_scenes=config.pylon_scenes,
+                        drop_backward_paths=config.drop_backward_paths) for d in train_dirs])
         val_dataset = ConcatDataset(
             [E2EDataset(d, augment_config=None, frame_stack_distances=stack,
-                        use_pylon_mask=config.pylon_mask, use_pylon_scenes=config.pylon_scenes) for d in val_dirs])
+                        use_pylon_mask=config.pylon_mask, use_pylon_scenes=config.pylon_scenes,
+                        drop_backward_paths=config.drop_backward_paths) for d in val_dirs])
         return train_dataset, val_dataset
 
     @staticmethod
     def _split_within_dataset(dataset_path, config, aug_cfg):
         stack = config.frame_stack_distances
         train_source = E2EDataset(dataset_path, augment_config=aug_cfg, frame_stack_distances=stack,
-                                  use_pylon_mask=config.pylon_mask, use_pylon_scenes=config.pylon_scenes)
+                                  use_pylon_mask=config.pylon_mask, use_pylon_scenes=config.pylon_scenes,
+                        drop_backward_paths=config.drop_backward_paths)
         val_source = E2EDataset(dataset_path, augment_config=None, frame_stack_distances=stack,
-                                use_pylon_mask=config.pylon_mask, use_pylon_scenes=config.pylon_scenes)
+                                use_pylon_mask=config.pylon_mask, use_pylon_scenes=config.pylon_scenes,
+                        drop_backward_paths=config.drop_backward_paths)
 
         n = len(val_source)
         train_size = int(0.8 * n)

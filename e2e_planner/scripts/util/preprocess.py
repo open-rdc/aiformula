@@ -85,3 +85,12 @@ def denormalize_waypoints(normalized: np.ndarray) -> np.ndarray:
     denormalized[0::2] = (normalized[0::2] + 1.0) * WAYPOINT_X_SCALE
     denormalized[1::2] = (normalized[1::2] + 1.0) * WAYPOINT_Y_SCALE - WAYPOINT_Y_OFFSET
     return denormalized
+
+
+def path_goes_backward(waypoints: np.ndarray, tolerance: float = 0.05) -> bool:
+    """経路 (N, 2) [m] がどこかで後ろへ戻るか (バックしている場面)。
+
+    距離で切った経路は前進中なら x がほぼ 0.5 m ずつ増える。前方 x が前の点より
+    tolerance 以上減る、または負になる点があれば後退とみなす。"""
+    x = np.asarray(waypoints, dtype=float)[:, 0]
+    return bool(x.min() < 0.0 or (np.diff(np.r_[0.0, x]) < -tolerance).any())

@@ -20,6 +20,8 @@ pylon_mask: true
 pylon_oversample: 5.0
 # 多めに引く場面を pylon_scenes.json の「避ける区間 (確認済み)」にする
 pylon_scenes: true
+# 正解の経路が後ろへ戻るサンプル (630_cone などでバックしている場面) を外す
+drop_backward_paths: true
 
 # Transformer 融合モデルのハイパーパラメータ
 embed_dim: 128

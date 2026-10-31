@@ -8,7 +8,8 @@ SmolVLA/training/data/lap_annotation_web.py と同じ操作感にしてある。
   - 画像 (パイロンマスクを赤で重ねる。M で切り替え)
   - 正解経路 (path/<stem>.csv、上から見た図。前が上、左が左)
   - タイムライン: 上段 = 避ける区間 (オレンジ)、中段 = パイロンが写っているフレーム
-    (濃い = 進路の前、薄い = 脇)、下段の緑の線 = 確認済み、灰色 = 学習に使わない範囲。
+    (濃い = 進路の前、薄い = 脇)、下段の緑の線 = 確認済み、灰色 = 学習に使わない範囲、
+    紫 = 正解の経路が後ろへ戻る (バック。学習で自動的に外すので区間を引かなくてよい)。
     クリックで移動、ドラッグで範囲を選ぶ
 
 避ける区間は人が全部引く。初めて開いた bag は全フレーム「避けない・未確認」から始まる
@@ -39,6 +40,8 @@ from urllib.parse import unquote
 
 import cv2
 import numpy as np
+
+from util.preprocess import path_goes_backward
 
 AHEAD_X = (200, 440)  # 進路の前とみなす枠の中心 x (640x360 座標)。表示の目安だけ
 
@@ -108,8 +111,9 @@ def bag_detail(name: str) -> dict:
     if (d / 'meta.csv').exists():
         meta = {f"{int(r['index']):05d}": r for r in csv.DictReader(open(d / 'meta.csv'))}
     t0 = float(meta[ss[0]]['timestamp']) if ss and ss[0] in meta else None
+    paths = [read_path(d, s) for s in ss]
     return {'name': name, 'n': len(ss), 'stems': ss, 'state': state, 'scene': scene, 'reviewed': reviewed, 'use': use,
-            'paths': [read_path(d, s) for s in ss],
+            'paths': paths, 'backward': [int(path_goes_backward(np.array(p))) for p in paths],
             't': [round(float(meta[s]['timestamp']) - t0, 2) if t0 is not None and s in meta else None for s in ss],
             'speed': [round(float(meta[s]['speed_mps']), 2) if s in meta else None for s in ss]}
 
@@ -227,7 +231,7 @@ button.primary{background:var(--scene);border-color:var(--scene);color:#1d0f00;f
       <button id="douse" title="U">学習に使う</button>
       <label class="k"><input type="checkbox" id="showmask" checked> パイロンマスクを重ねる (M)</label>
     </div>
-    <div class="help">←/→ 1フレーム　Ctrl+←/→ 10フレーム　Shift+←/→ 範囲を伸ばす（押し始めが始点）　Space 再生　[ / ] 範囲の始点/終点　Enter 避ける区間にして次へ　Backspace 避けないにして次へ　Delete 学習に使わない　U 学習に使う　M マスク　Ctrl+S 保存　タイムライン: クリックで移動、ドラッグで範囲選択。上段オレンジ = 避ける区間、中段 = パイロン（濃い = 進路の前、薄い = 脇）、下段の緑 = 確認済み、暗く灰色 = 学習に使わない。画像の緑の縦線の間が「進路の前」</div>
+    <div class="help">←/→ 1フレーム　Ctrl+←/→ 10フレーム　Shift+←/→ 範囲を伸ばす（押し始めが始点）　Space 再生　[ / ] 範囲の始点/終点　Enter 避ける区間にして次へ　Backspace 避けないにして次へ　Delete 学習に使わない　U 学習に使う　M マスク　Ctrl+S 保存　タイムライン: クリックで移動、ドラッグで範囲選択。上段オレンジ = 避ける区間、中段 = パイロン（濃い = 進路の前、薄い = 脇）、下段の緑 = 確認済み、暗く灰色 = 学習に使わない、暗く紫 = 後退（自動で外す）。画像の緑の縦線の間が「進路の前」</div>
   </section>
   <aside>
     <div class="box">
@@ -270,7 +274,7 @@ function go(i,resetSel){
 function render(){
   const t=B.t[f]!==null?`　${B.t[f].toFixed(1)} s`:"",v=B.speed[f]!==null?`　${B.speed[f].toFixed(1)} m/s`:"";
   $("frameinfo").textContent=`${f} / ${B.n-1}（${B.stems[f]}）${t}${v}`;
-  const lb=$("label");lb.textContent=(B.use[f]?"":"学習に使わない／")+(B.scene[f]?"避ける区間":"避けない")+(B.reviewed[f]?"（確認済み）":"（未確認）");
+  const lb=$("label");lb.textContent=(B.backward[f]?"後退（学習から外す）／":"")+(B.use[f]?"":"学習に使わない／")+(B.scene[f]?"避ける区間":"避けない")+(B.reviewed[f]?"（確認済み）":"（未確認）");
   lb.style.background=B.scene[f]?"var(--scene)":"#2b3038";lb.style.color=B.scene[f]?"#1d0f00":"var(--text)";
   const[a,b]=segAt(f);let fr=0,sd=0;for(let i=a;i<=b;i++){fr+=B.state[i]===2;sd+=B.state[i]===1}
   $("seginfo").textContent=`${a}–${b}（${b-a+1} フレーム）${B.scene[f]?"避ける区間":"避けない"}　パイロンが前 ${fr} / 脇 ${sd}`;
@@ -288,6 +292,7 @@ function drawTimeline(){
     if(B.state[i]){g.fillStyle=B.state[i]===2?"#f85149":"#6e2f2c";g.fillRect(x(i),34,w,12)}
     if(B.reviewed[i]){g.fillStyle="#3fb950";g.fillRect(x(i),50,w,6)}
     if(!B.use[i]){g.fillStyle="#000b";g.fillRect(x(i),0,w,Hh);g.fillStyle="#777";g.fillRect(x(i),58,w,6)}
+    if(B.backward[i]){g.fillStyle="#000b";g.fillRect(x(i),0,w,Hh);g.fillStyle="#a371f7";g.fillRect(x(i),58,w,6)}
   }
   const a=Math.min(selA,selB),b=Math.max(selA,selB);
   g.strokeStyle="#fff";g.lineWidth=2;g.strokeRect(x(a),3,x(b+1)-x(a),46);
