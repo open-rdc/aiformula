@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""パイロンの枠を塗りつぶした 1ch マスクを作る。
+"""パイロンと動的障害物の枠を塗りつぶした 1ch マスクを作る。
+
+名前は pylon のままだが、動的障害物 (移動ロボット・マネキン) も同じマスクに塗る (2026-10-31)。
 
 学習データ（オフライン、ここの YoloxOnnx）と実機（deploy の pylon_detector が
 TensorRT で出す /perception/pylon_mask）で同じものにするため、検出の前処理・デコード・NMS は
@@ -13,6 +15,9 @@ import numpy as np
 PYLON_SCORE_THRESHOLD = 0.3
 PYLON_NMS_THRESHOLD = 0.45
 PYLON_CLASS_ID = 0
+DYNAMIC_OBSTACLE_CLASS_ID = 1
+# マスクに塗るクラス。yolox_s_aiformula の 4 クラス (pylon, dynamic_obstacle, panel_red, panel_green) のうち障害物だけ
+MASK_CLASS_IDS = (PYLON_CLASS_ID, DYNAMIC_OBSTACLE_CLASS_ID)
 
 MASK_HEIGHT = 360
 MASK_WIDTH = 640
@@ -85,14 +90,14 @@ class YoloxOnnx:
 
 
 def draw_pylon_mask(detections: np.ndarray, height: int = MASK_HEIGHT, width: int = MASK_WIDTH) -> np.ndarray:
-    """pylon かつ score >= 0.3 の枠を 255 で塗った uint8 マスク。
+    """pylon か dynamic_obstacle で score >= 0.3 の枠を 255 で塗った uint8 マスク。
 
     座標は C++ 側の cv::Rect(cv::Rect2d) 変換（saturate_cast = cvRound、偶数丸め）と同じく
     x, y, 幅, 高さをそれぞれ丸める
     """
     mask = np.zeros((height, width), np.uint8)
     for x1, y1, x2, y2, score, class_id in np.asarray(detections, np.float32).reshape(-1, 6):
-        if int(class_id) != PYLON_CLASS_ID or score < PYLON_SCORE_THRESHOLD:
+        if int(class_id) not in MASK_CLASS_IDS or score < PYLON_SCORE_THRESHOLD:
             continue
         left, top = round(float(x1)), round(float(y1))
         right, bottom = left + round(float(x2 - x1)), top + round(float(y2 - y1))
