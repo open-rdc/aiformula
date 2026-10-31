@@ -65,7 +65,8 @@ class E2EDataset(Dataset):
                  frame_stack_distances: List[float] = None, use_pylon_mask: bool = False,
                  use_pylon_scenes: bool = False, drop_backward_paths: bool = False,
                  holdout_ranges: List[Tuple[int, int]] = (), holdout_gap: int = 0, avoid_only: bool = False,
-                 blue_course_only: bool = False, keep_avoid_off_course: bool = False):
+                 blue_course_only: bool = False, keep_avoid_off_course: bool = False,
+                 keep_only_ranges: List[Tuple[int, int]] = None):
         # augment_config が None のときは拡張なし（検証用）
         self.augment_config = augment_config
         # 過去フレームを何 m 後ろから引くか。時間ではなく距離で引く:
@@ -114,6 +115,8 @@ class E2EDataset(Dataset):
                      and path_goes_backward(np.array(self._read_waypoints(self.path_dir / f'{mask_file.stem}.csv'))))
             # 評価用の範囲と、その前後 holdout_gap フレーム (ほぼ同じ画像が学習に入らないように)
             and not any(a - holdout_gap <= int(mask_file.stem) <= b + holdout_gap for a, b in holdout_ranges)
+            # 評価用の範囲だけを読む (Trainer が評価用の値を TensorBoard に出すため)
+            and (keep_only_ranges is None or any(a <= int(mask_file.stem) <= b for a, b in keep_only_ranges))
         ]
 
         # 学習で多めに引くサンプル。use_pylon_scenes なら人が「避ける区間」と確認したフレーム
@@ -362,6 +365,8 @@ class Config:
         self.blue_course_only = bool(config_dict.get('blue_course_only', False))
         # true なら避ける区間 (確認済み) は青コースの外でも使う (本人, 2026-10-31)
         self.keep_avoid_off_course = bool(config_dict.get('keep_avoid_off_course', False))
+        # 評価用 (学習にも best epoch の選択にも使わない) の bag。避ける区間だけを TensorBoard に出す
+        self.test_datasets = list(config_dict.get('test_datasets', []) or [])
 
         # カーブのきつさによる損失の重み付け (util/curve_weight.py)
         self.curve_weighting = config_dict.get('curve_weighting', {}) or {'mode': 'none'}
@@ -439,6 +444,8 @@ class Trainer:
             shuffle=False,
             num_workers=config.num_workers
         )
+        # 避ける区間だけで測る組 (TensorBoard に出すだけで、best epoch の選択には使わない)
+        self.avoid_loaders = self._avoid_loaders(subsets, config) if config.pylon_scenes else {}
 
         self.model = build_network(
             config.fusion,
@@ -523,6 +530,37 @@ class Trainer:
     def weighted_mse(outputs: torch.Tensor, targets: torch.Tensor, weights: torch.Tensor) -> torch.Tensor:
         """重みが全部 1 なら nn.MSELoss と一致する"""
         return (((outputs - targets) ** 2).mean(dim=1) * weights).mean()
+
+    @staticmethod
+    def _avoid_loaders(subsets, config) -> dict:
+        """{名前: DataLoader}。どれも避ける区間 (確認済み) のフレームだけ。
+        ValAvoid = val の bag、Test/holdout = holdout_file で抜いた範囲、Test/testbag = test_datasets"""
+        by_name = {d.name: d for d in subsets}
+
+        def make(dirs_ranges):
+            parts = []
+            for d, ranges in dirs_ranges:
+                if not (d / 'pylon_scenes.json').exists():
+                    continue
+                ds = E2EDataset(d, augment_config=None, frame_stack_distances=config.frame_stack_distances,
+                                use_pylon_mask=config.pylon_mask, use_pylon_scenes=True, avoid_only=True,
+                                drop_backward_paths=config.drop_backward_paths, keep_only_ranges=ranges)
+                if len(ds):
+                    parts.append(ds)
+            return ConcatDataset(parts) if parts else None
+
+        sets = {
+            'ValAvoid': make([(by_name[n], None) for n in config.val_datasets if n in by_name]),
+            'Test/holdout': make([(by_name[n], r) for n, r in config.holdout.items() if n in by_name]),
+            'Test/testbag': make([(by_name[n], None) for n in config.test_datasets if n in by_name]),
+        }
+        loaders = {}
+        for name, ds in sets.items():
+            if ds is not None:
+                print(f'{name}: 避ける区間 {len(ds)} 件 (TensorBoard に出すだけ)')
+                loaders[name] = DataLoader(ds, batch_size=config.batch_size, shuffle=False,
+                                           num_workers=config.num_workers)
+        return loaders
 
     @staticmethod
     def _split_by_bag(subsets, config, aug_cfg):
@@ -618,7 +656,7 @@ class Trainer:
 
         return Subset(train_source, train_indices), Subset(val_source, val_indices)
 
-    def validate(self) -> Tuple[float, dict]:
+    def validate(self, loader: DataLoader = None) -> Tuple[float, dict]:
         """val loss と、正規化を戻した実距離[m]の誤差を返す。
 
         MSE は正規化後の値なので大きさの感覚が掴めない。実験前に「この重みで
@@ -638,7 +676,8 @@ class Trainer:
         tight_samples = 0
 
         with torch.no_grad():
-            pbar = tqdm(self.val_loader, desc='Validation')
+            loader = loader or self.val_loader
+            pbar = tqdm(loader, desc='Validation')
             for masks, rgbs, waypoints, _, scores in pbar:
                 masks = masks.to(self.device)
                 rgbs = rgbs.to(self.device)
@@ -683,7 +722,7 @@ class Trainer:
             'tight_lateral_ratio': tight_pred_lateral / tight_gt_lateral if tight_gt_lateral else float('nan'),
             'tight_samples': tight_samples,
         }
-        return total_loss / len(self.val_loader), metrics
+        return total_loss / len(loader), metrics
 
     def save_checkpoint(self, val_loss: float) -> None:
         if val_loss < self.best_val_loss:
@@ -744,6 +783,13 @@ class Trainer:
             self.writer.add_scalar('CurveTight/val_endpoint', metrics['tight_endpoint_m'], epoch)
             self.writer.add_scalar('CurveTight/val_lateral_ratio', metrics['tight_lateral_ratio'], epoch)
             self.writer.add_scalar('LearningRate', self.optimizer.param_groups[0]['lr'], epoch)
+            # 避ける区間だけの値 (ValAvoid は val の bag、Test/ は学習にも選択にも使わない評価用)
+            for name, loader in self.avoid_loaders.items():
+                loss, m = self.validate(loader)
+                self.writer.add_scalar(f'{name}/loss', loss, epoch)
+                self.writer.add_scalar(f'{name}/endpoint', m['endpoint_m'], epoch)
+                self.writer.add_scalar(f'{name}/y_mae', m['y_mae_m'], epoch)
+                self.writer.add_scalar(f'{name}/x_mae', m['x_mae_m'], epoch)
             self.writer.flush()
 
             if self.scheduler is not None:
