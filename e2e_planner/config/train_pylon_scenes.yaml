@@ -22,6 +22,9 @@ pylon_oversample: 5.0
 pylon_scenes: true
 # 正解の経路が後ろへ戻るサンプル (630_cone などでバックしている場面) を外す
 drop_backward_paths: true
+# 評価用に抜く避ける場面 (学習にも best epoch の選択にも使わない) と、その前後に空けるフレーム数 (10 = 約 2 s)
+holdout_file: holdout_pylon.yaml
+holdout_gap: 10
 
 # Transformer 融合モデルのハイパーパラメータ
 embed_dim: 128

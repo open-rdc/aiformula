@@ -63,7 +63,8 @@ class E2EDataset(Dataset):
 
     def __init__(self, dataset_path: Path, augment_config: dict = None,
                  frame_stack_distances: List[float] = None, use_pylon_mask: bool = False,
-                 use_pylon_scenes: bool = False, drop_backward_paths: bool = False):
+                 use_pylon_scenes: bool = False, drop_backward_paths: bool = False,
+                 holdout_ranges: List[Tuple[int, int]] = (), holdout_gap: int = 0):
         # augment_config が None のときは拡張なし（検証用）
         self.augment_config = augment_config
         # 過去フレームを何 m 後ろから引くか。時間ではなく距離で引く:
@@ -102,6 +103,8 @@ class E2EDataset(Dataset):
             and scenes.get(mask_file.stem, (0, 0, 1))[2]
             and not (drop_backward_paths
                      and path_goes_backward(np.array(self._read_waypoints(self.path_dir / f'{mask_file.stem}.csv'))))
+            # 評価用の範囲と、その前後 holdout_gap フレーム (ほぼ同じ画像が学習に入らないように)
+            and not any(a - holdout_gap <= int(mask_file.stem) <= b + holdout_gap for a, b in holdout_ranges)
         ]
 
         # 学習で多めに引くサンプル。use_pylon_scenes なら人が「避ける区間」と確認したフレーム
@@ -328,6 +331,12 @@ class Config:
         self.pylon_scenes = bool(config_dict.get('pylon_scenes', False))
         # true なら正解の経路が後ろへ戻るサンプル (バックしている場面) を外す
         self.drop_backward_paths = bool(config_dict.get('drop_backward_paths', False))
+        # 評価用に抜く範囲 {bag 名: [(始め, 終わり), ...]} (images/ の番号)。ファイルは設定ファイルからの相対パス
+        self.holdout = {}
+        if config_dict.get('holdout_file'):
+            with open(Path(config_path).parent / config_dict['holdout_file'], 'r') as f:
+                self.holdout = {name: [tuple(r) for r in ranges] for name, ranges in (yaml.safe_load(f) or {}).items()}
+        self.holdout_gap = int(config_dict.get('holdout_gap', 0))
 
         # カーブのきつさによる損失の重み付け (util/curve_weight.py)
         self.curve_weighting = config_dict.get('curve_weighting', {}) or {'mode': 'none'}
@@ -526,11 +535,15 @@ class Trainer:
         train_dataset = ConcatDataset(
             [E2EDataset(d, augment_config=aug_cfg, frame_stack_distances=stack,
                         use_pylon_mask=config.pylon_mask, use_pylon_scenes=config.pylon_scenes,
-                        drop_backward_paths=config.drop_backward_paths) for d in train_dirs])
+                        drop_backward_paths=config.drop_backward_paths,
+                        holdout_ranges=config.holdout.get(d.name, []), holdout_gap=config.holdout_gap)
+             for d in train_dirs])
         val_dataset = ConcatDataset(
             [E2EDataset(d, augment_config=None, frame_stack_distances=stack,
                         use_pylon_mask=config.pylon_mask, use_pylon_scenes=config.pylon_scenes,
-                        drop_backward_paths=config.drop_backward_paths) for d in val_dirs])
+                        drop_backward_paths=config.drop_backward_paths,
+                        holdout_ranges=config.holdout.get(d.name, []), holdout_gap=config.holdout_gap)
+             for d in val_dirs])
         return train_dataset, val_dataset
 
     @staticmethod
@@ -538,10 +551,14 @@ class Trainer:
         stack = config.frame_stack_distances
         train_source = E2EDataset(dataset_path, augment_config=aug_cfg, frame_stack_distances=stack,
                                   use_pylon_mask=config.pylon_mask, use_pylon_scenes=config.pylon_scenes,
-                        drop_backward_paths=config.drop_backward_paths)
+                        drop_backward_paths=config.drop_backward_paths,
+                                  holdout_ranges=config.holdout.get(dataset_path.name, []),
+                                  holdout_gap=config.holdout_gap)
         val_source = E2EDataset(dataset_path, augment_config=None, frame_stack_distances=stack,
                                 use_pylon_mask=config.pylon_mask, use_pylon_scenes=config.pylon_scenes,
-                        drop_backward_paths=config.drop_backward_paths)
+                        drop_backward_paths=config.drop_backward_paths,
+                                  holdout_ranges=config.holdout.get(dataset_path.name, []),
+                                  holdout_gap=config.holdout_gap)
 
         n = len(val_source)
         train_size = int(0.8 * n)
