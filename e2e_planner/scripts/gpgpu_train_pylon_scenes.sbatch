@@ -24,4 +24,5 @@ export PYTHONPATH=$HOME/e2e_pylibs:${PYTHONPATH:-}
 nvidia-smi --query-gpu=name,memory.total --format=csv,noheader
 
 cd $HOME/e2e_pylon/e2e_planner
-python scripts/train_curve_weight.py "$DATASET" "$RUN_NAME" config/train_pylon_scenes.yaml
+CONFIG=${3:-config/train_pylon_scenes.yaml}
+python scripts/train_curve_weight.py "$DATASET" "$RUN_NAME" "$CONFIG"

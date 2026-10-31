@@ -132,6 +132,8 @@ class E2EDataset(Dataset):
         # 重みは train 全体の分布から決めるので、Trainer が後から CurveWeighter を
         # 差し込む。val は None のまま (= 重み 1)
         self.curve_weighter = None
+        # 避ける区間 (pylon_near) の損失に掛ける倍率。Trainer が train のときだけ設定する
+        self.avoid_loss_weight = 1.0
         self.curve_scores = np.array([
             curve_score(self._read_waypoints(self.path_dir / f'{f.stem}.csv'))
             for f in self.mask_files], dtype=np.float32)
@@ -188,10 +190,16 @@ class E2EDataset(Dataset):
             raise RuntimeError(f'{self.dataset_path}: meta.csv に {len(missing)} 件ぶんの'
                                f'距離が無い（例 {missing[:3]}）')
 
+        # 過去フレームは入力の画像なので、学習に使わないフレーム (青コースの外・評価用の前後・
+        # 使わない範囲など) も含めた bag の全フレームから引く。学習に使うフレームだけから引くと、
+        # 外したフレームの近くで本来より遠い画像を代わりに使ってしまう
+        self.all_stems = sorted(stem for stem in self.arc_by_stem
+                                if (self.rgb_images_dir / f'{stem}.png').exists())
         # index 順 = 収集順 = 距離の昇順。二分探索で過去フレームを引く
-        self.arcs = np.array([self.arc_by_stem[stem] for stem in self.stems])
+        self.arcs = np.array([self.arc_by_stem[stem] for stem in self.all_stems])
+        self.all_pos = {stem: i for i, stem in enumerate(self.all_stems)}
 
-    def _past_indices(self, idx: int) -> List[int]:
+    def _past_stems(self, idx: int) -> List[str]:
         """idx のサンプルから frame_stack_distances[m] だけ後ろのサンプル番号。
 
         走り始めでその距離ぶん戻れない場合は最古のフレームで代用する
@@ -200,7 +208,8 @@ class E2EDataset(Dataset):
         if not self.frame_stack_distances:
             return []
 
-        target = self.arcs[idx] - np.array(self.frame_stack_distances)
+        pos = self.all_pos[self.stems[idx]]
+        target = self.arcs[pos] - np.array(self.frame_stack_distances)
         # arcs は昇順。target を挟む 2 点のうち**近いほう**を取る。
         # 手前側だけを見ると、サンプル間隔 (2 m/s で約 0.5 m, 4 m/s で約 0.95 m) の
         # ぶんだけ常に遠い側へ偏る
@@ -209,7 +218,7 @@ class E2EDataset(Dataset):
         after = np.clip(after, 0, len(self.arcs) - 1)
         nearer = np.where(np.abs(self.arcs[before] - target) <= np.abs(self.arcs[after] - target),
                           before, after)
-        return np.clip(nearer, 0, idx).tolist()
+        return [self.all_stems[i] for i in np.clip(nearer, 0, pos)]
 
     def __len__(self) -> int:
         return len(self.mask_files)
@@ -226,8 +235,8 @@ class E2EDataset(Dataset):
 
         # 新しい順に [現在, -d1 m, -d2 m, ...]
         rgb_frames = [rgb_bgr]
-        for past_idx in self._past_indices(idx):
-            past_file = self.rgb_images_dir / self.mask_files[past_idx].name
+        for past_stem in self._past_stems(idx):
+            past_file = self.rgb_images_dir / f'{past_stem}.png'
             past_bgr = cv2.imread(str(past_file), cv2.IMREAD_COLOR)
             if past_bgr is None:
                 raise RuntimeError(f'Failed to load past frame: {past_file.name}')
@@ -283,6 +292,9 @@ class E2EDataset(Dataset):
         # 曲がり量は拡張の後で測る。左右反転をかけたら曲がる向きも入れ替わるため
         score = curve_score(waypoints_m)
         weight = 1.0 if self.curve_weighter is None else self.curve_weighter(score)
+        # 避ける区間は損失も重くする (train だけ。val は curve_weighter が None なので 1 のまま)
+        if self.curve_weighter is not None and self.pylon_near[idx]:
+            weight *= self.avoid_loss_weight
 
         return (mask_tensor, rgb_tensor, waypoints_tensor,
                 torch.tensor(weight, dtype=torch.float32), torch.tensor(score, dtype=torch.float32))
@@ -367,6 +379,8 @@ class Config:
         self.keep_avoid_off_course = bool(config_dict.get('keep_avoid_off_course', False))
         # 評価用 (学習にも best epoch の選択にも使わない) の bag。避ける区間だけを TensorBoard に出す
         self.test_datasets = list(config_dict.get('test_datasets', []) or [])
+        # 避ける区間 (多めに引くサンプル) の損失を何倍にするか。1.0 なら重み付けしない
+        self.avoid_loss_weight = float(config_dict.get('avoid_loss_weight', 1.0))
 
         # カーブのきつさによる損失の重み付け (util/curve_weight.py)
         self.curve_weighting = config_dict.get('curve_weighting', {}) or {'mode': 'none'}
@@ -421,6 +435,9 @@ class Trainer:
         self.curve_weighter = CurveWeighter(config.curve_weighting, train_scores)
         for source in train_sources:
             source.curve_weighter = self.curve_weighter
+            source.avoid_loss_weight = config.avoid_loss_weight
+        if config.avoid_loss_weight != 1.0:
+            print(f'Avoid loss weight: 避ける区間の損失を {config.avoid_loss_weight} 倍')
 
         # コーンが近いサンプルを多めに引く。1 epoch のサンプル数は train 全体と同じ
         sampler = None
