@@ -236,3 +236,8 @@ controller_server_node:
         weight_steer_rate             : 30.0
         weight_terminal_lat_error     : 1.0
         weight_terminal_heading_error : 1.0
+      steering_offset:
+        update_vel_threshold   : 3.0     # 推定を更新する最低速度 [m/s]
+        update_steer_threshold : 0.035   # 推定を更新する測定舵角の上限 [rad]
+        time_constant          : 5.0     # 推定の時定数 [s]
+        limit                  : 0.035   # 推定値の上限 [rad]

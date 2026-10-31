@@ -3,6 +3,7 @@
 #include <geometry_msgs/msg/twist_with_covariance_stamped.hpp>
 #include <pluginlib/class_loader.hpp>
 #include <rclcpp/rclcpp.hpp>
+#include <sensor_msgs/msg/imu.hpp>
 #include <speed_path_msgs/msg/speed_path.hpp>
 #include <std_msgs/msg/bool.hpp>
 #include <std_msgs/msg/float64_multi_array.hpp>
@@ -27,6 +28,7 @@ private:
     void velocity_callback(const geometry_msgs::msg::TwistWithCovarianceStamped::ConstSharedPtr msg);
     void autonomous_callback(const std_msgs::msg::Bool::ConstSharedPtr msg);
     void caster_data_callback(const std_msgs::msg::Float64MultiArray::ConstSharedPtr msg);
+    void imu_callback(const sensor_msgs::msg::Imu::ConstSharedPtr msg);
     void timer_callback();
 
     pluginlib::ClassLoader<ControllerPlugin> plugin_loader_;
@@ -39,11 +41,13 @@ private:
     speed_path_msgs::msg::SpeedPath::ConstSharedPtr path_;
     geometry_msgs::msg::TwistWithCovarianceStamped::ConstSharedPtr velocity_;
     std_msgs::msg::Float64MultiArray::ConstSharedPtr caster_data_;
+    sensor_msgs::msg::Imu::ConstSharedPtr imu_;
 
     rclcpp::Subscription<speed_path_msgs::msg::SpeedPath>::SharedPtr path_subscription_;
     rclcpp::Subscription<geometry_msgs::msg::TwistWithCovarianceStamped>::SharedPtr velocity_subscription_;
     rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr autonomous_subscription_;
     rclcpp::Subscription<std_msgs::msg::Float64MultiArray>::SharedPtr caster_data_subscription_;
+    rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr imu_subscription_;
     rclcpp::Publisher<steered_drive_msg::msg::SteeredDrive>::SharedPtr command_publisher_;
     rclcpp::TimerBase::SharedPtr timer_;
 };

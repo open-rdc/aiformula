@@ -46,6 +46,11 @@ void PidMpcPlugin::initialize(
     lat.horizon = params->get_parameter("mpc.lateral.horizon").as_int();
     lat.prediction_dt = params->get_parameter("mpc.lateral.prediction_dt").as_double();
     lat.min_predict_speed = params->get_parameter("mpc.lateral.min_predict_speed").as_double();
+    lat.control_dt = dt;
+    lat.offset_update_vel_threshold = params->get_parameter("mpc.steering_offset.update_vel_threshold").as_double();
+    lat.offset_update_steer_threshold = params->get_parameter("mpc.steering_offset.update_steer_threshold").as_double();
+    lat.offset_time_constant = params->get_parameter("mpc.steering_offset.time_constant").as_double();
+    lat.offset_limit = params->get_parameter("mpc.steering_offset.limit").as_double();
     lateral_.configure(lat);
 
     velocity_preview_time_ = params->get_parameter("velocity_preview_time").as_double();
@@ -60,6 +65,11 @@ void PidMpcPlugin::reset()
 void PidMpcPlugin::setMeasuredSteer(double steer)
 {
     lateral_.setMeasuredSteer(steer);
+}
+
+void PidMpcPlugin::setYawRate(double yaw_rate)
+{
+    lateral_.setYawRate(yaw_rate);
 }
 
 steered_drive_msg::msg::SteeredDrive PidMpcPlugin::computeCommand(

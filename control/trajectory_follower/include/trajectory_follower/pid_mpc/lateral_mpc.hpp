@@ -20,6 +20,11 @@ struct LateralMpcParams
     int horizon;
     double prediction_dt;
     double min_predict_speed;
+    double control_dt;
+    double offset_update_vel_threshold;
+    double offset_update_steer_threshold;
+    double offset_time_constant;
+    double offset_limit;
 };
 
 struct TrackingError
@@ -48,12 +53,19 @@ public:
 
     void setMeasuredSteer(double steer);
 
+    void setYawRate(double yaw_rate);
+
+    double steeringOffset() const { return steering_offset_; }
+
     double previousSteer() const { return prev_steer_; }
 
 private:
     LateralMpcParams params_{};
     double prev_steer_ = 0.0;
     double steer_state_ = 0.0;
+    double yaw_rate_ = 0.0;
+    bool has_yaw_rate_ = false;
+    double steering_offset_ = 0.0;
 };
 
 }

@@ -66,6 +66,15 @@ double LateralMpc::computeSteering(
 {
     const int n = static_cast<int>(path_xy.size());
 
+    // 0. 直進中にヨーレートから舵角オフセットを推定する
+    if (has_yaw_rate_ && v > params_.offset_update_vel_threshold &&
+        std::abs(steer_state_) < params_.offset_update_steer_threshold) {
+        const double sample = std::atan(params_.wheelbase * yaw_rate_ / v) - steer_state_;
+        steering_offset_ += params_.control_dt / params_.offset_time_constant * (sample - steering_offset_);
+        steering_offset_ = std::clamp(steering_offset_, -params_.offset_limit, params_.offset_limit);
+    }
+    has_yaw_rate_ = false;
+
     // 1. 経路上の追従誤差を求める
     std::vector<double> arc(n, 0.0);
     for (int i = 1; i < n; ++i) {
@@ -151,7 +160,7 @@ double LateralMpc::computeSteering(
     const double R = params_.weight_steering_input;
     const double Rd = params_.weight_steer_rate;
 
-    const Eigen::VectorXd x0vec = (Eigen::Vector3d() << e_y, e_yaw, steer_state_).finished();
+    const Eigen::VectorXd x0vec = (Eigen::Vector3d() << e_y, e_yaw, steer_state_ + steering_offset_).finished();
 
     // 5. QP を解く
     const Eigen::MatrixXd SuTQ = Su.transpose() * Qbar;
@@ -162,8 +171,8 @@ double LateralMpc::computeSteering(
 
     const double steer = std::clamp(U(0), -params_.steer_limit, params_.steer_limit);
     prev_steer_ = steer;
-    steer_state_ = steer;
-    return steer;
+    steer_state_ = std::clamp(steer - steering_offset_, -params_.steer_limit, params_.steer_limit);
+    return steer_state_;
 }
 
 void LateralMpc::reset()
@@ -175,6 +184,12 @@ void LateralMpc::reset()
 void LateralMpc::setMeasuredSteer(double steer)
 {
     steer_state_ = std::clamp(std::remainder(steer, 2.0 * M_PI), -params_.steer_limit, params_.steer_limit);
+}
+
+void LateralMpc::setYawRate(double yaw_rate)
+{
+    yaw_rate_ = yaw_rate;
+    has_yaw_rate_ = true;
 }
 
 }
