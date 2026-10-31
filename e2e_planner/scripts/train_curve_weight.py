@@ -64,7 +64,8 @@ class E2EDataset(Dataset):
     def __init__(self, dataset_path: Path, augment_config: dict = None,
                  frame_stack_distances: List[float] = None, use_pylon_mask: bool = False,
                  use_pylon_scenes: bool = False, drop_backward_paths: bool = False,
-                 holdout_ranges: List[Tuple[int, int]] = (), holdout_gap: int = 0, avoid_only: bool = False):
+                 holdout_ranges: List[Tuple[int, int]] = (), holdout_gap: int = 0, avoid_only: bool = False,
+                 blue_course_only: bool = False):
         # augment_config が None のときは拡張なし（検証用）
         self.augment_config = augment_config
         # 過去フレームを何 m 後ろから引くか。時間ではなく距離で引く:
@@ -94,6 +95,8 @@ class E2EDataset(Dataset):
 
         # 人が確認ツール (pylon_scene_web.py) で引いた区間。{stem: (避ける区間, 確認済み, 学習に使う)}
         scenes = self._read_pylon_scenes(dataset_path) if use_pylon_scenes else {}
+        # 青コースの上を走っているか (label_blue_course.py が書く course.json)。{stem: 0/1}
+        course = self._read_course(dataset_path) if blue_course_only else {}
 
         self.mask_files = [
             mask_file for mask_file in sorted(self.mask_images_dir.glob('*.png'))
@@ -101,6 +104,7 @@ class E2EDataset(Dataset):
             and (self.path_dir / f'{mask_file.stem}.csv').exists()
             and (not use_pylon_mask or (self.pylon_masks_dir / mask_file.name).exists())
             and scenes.get(mask_file.stem, (0, 0, 1))[2]
+            and (not blue_course_only or course.get(mask_file.stem, 0))
             # avoid_only の bag (red コースなど) は「避ける区間 (確認済み)」のフレームだけ使う
             and (not avoid_only or (scenes.get(mask_file.stem, (0, 0, 1))[0] and scenes.get(mask_file.stem, (0, 0, 1))[1]))
             and not (drop_backward_paths
@@ -130,6 +134,16 @@ class E2EDataset(Dataset):
         self.stems = [mask_file.stem for mask_file in self.mask_files]
         if self.frame_stack_distances:
             self._load_arc_lengths()
+
+    @staticmethod
+    def _read_course(dataset_path: Path) -> dict:
+        f = dataset_path / 'course.json'
+        if not f.exists():
+            raise FileNotFoundError(
+                f'course.json が無い: {dataset_path}\n'
+                '先に scripts/label_blue_course.py で青コースの上を走っているかを判定すること')
+        j = json.loads(f.read_text())
+        return dict(zip(j['stems'], j['blue']))
 
     @staticmethod
     def _read_pylon_scenes(dataset_path: Path) -> dict:
@@ -341,6 +355,8 @@ class Config:
         self.holdout_gap = int(config_dict.get('holdout_gap', 0))
         # 避ける区間 (pylon_scenes.json で確認済み) のフレームだけを使う bag。コースが違う red など
         self.avoid_only_datasets = list(config_dict.get('avoid_only_datasets', []) or [])
+        # true なら青コースの上を青コースの向きに走っているフレームだけ使う (course.json)
+        self.blue_course_only = bool(config_dict.get('blue_course_only', False))
 
         # カーブのきつさによる損失の重み付け (util/curve_weight.py)
         self.curve_weighting = config_dict.get('curve_weighting', {}) or {'mode': 'none'}
@@ -541,14 +557,16 @@ class Trainer:
                         use_pylon_mask=config.pylon_mask, use_pylon_scenes=config.pylon_scenes,
                         drop_backward_paths=config.drop_backward_paths,
                         holdout_ranges=config.holdout.get(d.name, []), holdout_gap=config.holdout_gap,
-                        avoid_only=d.name in config.avoid_only_datasets)
+                        avoid_only=d.name in config.avoid_only_datasets,
+                        blue_course_only=config.blue_course_only)
              for d in train_dirs])
         val_dataset = ConcatDataset(
             [E2EDataset(d, augment_config=None, frame_stack_distances=stack,
                         use_pylon_mask=config.pylon_mask, use_pylon_scenes=config.pylon_scenes,
                         drop_backward_paths=config.drop_backward_paths,
                         holdout_ranges=config.holdout.get(d.name, []), holdout_gap=config.holdout_gap,
-                        avoid_only=d.name in config.avoid_only_datasets)
+                        avoid_only=d.name in config.avoid_only_datasets,
+                        blue_course_only=config.blue_course_only)
              for d in val_dirs])
         return train_dataset, val_dataset
 
@@ -560,13 +578,15 @@ class Trainer:
                         drop_backward_paths=config.drop_backward_paths,
                                   holdout_ranges=config.holdout.get(dataset_path.name, []),
                                   holdout_gap=config.holdout_gap,
-                                  avoid_only=dataset_path.name in config.avoid_only_datasets)
+                                  avoid_only=dataset_path.name in config.avoid_only_datasets,
+                                  blue_course_only=config.blue_course_only)
         val_source = E2EDataset(dataset_path, augment_config=None, frame_stack_distances=stack,
                                 use_pylon_mask=config.pylon_mask, use_pylon_scenes=config.pylon_scenes,
                         drop_backward_paths=config.drop_backward_paths,
                                   holdout_ranges=config.holdout.get(dataset_path.name, []),
                                   holdout_gap=config.holdout_gap,
-                                  avoid_only=dataset_path.name in config.avoid_only_datasets)
+                                  avoid_only=dataset_path.name in config.avoid_only_datasets,
+                                  blue_course_only=config.blue_course_only)
 
         n = len(val_source)
         train_size = int(0.8 * n)

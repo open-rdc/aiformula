@@ -25,6 +25,9 @@ drop_backward_paths: true
 # 評価用に抜く避ける場面 (学習にも best epoch の選択にも使わない) と、その前後に空けるフレーム数 (10 = 約 2 s)
 holdout_file: holdout_pylon.yaml
 holdout_gap: 10
+# 青コースの上を青コースの向きに走っていて、10 m 先までの経路も青コースから外れないフレームだけ使う。
+# 判定は scripts/label_blue_course.py (各 bag の course.json)。赤コースだけの部分・場内を横切る道・逆走を外す
+blue_course_only: true
 # 避ける区間 (確認済み) のフレームだけを使う bag。red はコースが違うので、普通に走る所は入れない (本人, 2026-10-31)
 avoid_only_datasets:
   - rosbag2_2026_08_24-13_21_39
