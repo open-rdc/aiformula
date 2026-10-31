@@ -93,6 +93,7 @@ PoseEstimaterNode::PoseEstimaterNode(const rclcpp::NodeOptions& options) : PoseE
 PoseEstimaterNode::PoseEstimaterNode(const std::string& name_space, const rclcpp::NodeOptions& options)
     : rclcpp::Node("pose_estimater_node", name_space, options),
       interval_ms_(get_parameter("interval_ms").as_int()),
+      max_integration_dt_(get_parameter("max_integration_dt").as_double()),
       map_origin_lat_(get_parameter("map_origin_geodetic.latitude").as_double()),
       map_origin_lon_(get_parameter("map_origin_geodetic.longitude").as_double()),
       map_yaw_from_east_(get_parameter("map_yaw_from_east").as_double()),
@@ -103,8 +104,11 @@ PoseEstimaterNode::PoseEstimaterNode(const std::string& name_space, const rclcpp
       gnss_position_variance_(get_parameter("gnss_position_variance").as_double()),
       imu_yaw_variance_(get_parameter("imu_yaw_variance").as_double()),
       particle_filter_(make_particle_filter_config(*this), std::random_device{}()) {
+    rclcpp::SubscriptionOptions no_intra_process_options;
+    no_intra_process_options.use_intra_process_comm = rclcpp::IntraProcessSetting::Disable;
+
     lane_line_points_subscription_ = this->create_subscription<sensor_msgs::msg::PointCloud2>("/perception/lane_line_points", rclcpp::SensorDataQoS().keep_last(1), std::bind(&PoseEstimaterNode::lane_line_points_callback, this, std::placeholders::_1));
-    vector_map_subscription_       = this->create_subscription<vectormap_msgs::msg::VectorMap>("/vector_map", rclcpp::QoS(1).transient_local(), std::bind(&PoseEstimaterNode::vector_map_callback, this, std::placeholders::_1));
+    vector_map_subscription_       = this->create_subscription<vectormap_msgs::msg::VectorMap>("/vector_map", rclcpp::QoS(1).transient_local(), std::bind(&PoseEstimaterNode::vector_map_callback, this, std::placeholders::_1), no_intra_process_options);
     gnss_subscription_             = this->create_subscription<sensor_msgs::msg::NavSatFix>("/vectornav/gnss", rclcpp::SensorDataQoS().keep_last(1), std::bind(&PoseEstimaterNode::gnss_callback, this, std::placeholders::_1));
     imu_subscription_              = this->create_subscription<sensor_msgs::msg::Imu>("/vectornav/imu", rclcpp::SensorDataQoS().keep_last(1), std::bind(&PoseEstimaterNode::imu_callback, this, std::placeholders::_1));
     velocity_subscription_         = this->create_subscription<geometry_msgs::msg::TwistWithCovarianceStamped>("/vectornav/velocity_body", rclcpp::SensorDataQoS().keep_last(1), std::bind(&PoseEstimaterNode::velocity_callback, this, std::placeholders::_1));
@@ -115,31 +119,31 @@ PoseEstimaterNode::PoseEstimaterNode(const std::string& name_space, const rclcpp
     timer_                         = this->create_wall_timer(std::chrono::milliseconds(interval_ms_), std::bind(&PoseEstimaterNode::timer_callback, this));
 }
 
-void PoseEstimaterNode::lane_line_points_callback(const sensor_msgs::msg::PointCloud2::SharedPtr msg) {
+void PoseEstimaterNode::lane_line_points_callback(const sensor_msgs::msg::PointCloud2::ConstSharedPtr msg) {
     std::lock_guard<std::mutex> lock(data_mutex_);
     latest_lane_line_points_ = msg;
 }
 
-void PoseEstimaterNode::vector_map_callback(const vectormap_msgs::msg::VectorMap::SharedPtr msg) {
+void PoseEstimaterNode::vector_map_callback(const vectormap_msgs::msg::VectorMap::ConstSharedPtr msg) {
     rebuild_map_points(*msg);
 }
 
-void PoseEstimaterNode::gnss_callback(const sensor_msgs::msg::NavSatFix::SharedPtr msg) {
+void PoseEstimaterNode::gnss_callback(const sensor_msgs::msg::NavSatFix::ConstSharedPtr msg) {
     std::lock_guard<std::mutex> lock(data_mutex_);
     latest_gnss_msg_ = msg;
 }
 
-void PoseEstimaterNode::imu_callback(const sensor_msgs::msg::Imu::SharedPtr msg) {
+void PoseEstimaterNode::imu_callback(const sensor_msgs::msg::Imu::ConstSharedPtr msg) {
     std::lock_guard<std::mutex> lock(data_mutex_);
     latest_imu_msg_ = msg;
 }
 
-void PoseEstimaterNode::velocity_callback(const geometry_msgs::msg::TwistWithCovarianceStamped::SharedPtr msg) {
+void PoseEstimaterNode::velocity_callback(const geometry_msgs::msg::TwistWithCovarianceStamped::ConstSharedPtr msg) {
     std::lock_guard<std::mutex> lock(data_mutex_);
     latest_velocity_msg_ = msg;
 }
 
-void PoseEstimaterNode::initial_pose_callback(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg) {
+void PoseEstimaterNode::initial_pose_callback(const geometry_msgs::msg::PoseWithCovarianceStamped::ConstSharedPtr msg) {
     std::lock_guard<std::mutex> lock(data_mutex_);
     pending_initial_pose_ = msg;
 }
@@ -216,30 +220,30 @@ void PoseEstimaterNode::publish_particle_pose_array(const builtin_interfaces::ms
         return;
     }
 
-    geometry_msgs::msg::PoseArray pose_array;
-    pose_array.header.stamp    = stamp;
-    pose_array.header.frame_id = "map";
-    const auto& particles      = particle_filter_.particles();
-    pose_array.poses.reserve(particles.size());
+    auto pose_array = std::make_unique<geometry_msgs::msg::PoseArray>();
+    pose_array->header.stamp    = stamp;
+    pose_array->header.frame_id = "map";
+    const auto& particles       = particle_filter_.particles();
+    pose_array->poses.reserve(particles.size());
     for (const auto& particle : particles) {
         geometry_msgs::msg::Pose pose;
         pose.position.x  = particle.x;
         pose.position.y  = particle.y;
         pose.position.z  = 0.0;
         pose.orientation = utils::yaw_to_quaternion(particle.yaw);
-        pose_array.poses.push_back(pose);
+        pose_array->poses.push_back(pose);
     }
-    particle_pose_array_publisher_->publish(pose_array);
+    particle_pose_array_publisher_->publish(std::move(pose_array));
 }
 
 void PoseEstimaterNode::timer_callback() {
     // lockを短時間保持するために、必要なデータをコピーしてから処理する。
-    sensor_msgs::msg::PointCloud2::SharedPtr                  lane_line_points_msg;
-    sensor_msgs::msg::NavSatFix::SharedPtr                    gnss_msg;
-    sensor_msgs::msg::Imu::SharedPtr                          imu_msg;
-    geometry_msgs::msg::TwistWithCovarianceStamped::SharedPtr velocity_msg;
-    geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr  initial_pose_msg;
-    std::shared_ptr<const PfTargetMap>                        map_points;
+    sensor_msgs::msg::PointCloud2::ConstSharedPtr                  lane_line_points_msg;
+    sensor_msgs::msg::NavSatFix::ConstSharedPtr                    gnss_msg;
+    sensor_msgs::msg::Imu::ConstSharedPtr                          imu_msg;
+    geometry_msgs::msg::TwistWithCovarianceStamped::ConstSharedPtr velocity_msg;
+    geometry_msgs::msg::PoseWithCovarianceStamped::ConstSharedPtr  initial_pose_msg;
+    std::shared_ptr<const PfTargetMap>                             map_points;
     {
         std::lock_guard<std::mutex> lock(data_mutex_);
         lane_line_points_msg = latest_lane_line_points_;
@@ -252,10 +256,11 @@ void PoseEstimaterNode::timer_callback() {
     }
 
     if (initial_pose_msg) {
-        initial_pose_msg->header.frame_id = "map";
-        initial_pose_msg->header.stamp    = this->get_clock()->now();
-        initialize_particle_filter(*initial_pose_msg);
-        pf_pose_publisher_->publish(*initial_pose_msg);
+        auto initial_pose = std::make_unique<geometry_msgs::msg::PoseWithCovarianceStamped>(*initial_pose_msg);
+        initial_pose->header.frame_id = "map";
+        initial_pose->header.stamp    = this->get_clock()->now();
+        initialize_particle_filter(*initial_pose);
+        pf_pose_publisher_->publish(std::move(initial_pose));
         return;
     }
 
@@ -269,20 +274,29 @@ void PoseEstimaterNode::timer_callback() {
         }
         if (!map_points || map_points->empty()) {
             RCLCPP_DEBUG(this->get_logger(), "Vector mapを待機中");
-            pf_pose_publisher_->publish(raw_pose);
+            pf_pose_publisher_->publish(std::make_unique<geometry_msgs::msg::PoseWithCovarianceStamped>(raw_pose));
             return;
         }
         initialize_particle_filter(raw_pose);
-        pf_pose_publisher_->publish(raw_pose);
+        pf_pose_publisher_->publish(std::make_unique<geometry_msgs::msg::PoseWithCovarianceStamped>(raw_pose));
         publish_particle_pose_array(raw_pose.header.stamp);
         return;
     }
 
-    if (velocity_msg) {
-        // velocity_bodyはVN body系(x前 / y右 / z下)で来るのでREP-103へ直す。
-        const geometry_msgs::msg::Twist twist = utils::vn_body_to_rep103(velocity_msg->twist.twist);
-        const double                    dt    = static_cast<double>(interval_ms_) / 1000.0;
-        particle_filter_.predict(twist.linear.x, twist.angular.z, dt);
+    if (velocity_msg && velocity_msg != processed_velocity_msg_) {
+        if (processed_velocity_msg_) {
+            const double dt = (rclcpp::Time(velocity_msg->header.stamp) - rclcpp::Time(processed_velocity_msg_->header.stamp)).seconds();
+            if (dt <= 0.0) {
+                RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 1000, "velocity_bodyのstampが進んでいないため予測をスキップする");
+            } else if (dt > max_integration_dt_) {
+                RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 1000, "velocity_bodyのdt %.3fがmax_integration_dt %.3fを超えたため予測をスキップする", dt, max_integration_dt_);
+            } else {
+                // velocity_bodyはVN body系(x前 / y右 / z下)で来るのでREP-103へ直す。
+                const geometry_msgs::msg::Twist twist = utils::vn_body_to_rep103(velocity_msg->twist.twist);
+                particle_filter_.predict(twist.linear.x, twist.angular.z, dt);
+            }
+        }
+        processed_velocity_msg_ = velocity_msg;
     }
 
     const bool has_new_lane_line = lane_line_points_msg && lane_line_points_msg != processed_lane_line_points_;
@@ -306,7 +320,7 @@ void PoseEstimaterNode::timer_callback() {
         }
     }
 
-    pf_pose_publisher_->publish(make_pose(estimate_stamp, particle_filter_.estimate()));
+    pf_pose_publisher_->publish(std::make_unique<geometry_msgs::msg::PoseWithCovarianceStamped>(make_pose(estimate_stamp, particle_filter_.estimate())));
     publish_particle_pose_array(estimate_stamp);
 }
 

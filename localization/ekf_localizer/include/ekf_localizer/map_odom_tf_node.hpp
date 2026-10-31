@@ -26,7 +26,7 @@ class MapOdomTfNode : public rclcpp::Node {
     explicit MapOdomTfNode (const std::string &name_space, const rclcpp::NodeOptions &options = rclcpp::NodeOptions ());
 
    private:
-    void localized_pose_callback (const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg);
+    void localized_pose_callback (const geometry_msgs::msg::PoseWithCovarianceStamped::ConstSharedPtr msg);
     void timer_callback ();
 
     const int         publish_period_ms_;

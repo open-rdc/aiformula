@@ -4,7 +4,9 @@
 
 #include <memory>
 
+#include <nav_msgs/msg/odometry.hpp>
 #include <rclcpp/rclcpp.hpp>
+#include <sensor_msgs/msg/camera_info.hpp>
 #include <sensor_msgs/msg/image.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
 
@@ -29,6 +31,9 @@ private:
 
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_publisher_;
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pointcloud_publisher_;
+    rclcpp::Publisher<sensor_msgs::msg::CameraInfo>::SharedPtr camera_info_publisher_;
+    rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr odometry_publisher_;
+    sensor_msgs::msg::CameraInfo camera_info_msg_;
     rclcpp::TimerBase::SharedPtr timer_;
 };
 

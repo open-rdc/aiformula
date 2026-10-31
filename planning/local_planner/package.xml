@@ -14,10 +14,12 @@
   <depend>object_detection_msgs</depend>
   <depend>pluginlib</depend>
   <depend>rclcpp</depend>
+  <depend>speed_path_msgs</depend>
   <depend>std_msgs</depend>
+  <depend>tf2</depend>
+  <depend>tf2_geometry_msgs</depend>
+  <depend>tf2_ros</depend>
   <depend>utilities</depend>
-
-  <test_depend>ament_cmake_gtest</test_depend>
 
   <export>
     <build_type>ament_cmake</build_type>

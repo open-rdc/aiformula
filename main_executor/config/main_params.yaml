@@ -1,22 +1,22 @@
 launch:
   ros__parameters:
-    joy: true
+    joy: false
     sim : true
+    mapless : true
 
 /**:
   ros__parameters:
     linear_max:
       vel : 3.0
-      acc: 5.0
-      jer: 0.0
+      acc: 3.0
+      jer: 15.0
     steering_max :
       pos : 15.0
 
     tread : 0.6
-    wheelbase : 0.8
+    wheelbase : 0.733
 
     camera:
-      size : "nHD" # nHD（640×360）, SVGA（960×600）
       position:
         x : -0.008
         y : 0.0325
@@ -28,14 +28,20 @@ launch:
 
 controller_node:
   ros__parameters:
-    linear_max_vel : 2.0
+    linear_max_vel : 4.0
 
 zed_wrapper_node:
   ros__parameters:
     fps: 15
+    camera:
+      size : "nHD" # nHD（640×360）, SVGA（960×600）, HD1080（1920×1080）, HD1200（1920×1200）
     depth:
       mode: "NEURAL" # NEURAL, PERFORMANCE, QUALITY
       confidence_threshold : 50
+
+road_detector_node:
+  ros__parameters:
+    mask_threshold : 0.5
 
 lane_line_publisher_node:
   ros__parameters:
@@ -49,6 +55,7 @@ vectormap_server_node:
 pose_estimater_node:
   ros__parameters:
     interval_ms : 20
+    max_integration_dt : 0.2
     map_origin_geodetic:
       latitude :  36.11313110136178
       longitude: 139.98107529988687
@@ -123,80 +130,88 @@ local_planner_server_node:
     local_planner_plugin : "local_planner::FrenetPlannerPlugin"
     interval_ms : 100
     # plugin パラメータ
-    local_path_horizon_m : 15.0
+    local_path_horizon_m : 20.0
     local_path_resample_interval_m : 0.2
     avoidance_detection_forward_distance_m : 20.0
-    avoidance_hard_margin_m : 0.4
-    avoidance_soft_margin_m : 0.3
-    max_avoidance_shift_m : 3.0
+    avoidance_hard_margin_m : 0.35
+    avoidance_soft_margin_m : 1.0
+    max_avoidance_shift_m : 2.4
+    lane_width_m : 4.0   # 車線幅
+    lane_boundary_margin_m : 0.1   # 回避時に車輪を車線の端から内側に残す余裕
+    obstacle_cluster_gap_m : 0.8
     frenet:
-      lateral_sample_step_m : 0.25
-      collision_check_margin_m : 0.2
-      target_lengths_m : [7.5, 15.0]
+      lateral_sample_step_m : 0.15
+      collision_check_margin_m : 0.15
+      avoidance_target_lengths_m : [15.0]   # 障害物があるときの回避経路の距離
+      merge_time_s : 1.0   # 障害物がないときの合流距離 = merge_time_s × 車速
+      merge_lateral_accel_mps2 : 1.0   # 合流時の横加速度上限
+      merge_length_min_m : 4.0
+      merge_length_max_m : 15.0
       weight_curvature : 2000.0
-      weight_length : 1.0
-      weight_lateral_deviation : 50.0
+      weight_lateral_deviation : 150.0
+      weight_side_change : 300.0
+      kappa_max : 0.268   # 候補経路の曲率の上限 [1/m]
+      side_release_count : 3   # 回避する側を何周期続けて通れなければ反対側を許すか
     stop_standoff_m : 1.0
 
-object_detector_node:
+speed_path_planner_node:
   ros__parameters:
-    ground_z_threshold_m : 0.1
-    voxel_leaf_size_m : 0.1
-    cluster_tolerance_m : 0.5
-    min_cluster_size : 10
-    max_cluster_size : 1000
-    marker_height_m : 1.0
+    a_lat_max          : 3.0   # 最大横加速度 [m/s^2]
+    stop_decel         : 1.5   # 停止点へ向けた減速度 [m/s^2]
+    stop_decel_max     : 4.0   # stop_decel で止まれないときに使う減速度の上限 [m/s^2]
+    stop_point_timeout_s : 0.5
+
+pylon_detector_node:
+  ros__parameters:
+    engine_path : "yolox_s_aiformula.engine"
+    score_threshold : 0.3
+    nms_threshold : 0.45
+
+traffic_signal_stop_node:
+  ros__parameters:
+    stop_distance_to_panel_pylon_m : 3.3
+
+vision_lane_planner_node:
+  ros__parameters:
+    engine_path : "vision_planner_n.engine"
+    default_navigation_command : "straight"
+
+path_smoother_node:
+  ros__parameters:
+    window_duration_s : 0.15
+    tf_timeout_s : 0.1
+    fit_max_x_m : 12.0
+    extend_to_x_m : 18.0
+    output_interval_m : 0.2
+    ransac_threshold_m : 0.10
+    ransac_iterations : 200
 
 controller_server_node:
   ros__parameters:
     interval_ms  : 50
     controller_plugin  : "trajectory_follower::PurePursuitPlugin"
-    a_lat_max          : 5.0
-    a_min              : -2.0
+    a_min              : -4.0
+    velocity_preview_time : 0.3
     pure_pursuit:
-      lookahead_distance : 5.0
+      lookahead_gain         : 1.2
+      lookahead_min_distance : 3.0
+      lookahead_max_distance : 5.0
       steered_gain       : 1.8
     mpc:
       longitudinal:
-        a_max              : 5.0
-        jerk_max           : 5.0
-        kp                 : 0.8
-        ki                 : 0.1
+        max_integral_effort : 0.5
+        kp                 : 1.5
+        ki                 : 0.3
         kd                 : 0.0
-        lpf_vel_error_gain : 0.9
+        lpf_vel_error_gain : 0.5
       lateral:
         horizon                       : 20
         prediction_dt                 : 0.1
         min_predict_speed             : 0.5
-        steer_tau                     : 0.3
+        steer_tau                     : 0.22
         weight_lat_error              : 1.0
         weight_heading_error          : 1.0
-        weight_steering_input         : 0.5
-        weight_steer_rate             : 5.0
+        weight_steering_input         : 0.1
+        weight_steer_rate             : 30.0
         weight_terminal_lat_error     : 1.0
         weight_terminal_heading_error : 1.0
-
-chassis_driver_node:
-  ros__parameters:
-    interval_ms : 2
-    cmd_timeout_ms : 500
-    wheel_radius : 0.124
-    reduction_ratio : 1.0
-    reverse_left_flag : false
-    reverse_right_flag : false
-    caster:
-      max_count : 16384
-      gear_ratio : 0.59090909090909
-      wheel_radius : 0.12
-      reel_radius : 0.02
-      steering_radius : 0.032
-      preload_length : 0.03
-      preload_gain : 0.1
-    drive_pid:
-      p_gain : 3.0
-      i_gain : 0.0
-      d_gain : 0.1
-
-socketcan_interface_node:
-  ros__parameters:
-    if_name : "can_main"

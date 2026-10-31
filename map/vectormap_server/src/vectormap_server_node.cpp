@@ -30,10 +30,13 @@ VectormapServerNode::VectormapServerNode(
     marker_array_ = create_vector_map_marker_array(map_msg_);
     static_tf_broadcaster_ = std::make_shared<tf2_ros::StaticTransformBroadcaster>(this);
 
+    rclcpp::PublisherOptions no_intra_process_options;
+    no_intra_process_options.use_intra_process_comm = rclcpp::IntraProcessSetting::Disable;
+
     vectormap_publisher_ = this->create_publisher<vectormap_msgs::msg::VectorMap>(
-        "vector_map", rclcpp::QoS(1).transient_local());
+        "vector_map", rclcpp::QoS(1).transient_local(), no_intra_process_options);
     vectormap_visualize_marker_publisher = this->create_publisher<visualization_msgs::msg::MarkerArray>(
-        "vector_map/visualize", rclcpp::QoS(1).transient_local());
+        "vector_map/visualize", rclcpp::QoS(1).transient_local(), no_intra_process_options);
 
     publish_static_transforms();
     publish_map();

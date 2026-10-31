@@ -25,8 +25,8 @@ class EkfLocalizerNode : public rclcpp::Node {
     explicit EkfLocalizerNode (const std::string &name_space, const rclcpp::NodeOptions &options = rclcpp::NodeOptions ());
 
    private:
-    void pf_pose_callback (const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg);
-    void velocity_callback (const geometry_msgs::msg::TwistWithCovarianceStamped::SharedPtr msg);
+    void pf_pose_callback (const geometry_msgs::msg::PoseWithCovarianceStamped::ConstSharedPtr msg);
+    void velocity_callback (const geometry_msgs::msg::TwistWithCovarianceStamped::ConstSharedPtr msg);
     void predict_timer_callback ();
     void tf_timer_callback ();
 

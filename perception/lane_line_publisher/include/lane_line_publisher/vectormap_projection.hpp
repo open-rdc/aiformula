@@ -6,7 +6,7 @@
 #include <tf2/LinearMath/Transform.h>
 #include <visualization_msgs/msg/marker_array.hpp>
 
-#include <camera_utility/camera_intrinsics.hpp>
+#include <camera_utility/camera_utility.hpp>
 
 namespace lane_line_publisher
 {

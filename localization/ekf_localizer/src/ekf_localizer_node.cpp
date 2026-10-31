@@ -50,7 +50,7 @@ EkfLocalizerNode::EkfLocalizerNode (const std::string &name_space, const rclcpp:
     tf_timer_      = create_wall_timer (std::chrono::milliseconds (tf_interval_ms_), std::bind (&EkfLocalizerNode::tf_timer_callback, this));
 }
 
-void EkfLocalizerNode::pf_pose_callback (const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg) {
+void EkfLocalizerNode::pf_pose_callback (const geometry_msgs::msg::PoseWithCovarianceStamped::ConstSharedPtr msg) {
     const double       x   = msg->pose.pose.position.x;
     const double       y   = msg->pose.pose.position.y;
     const double       yaw = utils::yaw_from_quaternion (msg->pose.pose.orientation);
@@ -93,7 +93,7 @@ void EkfLocalizerNode::pf_pose_callback (const geometry_msgs::msg::PoseWithCovar
     }
 }
 
-void EkfLocalizerNode::velocity_callback (const geometry_msgs::msg::TwistWithCovarianceStamped::SharedPtr msg) {
+void EkfLocalizerNode::velocity_callback (const geometry_msgs::msg::TwistWithCovarianceStamped::ConstSharedPtr msg) {
     // velocity_bodyはVN body系(x前 / y右 / z下)で来るのでREP-103へ直す。
     const geometry_msgs::msg::Twist twist = utils::vn_body_to_rep103 (msg->twist.twist);
 
@@ -147,7 +147,7 @@ void EkfLocalizerNode::tf_timer_callback () {
     if (!ekf_localizer_.initialized ()) {
         return;
     }
-    pose_publisher_->publish (ekf_localizer_.make_pose ("map"));
+    pose_publisher_->publish (std::make_unique<geometry_msgs::msg::PoseWithCovarianceStamped> (ekf_localizer_.make_pose ("map")));
 }
 
 }  // namespace ekf_localizer

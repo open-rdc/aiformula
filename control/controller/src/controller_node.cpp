@@ -29,17 +29,17 @@ steering_max_angle(dtor(get_parameter("steering_max.pos").as_double()))
     // publisher_restart->publish(*std::make_shared<std_msgs::msg::Empty>());
 }
 
-void Controller::_subscriber_callback_joy(const sensor_msgs::msg::Joy::SharedPtr msg){
+void Controller::_subscriber_callback_joy(const sensor_msgs::msg::Joy::ConstSharedPtr msg){
     // 自動か手動か
     if(upedge_share(msg->buttons[static_cast<int>(Buttons::Share)])){
-        auto msg_autonomous = std::make_shared<std_msgs::msg::Bool>();
+        auto msg_autonomous = std::make_unique<std_msgs::msg::Bool>();
         msg_autonomous->data = is_autonomous = !is_autonomous;
-        publisher_autonomous->publish(*msg_autonomous);
-        RCLCPP_INFO(this->get_logger(), "自動フラグ : %d", msg_autonomous->data);
+        publisher_autonomous->publish(std::move(msg_autonomous));
+        RCLCPP_INFO(this->get_logger(), "自動フラグ : %d", is_autonomous);
     }
     // リスタート
     if(upedge_options(msg->buttons[static_cast<int>(Buttons::Options)])){
-        publisher_restart->publish(*std::make_shared<std_msgs::msg::Empty>());
+        publisher_restart->publish(std::make_unique<std_msgs::msg::Empty>());
         RCLCPP_INFO(this->get_logger(), "再稼働");
     }
     // 経路選択
@@ -64,24 +64,24 @@ void Controller::_subscriber_callback_joy(const sensor_msgs::msg::Joy::SharedPtr
     }
     // レーン切り替え
     if(upedge_cross(msg->buttons[static_cast<int>(Buttons::Cross)])){
-        publisher_lane_switch_flag->publish(*std::make_shared<std_msgs::msg::Empty>());
+        publisher_lane_switch_flag->publish(std::make_unique<std_msgs::msg::Empty>());
         RCLCPP_INFO(this->get_logger(), "レーン切り替え");
     }
     // 手動の場合、速度指令値を送る
     if(!is_autonomous){
-        auto msg_vel = std::make_shared<steered_drive_msg::msg::SteeredDrive>();
+        auto msg_vel = std::make_unique<steered_drive_msg::msg::SteeredDrive>();
         msg_vel->velocity = linear_max_vel * msg->axes[static_cast<int>(Axes::L_y)];
         msg_vel->steering_angle = steering_max_angle * msg->axes[static_cast<int>(Axes::R_x)];
-        publisher_vel->publish(*msg_vel);
+        publisher_vel->publish(std::move(msg_vel));
     }
 
 }
 
 void Controller::publish_nav_cmd(const std::string& command){
-    auto msg_nav_cmd = std::make_shared<std_msgs::msg::String>();
+    auto msg_nav_cmd = std::make_unique<std_msgs::msg::String>();
     msg_nav_cmd->data = command;
-    publisher_nav_cmd->publish(*msg_nav_cmd);
-    RCLCPP_INFO(this->get_logger(), "経路選択 : %s", msg_nav_cmd->data.c_str());
+    publisher_nav_cmd->publish(std::move(msg_nav_cmd));
+    RCLCPP_INFO(this->get_logger(), "経路選択 : %s", command.c_str());
 }
 
 }  // namespace controller

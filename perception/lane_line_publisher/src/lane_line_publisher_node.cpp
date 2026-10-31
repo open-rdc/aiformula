@@ -6,7 +6,7 @@
 #include <stdexcept>
 #include <utility>
 
-#include <camera_utility/camera_parameters.hpp>
+#include <camera_utility/camera_utility.hpp>
 #include <cv_bridge/cv_bridge.h>
 #include <geometry_msgs/msg/point.hpp>
 #include <opencv2/imgproc.hpp>
@@ -28,9 +28,12 @@ LaneLinePublisherNode::LaneLinePublisherNode(
     const rclcpp::NodeOptions& options)
 : rclcpp::Node("lane_line_publisher_node", name_space, options),
   mask_threshold_(static_cast<uint8_t>(get_parameter("mask_threshold").as_int())),
-  voxel_grid_size_meter_(get_parameter("voxel_grid_size_meter").as_double()),
-  ground_projection_look_up_table_(ground_projection_look_up_table(camera_utility::getCameraIntrinsics(*this), camera_utility::getBaseTCamera(*this)))
+  voxel_grid_size_meter_(get_parameter("voxel_grid_size_meter").as_double())
 {
+    camera_info_subscription_ = this->create_subscription<sensor_msgs::msg::CameraInfo>(
+        "/zed/zed_node/rgb/camera_info", rclcpp::SensorDataQoS().keep_last(1),
+        std::bind(&LaneLinePublisherNode::camera_info_callback, this, std::placeholders::_1));
+
     mask_subscription_ = this->create_subscription<sensor_msgs::msg::Image>(
         "/perception/lane_mask", rclcpp::SensorDataQoS().keep_last(1),
         std::bind(&LaneLinePublisherNode::lane_mask_callback, this, std::placeholders::_1));
@@ -41,8 +44,29 @@ LaneLinePublisherNode::LaneLinePublisherNode(
         "/perception/lane_line", rclcpp::QoS(10));
 }
 
-void LaneLinePublisherNode::lane_mask_callback(const sensor_msgs::msg::Image::SharedPtr msg)
+void LaneLinePublisherNode::camera_info_callback(const sensor_msgs::msg::CameraInfo::ConstSharedPtr msg)
 {
+    if (ground_projection_look_up_table_.width != 0) {
+        return;
+    }
+    ground_projection_look_up_table_ = ground_projection_look_up_table(camera_utility::fromCameraInfo(*msg), camera_utility::getBaseTCamera(*this));
+    RCLCPP_INFO(get_logger(), "camera_info(%ux%u)から地面投影LUTを構築しました", msg->width, msg->height);
+}
+
+void LaneLinePublisherNode::lane_mask_callback(const sensor_msgs::msg::Image::ConstSharedPtr msg)
+{
+    if (ground_projection_look_up_table_.width == 0) {
+        RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 5000, "camera_info未受信のためlane_maskをスキップします");
+        return;
+    }
+    if (static_cast<int>(msg->width) != ground_projection_look_up_table_.width ||
+        static_cast<int>(msg->height) != ground_projection_look_up_table_.height) {
+        RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 5000,
+            "lane_mask(%ux%u)とLUT(%dx%d)の寸法が一致しません", msg->width, msg->height,
+            ground_projection_look_up_table_.width, ground_projection_look_up_table_.height);
+        return;
+    }
+
     cv::Mat skeleton_mask;
     const auto mask_image = cv_bridge::toCvShare(msg, sensor_msgs::image_encodings::MONO8);
     cv::Mat binary_mask;
@@ -59,27 +83,30 @@ void LaneLinePublisherNode::lane_mask_callback(const sensor_msgs::msg::Image::Sh
     const auto base_points = voxel_downsample(observed_points, voxel_grid_size_meter_);
 
     lane_line_points_publisher_->publish(make_lane_line_point_cloud(base_points, msg->header.stamp));
-    lane_line_marker_publisher_->publish(make_lane_line_marker_array(base_points, msg->header.stamp));
+    // debug用のため，subscriberがいない場合はpublishしない
+    if (lane_line_marker_publisher_->get_subscription_count() > 0) {
+        lane_line_marker_publisher_->publish(make_lane_line_marker_array(base_points, msg->header.stamp));
+    }
 }
 
-sensor_msgs::msg::PointCloud2 LaneLinePublisherNode::make_lane_line_point_cloud(
+sensor_msgs::msg::PointCloud2::UniquePtr LaneLinePublisherNode::make_lane_line_point_cloud(
     const std::vector<Eigen::Vector2d>& base_points,
     const builtin_interfaces::msg::Time& stamp) const
 {
-    sensor_msgs::msg::PointCloud2 cloud;
-    cloud.header.stamp = stamp;
-    cloud.header.frame_id = "base_link";
-    cloud.height = 1;
-    cloud.is_dense = true;
-    cloud.is_bigendian = false;
+    auto cloud = std::make_unique<sensor_msgs::msg::PointCloud2>();
+    cloud->header.stamp = stamp;
+    cloud->header.frame_id = "base_link";
+    cloud->height = 1;
+    cloud->is_dense = true;
+    cloud->is_bigendian = false;
 
-    sensor_msgs::PointCloud2Modifier modifier(cloud);
+    sensor_msgs::PointCloud2Modifier modifier(*cloud);
     modifier.setPointCloud2FieldsByString(1, "xyz");
     modifier.resize(base_points.size());
 
-    sensor_msgs::PointCloud2Iterator<float> iter_x(cloud, "x");
-    sensor_msgs::PointCloud2Iterator<float> iter_y(cloud, "y");
-    sensor_msgs::PointCloud2Iterator<float> iter_z(cloud, "z");
+    sensor_msgs::PointCloud2Iterator<float> iter_x(*cloud, "x");
+    sensor_msgs::PointCloud2Iterator<float> iter_y(*cloud, "y");
+    sensor_msgs::PointCloud2Iterator<float> iter_z(*cloud, "z");
     for (const auto& p : base_points) {
         *iter_x = static_cast<float>(p.x());
         *iter_y = static_cast<float>(p.y());
@@ -92,17 +119,17 @@ sensor_msgs::msg::PointCloud2 LaneLinePublisherNode::make_lane_line_point_cloud(
     return cloud;
 }
 
-visualization_msgs::msg::MarkerArray LaneLinePublisherNode::make_lane_line_marker_array(
+visualization_msgs::msg::MarkerArray::UniquePtr LaneLinePublisherNode::make_lane_line_marker_array(
     const std::vector<Eigen::Vector2d>& base_points,
     const builtin_interfaces::msg::Time& stamp) const
 {
-    visualization_msgs::msg::MarkerArray marker_array;
+    auto marker_array = std::make_unique<visualization_msgs::msg::MarkerArray>();
 
     visualization_msgs::msg::Marker delete_marker;
     delete_marker.header.stamp = stamp;
     delete_marker.header.frame_id = "base_link";
     delete_marker.action = visualization_msgs::msg::Marker::DELETEALL;
-    marker_array.markers.push_back(delete_marker);
+    marker_array->markers.push_back(delete_marker);
 
     visualization_msgs::msg::Marker points_marker;
     points_marker.header = delete_marker.header;
@@ -127,7 +154,7 @@ visualization_msgs::msg::MarkerArray LaneLinePublisherNode::make_lane_line_marke
         points_marker.points.push_back(point);
     }
 
-    marker_array.markers.push_back(std::move(points_marker));
+    marker_array->markers.push_back(std::move(points_marker));
     return marker_array;
 }
 

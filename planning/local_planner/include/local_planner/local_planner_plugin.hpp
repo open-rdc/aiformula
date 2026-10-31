@@ -1,9 +1,9 @@
 #pragma once
 
+#include <limits>
 #include <memory>
-#include <optional>
 
-#include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
+#include <geometry_msgs/msg/pose.hpp>
 #include <geometry_msgs/msg/twist_with_covariance_stamped.hpp>
 #include <nav_msgs/msg/path.hpp>
 #include <object_detection_msgs/msg/object_info_array.hpp>
@@ -25,10 +25,13 @@ public:
 
     virtual void setGlobalPath(const nav_msgs::msg::Path & global_path) = 0;
 
-    virtual std::optional<nav_msgs::msg::Path> computeLocalPath(
-        const geometry_msgs::msg::PoseWithCovarianceStamped & ego_pose,
+    virtual nav_msgs::msg::Path computeLocalPath(
+        const geometry_msgs::msg::Pose & ego_pose,
         const geometry_msgs::msg::TwistWithCovarianceStamped & velocity,
-        const object_detection_msgs::msg::ObjectInfoArray * objects) = 0;
+        const object_detection_msgs::msg::ObjectInfoArray & objects) = 0;
+
+    // 直前の local path の先頭から止まる位置までの距離。止まらないときは無限大
+    virtual double stopDistance() const { return std::numeric_limits<double>::infinity(); }
 };
 
 }
