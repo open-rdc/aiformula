@@ -465,6 +465,12 @@ class Config:
         # 重みの移動平均 (EMA) の減衰率。0 なら使わない。使うときは val・評価・保存を EMA の重みで行う。
         # 学習ごとのぶれ (同じ設定で val が 4〜17% 違った, 2026-11-01) を減らすため。0.999 なら約 1000 step の平均
         self.ema_decay = float(config_dict.get('ema_decay', 0.0))
+        # ema_ref_batch を書くと、バッチの大きさに合わせて減衰率を ema_decay ** (batch_size / ema_ref_batch) にする。
+        # EMA は更新の回数で平均するので、バッチが大きいと平均に入るデータの枚数が増えすぎる。
+        # これでどのバッチでも、だいたい同じ枚数のデータで平均を取る (本人, 2026-11-01)
+        self.ema_ref_batch = int(config_dict.get('ema_ref_batch', 0))
+        if self.ema_decay > 0 and self.ema_ref_batch > 0:
+            self.ema_decay = self.ema_decay ** (int(config_dict.get('batch_size', 8)) / self.ema_ref_batch)
         # 学習済みの重み (TorchScript の .pt) から ConvStem を初期化する。形が合う重みだけ写す
         # (fusion が違うと 1 段目の入力 ch が違うので、その層は init_stem_conv1_channels で ch を対応付ける)
         self.init_stem_from = config_dict.get('init_stem_from')

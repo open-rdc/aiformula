@@ -185,3 +185,5 @@ ema_decay: 0.999
 usable_frames_file: ../red_usable.json
 # 学習のとき過去フレームをまとめて消す確率
 history_dropout: 0.5
+# EMA の減衰率をバッチの大きさに合わせる (0.999 をバッチ 8 の基準に、0.999 ** (バッチ / 8))
+ema_ref_batch: 8
