@@ -6,6 +6,7 @@ train.py はそのまま残してあるので、比較や切り戻しはそち�
 重み付けの中身は util/curve_weight.py を参照。
 """
 
+import copy
 import json
 import sys
 import time
@@ -457,6 +458,13 @@ class Config:
         # 学習率スケジュール。'cosine' か 'none'
         self.lr_schedule = config_dict.get('lr_schedule', 'none')
         self.lr_min = float(config_dict.get('lr_min', 0.0))
+        # 重みの移動平均 (EMA) の減衰率。0 なら使わない。使うときは val・評価・保存を EMA の重みで行う。
+        # 学習ごとのぶれ (同じ設定で val が 4〜17% 違った, 2026-11-01) を減らすため。0.999 なら約 1000 step の平均
+        self.ema_decay = float(config_dict.get('ema_decay', 0.0))
+        # 学習済みの重み (TorchScript の .pt) から ConvStem を初期化する。形が合う重みだけ写す
+        # (fusion が違うと 1 段目の入力 ch が違うので、その層は init_stem_conv1_channels で ch を対応付ける)
+        self.init_stem_from = config_dict.get('init_stem_from')
+        self.init_stem_conv1_channels = config_dict.get('init_stem_conv1_channels')
 
         # マスクとRGBの融合方法。
         # 'late'  : モダリティ別の ConvStem -> Transformer で融合（従来）
@@ -625,7 +633,15 @@ class Trainer:
                if config.fusion == 'early' else
                {'num_frames': 1 + len(config.frame_stack_distances)} if config.fusion in FRAMEWISE_FUSIONS else {}),
         ).to(self.device)
+        if config.init_stem_from:
+            self._init_stem(Path(config.init_stem_from).expanduser(), config.init_stem_conv1_channels)
         self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=config.learning_rate)
+        # EMA の重み。val・評価・保存はこちらで行う (ema_decay: 0 なら学習中の重みそのもの)
+        self.ema_model = copy.deepcopy(self.model).eval() if config.ema_decay > 0 else None
+        if self.ema_model is not None:
+            for p in self.ema_model.parameters():
+                p.requires_grad_(False)
+            print(f'EMA: decay {config.ema_decay}')
 
         # T_max は全エポック数。途中で止めると学習率が下がりきらないので、
         # epochs を変えたら run をやり直すこと
@@ -831,6 +847,38 @@ class Trainer:
 
         return Subset(train_source, train_indices), Subset(val_source, val_indices)
 
+    def _init_stem(self, path: Path, conv1_channels: Optional[List[int]]) -> None:
+        """学習済みの TorchScript から ConvStem の重みを写す。元が early なら 'stem.*'、mid などなら 'frames.stem.*'。
+        conv1 の入力 ch が違うときは conv1_channels (元の ch の番号を、こちらの ch の順に並べたもの) で拾う"""
+        src = {k.split('stem.', 1)[1]: v for k, v in torch.jit.load(str(path), map_location='cpu').state_dict().items()
+               if k.startswith('stem.') or k.startswith('frames.stem.')}
+        own_stem = self.model.frames.stem if hasattr(self.model, 'frames') else self.model.stem
+        own = own_stem.state_dict()
+        loaded, skipped = [], []
+        for k, v in own.items():
+            w = src.get(k)
+            if w is not None and k == 'conv1.weight' and w.shape != v.shape and conv1_channels:
+                w = w[:, conv1_channels]
+            if w is not None and w.shape == v.shape:
+                own[k] = w.to(v.dtype)
+                loaded.append(k)
+            else:
+                skipped.append(k)
+        own_stem.load_state_dict(own)
+        print(f'ConvStem を {path.name} から初期化: {len(loaded)} 個写した, 写さなかった {skipped}')
+
+    def _update_ema(self) -> None:
+        d = self.config.ema_decay
+        with torch.no_grad():
+            for e, p in zip(self.ema_model.parameters(), self.model.parameters()):
+                e.mul_(d).add_(p.detach(), alpha=1.0 - d)
+            for e, b in zip(self.ema_model.buffers(), self.model.buffers()):
+                e.copy_(b)  # BatchNorm の移動平均などはそのまま写す
+
+    @property
+    def eval_model(self) -> nn.Module:
+        return self.ema_model if self.ema_model is not None else self.model
+
     def validate(self, loader: DataLoader = None) -> Tuple[float, dict]:
         """val loss と、正規化を戻した実距離[m]の誤差を返す。
 
@@ -838,7 +886,8 @@ class Trainer:
         何 m ずれるのか」を見たいので、m に直した誤差も一緒に出して
         TensorBoard に載せる
         """
-        self.model.eval()
+        model = self.eval_model
+        model.eval()
         total_loss = 0.0
         x_error = 0.0
         y_error = 0.0
@@ -859,7 +908,7 @@ class Trainer:
                 waypoints = waypoints.to(self.device)
                 scores = scores.to(self.device)
 
-                outputs = self.model(masks, rgbs)
+                outputs = model(masks, rgbs)
 
                 loss = self.mseloss(outputs, waypoints)
                 total_loss += loss.item()
@@ -904,8 +953,8 @@ class Trainer:
             self.best_val_loss = val_loss
             weight_path = self.config.weights_dir / self.config.weight_file
             was_training = self.model.training
-            self.model.eval()
-            scripted_model = torch.jit.script(self.model)
+            self.eval_model.eval()
+            scripted_model = torch.jit.script(self.eval_model)
             scripted_model.save(str(weight_path))
             self.model.train(was_training)
             print(f'Best model saved: {weight_path} (val_loss: {val_loss:.6f})')
@@ -940,6 +989,8 @@ class Trainer:
                 total_grad_norm += grad_norm.item()
 
                 self.optimizer.step()
+                if self.ema_model is not None:
+                    self._update_ema()
 
                 total_train_loss += loss.item()
                 pbar.set_postfix({'loss': f'{loss.item():.6f}'})
