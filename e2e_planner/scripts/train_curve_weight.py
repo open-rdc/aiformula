@@ -138,11 +138,13 @@ class E2EDataset(Dataset):
         # 過去フレームの RGB・障害物マスクも、同じ拡張にあればそちらを使う (天候を変えた今のフレームに、
         # 元の晴れの過去フレームを重ねないように)。無いフレームは元のものを使う
         self.extra_bag_dirs = [None] * len(self.mask_files)
+        # 拡張を足す元は、元のフレームだけ (前の拡張のディレクトリで足したサンプルに、次の拡張をまた足さない)
+        base_files = list(self.mask_files)
         for extra in extra_rgb_dirs:
             extra_dir = Path(extra) / dataset_path.name / 'images'
             if not extra_dir.is_dir():
                 continue
-            for f in list(self.mask_files):
+            for f in base_files:
                 for cand in (extra_dir / f.name, extra_dir / f'{f.stem}.jpg'):
                     if cand.exists():
                         self.mask_files.append(f)
