@@ -20,7 +20,7 @@ from pathlib import Path
 import numpy as np
 from typing import List, Optional, Tuple
 from tqdm import tqdm
-from network import build_network
+from network import FRAMEWISE_FUSIONS, build_network
 from util.preprocess import (
     IMAGE_WIDTH,
     IMAGE_HEIGHT,
@@ -87,8 +87,8 @@ class E2EDataset(Dataset):
         self.draw_pylon_boxes = draw_pylon_boxes
         # 過去のフレームの RGB ではなく、マスク (past_mask_mode) を何 m 前から ch として足すか
         self.past_mask_distances = list(past_mask_distances or [])
-        if past_mask_mode not in PAST_MASK_VALUES:
-            raise ValueError(f'past_mask_mode は {sorted(PAST_MASK_VALUES)} のどれか: {past_mask_mode}')
+        if past_mask_mode not in PAST_MASK_VALUES and past_mask_mode != 'separate':
+            raise ValueError(f'past_mask_mode は {sorted(PAST_MASK_VALUES)} か separate: {past_mask_mode}')
         self.past_mask_mode = past_mask_mode
 
         if not self.rgb_images_dir.exists():
@@ -207,6 +207,13 @@ class E2EDataset(Dataset):
         if extra and (extra / 'pylon_masks' / f'{stem}.png').exists():
             return extra / 'pylon_masks' / f'{stem}.png'
         return self.pylon_masks_dir / f'{stem}.png'
+
+    def _past_masks_separate(self, stem: str, extra: Optional[Path] = None) -> List[np.ndarray]:
+        """past_mask_mode: separate。過去のフレームの [白線, 障害物] を 0/1 の 2 枚で
+        (フレームごとに同じ stem に通す fusion: mid / token / cross 用。今のフレームと同じ形にそろえる)"""
+        lane = (extract_red_mask(cv2.imread(str(self.mask_images_dir / f'{stem}.png'), cv2.IMREAD_COLOR)) > 0)
+        obs = (self._read_pylon_mask_file(self._past_pylon_mask_file(stem, extra)) > 127)
+        return [lane.astype(np.float32), obs.astype(np.float32)]
 
     def _past_mask(self, stem: str, extra: Optional[Path] = None) -> np.ndarray:
         """過去のフレームのマスク (float32, 0〜1)。白線と障害物を past_mask_mode の値で 1 枚に描く"""
@@ -363,10 +370,12 @@ class E2EDataset(Dataset):
             mask_channels.append(preprocess_mask(pylon_binary))
         # 過去のマスク。左右反転したときは過去のマスクも反転する
         for past_stem in self._past_stems(idx, self.past_mask_distances):
-            past = self._past_mask(past_stem, self.extra_bag_dirs[idx])
-            if flipped:
-                past = np.ascontiguousarray(past[:, ::-1])
-            mask_channels.append(preprocess_mask(past))
+            pasts = (self._past_masks_separate(past_stem, self.extra_bag_dirs[idx]) if self.past_mask_mode == 'separate'
+                     else [self._past_mask(past_stem, self.extra_bag_dirs[idx])])
+            for past in pasts:
+                if flipped:
+                    past = np.ascontiguousarray(past[:, ::-1])
+                mask_channels.append(preprocess_mask(past))
         mask_tensor = torch.from_numpy(np.concatenate(mask_channels, axis=0))
         # (3*(1+past), H, W) にチャネル方向で連結
         rgb_tensor = torch.from_numpy(
@@ -448,8 +457,8 @@ class Config:
         # 過去フレームを何 m 後ろから重ねるか。空なら現在フレームのみ（従来）。
         # 距離で引くので、収集速度が違う bag でも同じ幾何関係のスタックになる
         self.frame_stack_distances = config_dict.get('frame_stack_distances', []) or []
-        if self.frame_stack_distances and self.fusion != 'early':
-            raise ValueError('frame_stack_distances は fusion: early のときだけ使える')
+        if self.frame_stack_distances and self.fusion not in ('early',) + tuple(FRAMEWISE_FUSIONS):
+            raise ValueError('frame_stack_distances は fusion: early / mid / token / cross のときだけ使える')
 
         # データ拡張（学習側のみ。検証には適用しない）
         self.augment_config = {
@@ -497,8 +506,17 @@ class Config:
         self.past_mask_mode = str(config_dict.get('past_mask_mode', 'obs'))
         # データ拡張の RGB を置いたディレクトリ (<dir>/<bag 名>/images/)。train の bag にだけ足す
         self.extra_rgb_dirs = [Path(p).expanduser() for p in (config_dict.get('extra_rgb_dirs', []) or [])]
-        if self.past_mask_distances and self.fusion != 'early':
-            raise ValueError('past_mask_distances は fusion: early のときだけ使える')
+        if self.past_mask_distances and self.fusion not in ('early',) + tuple(FRAMEWISE_FUSIONS):
+            raise ValueError('past_mask_distances は fusion: early / mid / token / cross のときだけ使える')
+        # mid / token / cross はフレームごとに [白線, 障害物, RGB] の 5 ch を同じ stem に通すので、
+        # 過去 RGB と過去マスクの距離をそろえ、過去マスクは白線と障害物を分けて (separate) 渡す
+        if self.fusion in FRAMEWISE_FUSIONS and not (
+                self.pylon_mask and self.past_mask_mode == 'separate'
+                and self.frame_stack_distances == self.past_mask_distances):
+            raise ValueError(f'fusion: {self.fusion} は pylon_mask: true, past_mask_mode: separate, '
+                             'frame_stack_distances == past_mask_distances が必要')
+        if self.past_mask_mode == 'separate' and self.fusion not in FRAMEWISE_FUSIONS:
+            raise ValueError('past_mask_mode: separate は fusion: mid / token / cross 用')
 
         # カーブのきつさによる損失の重み付け (util/curve_weight.py)
         self.curve_weighting = config_dict.get('curve_weighting', {}) or {'mode': 'none'}
@@ -593,7 +611,8 @@ class Trainer:
             dropout=config.dropout,
             **({'num_past_frames': len(config.frame_stack_distances),
                 'num_mask_channels': (2 if config.pylon_mask else 1) + len(config.past_mask_distances)}
-               if config.fusion == 'early' else {}),
+               if config.fusion == 'early' else
+               {'num_frames': 1 + len(config.frame_stack_distances)} if config.fusion in FRAMEWISE_FUSIONS else {}),
         ).to(self.device)
         self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=config.learning_rate)
 
