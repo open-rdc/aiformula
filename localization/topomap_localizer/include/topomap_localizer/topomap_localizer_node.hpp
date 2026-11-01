@@ -51,11 +51,16 @@ private:
     std::vector<geometry_msgs::msg::Point> route_points_;
     sensor_msgs::msg::NavSatFix::ConstSharedPtr gnss_;
     sensor_msgs::msg::Imu::ConstSharedPtr imu_;
+    rclcpp::Time imu_time_{0, 0, RCL_ROS_TIME};
 
     const bool init_gnss_flag_;
     bool autonomous_ = false;
     bool initialized_ = false;
-    double theta_ = 0.0;
+    // dr_: odom の移動量を map 上の向きで積算した位置、(tx_, ty_): それを map へ合わせる平行移動
+    std::array<double, 2> dr_ = {0.0, 0.0};
+    std::array<double, 2> p_o_ = {0.0, 0.0};
+    double yaw_o_ = 0.0;
+    double yaw_m_ = 0.0;
     double tx_ = 0.0;
     double ty_ = 0.0;
     size_t k_ = 0;
