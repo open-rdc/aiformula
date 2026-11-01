@@ -1,4 +1,4 @@
-# 枠線 + 過去 RGB (rgb_bbox_stack) に過去マスク merged を足した組み合わせ。障害物マスクの ch は rgb_bbox_stack と同じく入れない
+# 枠線 + 過去 RGB (rgb_bbox_stack) に、障害物マスクの ch と過去マスク merged を足した組み合わせ (本人, 2026-11-01)
 # データ拡張を全部入れたデータで、入力の違いを比べる (2026-11-01)。sweep_stack/rgb_bbox_stack.yaml に extra_rgb_dirs を足したもの。
 # 本人「データを増やした上で、過去 RGB・マスク・枠線を与えたときに過学習せず基準より良くなるかを見る」
 # 過去フレームの距離・枚数の比較 (2026-10-31)。RGB に枠線、マスクの ch なし、過去フレーム 1.5・3 m 前
@@ -20,7 +20,7 @@ weight_file: "e2e_model_augall_rgb_bbox_stack_pastmask.pt"
 # パイロンの枠を塗ったマスク (scripts/create_pylon_masks.py) を白線マスクの 2 ch 目として入れる。
 # 実機では deploy の pylon_detector が同じマスクを /perception/pylon_mask に出す
 # 障害物はマスクの ch ではなく、RGB 画像に枠線 (マゼンタ 3 px) で描き込む。マスクは白線の 1 ch だけ
-pylon_mask: false
+pylon_mask: true
 pylon_bbox_on_rgb: true
 # コーンが近いサンプル (util/pylon_mask.py の is_pylon_near) を何倍引くか。
 # 障害物 bag でコーンの横を通る場面は train 全体の 1% 未満しかない (2026-10-30)
