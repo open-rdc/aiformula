@@ -69,7 +69,8 @@ class E2EDataset(Dataset):
                  blue_course_only: bool = False, keep_avoid_off_course: bool = False,
                  keep_only_ranges: List[Tuple[int, int]] = None, draw_pylon_boxes: bool = False,
                  past_mask_distances: List[float] = None, past_mask_mode: str = 'obs',
-                 extra_rgb_dirs: List[Path] = (), history_dropout: float = 0.0):
+                 extra_rgb_dirs: List[Path] = (), history_dropout: float = 0.0,
+                 usable_stems: Optional[set] = None):
         # augment_config が None のときは拡張なし（検証用）
         self.augment_config = augment_config
         # 学習のとき、この確率で過去フレーム (過去 RGB・過去マスク) をまとめて消す (RGB = 0 = 灰、マスク = 0)。
@@ -123,9 +124,12 @@ class E2EDataset(Dataset):
             # 青コースの外は外す。keep_avoid_off_course なら避ける区間 (確認済み) は青コースの外でも残す
             and (not blue_course_only or course.get(mask_file.stem, 0)
                  or (keep_avoid_off_course and scenes.get(mask_file.stem, (0, 0, 1))[0]
-                     and scenes.get(mask_file.stem, (0, 0, 1))[1]))
-            # avoid_only の bag (red コースなど) は「避ける区間 (確認済み)」のフレームだけ使う
-            and (not avoid_only or (scenes.get(mask_file.stem, (0, 0, 1))[0] and scenes.get(mask_file.stem, (0, 0, 1))[1]))
+                     and scenes.get(mask_file.stem, (0, 0, 1))[1])
+                 or (usable_stems is not None and mask_file.stem in usable_stems))
+            # avoid_only の bag (red コースなど) は「避ける区間 (確認済み)」のフレームだけ使う。
+            # usable_stems (分岐路の前後を除いた赤コースのフレーム) があれば、それも使う
+            and (not avoid_only or (scenes.get(mask_file.stem, (0, 0, 1))[0] and scenes.get(mask_file.stem, (0, 0, 1))[1])
+                 or (usable_stems is not None and mask_file.stem in usable_stems))
             and not (drop_backward_paths
                      and path_goes_backward(np.array(self._read_waypoints(self.path_dir / f'{mask_file.stem}.csv'))))
             # 評価用の範囲と、その前後 holdout_gap フレーム (ほぼ同じ画像が学習に入らないように)
@@ -525,6 +529,12 @@ class Config:
         self.extra_rgb_dirs = [Path(p).expanduser() for p in (config_dict.get('extra_rgb_dirs', []) or [])]
         # 学習のとき過去フレームをまとめて消す確率 (0 なら消さない)。train にだけ効く
         self.history_dropout = float(config_dict.get('history_dropout', 0.0))
+        # 赤コースの bag で、分岐路の前後を除いて使うフレーム (aiformula-experiments の data_tools/course_check/red_usable.py が書く
+        # red_usable.json、設定ファイルからの相対パス)。{bag: set(stem)}。avoid_only・青コースだけの判定より優先して使う
+        self.usable_frames = {}
+        if config_dict.get('usable_frames_file'):
+            j = json.loads((Path(config_path).parent / config_dict['usable_frames_file']).read_text())
+            self.usable_frames = {b: {s for s, u in zip(v['stems'], v['usable']) if u} for b, v in j.items()}
         if self.past_mask_distances and self.fusion not in ('early',) + tuple(FRAMEWISE_FUSIONS):
             raise ValueError('past_mask_distances は fusion: early / mid / token / cross のときだけ使える')
         # mid / token / cross はフレームごとに [白線, 障害物, RGB] の 5 ch を同じ stem に通すので、
@@ -784,6 +794,7 @@ class Trainer:
                         drop_backward_paths=config.drop_backward_paths,
                         holdout_ranges=config.holdout.get(d.name, []), holdout_gap=config.holdout_gap,
                         avoid_only=d.name in config.avoid_only_datasets,
+                        usable_stems=config.usable_frames.get(d.name),
                         blue_course_only=config.blue_course_only,
                         keep_avoid_off_course=config.keep_avoid_off_course,
                         extra_rgb_dirs=config.extra_rgb_dirs, history_dropout=config.history_dropout)
@@ -799,6 +810,7 @@ class Trainer:
                         drop_backward_paths=config.drop_backward_paths,
                         holdout_ranges=config.holdout.get(d.name, []), holdout_gap=config.holdout_gap,
                         avoid_only=d.name in config.avoid_only_datasets,
+                        usable_stems=config.usable_frames.get(d.name),
                         blue_course_only=config.blue_course_only,
                         keep_avoid_off_course=config.keep_avoid_off_course)
              for d in val_dirs])
