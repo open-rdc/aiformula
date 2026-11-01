@@ -18,7 +18,7 @@ import cv2
 import csv
 from pathlib import Path
 import numpy as np
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 from tqdm import tqdm
 from network import build_network
 from util.preprocess import (
@@ -67,7 +67,8 @@ class E2EDataset(Dataset):
                  holdout_ranges: List[Tuple[int, int]] = (), holdout_gap: int = 0, avoid_only: bool = False,
                  blue_course_only: bool = False, keep_avoid_off_course: bool = False,
                  keep_only_ranges: List[Tuple[int, int]] = None, draw_pylon_boxes: bool = False,
-                 past_mask_distances: List[float] = None, past_mask_mode: str = 'obs'):
+                 past_mask_distances: List[float] = None, past_mask_mode: str = 'obs',
+                 extra_rgb_dirs: List[Path] = ()):
         # augment_config が None のときは拡張なし（検証用）
         self.augment_config = augment_config
         # 過去フレームを何 m 後ろから引くか。時間ではなく距離で引く:
@@ -126,6 +127,30 @@ class E2EDataset(Dataset):
             # 評価用の範囲だけを読む (Trainer が評価用の値を TensorBoard に出すため)
             and (keep_only_ranges is None or any(a <= int(mask_file.stem) <= b for a, b in keep_only_ranges))
         ]
+        # データ拡張で作った RGB (Cosmos で天候を変えたもの・コースの外に物を貼ったもの)。
+        # <dir>/<bag 名>/images/<番号>.png (か .jpg) があるフレームは、元の RGB とは別のサンプルとして足す。
+        # 経路・白線マスク・障害物マスクは元のフレームのものを使う (拡張しても正解は変わらない)。
+        # ただし <dir>/<bag 名>/pylon_masks/<番号>.png があれば、障害物マスクはそちらを使う
+        # (パイロンを人に置き換えたフレームでは、人の枠を描いたマスクにする)
+        self.rgb_files = [self.rgb_images_dir / f.name for f in self.mask_files]
+        self.pylon_mask_files = [self.pylon_masks_dir / f.name for f in self.mask_files]
+        # サンプルごとの拡張のディレクトリ (<dir>/<bag 名>)。元のサンプルは None。
+        # 過去フレームの RGB・障害物マスクも、同じ拡張にあればそちらを使う (天候を変えた今のフレームに、
+        # 元の晴れの過去フレームを重ねないように)。無いフレームは元のものを使う
+        self.extra_bag_dirs = [None] * len(self.mask_files)
+        for extra in extra_rgb_dirs:
+            extra_dir = Path(extra) / dataset_path.name / 'images'
+            if not extra_dir.is_dir():
+                continue
+            for f in list(self.mask_files):
+                for cand in (extra_dir / f.name, extra_dir / f'{f.stem}.jpg'):
+                    if cand.exists():
+                        self.mask_files.append(f)
+                        self.rgb_files.append(cand)
+                        override = Path(extra) / dataset_path.name / 'pylon_masks' / f.name
+                        self.pylon_mask_files.append(override if override.exists() else self.pylon_masks_dir / f.name)
+                        self.extra_bag_dirs.append(Path(extra) / dataset_path.name)
+                        break
 
         # 学習で多めに引くサンプル。use_pylon_scenes なら人が「避ける区間」と確認したフレーム
         # (未確認の印は数えない)、そうでなければコーンが近いフレーム
@@ -170,23 +195,38 @@ class E2EDataset(Dataset):
         use = j.get('use', [1] * len(j['stems']))
         return {s: (sc, rv, u) for s, sc, rv, u in zip(j['stems'], j['scene'], j['reviewed'], use)}
 
-    def _past_mask(self, stem: str) -> np.ndarray:
+    def _past_rgb_file(self, stem: str, extra: Optional[Path]) -> Path:
+        for cand in ([extra / 'images' / f'{stem}.jpg', extra / 'images' / f'{stem}.png'] if extra else []):
+            if cand.exists():
+                return cand
+        return self.rgb_images_dir / f'{stem}.png'
+
+    def _past_pylon_mask_file(self, stem: str, extra: Optional[Path]) -> Path:
+        if extra and (extra / 'pylon_masks' / f'{stem}.png').exists():
+            return extra / 'pylon_masks' / f'{stem}.png'
+        return self.pylon_masks_dir / f'{stem}.png'
+
+    def _past_mask(self, stem: str, extra: Optional[Path] = None) -> np.ndarray:
         """過去のフレームのマスク (float32, 0〜1)。白線と障害物を past_mask_mode の値で 1 枚に描く"""
         lane_value, obs_value = PAST_MASK_VALUES[self.past_mask_mode]
         out = np.zeros((360, 640), np.float32)
         if lane_value:
             lane = extract_red_mask(cv2.imread(str(self.mask_images_dir / f'{stem}.png'), cv2.IMREAD_COLOR))
             out[lane > 0] = lane_value
-        obs = self._read_pylon_mask(f'{stem}.png') > 127
+        obs = self._read_pylon_mask_file(self._past_pylon_mask_file(stem, extra)) > 127
         if obs.shape != out.shape:
             out = cv2.resize(out, (obs.shape[1], obs.shape[0]), interpolation=cv2.INTER_NEAREST)
         out[obs] = obs_value  # 重なる所は障害物を優先
         return out
 
     def _read_pylon_mask(self, name: str) -> np.ndarray:
-        mask = cv2.imread(str(self.pylon_masks_dir / name), cv2.IMREAD_GRAYSCALE)
+        return self._read_pylon_mask_file(self.pylon_masks_dir / name)
+
+    @staticmethod
+    def _read_pylon_mask_file(path: Path) -> np.ndarray:
+        mask = cv2.imread(str(path), cv2.IMREAD_GRAYSCALE)
         if mask is None:
-            raise RuntimeError(f'Failed to load pylon mask: {name}')
+            raise RuntimeError(f'Failed to load pylon mask: {path.name}')
         return mask
 
     @staticmethod
@@ -247,7 +287,7 @@ class E2EDataset(Dataset):
 
     def __getitem__(self, idx: int) -> Tuple[torch.Tensor, ...]:
         mask_file = self.mask_files[idx]
-        rgb_file = self.rgb_images_dir / mask_file.name
+        rgb_file = self.rgb_files[idx]
         csv_file = self.path_dir / f'{mask_file.stem}.csv'
 
         mask_bgr = cv2.imread(str(mask_file), cv2.IMREAD_COLOR)
@@ -258,7 +298,7 @@ class E2EDataset(Dataset):
         # 新しい順に [現在, -d1 m, -d2 m, ...]
         rgb_frames = [rgb_bgr]
         for past_stem in self._past_stems(idx):
-            past_file = self.rgb_images_dir / f'{past_stem}.png'
+            past_file = self._past_rgb_file(past_stem, self.extra_bag_dirs[idx])
             past_bgr = cv2.imread(str(past_file), cv2.IMREAD_COLOR)
             if past_bgr is None:
                 raise RuntimeError(f'Failed to load past frame: {past_file.name}')
@@ -267,10 +307,11 @@ class E2EDataset(Dataset):
         waypoints = self._read_waypoints(csv_file)
 
         mask_binary = extract_red_mask(mask_bgr)
-        pylon_binary = ((self._read_pylon_mask(mask_file.name) > 127).astype(np.uint8)
+        pylon_binary = ((self._read_pylon_mask_file(self.pylon_mask_files[idx]) > 127).astype(np.uint8)
                         if self.use_pylon_mask or self.draw_pylon_boxes else None)
         # 過去フレームにも、そのフレームの障害物の枠を描く
-        box_masks = ([pylon_binary] + [(self._read_pylon_mask(f'{st}.png') > 127).astype(np.uint8)
+        box_masks = ([pylon_binary] + [(self._read_pylon_mask_file(
+            self._past_pylon_mask_file(st, self.extra_bag_dirs[idx])) > 127).astype(np.uint8)
                                        for st in self._past_stems(idx)]
                      if self.draw_pylon_boxes else [])
         waypoints_m = np.array(waypoints, dtype=np.float32)
@@ -320,7 +361,7 @@ class E2EDataset(Dataset):
             mask_channels.append(preprocess_mask(pylon_binary))
         # 過去のマスク。左右反転したときは過去のマスクも反転する
         for past_stem in self._past_stems(idx, self.past_mask_distances):
-            past = self._past_mask(past_stem)
+            past = self._past_mask(past_stem, self.extra_bag_dirs[idx])
             if flipped:
                 past = np.ascontiguousarray(past[:, ::-1])
             mask_channels.append(preprocess_mask(past))
@@ -452,6 +493,8 @@ class Config:
         # 過去のフレームのマスクを何 m 前から ch として足すか (過去の RGB は frame_stack_distances)
         self.past_mask_distances = list(config_dict.get('past_mask_distances', []) or [])
         self.past_mask_mode = str(config_dict.get('past_mask_mode', 'obs'))
+        # データ拡張の RGB を置いたディレクトリ (<dir>/<bag 名>/images/)。train の bag にだけ足す
+        self.extra_rgb_dirs = [Path(p).expanduser() for p in (config_dict.get('extra_rgb_dirs', []) or [])]
         if self.past_mask_distances and self.fusion != 'early':
             raise ValueError('past_mask_distances は fusion: early のときだけ使える')
 
@@ -694,8 +737,13 @@ class Trainer:
                         holdout_ranges=config.holdout.get(d.name, []), holdout_gap=config.holdout_gap,
                         avoid_only=d.name in config.avoid_only_datasets,
                         blue_course_only=config.blue_course_only,
-                        keep_avoid_off_course=config.keep_avoid_off_course)
+                        keep_avoid_off_course=config.keep_avoid_off_course,
+                        extra_rgb_dirs=config.extra_rgb_dirs)
              for d in train_dirs])
+        if config.extra_rgb_dirs:
+            n_extra = sum(len(d.rgb_files) - sum(f.parent == d.rgb_images_dir for f in d.rgb_files)
+                          for d in train_dataset.datasets)
+            print(f'データ拡張の RGB: {n_extra} 件 (train {len(train_dataset)} 件のうち)')
         val_dataset = ConcatDataset(
             [E2EDataset(d, augment_config=None, frame_stack_distances=stack,
                         use_pylon_mask=config.pylon_mask, draw_pylon_boxes=config.pylon_bbox_on_rgb,

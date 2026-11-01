@@ -40,6 +40,8 @@ avoid_only_datasets:
   - rosbag2_2026_09_22-16_51_22
   - rosbag2_2026_09_22-16_54_13
   - rosbag2_2026_09_22-16_57_35
+  # 避けてもいないし青コースでもない (本人)。避ける区間 (確認済み 32 枚) だけ使う (本人, 2026-11-01)
+  - 630_ramdam_pylon_acitive_robot
 
 # Transformer 融合モデルのハイパーパラメータ
 embed_dim: 128
