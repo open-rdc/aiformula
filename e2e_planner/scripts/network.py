@@ -363,18 +363,80 @@ class NetworkCrossFusion(nn.Module):
         return self.head(self.norm(current)[:, 0])
 
 
+class GatedQueryCrossAttention(nn.Module):
+    """答えを集める係 (クエリトークン 1 個) だけが過去フレームのトークンを cross-attention で見る。
+    ゲートを 0 で始める (tanh(0) = 0) ので、学習の始めは過去を見ない単フレームのモデルと同じに振る舞い、
+    役に立つ分だけ学習で開いていく"""
+
+    def __init__(self, embed_dim: int, num_heads: int, dropout: float = 0.1):
+        super(GatedQueryCrossAttention, self).__init__()
+        self.norm_q = nn.LayerNorm(embed_dim)
+        self.norm_mem = nn.LayerNorm(embed_dim)
+        self.attn = nn.MultiheadAttention(embed_dim, num_heads, dropout=dropout, batch_first=True)
+        self.gate = nn.Parameter(torch.zeros(1))
+
+    def forward(self, x: torch.Tensor, memory: torch.Tensor) -> torch.Tensor:
+        m = self.norm_mem(memory)
+        out, _ = self.attn(self.norm_q(x[:, :1]), m, m, need_weights=False)
+        return torch.cat([x[:, :1] + torch.tanh(self.gate) * out, x[:, 1:]], dim=1)
+
+
+class NetworkCrossLite(nn.Module):
+    """cross の軽量版 (調査のまとめ docs/research/temporal_fusion_survey_20261101.md の推奨)。
+    今のフレームは単フレームのモデルと同じく ConvStem + Transformer 4 段を通す。過去フレームは同じ ConvStem と
+    同じ前半 num_layers // 2 段を別々に通し、何フレーム目かの印を足して記憶にする。
+    前半の後と最後に、答えを集める係だけが記憶を cross-attention で見る (ゲートは 0 から)"""
+
+    def __init__(self, num_waypoints: int = 10, image_height: int = 48, image_width: int = 64,
+                 embed_dim: int = 128, num_heads: int = 4, num_layers: int = 4, dropout: float = 0.1,
+                 num_frames: int = 3):
+        super(NetworkCrossLite, self).__init__()
+        self.frames = _FrameWise(image_height, image_width, embed_dim, num_frames)
+        self.n_enc = num_layers // 2
+        self.query_token = nn.Parameter(torch.zeros(1, 1, embed_dim))
+        self.pos_embed = nn.Parameter(torch.zeros(1, self.frames.num_patches + 1, embed_dim))
+        self.frame_embed = nn.Parameter(torch.zeros(1, num_frames - 1, 1, embed_dim))
+        self.pos_drop = nn.Dropout(dropout)
+        self.blocks = nn.ModuleList([TransformerBlock(embed_dim, num_heads, 4, dropout) for _ in range(num_layers)])
+        self.cross_mid = GatedQueryCrossAttention(embed_dim, num_heads, dropout)
+        self.cross_end = GatedQueryCrossAttention(embed_dim, num_heads, dropout)
+        self.norm = nn.LayerNorm(embed_dim)
+        self.head = _head(embed_dim, num_waypoints)
+        for p in (self.query_token, self.pos_embed, self.frame_embed):
+            nn.init.trunc_normal_(p, std=0.02)
+
+    def forward(self, mask: torch.Tensor, rgb: torch.Tensor) -> torch.Tensor:
+        t = self.frames.frame_tokens(mask, rgb)  # (B, F, P, D)
+        b, f, p, d = t.shape
+        x = torch.cat([self.query_token.expand(b, -1, -1), t[:, 0]], dim=1)
+        x = self.pos_drop(x + self.pos_embed)
+        # 過去フレーム: 同じ前半の段を、フレームごとに別々に通す
+        past = self.pos_drop(t[:, 1:] + self.pos_embed[:, 1:].unsqueeze(1)).reshape(b * (f - 1), p, d)
+        memory = past.reshape(b, (f - 1) * p, d)  # 前半を通した後に作り直す (TorchScript は変数の事前定義が要る)
+        for i, block in enumerate(self.blocks):
+            if i < self.n_enc:
+                past = block(past)
+            x = block(x)
+            if i == self.n_enc - 1:
+                memory = (past.reshape(b, f - 1, p, d) + self.frame_embed).reshape(b, (f - 1) * p, d)
+                x = self.cross_mid(x, memory)
+        x = self.cross_end(x, memory)
+        return self.head(self.norm(x)[:, 0])
+
+
 def build_network(fusion: str, **kwargs) -> nn.Module:
     """fusion: 'late' = Network (モダリティ別 stem + Transformer 融合)
                 'early' = NetworkEarlyFusion (4ch にして 1 本の stem)
-                'mid' / 'token' / 'cross' = 過去フレームを 1 フレームずつ同じ stem に通してから合わせる
-                (NetworkMidFusion / NetworkTokenFusion / NetworkCrossFusion)"""
+                'mid' / 'token' / 'cross' / 'cross_lite' = 過去フレームを 1 フレームずつ同じ stem に通してから合わせる
+                (NetworkMidFusion / NetworkTokenFusion / NetworkCrossFusion / NetworkCrossLite)"""
     if fusion == 'late':
         return Network(**kwargs)
     if fusion == 'early':
         return NetworkEarlyFusion(**kwargs)
     if fusion in FRAMEWISE_FUSIONS:
         return FRAMEWISE_FUSIONS[fusion](**kwargs)
-    raise ValueError(f"fusion は 'late' / 'early' / 'mid' / 'token' / 'cross': {fusion}")
+    raise ValueError(f"fusion は 'late' / 'early' / 'mid' / 'token' / 'cross' / 'cross_lite': {fusion}")
 
 
-FRAMEWISE_FUSIONS = {'mid': NetworkMidFusion, 'token': NetworkTokenFusion, 'cross': NetworkCrossFusion}
+FRAMEWISE_FUSIONS = {'mid': NetworkMidFusion, 'token': NetworkTokenFusion, 'cross': NetworkCrossFusion,
+                     'cross_lite': NetworkCrossLite}

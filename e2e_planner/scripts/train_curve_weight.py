@@ -68,9 +68,14 @@ class E2EDataset(Dataset):
                  blue_course_only: bool = False, keep_avoid_off_course: bool = False,
                  keep_only_ranges: List[Tuple[int, int]] = None, draw_pylon_boxes: bool = False,
                  past_mask_distances: List[float] = None, past_mask_mode: str = 'obs',
-                 extra_rgb_dirs: List[Path] = ()):
+                 extra_rgb_dirs: List[Path] = (), history_dropout: float = 0.0):
         # augment_config が None のときは拡張なし（検証用）
         self.augment_config = augment_config
+        # 学習のとき、この確率で過去フレーム (過去 RGB・過去マスク) をまとめて消す (RGB = 0 = 灰、マスク = 0)。
+        # 過去の画像の差から「自分がどう動いていたか」を読んで延ばすだけの近道 (コピー猫問題) を防ぐ
+        # (ChauffeurNet の past motion dropout と同じ考え方, docs/research/temporal_fusion_survey_20261101.md)
+        self.history_dropout = history_dropout
+        self.num_current_mask_channels = 2 if use_pylon_mask else 1
         # 過去フレームを何 m 後ろから引くか。時間ではなく距離で引く:
         # 同じ「1秒前」でも 2 m/s なら 2 m 後ろ、4 m/s なら 4 m 後ろになり、
         # 速度によって入力の意味が変わってしまう（waypoint を距離パラメータに
@@ -380,6 +385,10 @@ class E2EDataset(Dataset):
         # (3*(1+past), H, W) にチャネル方向で連結
         rgb_tensor = torch.from_numpy(
             np.concatenate([preprocess_rgb(frame) for frame in rgb_frames], axis=0))
+        if (self.augment_config is not None and self.history_dropout > 0
+                and torch.rand(1).item() < self.history_dropout):
+            rgb_tensor[3:] = 0.0
+            mask_tensor[self.num_current_mask_channels:] = 0.0
         waypoints_tensor = torch.from_numpy(normalize_waypoints(waypoints_m))
 
         # 曲がり量は拡張の後で測る。左右反転をかけたら曲がる向きも入れ替わるため
@@ -506,6 +515,8 @@ class Config:
         self.past_mask_mode = str(config_dict.get('past_mask_mode', 'obs'))
         # データ拡張の RGB を置いたディレクトリ (<dir>/<bag 名>/images/)。train の bag にだけ足す
         self.extra_rgb_dirs = [Path(p).expanduser() for p in (config_dict.get('extra_rgb_dirs', []) or [])]
+        # 学習のとき過去フレームをまとめて消す確率 (0 なら消さない)。train にだけ効く
+        self.history_dropout = float(config_dict.get('history_dropout', 0.0))
         if self.past_mask_distances and self.fusion not in ('early',) + tuple(FRAMEWISE_FUSIONS):
             raise ValueError('past_mask_distances は fusion: early / mid / token / cross のときだけ使える')
         # mid / token / cross はフレームごとに [白線, 障害物, RGB] の 5 ch を同じ stem に通すので、
@@ -759,7 +770,7 @@ class Trainer:
                         avoid_only=d.name in config.avoid_only_datasets,
                         blue_course_only=config.blue_course_only,
                         keep_avoid_off_course=config.keep_avoid_off_course,
-                        extra_rgb_dirs=config.extra_rgb_dirs)
+                        extra_rgb_dirs=config.extra_rgb_dirs, history_dropout=config.history_dropout)
              for d in train_dirs])
         if config.extra_rgb_dirs:
             n_extra = sum(len(d.rgb_files) - sum(f.parent == d.rgb_images_dir for f in d.rgb_files)
