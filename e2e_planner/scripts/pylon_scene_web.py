@@ -113,7 +113,7 @@ def bag_detail(name: str) -> dict:
     t0 = float(meta[ss[0]]['timestamp']) if ss and ss[0] in meta else None
     paths = [read_path(d, s) for s in ss]
     return {'name': name, 'n': len(ss), 'stems': ss, 'state': state, 'scene': scene, 'reviewed': reviewed, 'use': use,
-            'paths': paths, 'backward': [int(path_goes_backward(np.array(p))) for p in paths],
+            'paths': paths, 'backward': [int(name not in ARGS.keep_backward and path_goes_backward(np.array(p))) for p in paths],
             't': [round(float(meta[s]['timestamp']) - t0, 2) if t0 is not None and s in meta else None for s in ss],
             'speed': [round(float(meta[s]['speed_mps']), 2) if s in meta else None for s in ss]}
 
@@ -373,6 +373,8 @@ def main() -> None:
     ap.add_argument('root', type=Path, help='bag のディレクトリ (images/ path/ pylon_masks/) が並ぶ所。シンボリックリンク可')
     ap.add_argument('--port', type=int, default=8020)
     ap.add_argument('--host', default='127.0.0.1')
+    # 学習設定の keep_backward_datasets と同じ bag を渡す (後退の印を出さない)
+    ap.add_argument('--keep-backward', nargs='*', default=[], help='後退の判定をしない bag')
     ARGS = ap.parse_args()
     print(f'http://localhost:{ARGS.port}  ({len(bag_dirs())} bag)', flush=True)
     ThreadingHTTPServer((ARGS.host, ARGS.port), Handler).serve_forever()

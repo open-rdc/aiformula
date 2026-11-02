@@ -513,6 +513,8 @@ class Config:
         self.pylon_scenes = bool(config_dict.get('pylon_scenes', False))
         # true なら正解の経路が後ろへ戻るサンプル (バックしている場面) を外す
         self.drop_backward_paths = bool(config_dict.get('drop_backward_paths', False))
+        # 後退の判定をしない bag。急な曲がりや位置の飛びで「戻る」と出るが、実際はバックしていないもの (本人, 2026-11-02)
+        self.keep_backward_datasets = list(config_dict.get('keep_backward_datasets', []) or [])
         # 評価用に抜く範囲 {bag 名: [(始め, 終わり), ...]} (images/ の番号)。ファイルは設定ファイルからの相対パス
         self.holdout = {}
         if config_dict.get('holdout_file'):
@@ -757,7 +759,7 @@ class Trainer:
                 ds = E2EDataset(d, augment_config=None, frame_stack_distances=config.frame_stack_distances,
                                 use_pylon_mask=config.pylon_mask, draw_pylon_boxes=config.pylon_bbox_on_rgb,
                         past_mask_distances=config.past_mask_distances, past_mask_mode=config.past_mask_mode, use_pylon_scenes=True, avoid_only=True,
-                                drop_backward_paths=config.drop_backward_paths, keep_only_ranges=ranges)
+                                drop_backward_paths=config.drop_backward_paths and d.name not in config.keep_backward_datasets, keep_only_ranges=ranges)
                 if len(ds):
                     parts.append(ds)
             return ConcatDataset(parts) if parts else None
@@ -812,7 +814,7 @@ class Trainer:
             [E2EDataset(d, augment_config=aug_cfg, frame_stack_distances=stack,
                         use_pylon_mask=config.pylon_mask, draw_pylon_boxes=config.pylon_bbox_on_rgb,
                         past_mask_distances=config.past_mask_distances, past_mask_mode=config.past_mask_mode, use_pylon_scenes=config.pylon_scenes,
-                        drop_backward_paths=config.drop_backward_paths,
+                        drop_backward_paths=config.drop_backward_paths and d.name not in config.keep_backward_datasets,
                         holdout_ranges=config.holdout.get(d.name, []), holdout_gap=config.holdout_gap,
                         avoid_only=d.name in config.avoid_only_datasets,
                         usable_stems=config.usable_frames.get(d.name),
@@ -828,7 +830,7 @@ class Trainer:
             [E2EDataset(d, augment_config=None, frame_stack_distances=stack,
                         use_pylon_mask=config.pylon_mask, draw_pylon_boxes=config.pylon_bbox_on_rgb,
                         past_mask_distances=config.past_mask_distances, past_mask_mode=config.past_mask_mode, use_pylon_scenes=config.pylon_scenes,
-                        drop_backward_paths=config.drop_backward_paths,
+                        drop_backward_paths=config.drop_backward_paths and d.name not in config.keep_backward_datasets,
                         holdout_ranges=config.holdout.get(d.name, []), holdout_gap=config.holdout_gap,
                         avoid_only=d.name in config.avoid_only_datasets,
                         usable_stems=config.usable_frames.get(d.name),
@@ -843,7 +845,7 @@ class Trainer:
         train_source = E2EDataset(dataset_path, augment_config=aug_cfg, frame_stack_distances=stack,
                                   use_pylon_mask=config.pylon_mask, draw_pylon_boxes=config.pylon_bbox_on_rgb,
                         past_mask_distances=config.past_mask_distances, past_mask_mode=config.past_mask_mode, use_pylon_scenes=config.pylon_scenes,
-                        drop_backward_paths=config.drop_backward_paths,
+                        drop_backward_paths=config.drop_backward_paths and dataset_path.name not in config.keep_backward_datasets,
                                   holdout_ranges=config.holdout.get(dataset_path.name, []),
                                   holdout_gap=config.holdout_gap,
                                   avoid_only=dataset_path.name in config.avoid_only_datasets,
@@ -852,7 +854,7 @@ class Trainer:
         val_source = E2EDataset(dataset_path, augment_config=None, frame_stack_distances=stack,
                                 use_pylon_mask=config.pylon_mask, draw_pylon_boxes=config.pylon_bbox_on_rgb,
                         past_mask_distances=config.past_mask_distances, past_mask_mode=config.past_mask_mode, use_pylon_scenes=config.pylon_scenes,
-                        drop_backward_paths=config.drop_backward_paths,
+                        drop_backward_paths=config.drop_backward_paths and dataset_path.name not in config.keep_backward_datasets,
                                   holdout_ranges=config.holdout.get(dataset_path.name, []),
                                   holdout_gap=config.holdout_gap,
                                   avoid_only=dataset_path.name in config.avoid_only_datasets,
