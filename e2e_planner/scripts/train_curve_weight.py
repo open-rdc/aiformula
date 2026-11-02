@@ -469,6 +469,9 @@ class Config:
         # EMA は更新の回数で平均するので、バッチが大きいと平均に入るデータの枚数が増えすぎる。
         # これでどのバッチでも、だいたい同じ枚数のデータで平均を取る (本人, 2026-11-01)
         self.ema_ref_batch = int(config_dict.get('ema_ref_batch', 0))
+        # 乱数の種。init_seed = モデルの初期値、data_seed = サンプルを引く順番・データの拡張・dropout。書かなければ毎回ばらばら
+        self.init_seed = config_dict.get('init_seed')
+        self.data_seed = config_dict.get('data_seed')
         if self.ema_decay > 0 and self.ema_ref_batch > 0:
             self.ema_decay = self.ema_decay ** (int(config_dict.get('batch_size', 8)) / self.ema_ref_batch)
         # 学習済みの重み (TorchScript の .pt) から ConvStem を初期化する。形が合う重みだけ写す
@@ -582,6 +585,9 @@ class Trainer:
     def __init__(self, dataset_path: Path, config: Config):
         self.config = config
         self.device = config.device
+        # サンプルを引く順番と、DataLoader の worker ごとの乱数 (データの拡張・履歴のドロップアウト) の種
+        self.data_generator = (torch.Generator().manual_seed(int(config.data_seed))
+                               if config.data_seed is not None else None)
 
         # 拡張ありの Subset は元の Dataset を共有するので、そのままだと
         # 検証にも拡張がかかる。拡張あり/なしの 2 インスタンスを作り、
@@ -616,7 +622,7 @@ class Trainer:
             train_near = self._train_pylon_near(train_dataset)
             sampler = WeightedRandomSampler(
                 oversample_weights(train_near, config.pylon_oversample).tolist(),
-                num_samples=len(train_dataset), replacement=True)
+                num_samples=len(train_dataset), replacement=True, generator=self.data_generator)
             print(f'Pylon {"scenes" if config.pylon_scenes else "near"}: {int(train_near.sum())} / {len(train_near)} 件を {config.pylon_oversample} 倍引く')
 
         self.train_loader = DataLoader(
@@ -624,7 +630,8 @@ class Trainer:
             batch_size=config.batch_size,
             shuffle=sampler is None,
             sampler=sampler,
-            num_workers=config.num_workers
+            num_workers=config.num_workers,
+            generator=self.data_generator,
         )
         self.val_loader = DataLoader(
             val_dataset,
@@ -635,6 +642,10 @@ class Trainer:
         # 避ける区間だけで測る組 (TensorBoard に出すだけで、best epoch の選択には使わない)
         self.avoid_loaders = self._avoid_loaders(subsets, config) if config.pylon_scenes else {}
 
+        # 初期値の乱数の種 (init_seed)。学習ごとの揺れが、初期値・データの順番と拡張・GPU の計算の
+        # どれから来ているかを分けて調べるため、データ用 (data_seed) と分けて決められるようにする (2026-11-02)
+        if config.init_seed is not None:
+            torch.manual_seed(config.init_seed)
         self.model = build_network(
             config.fusion,
             num_waypoints=NUM_WAYPOINTS,
@@ -649,6 +660,10 @@ class Trainer:
                if config.fusion == 'early' else
                {'num_frames': 1 + len(config.frame_stack_distances)} if config.fusion in FRAMEWISE_FUSIONS else {}),
         ).to(self.device)
+        # ここから先 (dropout・データの拡張・履歴のドロップアウト) の乱数はデータ用の種で決める
+        if config.data_seed is not None:
+            torch.manual_seed(config.data_seed)
+            np.random.seed(config.data_seed)
         if config.init_stem_from:
             self._init_stem(Path(config.init_stem_from).expanduser(), config.init_stem_conv1_channels)
         self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=config.learning_rate)
