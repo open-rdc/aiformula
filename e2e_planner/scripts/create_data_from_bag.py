@@ -78,8 +78,33 @@ def read_bag(bag: Path):
     return poses, samples
 
 
-def convert(bag: Path, out_dir: Path) -> dict:
+def motion_yaw(poses: list) -> list:
+    """各 pose のヨーを、前後 SPEED_WINDOW 秒の移動の向きから求めて置き換える。
+    10/27 の bag は VectorNav のヨーが進行方向から 15〜165 度ずれていた (接触不良のあと地磁気の補正で狂う、
+    議事録 2026-11-02)。位置は正しいので、向きを走った軌跡から取る。止まっている間 (MIN_SPEED 未満) は直前の向き"""
+    pt = np.array([p.timestamp for p in poses])
+    pos = np.array([p.position for p in poses])
+    out, last = [], None
+    for k, p in enumerate(poses):
+        a, b = np.interp(p.timestamp - SPEED_WINDOW, pt, np.arange(len(pt))), np.interp(p.timestamp + SPEED_WINDOW, pt, np.arange(len(pt)))
+        pa = [np.interp(a, np.arange(len(pt)), pos[:, i]) for i in range(3)]
+        pb = [np.interp(b, np.arange(len(pt)), pos[:, i]) for i in range(3)]
+        lat, lon, h = pm.ecef2geodetic(*p.position)
+        ea, na, _ = pm.ecef2enu(*pa, lat, lon, h)
+        eb, nb, _ = pm.ecef2enu(*pb, lat, lon, h)
+        dt = max(np.interp(b, np.arange(len(pt)), pt) - np.interp(a, np.arange(len(pt)), pt), 1e-6)
+        if np.hypot(eb - ea, nb - na) / dt >= MIN_SPEED:
+            last = float(np.arctan2(nb - na, eb - ea)) - np.pi / 2  # 前方 = ヨー + 90 度 (transform_to_robot_frame)
+        out.append(PoseSample(p.timestamp, p.position, last if last is not None else p.yaw))
+    return out
+
+
+def convert(bag: Path, out_dir: Path, heading_from_motion: bool = False) -> dict:
     poses, samples = read_bag(bag)
+    # 位置が 0 (地球の中心) の壊れた pose を捨てる (VectorNav が位置を取れなかった瞬間。10/27 の bag で見つかった)
+    poses = [p for p in poses if np.linalg.norm(p.position) > 6.0e6]
+    if heading_from_motion:
+        poses = motion_yaw(poses)
     pt = np.array([p.timestamp for p in poses])
     pos = np.array([p.position for p in poses])
     step = np.linalg.norm(np.diff(pos, axis=0), axis=1)
@@ -177,6 +202,7 @@ def convert(bag: Path, out_dir: Path) -> dict:
         'rejected_by': {k: sum(k in r[4].split('+') for r in reasons)
                         for k in ('slow', 'no_horizon', 'yaw_offset', 'stops_in_horizon', 'pose_gap', 'pose_jump')},
         'converter': 'create_data_from_bag.py',
+        'heading_from_motion': heading_from_motion,
     }
     with open(out_dir / 'info.yaml', 'w') as f:
         yaml.safe_dump(info, f, allow_unicode=True, sort_keys=False)
@@ -188,8 +214,10 @@ def main() -> None:
     ap.add_argument('bag', type=Path)
     ap.add_argument('out_root', type=Path)
     ap.add_argument('--name', default=None, help='出力ディレクトリ名 (既定は bag のディレクトリ名)')
+    ap.add_argument('--heading-from-motion', action='store_true',
+                    help='ヨーを VectorNav ではなく走った軌跡の向きから取る (VectorNav のヨーが狂っている bag 用)')
     args = ap.parse_args()
-    info = convert(args.bag, args.out_root / (args.name or args.bag.name))
+    info = convert(args.bag, args.out_root / (args.name or args.bag.name), args.heading_from_motion)
     print({k: info[k] for k in ('samples', 'candidates', 'dropped_no_pose', 'dropped_rejected', 'yaw_bias_deg', 'yaw_suspect')})
 
 
