@@ -51,6 +51,8 @@ def read_track(bag: Path) -> np.ndarray:
             rows.append([msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9, p.x, p.y, p.z])
     a = np.array(rows)
     a = a[np.argsort(a[:, 0])]
+    # 10/27 の bag は VectorNav が位置 0 (ECEF の原点) を出す時がある。create_data_from_bag.py と同じく外す
+    a = a[np.linalg.norm(a[:, 1:4], axis=1) > 6e6]
     e, n, _ = pm.ecef2enu(a[:, 1], a[:, 2], a[:, 3], LAT0, LON0, H0)
     return np.c_[a[:, 0], e, n]
 
