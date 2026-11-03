@@ -555,8 +555,9 @@ class Config:
                 and self.frame_stack_distances == self.past_mask_distances):
             raise ValueError(f'fusion: {self.fusion} は pylon_mask: true, past_mask_mode: separate, '
                              'frame_stack_distances == past_mask_distances が必要')
-        if self.past_mask_mode == 'separate' and self.fusion not in FRAMEWISE_FUSIONS:
-            raise ValueError('past_mask_mode: separate は fusion: mid / token / cross 用')
+        # early でも使える (mid と early の差を、作りと過去マスクの形に切り分けるため, 2026-11-03)
+        if self.past_mask_mode == 'separate' and self.fusion not in ('early',) + tuple(FRAMEWISE_FUSIONS):
+            raise ValueError('past_mask_mode: separate は fusion: early / mid / token / cross 用')
 
         # カーブのきつさによる損失の重み付け (util/curve_weight.py)
         self.curve_weighting = config_dict.get('curve_weighting', {}) or {'mode': 'none'}
@@ -658,7 +659,9 @@ class Trainer:
             num_layers=config.num_layers,
             dropout=config.dropout,
             **({'num_past_frames': len(config.frame_stack_distances),
-                'num_mask_channels': (2 if config.pylon_mask else 1) + len(config.past_mask_distances)}
+                # separate は過去 1 フレームにつき白線・障害物の 2 ch
+                'num_mask_channels': (2 if config.pylon_mask else 1)
+                + len(config.past_mask_distances) * (2 if config.past_mask_mode == 'separate' else 1)}
                if config.fusion == 'early' else
                {'num_frames': 1 + len(config.frame_stack_distances)} if config.fusion in FRAMEWISE_FUSIONS else {}),
         ).to(self.device)

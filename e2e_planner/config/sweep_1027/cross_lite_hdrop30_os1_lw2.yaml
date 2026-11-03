@@ -1,0 +1,196 @@
+# 10/27 の bag を足した学習 (本人, 2026-11-03)。作りを cross_lite にする (今のフレームは Transformer 4 段、過去は前半 2 段を別々に通し、
+# クエリトークンだけが過去を cross-attention で見る。ゲートは 0 から)。過去マスクは separate。それ以外は 1027 の mid と同じ
+# 10/27 の分は データ拡張なし (色変え・人は後で足す)。学習ごとのぶれ (まとめで 1.6%) を 3 回の平均で抑える
+# A4500 (CPU 8) 用に num_workers 7
+# 新しい基準の設定での比較 (本人と決めた, 2026-11-01): early + 履歴のドロップアウト 30% + 倍率 1 倍 + 避ける区間の損失を 2 倍に重み付け (本人「1 倍にして損失に重み付けは意味があるか」)
+# 共通: 全部入りのデータ、避ける区間の倍率 2 倍、EMA 0.999、赤コースの分岐路の前後を除いたフレームも使う。1 つにつき 2 回学習
+# 枠線 + 過去 RGB (rgb_bbox_stack) に、障害物マスクの ch と過去マスク merged を足した組み合わせ (本人, 2026-11-01)
+# データ拡張を全部入れたデータで、入力の違いを比べる (2026-11-01)。sweep_stack/rgb_bbox_stack.yaml に extra_rgb_dirs を足したもの。
+# 本人「データを増やした上で、過去 RGB・マスク・枠線を与えたときに過学習せず基準より良くなるかを見る」
+# 過去フレームの距離・枚数の比較 (2026-10-31)。RGB に枠線、マスクの ch なし、過去フレーム 1.5・3 m 前
+# 元は train_pylon_scenes_stack.yaml。frame_stack_distances などはこのファイルの値が効く
+# train_pylon.yaml の写しで、多めに引く場面を確認ツール (scripts/pylon_scene_web.py) で人が引いた
+# 「避ける区間」にしたもの。「学習に使わない」範囲も外す。
+# train_pylon.yaml の 1 回目 (2026-10-30) は is_pylon_near (コーンが数 m 手前) で引いたため、
+# 避け始め (15〜20 m 先) と戻りが増えず、コーン区間の誤差がほぼ変わらなかった。
+# python3 scripts/train_curve_weight.py <dataset> <run_name> config/train_pylon_scenes.yaml で使う
+# 60 で回したら最良 val が epoch 20 で出て、後半は train が 0.00025 まで下がる
+# だけだった (train/val 比 8.4 倍)。40 なら epoch 20 で学習率が半分まで落ちるので、
+# 絞る効果はそこで効く。T_max = epochs なので途中で止めないこと (2026-09-27)
+epochs: 40
+batch_size: 8
+learning_rate: 0.0002
+num_workers: 7
+weight_file: "e2e_model_1027_cross_lite.pt"
+
+# パイロンの枠を塗ったマスク (scripts/create_pylon_masks.py) を白線マスクの 2 ch 目として入れる。
+# 実機では deploy の pylon_detector が同じマスクを /perception/pylon_mask に出す
+# 障害物はマスクの ch ではなく、RGB 画像に枠線 (マゼンタ 3 px) で描き込む。マスクは白線の 1 ch だけ
+pylon_mask: true
+pylon_bbox_on_rgb: true
+# コーンが近いサンプル (util/pylon_mask.py の is_pylon_near) を何倍引くか。
+# 障害物 bag でコーンの横を通る場面は train 全体の 1% 未満しかない (2026-10-30)
+pylon_oversample: 1.0  # 多めに引かず、代わりに損失で重み付け
+# 多めに引く場面を pylon_scenes.json の「避ける区間 (確認済み)」にする
+pylon_scenes: true
+# 正解の経路が後ろへ戻るサンプル (630_cone などでバックしている場面) を外す
+drop_backward_paths: true
+# 評価用に抜く避ける場面 (学習にも best epoch の選択にも使わない) と、その前後に空けるフレーム数 (10 = 約 2 s)
+holdout_file: ../holdout_pylon.yaml
+# 過去フレームを最大 10 m 前まで重ねるので、評価用の範囲の画像が学習の入力に入らないよう隙間を広げる
+# (20 フレーム = 2 m/s で約 10 m、3 m/s で約 14 m)
+holdout_gap: 20
+# 評価用の bag (exclude_datasets にも入れて学習から外しておくこと)。
+# この bag と holdout_file の範囲の「避ける区間」を、val とは別に毎 epoch TensorBoard に出す (best epoch の選択には使わない)
+test_datasets:
+  - rosbag2_2026_09_22-16_46_47
+# 青コースの上を青コースの向きに走っていて、10 m 先までの経路も青コースから外れないフレームだけ使う。
+# 判定は scripts/label_blue_course.py (各 bag の course.json)。赤コースだけの部分・場内を横切る道・逆走を外す
+blue_course_only: true
+# ただし避ける区間 (確認済み) は青コースの外 (場内の道・赤コース) でも使う。後退する経路は外す (本人, 2026-10-31)
+keep_avoid_off_course: true
+# 避ける区間 (確認済み) のフレームだけを使う bag。red はコースが違うので、普通に走る所は入れない (本人, 2026-10-31)
+avoid_only_datasets:
+  - rosbag2_2026_08_24-13_21_39
+  - rosbag2_2026_09_22-16_51_22
+  - rosbag2_2026_09_22-16_54_13
+  - rosbag2_2026_09_22-16_57_35
+  # 避けてもいないし青コースでもない (本人)。避ける区間 (確認済み 32 枚) だけ使う (本人, 2026-11-01)
+  - 630_ramdam_pylon_acitive_robot
+
+# Transformer 融合モデルのハイパーパラメータ
+embed_dim: 128
+num_heads: 4
+num_layers: 4
+dropout: 0.1
+
+# マスクとRGBの融合方法
+# late  : モダリティ別の ConvStem -> Transformer で融合（従来）
+# early : 画素のまま 4ch に重ねて ConvStem 1 本。トークン 1153 -> 577、推論 2.4 倍速
+fusion: cross_lite
+
+# 過去フレームを何 m 後ろから重ねるか（fusion: early のときだけ有効）。
+# 空にすれば現在フレームのみ = 従来どおりに戻る。
+# 「何秒前」ではなく距離で引く: 同じ 1 秒前でも 2 m/s なら 2 m 後ろ、4 m/s なら
+# 4 m 後ろになり、速度によって入力の意味が変わってしまう
+# (waypoint を距離パラメータに変えたのと同じ理由)。
+# 1.5 / 3.0 m は 3 m/s なら約 0.5 秒前 / 1 秒前に相当。
+# 実測の引き当て誤差は平均 0.17 m (サンプル間隔が 0.5〜0.95 m のため)
+# 4 m・8 m 前のフレームも重ねる。避けた後の戻りの場面は 7〜10 m 続き、今のフレームだけでは
+# コーンが画面の外で普通の直線と見分けられない。8 m 前ならたいていコーンが前方に写っている (2026-10-31)。
+# 9/27 に 1.5 / 3.0 m で試したときは val (普通の周回) が悪化した
+# 過去フレームの比較 7 本から選んだもの (val loss が基準より悪化が最小の 2 本 3_6_9 / 1p5_3 は +8.4% / +8.6% でほぼ同じ。
+# 2 段目の ValAvoid で 1p5_3 を選んだ, 2026-10-31)
+frame_stack_distances: [1.5, 3.0]
+# 過去マスク merged も足す。枠線 + 過去 RGB と過去マスクの良さを両方使えるか (本人, 2026-11-01)。
+# 距離は過去 RGB とそろえる (本人「rgb とマスクで合わせたほうがいい」)。pastmask_merged.yaml は 4・8 m
+past_mask_distances: [1.5, 3.0]
+past_mask_mode: separate
+
+# 学習率スケジュール
+# cosine: learning_rate から lr_min まで cos カーブで下げる (T_max = epochs)。
+#   定数学習率だと最小値の周りを一定の歩幅で跳ね続け、val が ±0.0004 振動していた。
+#   終盤に歩幅を詰めて詰めきる
+# none:   従来どおり learning_rate 固定
+lr_schedule: cosine
+lr_min: 2.0e-6
+
+# 勾配クリッピングの閾値（発散防止）
+grad_clip_norm: 1.0
+
+# データ拡張（学習側のみ。検証には適用しない）
+# 左右反転は 0.0 で無効。このコースは反時計回りで左折が右折の 4.86 倍あり、
+# 反転するとその事前分布が 1:1 に均されて分岐で左右が競合する（実測 2026-09-05）。
+# 色系はマスクには適用しない
+# （mask_images は赤で描かれていて extract_red_mask の閾値が壊れるため）
+augment: true
+augment_flip_prob: 0.0
+augment_color_prob: 0.8
+augment_brightness: 0.3
+augment_contrast: 0.3
+augment_saturation: 0.3
+# 0.05 x 180 = +-9 度。天候・時間帯の差として自然な範囲。
+# シム用の 0.20 (+-36 度) は空が緑や紫に転ぶ強さで、実機のコースには来ない見た目だった。
+# シムではコーンの色が分岐のショートカットになるので色を壊す必要があったが、
+# 実機のコースは白線で区切られていて色は境界の手がかりではない (2026-09-27)
+augment_hue: 0.05
+# 確率的に色を完全に落とす。コーンの色が場所と結びついて分岐判断のショートカットに
+# なっていたため（2026-09-05）。色が無くても走れる特徴を学ばせる
+augment_gray_prob: 0.3
+
+# train/val の分け方
+# bag:      val_datasets に挙げた bag を丸ごと val にする。複数 bag を並べた
+#   データセット (create_data_from_bag.py の出力) では index 順が時系列順に
+#   ならないので temporal は使えない。bag ごと外せばリークは原理的に起きない
+# temporal: 前半80%をtrain、後半をval。単一データセット専用。
+#   random だと 0.2s しか離れていない隣接フレームが train と val に分かれて入り、
+#   val loss が汎化性能を過大評価する
+# split_gap: temporal のとき境界に空けるサンプル数。waypoint が先を見るぶん
+#   境界付近のフレームは未来の軌跡を train と共有してしまう
+split_mode: bag
+split_gap: 25
+
+# val に回す bag。実験で狙う条件が val に無いと checkpoint を選べないので、
+# 速度・撮影日・障害物の 3 方向から 1 本ずつ抜いた (合計 1284 / 11335 = 11%)。
+# 2 m/s は 630_2ms_nav 1 本しかないので train に残す
+val_datasets:
+  - rosbag2_2026_09_22-16_03_11   # 3 m/s (ヨーのズレ +0.19deg)
+  - rosbag2_2026_09_22-16_18_57   # 4 m/s (16_24_49 が train に残る)
+  - rosbag2_2026_09_22-16_44_53   # 障害物あり (残り 6 本は train)
+
+# ラベルが信用できないので train からも val からも外す bag。
+# vectornav のヨーが進行方向からずれていて、まっすぐ走っていても waypoint が
+# 傾いている。ヨーが d[deg] ずれると 10 m 先で 10*sin(d) 横にずれる (2026-09-27)
+# 08_21-12_54_22 (直進中のヨーのズレ 中央値 +6.74deg) と 09_22-16_33_53 (同 +2.77deg) も外す対象だが、
+# 学習データ (train_data.tar / GPGPU の e2e_pylon/data) に最初から入っていないので書かない。
+# 書くと存在しない名前としてエラーになる (train_curve_weight_rgb_cmp.yaml と同じ扱い, 2026-10-30)
+exclude_datasets:
+  # コーン回避の試験用。学習にも best epoch の選択にも使わず、学習後にコーン場面の評価だけに使う。
+  # val の 16_44_53 は best epoch の選択に使うので、そこでの改善は甘く出る (2026-10-30)
+  - rosbag2_2026_09_22-16_46_47
+  # 追加分 (create_data_from_bag.py, 2026-10-31) で使わないもの。
+  # 17_04_35 は 7 枚しか残らずヨーのずれ 5.0 度、16_23_01 / 16_24_30 は走り出し前に終わっていて 0 枚
+  - rosbag2_2026_08_24-17_04_35
+  - rosbag2_2026_09_22-16_23_01
+  - rosbag2_2026_09_22-16_24_30
+  # 13_05_57 は一度 bag ごと外したが、それで val が 0.001896 -> 0.002079 と悪化した。
+  # 直進中の中央値 -1.09deg は健全で、局所的にずれる区間はサンプル単位のフィルタが
+  # 既に 16% 落としている。bag ごと外す必要はなかった (2026-09-27)
+
+# カーブのきつさによる損失の重み付け (scripts/util/curve_weight.py)。
+# train_curve_weight.py 専用。train.py はこの節を読まない。
+# MSE は迷うと候補の平均を出すので、数の少ない急カーブほど直進側に縮む。
+# 実機データでは 10 m 先で横 6 m を超える正解が 1% あるのに、予測は最大 5.66 m だった (2026-09-28)。
+# 曲がり量 = 経路の中で |y| が最大になる点の y [m] (左 +)。
+#
+# mode:
+#   surprise : 曲がり量のヒストグラムから自己情報量 -log p を重みにする (feat/shannon_surprise の方式)
+#   none     : 重みなし (train.py と同じ学習になる)
+# train 全体で平均 1 に正規化する (実効学習率を変えないため)。
+# 5 つの瓶に固定の重みを付ける方式 (bins) も試したが、surprise のほうが急カーブに効き
+# 直線の悪化も半分だったので消した (val 急カーブ終端 0.833 -> 0.809 m、直線終端 0.603 -> 0.569 m。2026-09-28)
+curve_weighting:
+  mode: surprise
+  num_bins: 16
+  smoothing: 1.0
+  max_weight: 50.0
+  # val の |曲がり量| がこれ以上のサンプルを「急カーブ」として別に集計する (TensorBoard の CurveTight/)
+  eval_tight_m: 4.0
+extra_rgb_dirs:
+  - ~/e2e_pylon/aug/cosmos
+  - ~/e2e_pylon/aug/objects
+  - ~/e2e_pylon/aug/recolor
+  - ~/e2e_pylon/aug/people
+
+# --- sweep_v2 で足した設定 ---
+# 重みの移動平均 (学習ごとのぶれを減らす)
+ema_decay: 0.999
+# 赤コースの bag で、分岐路の前後を除いて使うフレーム (data_tools/course_check/red_usable.py)
+usable_frames_file: ../red_usable_with_1027.json
+# 学習のとき過去フレームをまとめて消す確率
+history_dropout: 0.3  # 0.5 だと急カーブが少し悪くなったので弱める
+# 避ける区間 (確認済み) の損失に掛ける倍率。2 倍に引く (倍率 2 倍) のと平均では同じ重みで、引く回数ではなく 1 回の重みで効かせる
+avoid_loss_weight: 2.0
+# 実際にはバックしていない (急な曲がりと位置の飛びで後退と出る) bag (本人, 2026-11-02)
+keep_backward_datasets:
+  - 1027_ann_164843
