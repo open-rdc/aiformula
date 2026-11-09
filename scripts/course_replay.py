@@ -12,7 +12,7 @@ from nav_msgs.msg import Path
 from rclpy.node import Node
 from rclpy.time import Time
 from speed_path_msgs.msg import SpeedPath, StopPoint
-from std_msgs.msg import Bool, String
+from std_msgs.msg import Bool, Float64MultiArray, String
 from steered_drive_msg.msg import SteeredDrive
 from tf2_ros import Buffer, TransformListener
 
@@ -30,7 +30,7 @@ RUNOFF_M = 15.0
 RANGE_M = 15.0
 COMMAND_LEAD_M = 20.0
 PREVIEW_S = 1.0
-STEER_MAX = math.radians(15.0)
+CSV_HEADER = ['t', 'section', 's', 'e_y', 'e_psi', 'v', 'v_ref', 'plan_offset', 'steering', 'saturated', 'x', 'y', 'course_x', 'course_y', 'steering_limited', 'steering_measured']
 
 
 def build_course(l1, radius, angle, l2):
@@ -73,6 +73,8 @@ class CourseReplay(Node):
         self.command = None
         self.velocity = 0.0
         self.steering = 0.0
+        self.steering_limited = math.nan
+        self.steering_measured = math.nan
         self.speed_path = None
         self.rows = []
         self.path_file = f'course_replay_{scenario}_{time.strftime("%Y%m%d_%H%M%S")}.csv'
@@ -88,6 +90,8 @@ class CourseReplay(Node):
         errors = [f'{n} を off にしてください' for n in FORBIDDEN_NODES if n in names]
         errors += [f'{t} に他の publisher があります' for t in EXCLUSIVE_TOPICS if self.count_publishers(t) > 0]
         errors += [f'{n} が起動していません' for n in REQUIRED_NODES if n not in names]
+        if self.count_publishers('/caster_data') == 0:
+            errors.append('/caster_data の publisher がありません')
         if not self.tf_buffer.can_transform('odom', 'base_link', Time()):
             errors.append('odom→base_link が取れません')
         return errors
@@ -99,6 +103,7 @@ class CourseReplay(Node):
         self.create_subscription(Bool, '/autonomous', self.autonomous_callback, 10)
         self.create_subscription(TwistWithCovarianceStamped, '/chassis/velocity_body', self.velocity_callback, rclpy.qos.qos_profile_sensor_data)
         self.create_subscription(SteeredDrive, '/cmd_vel', self.steering_callback, 10)
+        self.create_subscription(Float64MultiArray, '/caster_data', self.caster_callback, rclpy.qos.qos_profile_sensor_data)
         self.create_subscription(SpeedPath, '/planner/speed_path', self.speed_path_callback, rclpy.qos.qos_profile_sensor_data)
         self.publish_command('straight')
         self.create_timer(1.0 / 15.0, self.timer_callback)
@@ -108,6 +113,9 @@ class CourseReplay(Node):
 
     def steering_callback(self, msg):
         self.steering = msg.steering_angle
+
+    def caster_callback(self, msg):
+        self.steering_limited, self.steering_measured = msg.data[0], msg.data[1]
 
     def speed_path_callback(self, msg):
         self.speed_path = msg
@@ -182,14 +190,14 @@ class CourseReplay(Node):
         x0, y0, yaw0 = self.origin
         dx, dy = x - x0, y - y0
         xc, yc = math.cos(yaw0) * dx + math.sin(yaw0) * dy, -math.sin(yaw0) * dx + math.cos(yaw0) * dy
-        self.rows.append([self.get_clock().now().nanoseconds * 1e-9, section, s_ego, e_y, e_psi, self.velocity, v_ref, offset, self.steering, abs(self.steering) >= STEER_MAX - 1e-3, xc, yc, self.ox[i], self.oy[i]])
+        self.rows.append([self.get_clock().now().nanoseconds * 1e-9, section, s_ego, e_y, e_psi, self.velocity, v_ref, offset, self.steering, 0.0 < abs(self.steering_limited) < abs(self.steering) - 1e-3, xc, yc, self.ox[i], self.oy[i], self.steering_limited, self.steering_measured])
 
     def report(self):
         if not self.rows:
             return
         with open(self.path_file, 'w', newline='') as f:
             w = csv.writer(f)
-            w.writerow(['t', 'section', 's', 'e_y', 'e_psi', 'v', 'v_ref', 'plan_offset', 'steering', 'saturated', 'x', 'y', 'course_x', 'course_y'])
+            w.writerow(CSV_HEADER)
             w.writerows(self.rows)
         print(f'{self.path_file} に保存しました')
         print(f'{"section":<13}{"e_y rms":>9}{"e_y max":>9}{"e_psi rms":>11}{"dv rms":>9}{"offset max":>12}{"sat %":>8}')
