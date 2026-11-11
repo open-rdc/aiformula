@@ -228,7 +228,9 @@ controller_server_node:
         horizon                       : 20
         prediction_dt                 : 0.1
         min_predict_speed             : 0.5
-        steer_tau                     : 0.22
+        steer_tau                     : 0.15
+        input_delay                   : 0.1
+        curvature_smoothing_m         : 4.0
         weight_lat_error              : 1.0
         weight_heading_error          : 1.0
         weight_steering_input         : 0.1
