@@ -1,0 +1,14 @@
+name: param
+
+on:
+  pull_request:
+    branches: [main, deploy]
+
+jobs:
+  param-check:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: param-check
+        run: python3 .github/scripts/param_check.py
