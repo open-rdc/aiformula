@@ -21,6 +21,7 @@ from course_replay_plot import plot
 SCENARIOS = {
     'out_curve': {'l1': 20.0, 'radius': 15.0, 'angle': 180.0, 'l2': 20.0, 'command': None},
     'branch_curve': {'l1': 30.0, 'radius': 6.0, 'angle': 90.0, 'l2': 15.0, 'command': 'left'},
+    'straight': {'l1': 60.0, 'radius': 1.0, 'angle': 0.0, 'l2': 0.0, 'command': None},
 }
 FORBIDDEN_NODES = ['vision_lane_planner_node', 'topomap_localizer_node', 'traffic_signal_stop_node']
 REQUIRED_NODES = ['path_smoother_node', 'local_planner_server_node', 'speed_path_planner_node', 'controller_server_node', 'odom_tf_node']
