@@ -11,7 +11,14 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-22.04
-    container: ros:humble
+    permissions:
+      contents: read
+      packages: read
+    container:
+      image: ghcr.io/open-rdc/aiformula-ci:deploy
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
     defaults:
       run:
         shell: bash
@@ -20,12 +27,6 @@ jobs:
         with:
           path: src
           submodules: recursive
-
-      - name: dependency-package-install
-        run: |
-          apt-get update
-          rosdep update
-          rosdep install -y --rosdistro humble --ignore-src --from-paths src
 
       - name: build-check
         run: |
