@@ -28,6 +28,8 @@ inline constexpr int         source_width  = 640;
 inline constexpr int         source_height = 360;
 inline constexpr int         pad_top       = (input_height - source_height) / 2;  // 12
 inline constexpr int         pad_left      = (input_width - source_width) / 2;    // 0
+// projection.py の INTRINSICS['nHD']
+inline constexpr camera_utility::CameraIntrinsics label_intrinsics{source_width, source_height, 254.391622, 254.391622, 330.013020833, 181.149637858};
 
 // 学習側 row_anchor_targets は height // row_anchor_count の整数 floor 除算。
 // 割り切れない値になると、エラーなく行アンカー→画素の対応だけがずれる

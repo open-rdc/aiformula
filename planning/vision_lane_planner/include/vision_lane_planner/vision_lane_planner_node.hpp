@@ -8,13 +8,11 @@
 #include <rclcpp/rclcpp.hpp>
 
 #include <nav_msgs/msg/path.hpp>
-#include <sensor_msgs/msg/camera_info.hpp>
 #include <sensor_msgs/msg/image.hpp>
 #include <std_msgs/msg/string.hpp>
 #include <visualization_msgs/msg/marker_array.hpp>
 
 #include <memory>
-#include <optional>
 #include <string>
 
 namespace vision_lane_planner {
@@ -30,7 +28,6 @@ class VisionLanePlannerNode : public rclcpp::Node {
         const rclcpp::NodeOptions& options = rclcpp::NodeOptions());
 
    private:
-    void camera_info_callback(const sensor_msgs::msg::CameraInfo::ConstSharedPtr msg);
     void navigation_command_callback(const std_msgs::msg::String::ConstSharedPtr msg);
     void image_callback(const sensor_msgs::msg::Image::ConstSharedPtr msg);
 
@@ -44,9 +41,7 @@ class VisionLanePlannerNode : public rclcpp::Node {
 
     std::unique_ptr<VisionLaneTensorrt>             inference_;
     const tf2::Transform                            base_T_camera_;
-    std::optional<camera_utility::CameraIntrinsics> intrinsics_;
 
-    rclcpp::Subscription<sensor_msgs::msg::CameraInfo>::SharedPtr      camera_info_subscription_;
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr           image_subscription_;
     rclcpp::Subscription<std_msgs::msg::String>::SharedPtr             navigation_command_subscription_;
     rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr                  vision_path_publisher_;
