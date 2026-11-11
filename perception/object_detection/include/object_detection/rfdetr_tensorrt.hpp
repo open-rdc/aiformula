@@ -14,13 +14,12 @@ struct Detection {
     float      score;
 };
 
-// YOLOX の TensorRT エンジンを読み込み、BGR画像から bbox を推論する。
-// 学習側でモデル契約に従う ONNX を出力し、デプロイ先で engine に変換しておく。
-// 詳細は weights/README.md を参照。
-class YoloxTensorrt {
+// RF-DETR の TensorRT エンジンを読み込み、BGR画像から bbox を推論する。
+// 学習側で出力した ONNX をデプロイ先で engine に変換しておく。詳細は weights/README.md を参照。
+class RfdetrTensorrt {
    public:
-    YoloxTensorrt(const std::string& engine_path, double score_threshold, double nms_threshold);
-    ~YoloxTensorrt();
+    RfdetrTensorrt(const std::string& engine_path, double score_threshold);
+    ~RfdetrTensorrt();
 
     // 入力画像の画素座標系での検出結果を返す
     std::vector<Detection> detect(const cv::Mat& bgr_image);

@@ -46,7 +46,9 @@ void PidMpcPlugin::initialize(
     lat.horizon = params->get_parameter("mpc.lateral.horizon").as_int();
     lat.prediction_dt = params->get_parameter("mpc.lateral.prediction_dt").as_double();
     lat.min_predict_speed = params->get_parameter("mpc.lateral.min_predict_speed").as_double();
+    lat.input_delay = params->get_parameter("mpc.lateral.input_delay").as_double();
     lat.control_dt = dt;
+    lat.curvature_smoothing_m = params->get_parameter("mpc.lateral.curvature_smoothing_m").as_double();
     lat.offset_update_vel_threshold = params->get_parameter("mpc.steering_offset.update_vel_threshold").as_double();
     lat.offset_update_steer_threshold = params->get_parameter("mpc.steering_offset.update_steer_threshold").as_double();
     lat.offset_time_constant = params->get_parameter("mpc.steering_offset.time_constant").as_double();

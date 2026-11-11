@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <deque>
 #include <vector>
 
 namespace trajectory_follower
@@ -20,7 +21,9 @@ struct LateralMpcParams
     int horizon;
     double prediction_dt;
     double min_predict_speed;
+    double input_delay;
     double control_dt;
+    double curvature_smoothing_m;
     double offset_update_vel_threshold;
     double offset_update_steer_threshold;
     double offset_time_constant;
@@ -63,6 +66,7 @@ private:
     LateralMpcParams params_{};
     double prev_steer_ = 0.0;
     double steer_state_ = 0.0;
+    std::deque<double> command_history_;
     double yaw_rate_ = 0.0;
     bool has_yaw_rate_ = false;
     double steering_offset_ = 0.0;

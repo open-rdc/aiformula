@@ -18,7 +18,7 @@ ControllerServer::ControllerServer(const rclcpp::NodeOptions & options)
     tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
 
     path_subscription_ = create_subscription<speed_path_msgs::msg::SpeedPath>("/planner/speed_path", rclcpp::QoS(1).best_effort(), std::bind(&ControllerServer::path_callback, this, std::placeholders::_1));
-    velocity_subscription_ = create_subscription<geometry_msgs::msg::TwistWithCovarianceStamped>("/vectornav/velocity_body", rclcpp::QoS(1).best_effort(), std::bind(&ControllerServer::velocity_callback, this, std::placeholders::_1));
+    velocity_subscription_ = create_subscription<geometry_msgs::msg::TwistWithCovarianceStamped>("/chassis/velocity_body", rclcpp::QoS(1).best_effort(), std::bind(&ControllerServer::velocity_callback, this, std::placeholders::_1));
     autonomous_subscription_ = create_subscription<std_msgs::msg::Bool>("/autonomous", rclcpp::QoS(10), std::bind(&ControllerServer::autonomous_callback, this, std::placeholders::_1));
     caster_data_subscription_ = create_subscription<std_msgs::msg::Float64MultiArray>("/caster_data", rclcpp::SensorDataQoS().keep_last(1), std::bind(&ControllerServer::caster_data_callback, this, std::placeholders::_1));
     imu_subscription_ = create_subscription<sensor_msgs::msg::Imu>("/vectornav/imu", rclcpp::SensorDataQoS().keep_last(1), std::bind(&ControllerServer::imu_callback, this, std::placeholders::_1));

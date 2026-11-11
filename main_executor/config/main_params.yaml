@@ -4,12 +4,12 @@ launch:
     sim : false
     mapless:
       use: true
-      course: "red" # "red" or "blue"
+      course: "blue" # "red" or "blue"
 
 /**:
   ros__parameters:
     linear_max:
-      vel : 3.0
+      vel : 5.0
       acc: 3.0
       jer: 15.0
     steering_max :
@@ -182,11 +182,10 @@ speed_path_planner_node:
     branch_linear_max:
       vel : 4.0   # 分岐路付近での速度上限 [m/s]
 
-pylon_detector_node:
+object_detector_node:
   ros__parameters:
-    engine_path : "yolox_s_aiformula.engine"
+    engine_path : "rfdetr_l_aiformula.engine"
     score_threshold : 0.3
-    nms_threshold : 0.45
 
 traffic_signal_stop_node:
   ros__parameters:
@@ -210,7 +209,7 @@ path_smoother_node:
 controller_server_node:
   ros__parameters:
     interval_ms  : 50
-    controller_plugin  : "trajectory_follower::PurePursuitPlugin"
+    controller_plugin  : "trajectory_follower::PidMpcPlugin"
     a_min              : -4.0
     velocity_preview_time : 0.3
     pure_pursuit:
@@ -229,7 +228,9 @@ controller_server_node:
         horizon                       : 20
         prediction_dt                 : 0.1
         min_predict_speed             : 0.5
-        steer_tau                     : 0.22
+        steer_tau                     : 0.15
+        input_delay                   : 0.1
+        curvature_smoothing_m         : 4.0
         weight_lat_error              : 1.0
         weight_heading_error          : 1.0
         weight_steering_input         : 0.1
