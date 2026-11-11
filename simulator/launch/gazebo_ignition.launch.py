@@ -72,6 +72,14 @@ def generate_launch_description():
             'input_topic': '/cmd_vel',
             'output_topic': '/cmd_vel_twist',
             'wheel_base': 0.8,
+            'use_sim_time': True,
+            'update_rate': 100.0,
+            'steer_dead_time': 0.04,
+            'steer_tau': 0.12,
+            'steer_gain': 0.9,
+            'steer_rate_max_deg': 80.0,
+            'a_lat_max': 4.0,
+            'stop_velocity': 0.1,
         }]
     )
 
