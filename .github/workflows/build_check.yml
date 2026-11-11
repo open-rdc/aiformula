@@ -1,0 +1,33 @@
+name: build
+
+on:
+  pull_request:
+    branches: [main, deploy]
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    container: ros:humble
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: src
+          submodules: recursive
+
+      - name: dependency-package-install
+        run: |
+          apt-get update
+          rosdep update
+          rosdep install -y --rosdistro humble --ignore-src --from-paths src
+
+      - name: build-check
+        run: |
+          source /opt/ros/humble/setup.bash
+          colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release
