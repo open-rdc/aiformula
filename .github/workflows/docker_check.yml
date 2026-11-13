@@ -1,0 +1,32 @@
+name: docker
+
+on:
+  pull_request:
+    types: [labeled]
+  schedule:
+    - cron: '0 18 * * 0'
+  workflow_dispatch:
+
+concurrency:
+  group: docker-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  docker-build:
+    if: github.event_name != 'pull_request' || github.event.label.name == 'docker build test'
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || (github.event_name == 'schedule' && 'deploy') || '' }}
+
+      - name: free-disk-space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache
+          docker system prune -af
+          df -h /
+
+      - name: docker-build
+        run: docker build --build-arg BRANCH=${{ github.head_ref || (github.event_name == 'schedule' && 'deploy') || github.ref_name }} -t aiformula:humble docker
