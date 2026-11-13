@@ -7,11 +7,11 @@ import yaml
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
-from Models.model_components.vision_planner.vision_planner_network import Network
-from Models.data_utils.vision_planner.load_data_vision_planner import PathDataset, branch_sampler, find_images
-from Models.training.vision_planner_loss import compute_loss
-from Models.training.vision_planner_metrics import PathMetrics
-from Models.training.vision_planner_util import AverageMeter, EMA, LinearLR, next_run_dir, set_params, setup_seed, visualize
+from Models.vision_planner.model.vision_planner_network import Network
+from Models.vision_planner.data.load_data_vision_planner import PathDataset, branch_sampler, find_images
+from Models.vision_planner.training.vision_planner_loss import compute_loss
+from Models.vision_planner.training.vision_planner_metrics import PathMetrics
+from Models.vision_planner.training.vision_planner_util import AverageMeter, EMA, LinearLR, next_run_dir, set_params, setup_seed, visualize
 
 NUM_SLOTS = 3
 

@@ -4,7 +4,7 @@ import numpy as np
 import onnxruntime
 import torch
 
-from Models.model_components.vision_planner.vision_planner_network import VisionPlannerNetwork
+from Models.vision_planner.model.vision_planner_network import VisionPlannerNetwork
 
 INPUT_SHAPE = (1, 3, 384, 640)
 OUTPUT_NAMES = ['valid', 'position']

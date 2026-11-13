@@ -9,9 +9,9 @@ import json
 import torch
 from torch.utils.data import DataLoader
 
-from Models.data_utils.vision_planner.load_data_vision_planner import PathDataset, find_images
-from Models.model_components.vision_planner.vision_planner_network import VisionPlannerNetwork
-from Models.training.vision_planner_trainer import NUM_SLOTS, device_type_of, validate
+from Models.vision_planner.data.load_data_vision_planner import PathDataset, find_images
+from Models.vision_planner.model.vision_planner_network import VisionPlannerNetwork
+from Models.vision_planner.training.vision_planner_trainer import NUM_SLOTS, device_type_of, validate
 
 
 def evaluate(weights, dataset, split='val', device='cuda', batch_size=16, workers=8,

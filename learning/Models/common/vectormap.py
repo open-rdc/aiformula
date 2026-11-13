@@ -138,3 +138,59 @@ def trace_paths(vector_map, position, heading, horizon=20.0, max_distance=5.0):
             paths[turn] = merged
 
     return paths or {'straight': trunk}
+
+
+def _walk_ids(vector_map, lanelet_id, next_index, remaining, start_point):
+    ids = [lanelet_id]
+    visited = {lanelet_id}
+    current, index, last = lanelet_id, next_index, start_point
+
+    while True:
+        polyline = vector_map.centerlines[current]
+        while index < len(polyline):
+            remaining -= float(np.linalg.norm(polyline[index] - last))
+            last = polyline[index]
+            index += 1
+            if remaining <= 0.0:
+                return ids, 0.0, current, visited
+
+        successors = [s for s in vector_map.connections.get(current, []) if s[0] not in visited]
+        if len(successors) != 1:
+            return ids, remaining, current, visited
+
+        current = successors[0][0]
+        visited.add(current)
+        ids.append(current)
+        index = 0
+
+
+def trace_lanelet_ids(vector_map, position, heading, horizon=20.0, max_distance=5.0):
+    """trace_paths と同じ探索で、各スロットが通る lanelet ID 列（進行順）を返す。"""
+    located = locate_lanelet(vector_map, position, heading, max_distance)
+    if located is None:
+        return {}
+
+    lanelet_id, index = located
+    start_point, next_index = _project_onto_polyline(vector_map.centerlines[lanelet_id], index, position)
+
+    trunk, remaining, terminal, visited = _walk_ids(vector_map, lanelet_id, next_index, horizon, start_point)
+    trunk_points = _walk(vector_map, lanelet_id, start_point, next_index, horizon)[0]
+    successors = [s for s in vector_map.connections.get(terminal, []) if s[0] not in visited]
+
+    if remaining <= 0.0 or len(successors) < 2:
+        return {'straight': trunk}
+
+    paths, sizes = {}, {}
+    for to_id, turn in successors:
+        if turn not in SLOT_NAMES:
+            continue
+
+        branch_polyline = vector_map.centerlines[to_id]
+        branch, _, _, _ = _walk_ids(vector_map, to_id, 1, remaining, branch_polyline[0])
+        branch_points, _, _, _ = _walk(vector_map, to_id, branch_polyline[0], 1, remaining)
+        size = len(_drop_consecutive_duplicates(np.vstack([trunk_points, branch_points])))
+
+        if turn not in paths or size > sizes[turn]:
+            paths[turn], sizes[turn] = trunk + branch, size
+
+    return paths or {'straight': trunk}

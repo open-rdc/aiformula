@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 
-from Models.model_components.common_layers import Conv
+from Models.common.layers import Conv
 
 ROW_START = 25  # 地平線より上は教師が付かない
 

@@ -8,12 +8,12 @@ import numpy as np
 from ament_index_python.packages import get_package_share_directory
 import torch
 
-from Models.model_components.vision_planner.vision_planner_head import ROW_START
-from Models.model_components.vision_planner.vision_planner_network import VisionPlannerNetwork
+from Models.vision_planner.model.vision_planner_head import ROW_START
+from Models.vision_planner.model.vision_planner_network import VisionPlannerNetwork
 from Models.data_parsing.rosbag.converter import POSE_TOPIC, SOURCES, bag_topics, build_label, detect_source, image_to_array, read_topic
-from Models.data_utils.vision_planner.pose import apply_fit, ecef_to_local, fit_quality, fit_to_map, headings, interpolate_pose, resample_centerlines, speed_mask
-from Models.data_utils.vision_planner.projection import load_camera, letterbox, row_anchor_targets
-from Models.data_utils.vision_planner.vectormap import load_vector_map, trace_paths
+from Models.vision_planner.data.pose import apply_fit, ecef_to_local, fit_quality, fit_to_map, headings, interpolate_pose, resample_centerlines, speed_mask
+from Models.common.projection import load_camera, letterbox, row_anchor_targets
+from Models.common.vectormap import load_vector_map, trace_paths
 
 SLOT_NAMES = ('straight', 'left', 'right')
 SLOT_COLORS = ((0, 220, 0), (230, 120, 0), (0, 140, 255))

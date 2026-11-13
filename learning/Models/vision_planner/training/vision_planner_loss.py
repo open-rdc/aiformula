@@ -1,7 +1,7 @@
 import torch
 import torch.nn.functional as F
 
-from Models.data_utils.vision_planner.load_data_vision_planner import SEPARATION_THRESHOLD
+from Models.vision_planner.data.load_data_vision_planner import SEPARATION_THRESHOLD
 
 
 def compute_loss(outputs, targets, branch_scale, smooth_scale):

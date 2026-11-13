@@ -12,9 +12,9 @@ import rosbag2_py
 import torch
 
 from Models.data_parsing.rosbag.converter import SOURCES, bag_topics, detect_source, image_to_array, read_topic
-from Models.data_utils.vision_planner.projection import letterbox, load_camera, row_anchor_targets
-from Models.model_components.vision_planner.vision_planner_head import ROW_START
-from Models.model_components.vision_planner.vision_planner_network import VisionPlannerNetwork
+from Models.common.projection import letterbox, load_camera, row_anchor_targets
+from Models.vision_planner.model.vision_planner_head import ROW_START
+from Models.vision_planner.model.vision_planner_network import VisionPlannerNetwork
 
 SLOT_NAMES = ('straight', 'left', 'right')
 SLOT_COLORS = ((0, 220, 0), (230, 120, 0), (0, 140, 255))

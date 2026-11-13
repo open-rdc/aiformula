@@ -2,10 +2,10 @@ import torch
 from torch import nn
 from torch.nn.utils.fusion import fuse_conv_bn_eval
 
-from Models.model_components.vision_planner.vision_planner_backbone import Backbone
-from Models.model_components.vision_planner.vision_planner_neck import Neck
-from Models.model_components.vision_planner.vision_planner_head import Head
-from Models.model_components.common_layers import Conv
+from Models.common.backbone import Backbone
+from Models.common.neck import Neck
+from Models.vision_planner.model.vision_planner_head import Head
+from Models.common.layers import Conv
 
 # (straight / left / right）
 NUM_SLOTS = 3

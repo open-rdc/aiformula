@@ -9,7 +9,7 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset, WeightedRandomSampler
 
-from Models.model_components.vision_planner.vision_planner_head import ROW_START
+from Models.vision_planner.model.vision_planner_head import ROW_START
 
 SLOT_INDEX = {'straight': 0, 'left': 1, 'right': 2}
 SEPARATION_THRESHOLD = 2.0 / 639  # 分岐とみなす最小の横差(ラベル規約 u/(width-1))

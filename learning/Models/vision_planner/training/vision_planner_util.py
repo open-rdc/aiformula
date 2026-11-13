@@ -93,8 +93,8 @@ def next_run_dir(runs_dir):
 
 
 def visualize(sample, output, targets, num_rows):
-    from Models.model_components.vision_planner.vision_planner_head import ROW_START
-    from Models.data_utils.vision_planner.projection import row_anchor_targets
+    from Models.vision_planner.model.vision_planner_head import ROW_START
+    from Models.common.projection import row_anchor_targets
 
     valid, position = output
     target_valid, target_xp = targets

@@ -1,6 +1,6 @@
 from torch import nn
 
-from Models.model_components.common_layers import Conv, SPPF, C2PSA, CTX
+from Models.common.layers import Conv, SPPF, C2PSA, CTX
 
 
 class Backbone(nn.Module):
