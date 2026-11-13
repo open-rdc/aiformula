@@ -3,6 +3,7 @@ FROM kyo0221/cudagl:12.8.1-devel-ubuntu22.04-torch-humble
 
 ENV USER_NAME=nvidia
 ENV MYWORKSPACE_NAME=formula_ws
+ARG BRANCH=deploy
 
 # create user
 RUN useradd -m -s /bin/bash ${USER_NAME} && \
@@ -17,7 +18,7 @@ ENV HOME=/home/${USER_NAME}
 # install aiformula repository
 RUN mkdir ~/$MYWORKSPACE_NAME && \
     cd ~/$MYWORKSPACE_NAME && \
-    git clone --recursive -b fix/docker https://github.com/open-rdc/aiformula src
+    git clone --recursive -b ${BRANCH} https://github.com/open-rdc/aiformula src
 
 # download YOLOPv2 weights
 RUN wget -q https://github.com/CAIC-AD/YOLOPv2/releases/download/V0.0.1/yolopv2.pt \
