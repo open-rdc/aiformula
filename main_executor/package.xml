@@ -23,6 +23,7 @@
   <depend>object_detection</depend>
   <depend>traffic_signal_stop</depend>
   <depend>vision_lane_planner</depend>
+  <depend>vector_e2e_planner</depend>
   <depend>zed_wrapper</depend>
   <depend>road_detector</depend>
   <depend>vectormap_server</depend>

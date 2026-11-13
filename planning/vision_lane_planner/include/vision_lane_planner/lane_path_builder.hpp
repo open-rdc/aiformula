@@ -16,8 +16,8 @@
 
 namespace vision_lane_planner {
 
-// 学習側の契約。learning/Models/model_components/vision_planner/vision_planner_head.py と
-// learning/Models/data_utils/vision_planner/projection.py に一致させること
+// 学習側の契約。learning/Models/vision_planner/model/vision_planner_head.py と
+// learning/Models/common/projection.py に一致させること
 inline constexpr std::size_t num_slots        = 3;   // straight / left / right
 inline constexpr std::size_t row_anchor_count = 48;  // 行アンカーの刻みを決める値。input_height / 8
 inline constexpr std::size_t row_start        = 25;  // ONNX 出力行 0 が対応する絶対行(vision_planner_head.py の ROW_START)
