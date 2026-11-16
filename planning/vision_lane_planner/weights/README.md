@@ -12,7 +12,7 @@ MODEL=<出力するモデル名>
 `learning/` を作業ディレクトリにして実行します。
 
 ```bash
-python3 -m Models.deploy.export_onnx \
+python3 -m Models.vision_planner.deploy.export_onnx \
   --weights ${CKPT} \
   --output  ${MODEL}.onnx
 ```

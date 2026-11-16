@@ -4,10 +4,12 @@ launch:
     sim : false
     mapless:
       use: true
-      course: "blue" # "red" or "blue"
+      planning: "vision_planner" # "vision_planner" or "vector_planner"
 
 /**:
   ros__parameters:
+    course : "blue" # "red" or "blue"
+
     linear_max:
       vel : 5.0
       acc: 3.0
@@ -195,6 +197,19 @@ vision_lane_planner_node:
   ros__parameters:
     engine_path : "vision_planner_n.engine"
     default_navigation_command : "straight"
+
+vector_e2e_planner_node:
+  ros__parameters:
+    engine_path : "vector_planner_s.engine"
+    # /** の course が blue なら分岐計数 + route_plan、red なら信号停止のみ（経路は常に straight）
+    # k=0 は分岐点 301（直進）。青コース 1 周は 301 直進 → 303 直進 → 305 左 → 313 右 の順で、301 の手前から走り始める前提
+    route_plan : ["straight", "straight", "left", "right"]   # 分岐を通過するごとに次の指示へ進む（青コース）
+    path_ema_alpha : 0.5          # 経路の時間 EMA（1.0 で無効）
+    path_valid_threshold : 0.5    # path_valid がこれ未満の点以降は出さない
+    output_interval_m : 0.2       # 出力経路の点間隔（local_planner の local_path_resample_interval_m に合わせる）
+    signal_red_threshold : 0.5
+    stop_offset_m : 3.5           # 信号パネル直下の足の何 m 手前で止めるか
+    tf_timeout_s : 0.1
 
 path_smoother_node:
   ros__parameters:
