@@ -22,7 +22,7 @@ RUN mkdir ~/$MYWORKSPACE_NAME && \
 
 # download YOLOPv2 weights
 RUN wget -q https://github.com/CAIC-AD/YOLOPv2/releases/download/V0.0.1/yolopv2.pt \
-    -O ~/$MYWORKSPACE_NAME/src/perception/road_detector/data/weights/yolopv2.pt
+    -O ~/$MYWORKSPACE_NAME/src/perception/road_detector/weights/yolopv2.pt
 
 # config setting
 COPY config/.bashrc /home/${USER_NAME}/.bashrc
