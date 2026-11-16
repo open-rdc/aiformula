@@ -74,8 +74,8 @@ double LateralMpc::computeSteering(
     }
     const TrackingError err = computeTrackingError(path_xy, curvatures);
     const int nearest = err.nearest;
-    const double e_y = err.e_y;
-    const double e_yaw = err.e_yaw;
+    double e_y = err.e_y;
+    double e_yaw = err.e_yaw;
 
     // 2. 離散化モデルを作る
     const int N = params_.horizon;
@@ -93,12 +93,39 @@ double LateralMpc::computeSteering(
     Eigen::Vector3d Bc(0.0, 0.0, 1.0 / tau);
     const Eigen::Vector3d Bd = Bc * dt;
 
+    std::vector<double> smoothed = curvatures;
+    if (params_.curvature_smoothing_m > 0.0) {
+        const double half_window = 0.5 * params_.curvature_smoothing_m;
+        int lo = 0;
+        int hi = 0;
+        double sum = 0.0;
+        for (int i = 0; i < n; ++i) {
+            while (hi < n && arc[hi] <= arc[i] + half_window) sum += curvatures[hi++];
+            while (arc[lo] < arc[i] - half_window) sum -= curvatures[lo++];
+            smoothed[i] = sum / static_cast<double>(hi - lo);
+        }
+    }
+
     auto curvature_at = [&](double s) -> double {
         const double s_abs = arc[nearest] + s;
         int j = nearest;
         while (j < n - 1 && arc[j] < s_abs) ++j;
-        return curvatures[j];
+        return smoothed[j];
     };
+
+    double steer_now = steer_state_;
+    double delay_distance = 0.0;
+    const int delay_steps = static_cast<int>(std::lround(params_.input_delay / params_.control_dt));
+    for (int i = 0; i < delay_steps; ++i) {
+        const std::size_t size = command_history_.size();
+        const double u = (size >= static_cast<std::size_t>(delay_steps - i))
+            ? command_history_[size - (delay_steps - i)] : prev_steer_;
+        const double cdt = params_.control_dt;
+        e_y += V * e_yaw * cdt;
+        e_yaw += (V / L * steer_now - V * curvature_at(delay_distance)) * cdt;
+        steer_now += (u - steer_now) / tau * cdt;
+        delay_distance += V * cdt;
+    }
 
     // 3. 予測行列を作る
     std::vector<Eigen::Matrix3d> Apow(N + 1, Eigen::Matrix3d::Identity());
@@ -112,7 +139,7 @@ double LateralMpc::computeSteering(
 
     std::vector<Eigen::Vector3d> wd(N, Eigen::Vector3d::Zero());
     for (int i = 0; i < N; ++i) {
-        const double kappa = curvature_at(static_cast<double>(i) * ds);
+        const double kappa = curvature_at(delay_distance + static_cast<double>(i) * ds);
         wd[i] = Eigen::Vector3d(0.0, -V * kappa, 0.0) * dt;
     }
 
@@ -151,7 +178,7 @@ double LateralMpc::computeSteering(
     const double R = params_.weight_steering_input;
     const double Rd = params_.weight_steer_rate;
 
-    const Eigen::VectorXd x0vec = (Eigen::Vector3d() << e_y, e_yaw, steer_state_).finished();
+    const Eigen::VectorXd x0vec = (Eigen::Vector3d() << e_y, e_yaw, steer_now).finished();
 
     // 5. QP を解く
     const Eigen::MatrixXd SuTQ = Su.transpose() * Qbar;
@@ -162,6 +189,8 @@ double LateralMpc::computeSteering(
 
     const double steer = std::clamp(U(0), -params_.steer_limit, params_.steer_limit);
     prev_steer_ = steer;
+    command_history_.push_back(steer);
+    while (static_cast<int>(command_history_.size()) > delay_steps) command_history_.pop_front();
     steer_state_ = steer;
     return steer;
 }
@@ -170,6 +199,7 @@ void LateralMpc::reset()
 {
     prev_steer_ = 0.0;
     steer_state_ = 0.0;
+    command_history_.clear();
 }
 
 void LateralMpc::setMeasuredSteer(double steer)

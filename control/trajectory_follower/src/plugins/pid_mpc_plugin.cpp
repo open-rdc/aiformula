@@ -46,6 +46,9 @@ void PidMpcPlugin::initialize(
     lat.horizon = params->get_parameter("mpc.lateral.horizon").as_int();
     lat.prediction_dt = params->get_parameter("mpc.lateral.prediction_dt").as_double();
     lat.min_predict_speed = params->get_parameter("mpc.lateral.min_predict_speed").as_double();
+    lat.input_delay = params->get_parameter("mpc.lateral.input_delay").as_double();
+    lat.control_dt = dt;
+    lat.curvature_smoothing_m = params->get_parameter("mpc.lateral.curvature_smoothing_m").as_double();
     lateral_.configure(lat);
 
     velocity_preview_time_ = params->get_parameter("velocity_preview_time").as_double();
