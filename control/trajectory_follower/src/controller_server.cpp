@@ -22,6 +22,7 @@ ControllerServer::ControllerServer(const rclcpp::NodeOptions & options)
     autonomous_subscription_ = create_subscription<std_msgs::msg::Bool>("/autonomous", rclcpp::QoS(10), std::bind(&ControllerServer::autonomous_callback, this, std::placeholders::_1));
     caster_data_subscription_ = create_subscription<std_msgs::msg::Float64MultiArray>("/caster_data", rclcpp::SensorDataQoS().keep_last(1), std::bind(&ControllerServer::caster_data_callback, this, std::placeholders::_1));
     command_publisher_ = create_publisher<steered_drive_msg::msg::SteeredDrive>("/cmd_vel", rclcpp::QoS(10));
+    diagnostic_publisher_ = create_publisher<diagnostic_msgs::msg::DiagnosticArray>("/control/diagnostic", rclcpp::QoS(10));
 
     timer_ = create_wall_timer(std::chrono::milliseconds(get_parameter("interval_ms").as_int()), std::bind(&ControllerServer::timer_callback, this));
 }
@@ -77,6 +78,11 @@ void ControllerServer::timer_callback()
     }
 
     command_publisher_->publish(plugin_->computeCommand(path_in_base, velocity_->twist.twist.linear.x));
+
+    diagnostic_msgs::msg::DiagnosticArray diagnostic;
+    diagnostic.header.stamp = now();
+    diagnostic.status.push_back(plugin_->diagnostic());
+    diagnostic_publisher_->publish(diagnostic);
 }
 
 }

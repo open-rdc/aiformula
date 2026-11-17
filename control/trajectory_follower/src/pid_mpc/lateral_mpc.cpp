@@ -191,6 +191,7 @@ double LateralMpc::computeSteering(
     prev_steer_ = steer;
     command_history_.push_back(steer);
     while (static_cast<int>(command_history_.size()) > delay_steps) command_history_.pop_front();
+    debug_ = {err.e_y, err.e_yaw, curvatures[nearest], smoothed[nearest], steer_state_, steer_now, U(0), steer};
     steer_state_ = steer;
     return steer;
 }

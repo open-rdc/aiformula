@@ -17,6 +17,19 @@ struct LongitudinalParams
     double dt;
 };
 
+struct LongitudinalDebug
+{
+    double v_ref;
+    double a_ref;
+    double v_meas;
+    double error;
+    double p;
+    double i;
+    double a_raw;
+    double a_cmd;
+    double v_cmd;
+};
+
 class LongitudinalPid
 {
 public:
@@ -26,6 +39,8 @@ public:
 
     void reset();
 
+    const LongitudinalDebug & debug() const { return debug_; }
+
 private:
     LongitudinalParams params_{};
     double integral_ = 0.0;
@@ -34,6 +49,7 @@ private:
     double prev_a_cmd_ = 0.0;
     double v_cmd_ = 0.0;
     bool initialized_ = false;
+    LongitudinalDebug debug_{};
 };
 
 }
