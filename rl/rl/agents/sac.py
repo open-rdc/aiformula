@@ -1,7 +1,9 @@
 import torch
 import torch.optim as optim
 import torch.nn.functional as F
-from my_rl_pkg.agents.networks import Actor, Critic
+import numpy as np
+from typing import Optional
+from rl.net.network import Actor, Critic
 
 class SACAgent:
     def __init__(
@@ -19,20 +21,16 @@ class SACAgent:
         self.gamma = gamma
         self.tau = tau
 
-        # ネットワークの初期化
         self.actor = Actor(in_channels, action_dim).to(device)
         self.critic = Critic(in_channels, action_dim).to(device)
         self.critic_target = Critic(in_channels, action_dim).to(device)
         self.critic_target.load_state_dict(self.critic.state_dict())
 
-        # オプティマイザ
         self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=lr)
         self.critic_optimizer = optim.Adam(self.critic.parameters(), lr=lr)
 
-        # エントロピー（Alpha）の自動調整設定
         self.automatic_entropy_tuning = automatic_entropy_tuning
         if self.automatic_entropy_tuning:
-            # 目標エントロピーは行動次元のマイナス値にするのが一般的 (-action_dim)
             self.target_entropy = -float(action_dim)
             self.log_alpha = torch.zeros(1, requires_grad=True, device=device)
             self.alpha_optimizer = optim.Adam([self.log_alpha], lr=lr)
@@ -40,9 +38,38 @@ class SACAgent:
         else:
             self.alpha = alpha
 
+    def checkpoint(self) -> dict:
+        ckpt = {
+            'actor': self.actor.state_dict(),
+            'critic': self.critic.state_dict(),
+            'critic_target': self.critic_target.state_dict(),
+            'actor_optimizer': self.actor_optimizer.state_dict(),
+            'critic_optimizer': self.critic_optimizer.state_dict(),
+        }
+        if self.automatic_entropy_tuning:
+            ckpt['log_alpha'] = self.log_alpha.detach().cpu()
+            ckpt['alpha_optimizer'] = self.alpha_optimizer.state_dict()
+        return ckpt
+
+    def load_checkpoint(self, ckpt: dict):
+        self.actor.load_state_dict(ckpt['actor'])
+        self.critic.load_state_dict(ckpt['critic'])
+        self.critic_target.load_state_dict(ckpt['critic_target'])
+        self.actor_optimizer.load_state_dict(ckpt['actor_optimizer'])
+        self.critic_optimizer.load_state_dict(ckpt['critic_optimizer'])
+        if self.automatic_entropy_tuning and 'log_alpha' in ckpt:
+            with torch.no_grad():
+                self.log_alpha.copy_(ckpt['log_alpha'].to(self.device))
+            self.alpha_optimizer.load_state_dict(ckpt['alpha_optimizer'])
+            self.alpha = self.log_alpha.exp()
+
+    def load_networks(self, actor_state: dict, critic_state: Optional[dict] = None):
+        self.actor.load_state_dict(actor_state)
+        if critic_state is not None:
+            self.critic.load_state_dict(critic_state)
+            self.critic_target.load_state_dict(critic_state)
+
     def select_action(self, state: np.ndarray, evaluate: bool = False) -> np.ndarray:
-        """推論時・収集時のアクション選択"""
-        # numpy配列 (C, H, W) -> Tensor (1, C, H, W) [0, 1] に正規化
         state = torch.FloatTensor(state).unsqueeze(0).to(self.device) / 255.0
         
         with torch.no_grad():
@@ -54,44 +81,34 @@ class SACAgent:
         return action.cpu().numpy()[0]
 
     def update_parameters(self, memory, batch_size: int):
-        """リプレイバッファからミニバッチをサンプリングしてネットワークを更新"""
         state, action, next_state, reward, not_done = memory.sample(batch_size, self.device)
 
         with torch.no_grad():
-            # 次の状態でのアクションと対数確率をサンプリング
             next_state_action, next_state_log_pi, _ = self.actor.sample(next_state)
             
-            # ターゲットCriticによるQ値の計算（Twin）
             target_q1, target_q2 = self.critic_target(next_state, next_state_action)
             target_q = torch.min(target_q1, target_q2) - self.alpha * next_state_log_pi
             
-            # ベルマン方程式に基づくターゲットQ値の算出
             target_q = reward + not_done * self.gamma * target_q
 
-        # 現在のQ値を取得
         current_q1, current_q2 = self.critic(state, action)
         
-        # Critic損失関数
         critic_loss = F.mse_loss(current_q1, target_q) + F.mse_loss(current_q2, target_q)
 
-        # Critic更新
         self.critic_optimizer.zero_grad()
         critic_loss.backward()
         self.critic_optimizer.step()
 
-        # Actor損失関数の計算
         pi, log_pi, _ = self.actor.sample(state)
         actor_q1, actor_q2 = self.critic(state, pi)
         actor_q = torch.min(actor_q1, actor_q2)
         
         actor_loss = (self.alpha * log_pi - actor_q).mean()
 
-        # Actor更新
         self.actor_optimizer.zero_grad()
         actor_loss.backward()
         self.actor_optimizer.step()
 
-        # エントロピー係数（Alpha）の自動調整（有効な場合）
         if self.automatic_entropy_tuning:
             alpha_loss = -(self.log_alpha.exp() * (log_pi + self.target_entropy).detach()).mean()
 
@@ -104,7 +121,6 @@ class SACAgent:
         else:
             alpha_loss_val = 0.0
 
-        # ターゲットネットワークのsoft更新
         for param, target_param in zip(self.critic.parameters(), self.critic_target.parameters()):
             target_param.data.copy_(self.tau * param.data + (1.0 - self.tau) * target_param.data)
 

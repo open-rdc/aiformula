@@ -10,6 +10,8 @@ setup(
         ('share/ament_index/resource_index/packages',
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
+        ('share/' + package_name + '/config', ['config/aiformula_topomap.osm']),
+        ('share/' + package_name + '/launch', ['launch/train.launch.py', 'launch/drive.launch.py']),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
@@ -24,6 +26,9 @@ setup(
     },
     entry_points={
         'console_scripts': [
+            'train = rl.train.train:main',
+            'lane_observation = rl.utitites.lane_observation_node:main',
+            'drive = rl.run.drive:main',
         ],
     },
 )
