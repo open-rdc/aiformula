@@ -2,6 +2,7 @@
 
 #include <memory>
 
+#include <diagnostic_msgs/msg/diagnostic_status.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <speed_path_msgs/msg/speed_path.hpp>
 #include <steered_drive_msg/msg/steered_drive.hpp>
@@ -23,6 +24,8 @@ public:
     virtual void reset() {}
 
     virtual void setMeasuredSteer(double) {}
+
+    virtual diagnostic_msgs::msg::DiagnosticStatus diagnostic() const { return diagnostic_msgs::msg::DiagnosticStatus(); }
 
     virtual steered_drive_msg::msg::SteeredDrive computeCommand(
         const speed_path_msgs::msg::SpeedPath & path_in_base,

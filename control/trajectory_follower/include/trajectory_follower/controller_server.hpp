@@ -1,5 +1,6 @@
 #pragma once
 
+#include <diagnostic_msgs/msg/diagnostic_array.hpp>
 #include <geometry_msgs/msg/twist_with_covariance_stamped.hpp>
 #include <pluginlib/class_loader.hpp>
 #include <rclcpp/rclcpp.hpp>
@@ -45,6 +46,7 @@ private:
     rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr autonomous_subscription_;
     rclcpp::Subscription<std_msgs::msg::Float64MultiArray>::SharedPtr caster_data_subscription_;
     rclcpp::Publisher<steered_drive_msg::msg::SteeredDrive>::SharedPtr command_publisher_;
+    rclcpp::Publisher<diagnostic_msgs::msg::DiagnosticArray>::SharedPtr diagnostic_publisher_;
     rclcpp::TimerBase::SharedPtr timer_;
 };
 

@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cmath>
+#include <string>
 #include <vector>
 
 #include <pluginlib/class_list_macros.hpp>
@@ -63,6 +64,40 @@ void PidMpcPlugin::reset()
 void PidMpcPlugin::setMeasuredSteer(double steer)
 {
     lateral_.setMeasuredSteer(steer);
+}
+
+diagnostic_msgs::msg::DiagnosticStatus PidMpcPlugin::diagnostic() const
+{
+    diagnostic_msgs::msg::DiagnosticStatus status;
+    status.name = "pid_mpc";
+    const auto add = [&status](const std::string & key, double value) {
+        diagnostic_msgs::msg::KeyValue key_value;
+        key_value.key = key;
+        key_value.value = std::to_string(value);
+        status.values.push_back(key_value);
+    };
+
+    const auto & lat = lateral_.debug();
+    add("lateral_error", lat.e_y);
+    add("heading_error", lat.e_yaw);
+    add("curvature", lat.curvature);
+    add("curvature_smoothed", lat.curvature_smoothed);
+    add("steer_measured", lat.steer_measured);
+    add("steer_predicted", lat.steer_predicted);
+    add("steer_raw", lat.steer_raw);
+    add("steer_cmd", lat.steer_cmd);
+
+    const auto & lon = longitudinal_.debug();
+    add("velocity_ref", lon.v_ref);
+    add("acceleration_ref", lon.a_ref);
+    add("velocity_measured", lon.v_meas);
+    add("velocity_error", lon.error);
+    add("acceleration_p", lon.p);
+    add("acceleration_i", lon.i);
+    add("acceleration_raw", lon.a_raw);
+    add("acceleration_cmd", lon.a_cmd);
+    add("velocity_cmd", lon.v_cmd);
+    return status;
 }
 
 steered_drive_msg::msg::SteeredDrive PidMpcPlugin::computeCommand(

@@ -17,6 +17,7 @@ double LongitudinalPid::update(double v_ref, double a_ref, double v_meas)
     if (v_ref <= 0.05 && std::abs(v_meas) <= 0.05) {
         reset();
         initialized_ = true;
+        debug_ = {v_ref, a_ref, v_meas, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
         return 0.0;
     }
 
@@ -41,7 +42,8 @@ double LongitudinalPid::update(double v_ref, double a_ref, double v_meas)
     const double deriv = initialized_ ? (filtered_error_ - prev_error_) / dt : 0.0;
     const double a_fb = params_.kp * filtered_error_ + params_.ki * integral_ + params_.kd * deriv;
 
-    double a_cmd = std::clamp(a_ref + a_fb, params_.a_min, params_.a_max);
+    const double a_raw = a_ref + a_fb;
+    double a_cmd = std::clamp(a_raw, params_.a_min, params_.a_max);
     const double da_max = params_.jerk_max * dt;
     a_cmd = std::clamp(a_cmd, prev_a_cmd_ - da_max, prev_a_cmd_ + da_max);
 
@@ -50,6 +52,7 @@ double LongitudinalPid::update(double v_ref, double a_ref, double v_meas)
     prev_error_ = filtered_error_;
     prev_a_cmd_ = a_cmd;
     initialized_ = true;
+    debug_ = {v_ref, a_ref, v_meas, filtered_error_, params_.kp * filtered_error_, params_.ki * integral_, a_raw, a_cmd, v_cmd_};
     return v_cmd_;
 }
 

@@ -26,6 +26,18 @@ struct LateralMpcParams
     double curvature_smoothing_m;
 };
 
+struct LateralMpcDebug
+{
+    double e_y;
+    double e_yaw;
+    double curvature;
+    double curvature_smoothed;
+    double steer_measured;
+    double steer_predicted;
+    double steer_raw;
+    double steer_cmd;
+};
+
 struct TrackingError
 {
     double e_y;
@@ -54,11 +66,14 @@ public:
 
     double previousSteer() const { return prev_steer_; }
 
+    const LateralMpcDebug & debug() const { return debug_; }
+
 private:
     LateralMpcParams params_{};
     double prev_steer_ = 0.0;
     double steer_state_ = 0.0;
     std::deque<double> command_history_;
+    LateralMpcDebug debug_{};
 };
 
 }
