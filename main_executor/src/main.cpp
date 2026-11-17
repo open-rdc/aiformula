@@ -29,12 +29,33 @@ int main(int argc, char* argv[]) {
     nodes_option.use_intra_process_comms(true);
     const bool use_sim = rclcpp::Node("launch", nodes_option).get_parameter("sim").as_bool();
     const bool mapless = rclcpp::Node("launch", nodes_option).get_parameter("mapless").as_bool();
+    const bool rl = rclcpp::Node("launch", nodes_option).get_parameter("rl").as_bool();
 
     if (use_sim) {
         nodes_option.parameter_overrides({rclcpp::Parameter("use_sim_time", true)});
     }
 
-    auto lane_line_publisher_node  = std::make_shared<lane_line_publisher::LaneLinePublisherNode>(nodes_option);
+    // RL時は /cmd_vel を学習側が出すので、白線認識に必要なノードだけ起動する
+    if (rl) {
+#ifdef ENABLE_ZED
+        std::shared_ptr<zed_wrapper::ZedWrapperNode> zed_wrapper_node;
+        if (!use_sim) {
+            zed_wrapper_node = std::make_shared<zed_wrapper::ZedWrapperNode>(nodes_option);
+            exec.add_node(zed_wrapper_node);
+        }
+#endif
+#ifdef ENABLE_TENSORRT
+        auto road_detector_node = std::make_shared<road_detector::RoadDetectorNode>(nodes_option);
+        auto controller_node           = std::make_shared<controller::Controller>(nodes_option);
+        exec.add_node(road_detector_node);
+        exec.add_node(controller_node);
+#endif
+        exec.spin();
+        rclcpp::shutdown();
+        return 0;
+    }
+
+    auto lane_line_publisher_node = std::make_shared<lane_line_publisher::LaneLinePublisherNode>(nodes_option);
     auto vectormap_visualizer_node = std::make_shared<lane_line_publisher::VectormapVisualizerNode>(nodes_option);
     auto vectormap_server_node     = mapless ? nullptr : std::make_shared<vectormap_server::VectormapServerNode>(nodes_option);
     auto pose_estimater_node       = mapless ? nullptr : std::make_shared<pose_estimater::PoseEstimaterNode>(nodes_option);
@@ -57,6 +78,7 @@ int main(int argc, char* argv[]) {
         exec.add_node(mission_planner_node);
 
     }
+
     exec.add_node(odom_tf_node);
     exec.add_node(local_planner_server_node);
     exec.add_node(speed_path_planner_node);
@@ -86,6 +108,7 @@ int main(int argc, char* argv[]) {
     } else {
         exec.add_node(road_detector_node);
     }
+
 #endif
 
     exec.spin();

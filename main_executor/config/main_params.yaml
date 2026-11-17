@@ -3,6 +3,7 @@ launch:
     joy: false
     sim : true
     mapless : true
+    rl : true
 
 /**:
   ros__parameters:
@@ -173,7 +174,7 @@ traffic_signal_stop_node:
 
 vision_lane_planner_node:
   ros__parameters:
-    engine_path : "vision_planner_n.engine"
+    engine_path : "vision_planner_20261024.engine"
     default_navigation_command : "straight"
 
 path_smoother_node:
