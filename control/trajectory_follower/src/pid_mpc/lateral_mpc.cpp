@@ -68,8 +68,8 @@ double LateralMpc::computeSteering(
 
     // 0. 直進中にヨーレートから舵角オフセットを推定する
     if (has_yaw_rate_ && v > params_.offset_update_vel_threshold &&
-        std::abs(steer_state_) < params_.offset_update_steer_threshold) {
-        const double sample = std::atan(params_.wheelbase * yaw_rate_ / v) - steer_state_;
+        std::abs(prev_steer_) < params_.offset_update_steer_threshold) {
+        const double sample = std::atan(params_.wheelbase * yaw_rate_ / v) - (prev_steer_ - steering_offset_);
         steering_offset_ += params_.control_dt / params_.offset_time_constant * (sample - steering_offset_);
         steering_offset_ = std::clamp(steering_offset_, -params_.offset_limit, params_.offset_limit);
     }
