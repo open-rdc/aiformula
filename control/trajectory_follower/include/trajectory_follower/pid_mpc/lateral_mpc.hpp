@@ -24,6 +24,10 @@ struct LateralMpcParams
     double input_delay;
     double control_dt;
     double curvature_smoothing_m;
+    double offset_update_vel_threshold;
+    double offset_update_steer_threshold;
+    double offset_time_constant;
+    double offset_limit;
 };
 
 struct TrackingError
@@ -52,6 +56,10 @@ public:
 
     void setMeasuredSteer(double steer);
 
+    void setYawRate(double yaw_rate);
+
+    double steeringOffset() const { return steering_offset_; }
+
     double previousSteer() const { return prev_steer_; }
 
 private:
@@ -59,6 +67,9 @@ private:
     double prev_steer_ = 0.0;
     double steer_state_ = 0.0;
     std::deque<double> command_history_;
+    double yaw_rate_ = 0.0;
+    bool has_yaw_rate_ = false;
+    double steering_offset_ = 0.0;
 };
 
 }

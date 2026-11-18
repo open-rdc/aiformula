@@ -12,6 +12,7 @@
   <depend>geometry_msgs</depend>
   <depend>pluginlib</depend>
   <depend>rclcpp</depend>
+  <depend>sensor_msgs</depend>
   <depend>speed_path_msgs</depend>
   <depend>std_msgs</depend>
   <depend>steered_drive_msg</depend>

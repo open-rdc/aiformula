@@ -19,6 +19,8 @@ public:
 
     void setMeasuredSteer(double steer) override;
 
+    void setYawRate(double yaw_rate) override;
+
     steered_drive_msg::msg::SteeredDrive computeCommand(
         const speed_path_msgs::msg::SpeedPath & path_in_base,
         double current_velocity) override;
