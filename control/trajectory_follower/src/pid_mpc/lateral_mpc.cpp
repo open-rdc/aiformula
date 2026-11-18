@@ -43,13 +43,6 @@ TrackingError computeTrackingError(
     err.nearest = nearest;
     err.e_y = std::sin(theta) * x0 - std::cos(theta) * y0;
     err.e_yaw = std::remainder(0.0 - theta, 2.0 * M_PI);
-
-    // 経路が自車より前から始まる場合は、定曲率の円弧で垂線の足まで外挿する
-    const double a_fwd = x0 * std::cos(theta) + y0 * std::sin(theta);
-    if (nearest == 0 && a_fwd > 0.0) {
-        err.e_yaw = std::remainder(-theta + kappa_n * a_fwd, 2.0 * M_PI);
-        err.e_y -= 0.5 * kappa_n * a_fwd * a_fwd;
-    }
     return err;
 }
 
