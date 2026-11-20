@@ -11,7 +11,7 @@ launch:
 /**:
   ros__parameters:
     linear_max:
-      vel : 5.0
+      vel : 3.0
       acc: 3.0
       jer: 15.0
     steering_max :

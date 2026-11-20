@@ -27,7 +27,8 @@ def tensorrt_pylon_detector_built() -> bool:
         prefix = get_package_prefix('object_detection')
     except Exception:
         return False
-    return os.path.exists(os.path.join(prefix, 'lib', 'libpylon_detector_node.so'))
+    # RF-DETR 移行後は object_detector_node が /perception/pylon_mask を出す
+    return os.path.exists(os.path.join(prefix, 'lib', 'libobject_detector_node.so'))
 
 
 def launch_setup(context, *args, **kwargs):

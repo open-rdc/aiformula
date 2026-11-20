@@ -270,8 +270,8 @@ class InferenceNode(Node):
         if self.pub_debug_image.get_subscription_count() > 0:
             debug_image = resize_for_debug(bgr_image)
             debug_image[mask_input[0] == 1] = [0, 0, 255]
-            if self.num_mask_channels == 2:
-                debug_image[mask_input[1] == 1] = [0, 165, 255]
+            # パイロンのマスク ch (枠を塗ったもの) は上塗りしない。RGB に描いたマゼンタの枠線が
+            # 塗りで隠れ、重みに入れた画像と見た目が変わるため
             debug_msg = self.bridge.cv2_to_imgmsg(debug_image, encoding='bgr8')
             debug_msg.header = header
             self.pub_debug_image.publish(debug_msg)
