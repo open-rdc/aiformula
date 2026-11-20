@@ -66,6 +66,56 @@ def preprocess_rgb(bgr_image: np.ndarray) -> np.ndarray:
     return np.transpose(normalized, (2, 0, 1))
 
 
+# 過去フレームのマスクの描き方 {past_mask_mode: (白線の値, 障害物の値)}。0 は描かない。
+# 学習 (train_curve_weight.py) と推論 (inference_node.py) で同じものを使う
+PAST_MASK_VALUES = {
+    'obs': (0.0, 1.0),         # 障害物だけ
+    'merged': (0.5, 1.0),      # 白線 = 灰, 障害物 = 白
+    'merged_inv': (1.0, 0.5),  # 白線 = 白, 障害物 = 灰
+    'same': (1.0, 1.0),        # どちらも白
+}
+PAST_MASK_MODES = tuple(PAST_MASK_VALUES) + ('separate',)
+
+
+def make_past_masks(lane_binary: np.ndarray, obs_binary: np.ndarray, mode: str) -> list:
+    """過去フレームの ch にするマスク (float32, 0〜1, 元解像度) のリスト。
+
+    lane_binary: 白線 0/1 (360x640)、obs_binary: 障害物 0/1 (bool 可)。
+    separate は [白線, 障害物] の 2 枚、それ以外は PAST_MASK_VALUES の値で 1 枚に描く
+    (重なる所は障害物を優先)。256x144 への縮小は呼び出し側で preprocess_mask に通す
+    """
+    lane = np.asarray(lane_binary) > 0
+    obs = np.asarray(obs_binary) > 0
+    if mode == 'separate':
+        return [lane.astype(np.float32), obs.astype(np.float32)]
+    lane_value, obs_value = PAST_MASK_VALUES[mode]
+    out = np.zeros(lane.shape[:2], np.float32)
+    if lane_value:
+        out[lane] = lane_value
+    if obs.shape != out.shape:
+        out = cv2.resize(out, (obs.shape[1], obs.shape[0]), interpolation=cv2.INTER_NEAREST)
+    out[obs] = obs_value
+    return [out]
+
+
+# 障害物の枠線 (学習設定の pylon_bbox_on_rgb)。学習 (train_curve_weight.py) と推論 (inference_node.py) で同じものを使う
+BOX_COLOR = (255, 0, 255)  # BGR のマゼンタ。コースにほぼ無い色
+BOX_THICKNESS = 3          # 640x360 で 3 px (256x144 に縮めると約 1 px)
+
+
+def draw_boxes_on_rgb(bgr: np.ndarray, box_mask: np.ndarray) -> np.ndarray:
+    """障害物マスク (枠を塗りつぶしたもの) の輪郭を BGR 画像に枠線で描く。
+    重なった枠は 1 つの輪郭になる。画像とマスクの大きさが違えばマスクを合わせる"""
+    if box_mask is None or not box_mask.any():
+        return bgr
+    if box_mask.shape[:2] != bgr.shape[:2]:
+        box_mask = cv2.resize(box_mask, (bgr.shape[1], bgr.shape[0]), interpolation=cv2.INTER_NEAREST)
+    contours, _ = cv2.findContours(box_mask.astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    out = np.ascontiguousarray(bgr.copy())
+    cv2.drawContours(out, contours, -1, BOX_COLOR, BOX_THICKNESS)
+    return out
+
+
 def resize_for_debug(bgr_image: np.ndarray) -> np.ndarray:
     """デバッグ表示用に前処理と同じサイズへ揃えた uint8 BGR"""
     return cv2.resize(bgr_image, (IMAGE_WIDTH, IMAGE_HEIGHT), interpolation=cv2.INTER_AREA)

@@ -28,7 +28,10 @@ from util.preprocess import (
     WAYPOINT_X_SCALE,
     WAYPOINT_Y_SCALE,
     WAYPOINT_Y_OFFSET,
+    PAST_MASK_VALUES,
+    draw_boxes_on_rgb,
     extract_red_mask,
+    make_past_masks,
     preprocess_mask,
     preprocess_rgb,
     normalize_waypoints,
@@ -221,22 +224,16 @@ class E2EDataset(Dataset):
     def _past_masks_separate(self, stem: str, extra: Optional[Path] = None) -> List[np.ndarray]:
         """past_mask_mode: separate。過去のフレームの [白線, 障害物] を 0/1 の 2 枚で
         (フレームごとに同じ stem に通す fusion: mid / token / cross 用。今のフレームと同じ形にそろえる)"""
-        lane = (extract_red_mask(cv2.imread(str(self.mask_images_dir / f'{stem}.png'), cv2.IMREAD_COLOR)) > 0)
-        obs = (self._read_pylon_mask_file(self._past_pylon_mask_file(stem, extra)) > 127)
-        return [lane.astype(np.float32), obs.astype(np.float32)]
+        lane = extract_red_mask(cv2.imread(str(self.mask_images_dir / f'{stem}.png'), cv2.IMREAD_COLOR))
+        obs = self._read_pylon_mask_file(self._past_pylon_mask_file(stem, extra)) > 127
+        return make_past_masks(lane, obs, 'separate')
 
     def _past_mask(self, stem: str, extra: Optional[Path] = None) -> np.ndarray:
-        """過去のフレームのマスク (float32, 0〜1)。白線と障害物を past_mask_mode の値で 1 枚に描く"""
-        lane_value, obs_value = PAST_MASK_VALUES[self.past_mask_mode]
-        out = np.zeros((360, 640), np.float32)
-        if lane_value:
-            lane = extract_red_mask(cv2.imread(str(self.mask_images_dir / f'{stem}.png'), cv2.IMREAD_COLOR))
-            out[lane > 0] = lane_value
+        """過去のフレームのマスク (float32, 0〜1)。白線と障害物を past_mask_mode の値で 1 枚に描く。
+        描き方は推論 (inference_node.py) と共有する util.preprocess.make_past_masks"""
+        lane = extract_red_mask(cv2.imread(str(self.mask_images_dir / f'{stem}.png'), cv2.IMREAD_COLOR))
         obs = self._read_pylon_mask_file(self._past_pylon_mask_file(stem, extra)) > 127
-        if obs.shape != out.shape:
-            out = cv2.resize(out, (obs.shape[1], obs.shape[0]), interpolation=cv2.INTER_NEAREST)
-        out[obs] = obs_value  # 重なる所は障害物を優先
-        return out
+        return make_past_masks(lane, obs, self.past_mask_mode)[0]
 
     def _read_pylon_mask(self, name: str) -> np.ndarray:
         return self._read_pylon_mask_file(self.pylon_masks_dir / name)
@@ -406,29 +403,9 @@ class E2EDataset(Dataset):
         return (mask_tensor, rgb_tensor, waypoints_tensor,
                 torch.tensor(weight, dtype=torch.float32), torch.tensor(score, dtype=torch.float32))
 
-# 過去のマスクの描き方 {名前: (白線の値, 障害物の値)}。0 は描かない
-PAST_MASK_VALUES = {
-    'obs': (0.0, 1.0),         # 障害物だけ
-    'merged': (0.5, 1.0),      # 白線 = 灰, 障害物 = 白
-    'merged_inv': (1.0, 0.5),  # 白線 = 白, 障害物 = 灰
-    'same': (1.0, 1.0),        # どちらも白
-}
+# 過去のマスクの描き方 PAST_MASK_VALUES は推論と共有するため util.preprocess に置いた
 
-BOX_COLOR = (255, 0, 255)  # BGR のマゼンタ。コースにほぼ無い色
-BOX_THICKNESS = 3          # 640x360 で 3 px (256x144 に縮めると約 1 px)
-
-
-def draw_boxes_on_rgb(bgr: np.ndarray, box_mask: np.ndarray) -> np.ndarray:
-    """障害物マスク (枠を塗りつぶしたもの) の輪郭を BGR 画像に枠線で描く。
-    重なった枠は 1 つの輪郭になる。画像とマスクの大きさが違えばマスクを合わせる"""
-    if box_mask is None or not box_mask.any():
-        return bgr
-    if box_mask.shape[:2] != bgr.shape[:2]:
-        box_mask = cv2.resize(box_mask, (bgr.shape[1], bgr.shape[0]), interpolation=cv2.INTER_NEAREST)
-    contours, _ = cv2.findContours(box_mask.astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    out = np.ascontiguousarray(bgr.copy())
-    cv2.drawContours(out, contours, -1, BOX_COLOR, BOX_THICKNESS)
-    return out
+# 枠線の描き方 (BOX_COLOR / BOX_THICKNESS / draw_boxes_on_rgb) は推論と共有するため util.preprocess に置いた
 
 
 def oversample_weights(pylon_near: np.ndarray, factor: float) -> np.ndarray:

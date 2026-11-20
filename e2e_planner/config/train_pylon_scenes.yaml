@@ -152,3 +152,7 @@ curve_weighting:
   max_weight: 50.0
   # val の |曲がり量| がこれ以上のサンプルを「急カーブ」として別に集計する (TensorBoard の CurveTight/)
   eval_tight_m: 4.0
+
+# 赤コースの bag で、分岐路の前後を除いて使うフレーム (aiformula-experiments の data_tools/course_check/red_usable.py)。
+# avoid_only・青コースだけの判定より優先して使う (本人, 2026-11-01)
+usable_frames_file: red_usable.json

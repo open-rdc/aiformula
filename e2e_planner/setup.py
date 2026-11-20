@@ -27,6 +27,7 @@ setup(
         'console_scripts': [
             'inference_node = e2e_planner.inference_node:main',
             'inference_node_sim.py = e2e_planner.inference_node_sim:main',
+            'pylon_mask_onnx_node = e2e_planner.pylon_mask_onnx_node:main',
         ],
     },
 )
