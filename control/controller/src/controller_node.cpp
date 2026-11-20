@@ -13,6 +13,15 @@ Controller::Controller(const std::string& name_space, const rclcpp::NodeOptions&
 linear_max_vel(get_parameter("linear_max_vel").as_double()),
 steering_max_angle(dtor(get_parameter("steering_max.pos").as_double()))
 {
+    // 実機 (DS4) は Share (8)。シミュレーション (use_sim_time) では autonomous_button_sim を使う。
+    // DS4 の 11 は L3 (スティック押し込み) なので、11 を実機で使うと走行中に誤って切り替わりうる
+    const bool use_sim_time = get_parameter("use_sim_time").as_bool();
+    const char* button_param = use_sim_time ? "autonomous_button_sim" : "autonomous_button";
+    const int default_button = static_cast<int>(Buttons::Share);
+    autonomous_button = has_parameter(button_param) ? static_cast<int>(get_parameter(button_param).as_int())
+                                                    : default_button;
+    RCLCPP_INFO(this->get_logger(), "自動/手動の切り替えボタン : buttons[%d] (%s)", autonomous_button, button_param);
+
     _subscription_joy = this->create_subscription<sensor_msgs::msg::Joy>(
         "joy",
         _qos,
@@ -31,7 +40,10 @@ steering_max_angle(dtor(get_parameter("steering_max.pos").as_double()))
 
 void Controller::_subscriber_callback_joy(const sensor_msgs::msg::Joy::ConstSharedPtr msg){
     // 自動か手動か
-    if(upedge_share(msg->buttons[static_cast<int>(Buttons::Share)])){
+    const bool autonomous_pressed = autonomous_button >= 0
+        && autonomous_button < static_cast<int>(msg->buttons.size())
+        && msg->buttons[autonomous_button];
+    if(upedge_autonomous(autonomous_pressed)){
         auto msg_autonomous = std::make_unique<std_msgs::msg::Bool>();
         msg_autonomous->data = is_autonomous = !is_autonomous;
         publisher_autonomous->publish(std::move(msg_autonomous));

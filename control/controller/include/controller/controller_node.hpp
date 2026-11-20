@@ -38,10 +38,13 @@ private:
 
     const double linear_max_vel;
     const double steering_max_angle;
+    // 自動/手動を切り替えるボタンの番号。コントローラーで並びが違うので実機とシミュレーションで分ける
+    // (main_params.yaml の autonomous_button / autonomous_button_sim)
+    int autonomous_button;
 
     bool is_autonomous = false;
 
-    utils::UpEdge upedge_share;
+    utils::UpEdge upedge_autonomous;
     utils::UpEdge upedge_options;
     utils::UpEdge upedge_cross;
     utils::UpEdge upedge_l1;
