@@ -60,6 +60,7 @@
         name="ignition::gazebo::ColorControl">
         <control_name>screen_visual</control_name>
         <service_name>/panel/toggle_signal</service_name>
+        <initial_green>true</initial_green>  <!-- 信号はずっと青。赤で止める確認をするときは false か /panel/toggle_signal -->
       </plugin>
       <!-- <plugin
         filename="LightControl"

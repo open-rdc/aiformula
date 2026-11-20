@@ -13,7 +13,7 @@ import shutil
 def generate_launch_description():
     world_arg = DeclareLaunchArgument(
         'world',
-        default_value='shihou_world.sdf',
+        default_value='shihou_world4.sdf',
         description='World file name (e.g., shihou_world.sdf, classic_world_ignition.sdf)'
     )
 
@@ -130,6 +130,10 @@ def generate_launch_description():
             '--controller-manager-timeout',
             '60',
             '--switch-timeout',
+            '60',
+            # 重いワールドでは起動直後のswitch_controller応答に10秒以上かかる。
+            # 既定(10s)だと再送が「既にactive」で失敗し、spawnerだけ異常終了する。
+            '--service-call-timeout',
             '60',
         ],
         output='screen',

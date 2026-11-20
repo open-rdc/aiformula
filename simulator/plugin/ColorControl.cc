@@ -21,6 +21,8 @@ void ColorControl::Configure(const Entity &_entity,
 {
   COLOR_ENTITY_NAME = (_sdf && _sdf->HasElement("control_name")) ? _sdf->Get<std::string>("control_name") : "screen_visual";
   SERVICE_NAME = (_sdf && _sdf->HasElement("service_name")) ? _sdf->Get<std::string>("service_name") : "/panel/toggle_signal";
+  // 起動時の色。true で最初から青 (サービスで赤に切り替えられる)
+  is_green_ = (_sdf && _sdf->HasElement("initial_green")) ? _sdf->Get<bool>("initial_green") : false;
 
   context_ = std::make_shared<rclcpp::Context>();
   context_->init(0, nullptr);

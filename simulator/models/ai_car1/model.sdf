@@ -341,7 +341,7 @@
 
 
     <link name="camera_link">
-      <pose relative_to="chassis">-0.008 0.0325 0.4277 0.00867605 -0.00346759 0.00624156</pose>
+      <pose relative_to="chassis">-0.008 0.0325 0.4277 0.00867605 -0.02870550 0.00624156</pose>  <!-- ピッチは実機の画像の地平線 (白線の消失点 181 行目) に合わせて約 1.4 度上向きに (元は -0.00346759)。高さは白線の幅から測って実機と 3% 以内で一致したので変えない -->
       <inertial>
         <mass>0.01</mass>
         <inertia>
@@ -355,14 +355,15 @@
     <link name="camera_rgb_link">
       <pose relative_to="camera_link">0 0 0 0 0 0</pose>
       <sensor name="rgb_camera" type="camera">
-        <update_rate>60.0</update_rate>
+        <update_rate>15.0</update_rate>  <!-- 60 だと描画負荷が高い。e2e_planner の推論は 10Hz、
+                                     データ収集は 5Hz なので 15 で足りる -->
         <always_on>true</always_on>
         <ignition_frame_id>camera_rgb_link</ignition_frame_id>
         <pose>0 0 0 0 0 0</pose>
         <topic>image_raw</topic>
         <camera name="camera">
           <visibility_mask>1</visibility_mask>
-          <horizontal_fov>1.798255304332</horizontal_fov>
+          <horizontal_fov>1.832338611037</horizontal_fov>  <!-- 実機 ZED (nHD) の camera_info (10/27 の bag) に合わせた。元は 1.798255304332 (fx 254.39) -->
           <image>
              <width>640</width>
              <height>360</height>
@@ -370,17 +371,17 @@
           </image>
           <lens>
             <intrinsics>
-              <fx>254.391622</fx>
-              <fy>254.391622</fy>
-              <cx>330.013020833</cx>
-              <cy>181.149637858</cy>
+              <fx>245.61</fx>
+              <fy>245.61</fy>
+              <cx>324.43</cx>
+              <cy>175.33</cy>
               <s>0</s>
             </intrinsics>
             <projection>
-              <p_fx>254.391622</p_fx>
-              <p_fy>254.391622</p_fy>
-              <p_cx>330.013020833</p_cx>
-              <p_cy>181.149637858</p_cy>
+              <p_fx>245.61</p_fx>
+              <p_fy>245.61</p_fy>
+              <p_cx>324.43</p_cx>
+              <p_cy>175.33</p_cy>
               <tx>0</tx>
               <ty>0</ty>
             </projection>
@@ -395,6 +396,11 @@
 
     <link name="camera_depth_link">
       <pose relative_to="camera_link">0 0 0 0 0 0</pose>
+      <!-- depth センサは未使用のため無効化（Gazebo の負荷削減）。
+           /zed/zed_node/point_cloud を購読するノードはない（pylon_detector も RGB 画像を使う）。
+           点群が必要になったら以下のコメントを解除する。launch 側の /depth_image_raw/* ブリッジと
+           camera_depth_frame_bridge は残してあるので、ここを戻すだけで復活する -->
+      <!--
       <sensor name="depth_camera" type="depth">
         <update_rate>60.0</update_rate>
         <always_on>true</always_on>
@@ -435,6 +441,7 @@
           </clip>
         </camera>
       </sensor>
+      -->
     </link>
 
     <!-- GNSS sensor -->
@@ -451,7 +458,7 @@
     <link name="gps_link">
       <sensor name="gps_sensor" type="navsat">
         <always_on>true</always_on>
-        <update_rate>5.0</update_rate>
+        <update_rate>20.0</update_rate>  <!-- 実機の /vectornav/gnss・/vectornav/pose は 20Hz (元は 5Hz) -->
         <topic>navsat</topic>
       </sensor>
     </link>

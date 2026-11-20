@@ -1,0 +1,200 @@
+<?xml version="1.0" ?>
+<sdf version="1.8">
+    <world name="car_world">
+
+
+        <gui fullscreen="0">
+        <plugin filename="GzScene3D" name="3D View">
+            <camera_pose>0.4845 5.5579 3.3651 0.0 0.308 -1.548</camera_pose>
+            <ignition-gui>
+            <title>3D View</title>
+            <property type="bool" key="showTitleBar">true</property>
+            <property type="string" key="state">docked</property>
+            </ignition-gui>
+        </plugin>
+        <plugin filename="Teleop" name="ignition::gui::plugins::Teleop">
+            <topic>/cmd_vel</topic>
+
+            <ignition-gui>
+            <property type="bool" key="showTitleBar">true</property>
+            <property type="string" key="state">docked</property>
+            <property key="resizable" type="bool">true</property>
+            </ignition-gui>
+        </plugin>
+        <plugin filename="ImageDisplay" name="ignition::gui::plugins::ImageDisplay">
+            <topic>/image_raw</topic>
+        </plugin>
+        </gui>
+
+        <physics name="1ms" type="ignored">
+            <max_step_size>0.001</max_step_size>
+            <real_time_factor>1.0</real_time_factor>
+            <gravity>0 0 -9.8</gravity>
+        </physics>
+        <plugin
+            filename="libignition-gazebo-physics-system.so"
+            name="ignition::gazebo::systems::Physics">
+
+        </plugin>
+        <plugin
+            filename="libignition-gazebo-user-commands-system.so"
+            name="ignition::gazebo::systems::UserCommands">
+
+        </plugin>
+        <plugin
+            filename="libignition-gazebo-scene-broadcaster-system.so"
+            name="ignition::gazebo::systems::SceneBroadcaster">
+        </plugin>
+        <plugin 
+            filename="ignition-gazebo-navsat-system"
+            name="ignition::gazebo::systems::NavSat">
+        </plugin>
+
+        <plugin
+        filename="libignition-gazebo-imu-system.so"
+        name="ignition::gazebo::systems::Imu">
+        </plugin>
+        <plugin
+            filename="libignition-gazebo-sensors-system.so"
+            name="ignition::gazebo::systems::Sensors">
+        </plugin>
+        <plugin
+            filename="PylonControl"
+            name="ignition::gazebo::PylonControl">
+            <path_file_name>dynamic_obstacle_left1</path_file_name>
+            <panel_model_name>panel</panel_model_name>
+            <robot_model_name>ai_car1</robot_model_name>
+            <pylon_model_name>pylon</pylon_model_name>
+            <setting_service_name>/pylon/setting</setting_service_name>
+            <clear_service_name>/pylon/clear</clear_service_name>
+            <clearance>10.0</clearance>
+            <group_interval>8.0</group_interval>
+            <lateral_range>3.0</lateral_range>
+            <pylon_interval>0.5</pylon_interval>
+            <group_num>10</group_num>  <!-- 1周 270m に 10 か所。25 か所 (約50本) だと RTF が 0.9 台から 0.55〜0.8 に落ちた。/pylon/setting を呼ぶたびに置き直す -->
+            <min_pylon_num>2</min_pylon_num>
+            <max_pylon_num>4</max_pylon_num>
+        </plugin>
+
+        <!-- 空の色。既定の明るい灰色 (V 218) は実機の曇り空 (V 約 169) より明るすぎる。
+             値はリニアで、画像ではガンマ補正後の明るさになる (0.64 → V 211)。0.40 で V 約 169 -->
+        <scene>
+            <background>0.40 0.41 0.43 1</background>
+        </scene>
+
+        <light type="directional" name="sun">
+            <cast_shadows>false</cast_shadows>  <!-- shihou_world4 は影の描画でカメラ1フレームが重く RTF 0.74→影なしで1.0（地面の影はテクスチャに焼き込み済み） -->
+            <pose>0 0 10 0 0 0</pose>
+            <diffuse>0.8 0.8 0.8 1</diffuse>
+            <specular>0.2 0.2 0.2 1</specular>
+            <attenuation>
+                <range>1000</range>
+                <constant>0.9</constant>
+                <linear>0.01</linear>
+                <quadratic>0.001</quadratic>
+            </attenuation>
+            <direction>-0.5 0.1 -0.9</direction>
+        </light>
+
+        <!-- Black ground plane at z=-0.1 (300m radius) -->
+        <model name="black_ground_plane">
+        <static>true</static>
+        <pose>0 0 -0.1 0 0 0</pose>
+        <link name="link">
+            <collision name="collision">
+                <geometry>
+                <plane>
+                <normal>0 0 1</normal>
+                <size>600 600</size>
+                </plane>
+                </geometry>
+            </collision>
+            <visual name="visual">
+                <geometry>
+                <plane>
+                <normal>0 0 1</normal>
+                <size>600 600</size>
+                </plane>
+                </geometry>
+                <material>
+                <ambient>0 0 0 1</ambient>
+                <diffuse>0 0 0 1</diffuse>
+                <specular>0 0 0 1</specular>
+                </material>
+            </visual>
+        </link>
+        </model>
+
+        <!-- Lane line mesh at z=0 -->
+        <model name="ground_plane">
+        <static>true</static>
+        <pose>1.225816 0.278738 0 0 0 0.02568048</pose>
+        <link name="link">
+            <collision name="collision">
+                <geometry>
+                <plane>
+                <normal>0 0 1</normal>
+                </plane>
+                </geometry>
+            </collision>
+            <visual name="visual">
+                <!-- shihou_world4 の dae は旧 shihou_world.dae (scale 0.8) と座標が違う。
+                     旧ワールドの航空写真に、真上から見た地面テクスチャを画像の位置合わせ (SIFT + ECC) で重ねて求めた:
+                     倍率 0.79411、回転 -1.751 deg、平行移動 (0.2440, 1.3488) (この link 座標)。
+                     z は補正後の地面の高さ (スポーン 0.399、信号機 0.388、置き物 0.39〜0.41 m) を衝突平面 z=0 に合わせる -->
+                <pose>0.2440 1.3488 -0.39 0 0 -0.030555</pose>
+                <geometry>
+                    <mesh>
+                      <uri>package://simulator/world/meshes/shihou_world4_lite200k.dae</uri>
+                    <scale>0.79411 0.79411 0.79411</scale>
+                    </mesh>
+                </geometry>
+            </visual>
+        </link>
+        </model>
+
+
+        <include>
+            <uri>package://simulator/models/ai_car1</uri>
+            <pose>0.5 0.3 0 0 0 -1.5</pose>
+        </include>
+        <include>
+            <uri>package://simulator/models/dynamic_obstacle</uri>
+            <pose>40 28.0 0 0 0 3.14</pose>
+        </include>
+        <include>
+            <uri>package://simulator/models/panel</uri>
+            <pose>80.75 5.5 0.0 0 0 3.24</pose>
+        </include>
+        <include>
+            <uri>https://fuel.gazebosim.org/1.0/openrobotics/models/construction cone</uri>
+            <name>panel_cone_0</name>
+            <pose>80.247 4.200 0 0 0 1.5708</pose>
+            <static>true</static>
+        </include>
+        <include>
+            <uri>https://fuel.gazebosim.org/1.0/openrobotics/models/construction cone</uri>
+            <name>panel_cone_1</name>
+            <pose>80.750 4.200 0 0 0 1.5708</pose>
+            <static>true</static>
+        </include>
+        <include>
+            <uri>https://fuel.gazebosim.org/1.0/openrobotics/models/construction cone</uri>
+            <name>panel_cone_2</name>
+            <pose>81.253 4.200 0 0 0 1.5708</pose>
+            <static>true</static>
+        </include>
+
+    <!-- 用調整 -->
+
+        <spherical_coordinates>
+            <surface_model>EARTH_WGS84</surface_model>
+            <world_frame_orientation>ENU</world_frame_orientation>
+            <latitude_deg>36.1131311</latitude_deg>
+            <longitude_deg>139.9810753</longitude_deg>
+            <elevation>0</elevation>
+            <heading_deg>0</heading_deg>
+        </spherical_coordinates>
+
+    </world>
+</sdf>
