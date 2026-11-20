@@ -15,6 +15,10 @@ LocalPlannerServer::LocalPlannerServer(const rclcpp::NodeOptions& options)
     plugin_->initialize(get_logger(), get_clock(), get_node_parameters_interface());
 
     velocity_ = std::make_shared<geometry_msgs::msg::TwistWithCovarianceStamped>();
+    passthrough_ = has_parameter("passthrough") && get_parameter("passthrough").as_bool();
+    if (passthrough_) {
+        RCLCPP_INFO(get_logger(), "passthrough: /planner/global_path をそのまま /planner/local_path に出します (回避しない)");
+    }
 
     tf_buffer_ = std::make_shared<tf2_ros::Buffer>(get_clock());
     tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
@@ -77,6 +81,13 @@ void LocalPlannerServer::timer_callback()
     global_path.poses.resize(global_path_->poses.size());
     for (size_t i = 0; i < global_path_->poses.size(); ++i) {
         tf2::doTransform(global_path_->poses[i], global_path.poses[i], odom_to_path);
+    }
+    if (passthrough_) {
+        // 観測時刻の姿勢で odom に変換した経路をそのまま出す (撮影から今までに進んだ分はこれで補正される)
+        if (!global_path.poses.empty()) {
+            local_path_publisher_->publish(global_path);
+        }
+        return;
     }
     plugin_->setGlobalPath(global_path);
 

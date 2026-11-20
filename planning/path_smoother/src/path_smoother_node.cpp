@@ -32,12 +32,18 @@ PathSmootherNode::PathSmootherNode(
       path_subscriber_(this, "/planner/vision_path", rclcpp::QoS(1).keep_last(1).get_rmw_qos_profile()),
       tf_filter_(path_subscriber_, tf_buffer_, "odom", 1, get_node_logging_interface(), get_node_clock_interface(),
                  std::chrono::duration_cast<tf2::Duration>(std::chrono::duration<double>(tf_timeout_s_))) {
+    passthrough_ = has_parameter("passthrough") && get_parameter("passthrough").as_bool();
     tf_buffer_.setCreateTimerInterface(std::make_shared<tf2_ros::CreateTimerROS>(get_node_base_interface(), get_node_timers_interface()));
     tf_filter_.registerCallback(&PathSmootherNode::path_callback, this);
     path_publisher_ = create_publisher<nav_msgs::msg::Path>("/planner/global_path", rclcpp::QoS(1).keep_last(1));
 }
 
 void PathSmootherNode::path_callback(const nav_msgs::msg::Path::ConstSharedPtr msg) {
+    if (passthrough_) {
+        path_publisher_->publish(std::make_unique<nav_msgs::msg::Path>(*msg));
+        return;
+    }
+
     std::vector<Point2D> input;
     input.reserve(msg->poses.size());
     for (const auto& pose : msg->poses) {

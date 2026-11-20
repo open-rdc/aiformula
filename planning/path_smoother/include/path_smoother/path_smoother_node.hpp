@@ -31,6 +31,8 @@ class PathSmootherNode : public rclcpp::Node {
    private:
     void path_callback(const nav_msgs::msg::Path::ConstSharedPtr msg);
 
+    // true なら平滑化せず、/planner/vision_path をそのまま /planner/global_path に出す (e2e のとき main.cpp が設定)
+    bool         passthrough_ = false;
     const double window_duration_s_;
     const double tf_timeout_s_;
     const double fit_max_x_m_;

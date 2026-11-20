@@ -31,11 +31,14 @@ int main(int argc, char* argv[]) {
     const bool mapless = rclcpp::Node("launch", nodes_option).get_parameter("mapless").as_bool();
     // e2e: true のときは e2e_planner (Python, launch で別プロセス起動) が /planner/vision_path を出すので、
     // 同じトピックに出す vision_lane_planner は作らない (TensorRT の無い環境ではそもそも作られない)
-    [[maybe_unused]] const bool use_e2e = rclcpp::Node("launch", nodes_option).get_parameter("e2e").as_bool();
+    const bool use_e2e = rclcpp::Node("launch", nodes_option).get_parameter("e2e").as_bool();
 
     if (use_sim) {
         nodes_option.parameter_overrides({rclcpp::Parameter("use_sim_time", true)});
     }
+    // e2e: true のときは e2e の経路をそのまま使う。path_smoother は平滑化せず、local_planner は回避しない
+    rclcpp::NodeOptions path_option = nodes_option;
+    path_option.append_parameter_override("passthrough", use_e2e);
 
     auto lane_line_publisher_node  = std::make_shared<lane_line_publisher::LaneLinePublisherNode>(nodes_option);
     auto vectormap_visualizer_node = std::make_shared<lane_line_publisher::VectormapVisualizerNode>(nodes_option);
@@ -45,7 +48,7 @@ int main(int argc, char* argv[]) {
     auto map_odom_tf_node          = mapless ? nullptr : std::make_shared<ekf_localizer::MapOdomTfNode>(nodes_option);
     auto odom_tf_node              = std::make_shared<ekf_localizer::OdomTfNode>(nodes_option);
     auto mission_planner_node      = mapless ? nullptr : std::make_shared<mission_planner::MissionPlannerNode>(nodes_option);
-    auto local_planner_server_node = std::make_shared<local_planner::LocalPlannerServer>(nodes_option);
+    auto local_planner_server_node = std::make_shared<local_planner::LocalPlannerServer>(path_option);
     auto speed_path_planner_node   = std::make_shared<speed_path_planner::SpeedPathPlannerNode>(nodes_option);
     auto controller_server_node    = std::make_shared<trajectory_follower::ControllerServer>(nodes_option);
     auto controller_node           = std::make_shared<controller::Controller>(nodes_option);
@@ -79,7 +82,7 @@ int main(int argc, char* argv[]) {
     auto traffic_signal_stop_node = std::make_shared<traffic_signal_stop::TrafficSignalStopNode>(nodes_option);
     auto road_detector_node       = mapless ? nullptr : std::make_shared<road_detector::RoadDetectorNode>(nodes_option);
     auto vision_lane_planner_node = mapless && !use_e2e ? std::make_shared<vision_lane_planner::VisionLanePlannerNode>(nodes_option) : nullptr;
-    auto path_smoother_node       = mapless ? std::make_shared<path_smoother::PathSmootherNode>(nodes_option) : nullptr;
+    auto path_smoother_node       = mapless ? std::make_shared<path_smoother::PathSmootherNode>(path_option) : nullptr;
 
     exec.add_node(pylon_detector_node);
     exec.add_node(traffic_signal_stop_node);

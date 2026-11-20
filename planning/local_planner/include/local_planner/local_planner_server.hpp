@@ -43,6 +43,9 @@ private:
     rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr local_path_publisher_;
     rclcpp::Publisher<speed_path_msgs::msg::StopPoint>::SharedPtr stop_point_publisher_;
     rclcpp::TimerBase::SharedPtr timer_;
+    // true なら回避経路を作らず、/planner/global_path を odom に変換してそのまま /planner/local_path に出す
+    // (e2e のとき main.cpp が設定)。障害物での停止点も出さない
+    bool passthrough_ = false;
 };
 
 }
