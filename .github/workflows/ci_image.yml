@@ -1,0 +1,29 @@
+name: ci-image
+
+on:
+  push:
+    branches: [deploy]
+    paths:
+      - '**/package.xml'
+      - docker/ci/**
+      - .github/workflows/ci_image.yml
+
+env:
+  IMAGE: ghcr.io/open-rdc/aiformula-ci:${{ github.ref_name }}
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: build-and-push
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+          docker build -f docker/ci/Dockerfile -t "$IMAGE" .
+          docker push "$IMAGE"

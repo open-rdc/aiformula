@@ -15,6 +15,7 @@ class Converter(Node):
 
         self.create_subscription(Odometry, "/odom", self.callback_odom, 10)
         self.publisher = self.create_publisher(TwistWithCovarianceStamped, "/vectornav/velocity_body", 10)
+        self.chassis_publisher = self.create_publisher(TwistWithCovarianceStamped, "/chassis/velocity_body", 10)
 
         self.get_logger().info("/odom から /vectornav/velocity_body を再現して出版します．")
 
@@ -35,6 +36,12 @@ class Converter(Node):
         out.twist.covariance = msg.twist.covariance
 
         self.publisher.publish(out)
+
+        chassis = TwistWithCovarianceStamped()
+        chassis.header.stamp = msg.header.stamp
+        chassis.header.frame_id = "base_link"
+        chassis.twist.twist.linear.x = msg.twist.twist.linear.x
+        self.chassis_publisher.publish(chassis)
 
 
 def main():

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "object_detection/yolox_tensorrt.hpp"
+#include "object_detection/rfdetr_tensorrt.hpp"
 
 #include <opencv2/core.hpp>
 

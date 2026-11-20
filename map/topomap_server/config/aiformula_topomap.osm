@@ -1,0 +1,70 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<osm version="0.6" generator="topo_yaml_to_osm_localxy">
+
+  <node id="00000000000" visible="true" lat="36.1130995" lon="139.98107149999998">
+    <tag k="local_x" v="0.000" />
+    <tag k="local_y" v="0.000" />
+  </node>
+
+  <node id="10000000000" visible="true" lat="36.1130678000" lon="139.9810731000">
+    <tag k="local_x" v="0.144056" />
+    <tag k="local_y" v="-3.517467" />
+  </node>
+
+  <node id="10000000001" visible="true" lat="36.1127961000" lon="139.9814248000">
+    <tag k="local_x" v="31.809407" />
+    <tag k="local_y" v="-33.665539" />
+  </node>
+  <node id="10000000002" visible="true" lat="36.1131270000" lon="139.9819818000">
+    <tag k="local_x" v="81.958623" />
+    <tag k="local_y" v="3.051814" />
+  </node>
+  <node id="10000000003" visible="true" lat="36.1133888000" lon="139.9816557000">
+    <tag k="local_x" v="52.598120" />
+    <tag k="local_y" v="32.101205" />
+  </node>
+  <node id="10000000004" visible="true" lat="36.1133689000" lon="139.9813716000">
+    <tag k="local_x" v="27.019342" />
+    <tag k="local_y" v="29.892962" />
+  </node>
+
+  <node id="10000000005" visible="true" lat="36.1130869000" lon="139.9813976000">
+    <tag k="local_x" v="29.360343" />
+    <tag k="local_y" v="-1.398061" />
+  </node>
+  <node id="10000000006" visible="true" lat="36.1131099000" lon="139.9816785000">
+    <tag k="local_x" v="54.651098" />
+    <tag k="local_y" v="1.154166" />
+  </node>
+
+
+
+  <way id="20000000000">
+    <nd ref="10000000000" />
+    <nd ref="10000000001" />
+    <nd ref="10000000002" />
+    <nd ref="10000000003" />
+    <nd ref="10000000004" />
+    <nd ref="10000000000" />
+    <tag k="type" v="topo_edge" />
+  </way>
+
+  <way id="20000000001">
+    <nd ref="10000000001" />
+    <nd ref="10000000005" />
+    <nd ref="10000000004" />
+    <tag k="type" v="topo_edge" />
+  </way>
+  <way id="20000000002">
+    <nd ref="10000000002" />
+    <nd ref="10000000006" />
+    <nd ref="10000000005" />
+    <nd ref="10000000000" />
+    <tag k="type" v="topo_edge" />
+  </way>
+  <way id="20000000003">
+    <nd ref="10000000003" />
+    <nd ref="10000000006" />
+    <tag k="type" v="topo_edge" />
+  </way>
+</osm>

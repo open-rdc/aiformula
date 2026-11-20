@@ -2,14 +2,16 @@ launch:
   ros__parameters:
     joy: true
     sim : false
-    mapless : true
+    mapless:
+      use: true
+      course: "blue" # "red" or "blue"
     e2e : true    # true で vision_lane_planner の代わりに e2e_planner が経路を出す (mapless のとき)
                   # e2e の経路は平滑化 (path_smoother) も回避 (local_planner) もせず、そのまま速度計画・追従に渡す
 
 /**:
   ros__parameters:
     linear_max:
-      vel : 3.0
+      vel : 5.0
       acc: 3.0
       jer: 15.0
     steering_max :
@@ -55,6 +57,23 @@ lane_line_publisher_node:
 vectormap_server_node:
   ros__parameters:
     map_path : "aiformula_course.osm"
+
+topomap_server_node:
+  ros__parameters:
+    map_path : "aiformula_topomap.osm"
+
+topomap_localizer_node:
+  ros__parameters:
+    interval_ms : 50
+    route : [10000000000, 10000000001, 10000000002, 10000000006, 10000000003, 10000000004]
+    initial_position : [1.5, 3.0] # 初期位置 [x 東, y 北]（GNSS を使わない場合に利用）。
+    init_gnss_flag : false # 初期位置だけは GNSS から取得（移動は推測航法）
+    imu_timeout_s : 0.1
+    trigger_distance_m : 20.0
+    turn_angle_deg : 60.0
+    heading_tolerance_deg : 45.0
+    straight_angle_deg : 30.0
+    anchor_window : 4
 
 pose_estimater_node:
   ros__parameters:
@@ -165,12 +184,13 @@ speed_path_planner_node:
     stop_decel_max     : 4.0   # stop_decel で止まれないときに使う減速度の上限 [m/s^2]
     stop_point_timeout_s : 0.5
     speed_limit_timeout_s : 0.5   # /planning/speed_limit (e2e_planner の速度上限) がこれより古ければ使わない
+    branch_linear_max:
+      vel : 4.0   # 分岐路付近での速度上限 [m/s]
 
-pylon_detector_node:
+object_detector_node:
   ros__parameters:
-    engine_path : "yolox_s_aiformula.engine"
+    engine_path : "rfdetr_l_aiformula.engine"
     score_threshold : 0.3
-    nms_threshold : 0.45
 
 traffic_signal_stop_node:
   ros__parameters:
@@ -194,7 +214,7 @@ path_smoother_node:
 controller_server_node:
   ros__parameters:
     interval_ms  : 50
-    controller_plugin  : "trajectory_follower::PurePursuitPlugin"
+    controller_plugin  : "trajectory_follower::PidMpcPlugin"
     a_min              : -4.0
     velocity_preview_time : 0.3
     pure_pursuit:
@@ -213,7 +233,9 @@ controller_server_node:
         horizon                       : 20
         prediction_dt                 : 0.1
         min_predict_speed             : 0.5
-        steer_tau                     : 0.22
+        steer_tau                     : 0.15
+        input_delay                   : 0.1
+        curvature_smoothing_m         : 4.0
         weight_lat_error              : 1.0
         weight_heading_error          : 1.0
         weight_steering_input         : 0.1

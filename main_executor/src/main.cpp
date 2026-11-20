@@ -6,11 +6,13 @@
 #include "lane_line_publisher/vectormap_visualizer_node.hpp"
 #include "local_planner/local_planner_server.hpp"
 #include "mission_planner/mission_planner_node.hpp"
-#include "object_detection/pylon_detector_node.hpp"
+#include "object_detection/object_detector_node.hpp"
 #include "path_smoother/path_smoother_node.hpp"
 #include "pose_estimater/pose_estimater_node.hpp"
 #include "road_detector/road_detector_node.hpp"
 #include "speed_path_planner/speed_path_planner_node.hpp"
+#include "topomap_localizer/topomap_localizer_node.hpp"
+#include "topomap_server/topomap_server_node.hpp"
 #include "traffic_signal_stop/traffic_signal_stop_node.hpp"
 #include "trajectory_follower/controller_server.hpp"
 #include "vectormap_server/vectormap_server_node.hpp"
@@ -28,7 +30,8 @@ int main(int argc, char* argv[]) {
     nodes_option.automatically_declare_parameters_from_overrides(true);
     nodes_option.use_intra_process_comms(true);
     const bool use_sim = rclcpp::Node("launch", nodes_option).get_parameter("sim").as_bool();
-    const bool mapless = rclcpp::Node("launch", nodes_option).get_parameter("mapless").as_bool();
+    const bool mapless = rclcpp::Node("launch", nodes_option).get_parameter("mapless.use").as_bool();
+    const bool blue    = mapless && rclcpp::Node("launch", nodes_option).get_parameter("mapless.course").as_string() == "blue";
     // e2e: true のときは e2e_planner (Python, launch で別プロセス起動) が /planner/vision_path を出すので、
     // 同じトピックに出す vision_lane_planner は作らない (TensorRT の無い環境ではそもそも作られない)
     const bool use_e2e = rclcpp::Node("launch", nodes_option).get_parameter("e2e").as_bool();
@@ -46,6 +49,8 @@ int main(int argc, char* argv[]) {
     auto pose_estimater_node       = mapless ? nullptr : std::make_shared<pose_estimater::PoseEstimaterNode>(nodes_option);
     auto ekf_localizer_node        = mapless ? nullptr : std::make_shared<ekf_localizer::EkfLocalizerNode>(nodes_option);
     auto map_odom_tf_node          = mapless ? nullptr : std::make_shared<ekf_localizer::MapOdomTfNode>(nodes_option);
+    auto topomap_server_node       = blue ? std::make_shared<topomap_server::TopomapServerNode>(nodes_option) : nullptr;
+    auto topomap_localizer_node    = blue ? std::make_shared<topomap_localizer::TopomapLocalizerNode>(nodes_option) : nullptr;
     auto odom_tf_node              = std::make_shared<ekf_localizer::OdomTfNode>(nodes_option);
     auto mission_planner_node      = mapless ? nullptr : std::make_shared<mission_planner::MissionPlannerNode>(nodes_option);
     auto local_planner_server_node = std::make_shared<local_planner::LocalPlannerServer>(path_option);
@@ -63,11 +68,15 @@ int main(int argc, char* argv[]) {
         exec.add_node(mission_planner_node);
 
     }
+    if (blue) {
+        exec.add_node(topomap_server_node);
+        exec.add_node(topomap_localizer_node);
+    }
     exec.add_node(odom_tf_node);
     exec.add_node(local_planner_server_node);
     exec.add_node(speed_path_planner_node);
     exec.add_node(controller_server_node);
-    exec.add_node(controller_node);
+    // exec.add_node(controller_node);
 
 #ifdef ENABLE_ZED
     std::shared_ptr<zed_wrapper::ZedWrapperNode> zed_wrapper_node;
@@ -78,14 +87,16 @@ int main(int argc, char* argv[]) {
 #endif
 
 #ifdef ENABLE_TENSORRT
-    auto pylon_detector_node      = std::make_shared<object_detection::PylonDetectorNode>(nodes_option);
-    auto traffic_signal_stop_node = std::make_shared<traffic_signal_stop::TrafficSignalStopNode>(nodes_option);
+    auto object_detector_node      = std::make_shared<object_detection::ObjectDetectorNode>(nodes_option);
+    auto traffic_signal_stop_node = blue ? nullptr : std::make_shared<traffic_signal_stop::TrafficSignalStopNode>(nodes_option);
     auto road_detector_node       = mapless ? nullptr : std::make_shared<road_detector::RoadDetectorNode>(nodes_option);
     auto vision_lane_planner_node = mapless && !use_e2e ? std::make_shared<vision_lane_planner::VisionLanePlannerNode>(nodes_option) : nullptr;
     auto path_smoother_node       = mapless ? std::make_shared<path_smoother::PathSmootherNode>(path_option) : nullptr;
 
-    exec.add_node(pylon_detector_node);
-    exec.add_node(traffic_signal_stop_node);
+    exec.add_node(object_detector_node);
+    if (!blue) {
+        exec.add_node(traffic_signal_stop_node);
+    }
     if (mapless) {
         if (vision_lane_planner_node) {
             exec.add_node(vision_lane_planner_node);

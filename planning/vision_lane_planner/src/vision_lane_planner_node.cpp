@@ -33,7 +33,6 @@ VisionLanePlannerNode::VisionLanePlannerNode(
     inference_ = std::make_unique<VisionLaneTensorrt>(engine_path);
     RCLCPP_INFO(get_logger(), "VisionPlannerエンジンを読み込みました: %s", engine_path.c_str());
 
-    camera_info_subscription_        = create_subscription<sensor_msgs::msg::CameraInfo>("/zed/zed_node/rgb/camera_info", rclcpp::SystemDefaultsQoS(), std::bind(&VisionLanePlannerNode::camera_info_callback, this, std::placeholders::_1));
     image_subscription_              = create_subscription<sensor_msgs::msg::Image>("/zed/zed_node/rgb/image_rect_color", rclcpp::SensorDataQoS().keep_last(1), std::bind(&VisionLanePlannerNode::image_callback, this, std::placeholders::_1));
     navigation_command_subscription_ = create_subscription<std_msgs::msg::String>("/planning/nav_cmd", rclcpp::SensorDataQoS().keep_last(1), std::bind(&VisionLanePlannerNode::navigation_command_callback, this, std::placeholders::_1));
 
@@ -42,23 +41,13 @@ VisionLanePlannerNode::VisionLanePlannerNode(
     debug_image_publisher_ = create_publisher<sensor_msgs::msg::Image>("/planning/vision_lane_debug_image", rclcpp::SensorDataQoS().keep_last(1));
 }
 
-void VisionLanePlannerNode::camera_info_callback(
-    const sensor_msgs::msg::CameraInfo::ConstSharedPtr msg) {
-    if (intrinsics_) return;
-
-    intrinsics_ = camera_utility::fromCameraInfo(*msg);
-    RCLCPP_INFO(get_logger(), "camera_info(%ux%u)を受信しました", msg->width, msg->height);
-}
-
 void VisionLanePlannerNode::navigation_command_callback(
     const std_msgs::msg::String::ConstSharedPtr msg) {
     commanded_slot_ = parse_slot(msg->data);
 }
 
 void VisionLanePlannerNode::image_callback(const sensor_msgs::msg::Image::ConstSharedPtr msg) {
-    if (!intrinsics_) return;
-
-    const cv::Mat source = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::RGB8)->image;
+    const cv::Mat source = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::BGR8)->image;
 
     // letterbox処理 360x640 → 384x640
     cv::Mat padded;
@@ -71,7 +60,7 @@ void VisionLanePlannerNode::image_callback(const sensor_msgs::msg::Image::ConstS
         RCLCPP_WARN(get_logger(), "推論に失敗しました: %s", inference_->last_error().c_str());
     }
 
-    const PathResult result = build_path(prediction, commanded_slot_, *intrinsics_, base_T_camera_, msg->header.stamp);
+    const PathResult result = build_path(prediction, commanded_slot_, label_intrinsics, base_T_camera_, msg->header.stamp);
     vision_path_publisher_->publish(std::make_unique<nav_msgs::msg::Path>(result.path));
 
     // サブスクライバがいる場合のみ実行
@@ -118,7 +107,7 @@ sensor_msgs::msg::Image::UniquePtr VisionLanePlannerNode::make_debug_image(
     const SlotPrediction&        prediction,
     const std_msgs::msg::Header& header) const {
     static const std::array<cv::Scalar, num_slots> slot_colors{
-        cv::Scalar(0, 220, 0), cv::Scalar(0, 120, 230), cv::Scalar(255, 140, 0)};
+        cv::Scalar(0, 220, 0), cv::Scalar(230, 120, 0), cv::Scalar(0, 140, 255)};
 
     cv::Mat canvas = source.clone();
     const std::size_t slot = static_cast<std::size_t>(commanded_slot_);
@@ -136,7 +125,7 @@ sensor_msgs::msg::Image::UniquePtr VisionLanePlannerNode::make_debug_image(
     }
 
     auto message = std::make_unique<sensor_msgs::msg::Image>();
-    cv_bridge::CvImage(header, sensor_msgs::image_encodings::RGB8, canvas).toImageMsg(*message);
+    cv_bridge::CvImage(header, sensor_msgs::image_encodings::BGR8, canvas).toImageMsg(*message);
     return message;
 }
 
