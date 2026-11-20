@@ -1,9 +1,10 @@
 launch:
   ros__parameters:
-    joy: false
-    sim : true
+    joy: true
+    sim : false
     mapless : true
-    e2e : false   # true で vision_lane_planner の代わりに e2e_planner が経路を出す (mapless のとき)
+    e2e : true    # true で vision_lane_planner の代わりに e2e_planner が経路を出す (mapless のとき)
+                  # e2e の経路は平滑化 (path_smoother) も回避 (local_planner) もせず、そのまま速度計画・追従に渡す
 
 /**:
   ros__parameters:
@@ -30,6 +31,8 @@ launch:
 controller_node:
   ros__parameters:
     linear_max_vel : 4.0
+    autonomous_button : 8       # 自動/手動の切り替え。実機の DS4 の Share
+    autonomous_button_sim : 11  # シミュレーション (sim: true) のとき。ELECOM JC-U4013S (DirectInput) の Start
 
 zed_wrapper_node:
   ros__parameters:
